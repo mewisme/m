@@ -1,0 +1,17 @@
+# Keep LF in the working tree on every OS (CI Windows runners included).
+* text=auto eol=lf
+
+*.go text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.jsonc text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.txt text eol=lf
+*.ndjson text eol=lf
+*.ps1 text eol=lf
+*.sh text eol=lf
+
+# Binary fixtures
+*.tgz binary
+*.gz binary

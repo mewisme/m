@@ -42,5 +42,26 @@ func CleanEnv(t testing.TB) CleanEnvInfo {
 	t.Setenv("MEW_CACHE_DIR", cache)
 	t.Setenv("MEW_STORE_DIR", store)
 	t.Setenv("MEW_CONFIG_DIR", config)
+
+	// Go module cache files are read-only; keep them outside t.TempDir() so
+	// cleanup does not fail after go build/run in isolated-home tests.
+	goRoot, err := os.MkdirTemp("", "mew-go-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { removeReadonlyTree(goRoot) })
+	t.Setenv("GOMODCACHE", filepath.Join(goRoot, "mod"))
+	t.Setenv("GOCACHE", filepath.Join(goRoot, "cache"))
+
 	return CleanEnvInfo{Home: home, CacheDir: cache, StoreDir: store, ConfigDir: config}
+}
+
+func removeReadonlyTree(root string) {
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err == nil && d != nil {
+			_ = os.Chmod(path, 0o700)
+		}
+		return nil
+	})
+	_ = os.RemoveAll(root)
 }
