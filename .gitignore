@@ -1,0 +1,48 @@
+# Build output
+/bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go test / profile artifacts
+*.test
+*.out
+*.prof
+coverage.*
+*.coverprofile
+
+# Package-manager trees (local dev, fixtures, dogfooding)
+/node_modules/
+node_modules.mew-old
+.mew-stage/
+
+# Local caches and stores (MEW_HOME / XDG defaults)
+.mew/
+
+# Secrets and local overrides
+.env
+.env.*
+!.env.example
+AGENTS.local.md
+CLAUDE.local.md
+
+# CodeGraph index (machine-local; see .codegraph/.gitignore)
+.codegraph/
+
+# Cursor MCP config contains absolute paths
+.cursor/mcp.json
+
+# Agent session state (durable threads stay local)
+.agents/threads/
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor / IDE (project rules live in .cursor/rules/)
+.idea/
+.vscode/
+*.swp
+*~

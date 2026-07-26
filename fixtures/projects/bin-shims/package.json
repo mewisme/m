@@ -1,0 +1,7 @@
+{
+  "name": "bin-shims",
+  "version": "1.0.0",
+  "dependencies": {
+    "pkg-cli": "^1.0.0"
+  }
+}

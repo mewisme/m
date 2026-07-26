@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "field": "neverBuiltDependencies",
+      "reason": "not represented in package-lock v3",
+      "sourceFormat": "pnpm-lock.yaml"
+    },
+    {
+      "field": "packages.foo.cpu",
+      "reason": "target format has no cpu filter",
+      "sourceFormat": "pnpm-lock.yaml",
+      "value": "arm64"
+    }
+  ]
+}

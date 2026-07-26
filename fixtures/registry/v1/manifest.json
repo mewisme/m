@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "blobs": [
+    {
+      "path": "packuments/@scope/pkg.json",
+      "sha256": "95a95aaca9290490507a020643d6fc05223af7b70f4c915f928bd21dd57e6c26"
+    },
+    {
+      "path": "packuments/cycle-a.json",
+      "sha256": "8bf92b9e2b692f5034d9baf2a9dd004e8bd9ef9d9f761235f6947778092338f7"
+    },
+    {
+      "path": "packuments/cycle-b.json",
+      "sha256": "0a7005fdf40a89d60a5d2c6b4c688fe7e7d4309232f7392979773a744add0636"
+    },
+    {
+      "path": "packuments/lodash.json",
+      "sha256": "8a4e08622eb3cbc1b07143d6516903c31aca4070261747c2b817dd84ff067356"
+    },
+    {
+      "path": "packuments/pkg-a.json",
+      "sha256": "9dfdf003dba406e5f060487ca851fab489a56d7d7701d5600e3d2de69aa53ac4"
+    },
+    {
+      "path": "packuments/pkg-b.json",
+      "sha256": "ae0139f72d3c8302b0c49c50087a98e5275a3b1c33393cdb602fe7dd263fd952"
+    },
+    {
+      "path": "packuments/pkg-c.json",
+      "sha256": "665e0097853a4b523b6909d2c6f4310dc02f5a7033a3cebc4a5e9b65a4546df4"
+    },
+    {
+      "path": "packuments/pkg-cli.json",
+      "sha256": "00c6bfea6bab06166f54ec5909025bbc83d0407cec7ffbb6f4cf5abe0a0213d8"
+    },
+    {
+      "path": "tarballs/lodash-4.17.21.tgz",
+      "sha256": "758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
+    },
+    {
+      "path": "tarballs/pkg-1.0.0.tgz",
+      "sha256": "74829c72b4555b2bad97262457652838d0cf6aa3eeedb028cda054c97bb953da"
+    },
+    {
+      "path": "tarballs/pkg-a-1.0.0.tgz",
+      "sha256": "2e1afab8b566a6ac1019ae2ba9201ea8a036b0ca1463ed2b22673d4cc87b2354"
+    },
+    {
+      "path": "tarballs/pkg-b-1.2.0.tgz",
+      "sha256": "24c92f24878bdc43d34f0397c47ebd529869e7e444c28813ecfda1b8a52d2d65"
+    },
+    {
+      "path": "tarballs/pkg-c-1.0.1.tgz",
+      "sha256": "9b75a3d4e441037d52cbcf35988036a38e8e931c5d77c71d729abc85a89ded6a"
+    },
+    {
+      "path": "tarballs/pkg-cli-1.0.0.tgz",
+      "sha256": "6ffb2697417ee0f02ad400c8d92c46cfb5889cf84603cd1f797146fde316b5d0"
+    }
+  ]
+}

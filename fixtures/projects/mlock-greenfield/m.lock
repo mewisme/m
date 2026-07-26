@@ -1,0 +1,27 @@
+{
+  "lockfileVersion": 1,
+  "checksum": "f99d2a3b91e1c6c7281fa8583b92c41bbc1b64ebee1aebb4baf6ea06c14db105",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask"
+    }
+  },
+  "importers": [
+    {
+      "id": ".",
+      "name": "mlock-greenfield",
+      "path": ".",
+      "specifiers": [
+        {
+          "name": "pkg-a",
+          "range": "^1.0.0",
+          "kind": "prod"
+        }
+      ]
+    }
+  ],
+  "packages": [],
+  "edges": []
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mew.dev/schemas/diagnostics/progress-event.schema.json",
+  "title": "Mew progress event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "v",
+    "type",
+    "phase"
+  ],
+  "properties": {
+    "v": {
+      "type": "integer",
+      "const": 1
+    },
+    "type": {
+      "type": "string",
+      "const": "progress"
+    },
+    "phase": {
+      "type": "string",
+      "minLength": 1
+    },
+    "package": {
+      "type": "string"
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total_bytes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "op_id": {
+      "type": "string"
+    },
+    "tx_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

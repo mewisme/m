@@ -1,0 +1,52 @@
+{
+  "dist-tags": {
+    "latest": "1.2.0"
+  },
+  "name": "pkg-b",
+  "versions": {
+    "1.0.0": {
+      "dependencies": {
+        "pkg-c": "^1.0.0"
+      },
+      "dist": {
+        "integrity": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "tarball": "pkg-b-1.0.0.tgz"
+      },
+      "name": "pkg-b",
+      "version": "1.0.0"
+    },
+    "1.1.0": {
+      "dependencies": {
+        "pkg-c": "^1.0.0"
+      },
+      "dist": {
+        "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "tarball": "pkg-b-1.1.0.tgz"
+      },
+      "name": "pkg-b",
+      "version": "1.1.0"
+    },
+    "1.2.0": {
+      "dependencies": {
+        "pkg-c": "^1.0.0"
+      },
+      "dist": {
+        "integrity": "sha256-24c92f24878bdc43d34f0397c47ebd529869e7e444c28813ecfda1b8a52d2d65",
+        "tarball": "pkg-b-1.2.0.tgz"
+      },
+      "name": "pkg-b",
+      "version": "1.2.0"
+    },
+    "2.0.0": {
+      "dependencies": {
+        "pkg-c": "1.0.0"
+      },
+      "dist": {
+        "integrity": "sha256-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "tarball": "pkg-b-2.0.0.tgz"
+      },
+      "name": "pkg-b",
+      "version": "2.0.0"
+    }
+  }
+}

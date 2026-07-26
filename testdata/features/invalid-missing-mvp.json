@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "features": [
+    {
+      "id": "pm.install",
+      "name": "install / i",
+      "module": "package-manager",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "tests": []
+    }
+  ]
+}

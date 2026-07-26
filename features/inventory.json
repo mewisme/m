@@ -1,0 +1,1279 @@
+{
+  "schema_version": "1",
+  "features": [
+    {
+      "id": "foundation.charter",
+      "name": "program charter and product contract",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0001",
+      "tests": []
+    },
+    {
+      "id": "foundation.features-inventory",
+      "name": "feature inventory and parity matrix",
+      "module": "foundation",
+      "nub_status": "intentional-omit",
+      "mew_status": "in-progress",
+      "compatibility_class": "extension",
+      "primary_mvp": "0002",
+      "tests": []
+    },
+    {
+      "id": "foundation.architecture",
+      "name": "target Go architecture and boundaries",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0003",
+      "tests": [
+        "internal/archcheck"
+      ]
+    },
+    {
+      "id": "foundation.repository-bootstrap",
+      "name": "repository bootstrap and quality gates",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0004",
+      "tests": [
+        "internal/testkit",
+        "internal/bootstrap",
+        "internal/cli"
+      ]
+    },
+    {
+      "id": "foundation.error-model",
+      "name": "stable error codes and diagnostics",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0005",
+      "tests": [
+        "internal/apperr",
+        "internal/diagnostics",
+        "internal/trace",
+        "internal/cli"
+      ]
+    },
+    {
+      "id": "foundation.config-identity",
+      "name": "configuration and PM identity detection",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0006",
+      "tests": [
+        "internal/config",
+        "internal/project",
+        "internal/cli"
+      ]
+    },
+    {
+      "id": "foundation.data-model",
+      "name": "canonical manifest and graph interfaces",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0007",
+      "tests": [
+        "internal/graph",
+        "internal/manifest",
+        "internal/resolver",
+        "internal/lockfile",
+        "internal/plan",
+        "internal/snapshot",
+        "internal/policy"
+      ]
+    },
+    {
+      "id": "foundation.testing-strategy",
+      "name": "fixtures, fuzzing, and conformance harness",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0008",
+      "tests": [
+        "internal/testkit",
+        "tests/integration",
+        "tests/conformance"
+      ]
+    },
+    {
+      "id": "foundation.release-train",
+      "name": "MVP dependency graph and release train",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0009",
+      "tests": [
+        "internal/releasetrain"
+      ]
+    },
+    {
+      "id": "foundation.cli",
+      "name": "m and mx CLI foundation",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0010",
+      "tests": [
+        "internal/cli",
+        "cmd/m",
+        "cmd/mx",
+        "internal/app"
+      ]
+    },
+    {
+      "id": "foundation.manifest-discovery",
+      "name": "package.json and project discovery",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0011",
+      "tests": [
+        "internal/manifest",
+        "internal/project",
+        "internal/workspace",
+        "internal/cli"
+      ]
+    },
+    {
+      "id": "foundation.core-stabilization",
+      "name": "package-manager core stabilization gate",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0031",
+      "tests": []
+    },
+    {
+      "id": "foundation.runner-stabilization",
+      "name": "runner stabilization gate",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0046",
+      "tests": []
+    },
+    {
+      "id": "foundation.runtime-stabilization",
+      "name": "runtime stabilization gate",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0057",
+      "tests": []
+    },
+    {
+      "id": "cross.conformance-program",
+      "name": "continuous conformance certification",
+      "module": "cross-cutting",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0080",
+      "tests": []
+    },
+    {
+      "id": "cross.performance-program",
+      "name": "performance measurement and gates",
+      "module": "cross-cutting",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0081",
+      "tests": []
+    },
+    {
+      "id": "cross.threat-model",
+      "name": "threat model and security reviews",
+      "module": "cross-cutting",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0082",
+      "tests": []
+    },
+    {
+      "id": "cross.migration-map",
+      "name": "Nub Rust to Mew Go migration map",
+      "module": "cross-cutting",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0083",
+      "tests": []
+    },
+    {
+      "id": "cross.versioning-policy",
+      "name": "versioning and support policy",
+      "module": "cross-cutting",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0084",
+      "tests": []
+    },
+    {
+      "id": "cross.dependency-roadmap",
+      "name": "Go dependency selection roadmap",
+      "module": "cross-cutting",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0085",
+      "tests": []
+    },
+    {
+      "id": "cross.ai-agent-protocol",
+      "name": "AI agent implementation protocol",
+      "module": "cross-cutting",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0086",
+      "tests": []
+    },
+    {
+      "id": "cross.definition-of-done",
+      "name": "global definition of done",
+      "module": "cross-cutting",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0087",
+      "tests": []
+    },
+    {
+      "id": "cross.reference-index",
+      "name": "reference index and research sources",
+      "module": "cross-cutting",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0088",
+      "tests": []
+    },
+    {
+      "id": "cross.research-spikes",
+      "name": "open research spikes and decision gates",
+      "module": "cross-cutting",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0089",
+      "tests": []
+    },
+    {
+      "id": "cross.future-backlog",
+      "name": "post-parity future extensions backlog",
+      "module": "cross-cutting",
+      "nub_status": "intentional-omit",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0090",
+      "tests": []
+    },
+    {
+      "id": "pm.install",
+      "name": "install / i",
+      "module": "package-manager",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0016",
+      "tests": ["internal/app", "internal/cli", "tests/integration"]
+    },
+    {
+      "id": "pm.ci",
+      "name": "ci / frozen clean install",
+      "module": "package-manager",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0016",
+      "tests": ["internal/cli", "tests/integration"]
+    },
+    {
+      "id": "pm.add-remove-update",
+      "name": "add / remove / update",
+      "module": "package-manager",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0016",
+      "tests": ["internal/app", "internal/cli", "tests/integration"]
+    },
+    {
+      "id": "pm.import-dedupe-prune",
+      "name": "import / dedupe / prune / rebuild",
+      "module": "package-manager",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0026",
+      "tests": []
+    },
+    {
+      "id": "pm.list-why-outdated",
+      "name": "list / why / outdated / view",
+      "module": "package-manager",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0026",
+      "tests": []
+    },
+    {
+      "id": "pm.fetch-pack-publish",
+      "name": "fetch / pack / publish",
+      "module": "package-manager",
+      "nub_status": "shipped",
+      "mew_status": "in-progress",
+      "compatibility_class": "parity",
+      "primary_mvp": "0014",
+      "tests": [
+        "internal/fetch",
+        "internal/archive",
+        "internal/app",
+        "tests/integration"
+      ]
+    },
+    {
+      "id": "pm.store-cache-config",
+      "name": "store / cache / config",
+      "module": "package-manager",
+      "nub_status": "shipped",
+      "mew_status": "in-progress",
+      "compatibility_class": "parity",
+      "primary_mvp": "0012",
+      "tests": [
+        "internal/cli",
+        "internal/config",
+        "internal/registry"
+      ]
+    },
+    {
+      "id": "pm.global-install",
+      "name": "global installs where retained",
+      "module": "package-manager",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0026",
+      "tests": []
+    },
+    {
+      "id": "resolver.semver",
+      "name": "npm semver ranges and tags",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0013",
+      "tests": [
+        "internal/semver",
+        "internal/resolver",
+        "internal/registry"
+      ]
+    },
+    {
+      "id": "resolver.transitive-graph",
+      "name": "transitive graph and cycles",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0013",
+      "tests": [
+        "internal/resolver",
+        "tests/integration"
+      ]
+    },
+    {
+      "id": "resolver.peers",
+      "name": "peer dependencies and peer contexts",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0020",
+      "tests": []
+    },
+    {
+      "id": "resolver.optional-platform",
+      "name": "optional/dev/platform dependencies",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0020",
+      "tests": []
+    },
+    {
+      "id": "resolver.overrides",
+      "name": "overrides and resolutions",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0020",
+      "tests": []
+    },
+    {
+      "id": "resolver.workspace-protocol",
+      "name": "workspace protocol and catalogs",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0022",
+      "tests": []
+    },
+    {
+      "id": "resolver.aliases",
+      "name": "aliases and npm protocol",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0020",
+      "tests": []
+    },
+    {
+      "id": "resolver.git-sources",
+      "name": "Git, hosted Git, file, link, portal, tarball",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0027",
+      "tests": []
+    },
+    {
+      "id": "resolver.patches",
+      "name": "patch dependencies",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0027",
+      "tests": []
+    },
+    {
+      "id": "resolver.minimum-release-age",
+      "name": "minimum release age",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0013",
+      "tests": [
+        "internal/resolver",
+        "internal/policy"
+      ]
+    },
+    {
+      "id": "registry.npm-compatible",
+      "name": "npm-compatible registries",
+      "module": "registry",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0012",
+      "tests": [
+        "internal/registry",
+        "internal/fetch",
+        "internal/cli",
+        "tests/integration"
+      ]
+    },
+    {
+      "id": "registry.scoped-private",
+      "name": "scoped and private registries",
+      "module": "registry",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0012",
+      "tests": [
+        "internal/registry",
+        "internal/config"
+      ]
+    },
+    {
+      "id": "registry.transport",
+      "name": "proxy, custom CA, redirects, gzip",
+      "module": "registry",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0012",
+      "tests": [
+        "internal/fetch",
+        "internal/registry"
+      ]
+    },
+    {
+      "id": "registry.metadata-cache",
+      "name": "metadata and tarball cache",
+      "module": "registry",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0012",
+      "tests": [
+        "internal/registry",
+        "tests/integration"
+      ]
+    },
+    {
+      "id": "registry.integrity",
+      "name": "SHA-512 SRI and legacy shasum",
+      "module": "registry",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0014",
+      "tests": [
+        "internal/fetch",
+        "tests/integration"
+      ]
+    },
+    {
+      "id": "registry.safe-extraction",
+      "name": "safe archive extraction",
+      "module": "registry",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0014",
+      "tests": [
+        "internal/archive",
+        "tests/integration"
+      ]
+    },
+    {
+      "id": "registry.offline",
+      "name": "offline and prefer-offline",
+      "module": "registry",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0012",
+      "tests": [
+        "internal/registry"
+      ]
+    },
+    {
+      "id": "lockfile.m-lock",
+      "name": "m.lock native format",
+      "module": "lockfile",
+      "nub_status": "intentional-omit",
+      "mew_status": "shipped",
+      "compatibility_class": "extension",
+      "primary_mvp": "0015",
+      "tests": [
+        "internal/lockfile/mlock",
+        "internal/cli",
+        "tests/integration"
+      ]
+    },
+    {
+      "id": "lockfile.nub-lock",
+      "name": "nub.lock read/write",
+      "module": "lockfile",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0023",
+      "tests": []
+    },
+    {
+      "id": "lockfile.pnpm",
+      "name": "pnpm lockfiles",
+      "module": "lockfile",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0023",
+      "tests": []
+    },
+    {
+      "id": "lockfile.npm",
+      "name": "package-lock and shrinkwrap",
+      "module": "lockfile",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0024",
+      "tests": []
+    },
+    {
+      "id": "lockfile.bun",
+      "name": "bun.lock",
+      "module": "lockfile",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0025",
+      "tests": []
+    },
+    {
+      "id": "lockfile.yarn-classic",
+      "name": "Yarn Classic",
+      "module": "lockfile",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0025",
+      "tests": []
+    },
+    {
+      "id": "lockfile.yarn-berry",
+      "name": "Yarn Berry and PnP artifacts",
+      "module": "lockfile",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0025",
+      "tests": []
+    },
+    {
+      "id": "lockfile.preservation",
+      "name": "existing-format preservation",
+      "module": "lockfile",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0023",
+      "tests": []
+    },
+    {
+      "id": "lockfile.semantic-diff",
+      "name": "semantic diff and validation",
+      "module": "lockfile",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0028",
+      "tests": []
+    },
+    {
+      "id": "lockfile.migration",
+      "name": "explicit lock migration and loss report",
+      "module": "lockfile",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0028",
+      "tests": []
+    },
+    {
+      "id": "linker.hoisted",
+      "name": "hoisted node_modules",
+      "module": "linker",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0016",
+      "tests": ["internal/linker/hoisted", "tests/integration"]
+    },
+    {
+      "id": "linker.isolated",
+      "name": "isolated virtual store",
+      "module": "linker",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0019",
+      "tests": []
+    },
+    {
+      "id": "linker.global-store",
+      "name": "global content-addressed store",
+      "module": "linker",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0018",
+      "tests": []
+    },
+    {
+      "id": "linker.platform-links",
+      "name": "hardlink / symlink / junction behavior",
+      "module": "linker",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0018",
+      "tests": []
+    },
+    {
+      "id": "linker.reflink-planner",
+      "name": "reflink and automatic filesystem planning",
+      "module": "linker",
+      "nub_status": "intentional-omit",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0018",
+      "tests": []
+    },
+    {
+      "id": "linker.transactional-install",
+      "name": "transactional install and recovery",
+      "module": "linker",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0017",
+      "tests": []
+    },
+    {
+      "id": "linker.rollback-history",
+      "name": "instant rollback and history",
+      "module": "linker",
+      "nub_status": "intentional-omit",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0017",
+      "tests": []
+    },
+    {
+      "id": "linker.time-travel",
+      "name": "dependency time travel",
+      "module": "linker",
+      "nub_status": "intentional-omit",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0028",
+      "tests": []
+    },
+    {
+      "id": "linker.capsules",
+      "name": "portable capsules",
+      "module": "linker",
+      "nub_status": "intentional-omit",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0029",
+      "tests": []
+    },
+    {
+      "id": "lifecycle.scripts",
+      "name": "lifecycle scripts",
+      "module": "lifecycle",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0021",
+      "tests": []
+    },
+    {
+      "id": "lifecycle.trusted-deps",
+      "name": "trusted dependencies / build approval",
+      "module": "lifecycle",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0021",
+      "tests": []
+    },
+    {
+      "id": "lifecycle.sandbox",
+      "name": "script sandbox",
+      "module": "lifecycle",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0021",
+      "tests": []
+    },
+    {
+      "id": "lifecycle.build-cache",
+      "name": "build-output cache",
+      "module": "lifecycle",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0021",
+      "tests": []
+    },
+    {
+      "id": "security.audit",
+      "name": "audit and advisories",
+      "module": "security",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0030",
+      "tests": []
+    },
+    {
+      "id": "security.sbom",
+      "name": "SBOM export",
+      "module": "security",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0030",
+      "tests": []
+    },
+    {
+      "id": "security.provenance",
+      "name": "provenance and signatures",
+      "module": "security",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0027",
+      "tests": []
+    },
+    {
+      "id": "security.policy-as-code",
+      "name": "policy-as-code",
+      "module": "security",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0030",
+      "tests": []
+    },
+    {
+      "id": "workspace.discovery",
+      "name": "workspace discovery and graph",
+      "module": "workspace",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0022",
+      "tests": []
+    },
+    {
+      "id": "workspace.filtered-commands",
+      "name": "recursive and filtered commands",
+      "module": "workspace",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0022",
+      "tests": []
+    },
+    {
+      "id": "workspace.parallel-scripts",
+      "name": "topological and parallel script execution",
+      "module": "workspace",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0041",
+      "tests": []
+    },
+    {
+      "id": "runner.m-run",
+      "name": "m run script",
+      "module": "runner",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0040",
+      "tests": []
+    },
+    {
+      "id": "runner.hooks-env",
+      "name": "pre/post hooks and npm environment",
+      "module": "runner",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0040",
+      "tests": []
+    },
+    {
+      "id": "runner.reporters",
+      "name": "reporters and NDJSON",
+      "module": "runner",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0005",
+      "tests": []
+    },
+    {
+      "id": "runner.direct-shortcuts",
+      "name": "direct m dev / m start shortcuts",
+      "module": "runner",
+      "nub_status": "intentional-omit",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0042",
+      "tests": []
+    },
+    {
+      "id": "runner.interactive-select",
+      "name": "interactive script selection",
+      "module": "runner",
+      "nub_status": "intentional-omit",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0042",
+      "tests": []
+    },
+    {
+      "id": "exec.local",
+      "name": "local package binary execution (m exec)",
+      "module": "executable",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0043",
+      "tests": []
+    },
+    {
+      "id": "exec.mx-dlx",
+      "name": "local-first temporary execution (mx)",
+      "module": "executable",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0044",
+      "tests": []
+    },
+    {
+      "id": "exec.package-flags",
+      "name": "package flags and multiple packages",
+      "module": "executable",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0044",
+      "tests": []
+    },
+    {
+      "id": "exec.consent",
+      "name": "consent and non-TTY fail-closed behavior",
+      "module": "executable",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0044",
+      "tests": []
+    },
+    {
+      "id": "exec.cache-offline",
+      "name": "execution cache and offline mode",
+      "module": "executable",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0044",
+      "tests": []
+    },
+    {
+      "id": "exec.snapshot-capsule",
+      "name": "snapshot and capsule execution",
+      "module": "executable",
+      "nub_status": "intentional-omit",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0045",
+      "tests": []
+    },
+    {
+      "id": "runtime.js-cjs-esm",
+      "name": "run JS/CJS/ESM",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0050",
+      "tests": []
+    },
+    {
+      "id": "runtime.typescript",
+      "name": "run TS/MTS/CTS",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0051",
+      "tests": []
+    },
+    {
+      "id": "runtime.jsx",
+      "name": "JSX/TSX",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0052",
+      "tests": []
+    },
+    {
+      "id": "runtime.decorators",
+      "name": "legacy and standard decorators",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0052",
+      "tests": []
+    },
+    {
+      "id": "runtime.decorator-metadata",
+      "name": "decorator metadata",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0052",
+      "tests": []
+    },
+    {
+      "id": "runtime.tsconfig-paths",
+      "name": "tsconfig and path aliases",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0051",
+      "tests": []
+    },
+    {
+      "id": "runtime.sourcemaps",
+      "name": "source maps",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0052",
+      "tests": []
+    },
+    {
+      "id": "runtime.loaders",
+      "name": "custom loaders and preloads",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0053",
+      "tests": []
+    },
+    {
+      "id": "runtime.env-loading",
+      "name": "environment auto-loading",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0054",
+      "tests": []
+    },
+    {
+      "id": "runtime.workers-storage",
+      "name": "workers and Web Storage",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0054",
+      "tests": []
+    },
+    {
+      "id": "runtime.watch",
+      "name": "watch and automatic restart",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0055",
+      "tests": []
+    },
+    {
+      "id": "runtime.debugger",
+      "name": "debugger and inspector",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0056",
+      "tests": []
+    },
+    {
+      "id": "runtime.plain-node",
+      "name": "plain Node escape hatch",
+      "module": "runtime",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0050",
+      "tests": []
+    },
+    {
+      "id": "node.install-use",
+      "name": "Node install/use/list/remove",
+      "module": "node-manager",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0060",
+      "tests": []
+    },
+    {
+      "id": "node.version-discovery",
+      "name": "nvmrc/node-version/engines discovery",
+      "module": "node-manager",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0060",
+      "tests": []
+    },
+    {
+      "id": "node.auto-provision",
+      "name": "automatic Node provisioning",
+      "module": "node-manager",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0060",
+      "tests": []
+    },
+    {
+      "id": "pm-manager.detect-pin",
+      "name": "PM detect/pin/update/migrate/cache",
+      "module": "pm-manager",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0061",
+      "tests": []
+    },
+    {
+      "id": "shim.corepack",
+      "name": "Corepack-style shims",
+      "module": "shim",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0062",
+      "tests": []
+    },
+    {
+      "id": "shim.node-plain",
+      "name": "Node PATH shim without augmentation",
+      "module": "shim",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0062",
+      "tests": []
+    },
+    {
+      "id": "shim.mew-self",
+      "name": "Mew self-version shim",
+      "module": "shim",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0062",
+      "tests": []
+    },
+    {
+      "id": "product.ts-init",
+      "name": "TypeScript-first init",
+      "module": "product",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0070",
+      "tests": []
+    },
+    {
+      "id": "product.template-delegation",
+      "name": "template delegation through mx",
+      "module": "product",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0070",
+      "tests": []
+    },
+    {
+      "id": "plugin.external-verbs",
+      "name": "external verb plugins (m-\u003cverb\u003e)",
+      "module": "plugin",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0071",
+      "tests": []
+    },
+    {
+      "id": "dist.installers",
+      "name": "direct installers",
+      "module": "distribution",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0072",
+      "tests": []
+    },
+    {
+      "id": "dist.channels",
+      "name": "package channels",
+      "module": "distribution",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0072",
+      "tests": []
+    },
+    {
+      "id": "dist.self-update",
+      "name": "self-update",
+      "module": "distribution",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0072",
+      "tests": []
+    },
+    {
+      "id": "dist.github-action",
+      "name": "GitHub Action",
+      "module": "distribution",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0073",
+      "tests": []
+    },
+    {
+      "id": "dist.docker-builders",
+      "name": "Docker and hosted builders",
+      "module": "distribution",
+      "nub_status": "shipped",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
+      "primary_mvp": "0074",
+      "tests": []
+    }
+  ]
+}

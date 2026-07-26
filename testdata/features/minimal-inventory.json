@@ -1,0 +1,25 @@
+{
+  "schema_version": "1",
+  "features": [
+    {
+      "id": "foundation.charter",
+      "name": "program charter and product contract",
+      "module": "foundation",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "parity",
+      "primary_mvp": "0001",
+      "tests": []
+    },
+    {
+      "id": "runner.direct-shortcuts",
+      "name": "direct m dev / m start shortcuts",
+      "module": "runner",
+      "nub_status": "intentional-omit",
+      "mew_status": "planned",
+      "compatibility_class": "extension",
+      "primary_mvp": "0042",
+      "tests": []
+    }
+  ]
+}

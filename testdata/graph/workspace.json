@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "importers": [
+    {
+      "id": ".",
+      "name": "root",
+      "path": "."
+    },
+    {
+      "id": "packages/a",
+      "name": "a",
+      "path": "packages/a"
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "shared",
+        "version": "1.0.0"
+      },
+      "integrity": "sha512-shared",
+      "tarballUrl": "https://example.com/shared-1.0.0.tgz"
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "to": "shared@1.0.0",
+      "kind": "prod",
+      "range": "^1.0.0"
+    },
+    {
+      "from": "packages/a",
+      "to": "shared@1.0.0",
+      "kind": "prod",
+      "range": "^1.0.0"
+    }
+  ]
+}

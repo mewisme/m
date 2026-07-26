@@ -1,0 +1,61 @@
+{
+  "lockfileVersion": 1,
+  "checksum": "51b77b01b3f5e33e928b04ff114f3d5a8dbbec8e4528ae6fca695a081b4f4eed",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask"
+    }
+  },
+  "importers": [
+    {
+      "id": ".",
+      "name": "root",
+      "path": ".",
+      "specifiers": [
+        {
+          "name": "shared",
+          "range": "^1.0.0",
+          "kind": "prod"
+        }
+      ]
+    },
+    {
+      "id": "packages/a",
+      "name": "a",
+      "path": "packages/a",
+      "specifiers": [
+        {
+          "name": "shared",
+          "range": "^1.0.0",
+          "kind": "prod"
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "shared",
+        "version": "1.0.0"
+      },
+      "integrity": "sha512-shared",
+      "tarballUrl": "https://example.com/shared-1.0.0.tgz"
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "to": "shared@1.0.0",
+      "kind": "prod",
+      "range": "^1.0.0"
+    },
+    {
+      "from": "packages/a",
+      "to": "shared@1.0.0",
+      "kind": "prod",
+      "range": "^1.0.0"
+    }
+  ]
+}

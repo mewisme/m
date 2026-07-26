@@ -1,0 +1,140 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+      - name: Test
+        run: go test ./... -count=1
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: |
+          go build -o bin/m${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/m
+          go build -o bin/mx${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/mx
+      - name: Doctor stub
+        run: go run ./cmd/m development doctor
+
+  race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+      - name: Race
+        run: go test -race ./... -count=1
+
+  cross:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+      - name: Cross-compile
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          ext=""
+          if [ "$GOOS" = "windows" ]; then ext=".exe"; fi
+          go build -o "/tmp/m-${GOOS}-${GOARCH}${ext}" ./cmd/m
+          go build -o "/tmp/mx-${GOOS}-${GOARCH}${ext}" ./cmd/mx
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+      - name: Load tool versions
+        id: ver
+        run: |
+          set -a
+          # shellcheck disable=SC1091
+          source tools/versions.env
+          set +a
+          echo "golangci=${GOLANGCI_LINT_VERSION}" >> "$GITHUB_OUTPUT"
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          version: ${{ steps.ver.outputs.golangci }}
+
+  vuln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+      - name: govulncheck
+        run: |
+          set -a
+          # shellcheck disable=SC1091
+          source tools/versions.env
+          set +a
+          go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
+          govulncheck ./...
+
+  allowlist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+      - name: License and deps
+        run: |
+          go run ./tools/check-license
+          go run ./tools/check-deps
+          go test ./tools/check-deps -count=1
+
+  gate-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+      - name: Prove go vet fails on bad input
+        run: |
+          set -euo pipefail
+          dir="$(mktemp -d)"
+          cd "$dir"
+          go mod init badprobe
+          cat >bad.go <<'EOF'
+          package badprobe
+          import "fmt"
+          func F() { x := 1 }
+          EOF
+          if go vet ./...; then
+            echo "expected go vet to fail" >&2
+            exit 1
+          fi
+          echo "ok: go vet rejected bad input"
+      - name: Prove allowlist probe rejects banned module
+        run: go test ./tools/check-deps -count=1 -run TestAllowlistRejectsUnknown

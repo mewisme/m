@@ -1,0 +1,627 @@
+{
+  "0001": {
+    "phase": "Foundation",
+    "packages": [
+      "docs/charter.md",
+      "docs/compatibility-axes.md",
+      "AGENTS.md"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Product identity `m`/`mx` | Nub `nub`/`nubx` | Mew naming | 0001 |",
+      "| Direct script shortcuts policy | Absent in Nub | Intentional extension | 0001, 0042 |",
+      "| Lockfile preservation rule | Nub policy | Mandatory Mew policy | 0001, 0023-0025 |",
+      "| Native lockfile `m.lock` | Nub `nub.lock` | First-class Mew identity | 0001, 0015 |"
+    ],
+    "dataFlowNodes": "charter[ProductCharter] --> axes[CompatibilityAxes] --> naming[StableNaming] --> adr[DecisionRecords] --> later[LaterMVPs]",
+    "commandsFlags": "| Surface | Notes |\n|---|---|\n| `m --version` / `mx --version` | Identity strings only until 0010 |\n| Docs-only commands | No implementation required in 0001 |\n\nEnvironment: none yet. Exit codes: document reserved ranges only.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| `docs/charter.md` | Product contract |\n| `docs/compatibility-axes.md` | Parity / divergence / extension / deferred matrix |\n| ADR stubs under `docs/adr/` | Irreversible format decisions |",
+    "scopeItems": [
+      "Write product charter covering Mew, Mewx, m.lock, and Nub parity goal",
+      "Define compatibility axes: CLI grammar, lockfile, config, runtime, layout",
+      "Document supported OS/arch and Node floor",
+      "Freeze binary, config, cache, env, and error-code naming conventions",
+      "Document experimental-feature and versioning policy",
+      "Create compatibility-state vocabulary: parity, intentional divergence, extension, deferred",
+      "Document dispatch precedence reserved for 0042 script shortcuts",
+      "Document existing-lockfile preservation and new-project m.lock default",
+      "List signature Mew differentiators with owning MVP IDs",
+      "Draft user-facing identity strings for --version placeholders",
+      "Draft migration narrative outline for npm/pnpm/Yarn/Bun/Nub users",
+      "Review charter against representative npm, pnpm, Bun, Yarn, and Nub projects",
+      "Verify every later INDEX module maps to an explicit product objective",
+      "Add charter consistency checklist used by later MVP reviews",
+      "Publish charter in docs/ and link from README/AGENTS.md",
+      "Create ADR template for irreversible decisions",
+      "Record open human-owned decisions with owners"
+    ],
+    "fixtures": [
+      "fixtures/charter/npm-app — existing package-lock project for preservation wording",
+      "fixtures/charter/pnpm-app — pnpm-lock.yaml project",
+      "fixtures/charter/nub-app — nub.lock project",
+      "fixtures/charter/empty — greenfield m.lock default wording"
+    ],
+    "acceptance": [
+      "Charter names m, mx, m.lock, and Nub as behavioral reference without source-port language",
+      "Compatibility axes table covers CLI, lockfile, config, runtime, and layout",
+      "Every INDEX MVP maps to at least one charter objective",
+      "Direct script shortcuts listed as intentional Mew extension",
+      "ADR process documented before any persistent format is designed"
+    ],
+    "conformance": [
+      "Nub product positioning — parity intent | parity",
+      "Nub MIT/repo conventions — process only | defer",
+      "Direct m <script> — Mew extension | extension"
+    ],
+    "openDecisions": [
+      "Exact Node LTS floor for v1 (link 0084/0089)",
+      "Whether github.com/mewisme/m/mewx alias binaries ship in v1 installers"
+    ],
+    "todoSummaries": [
+      "contracts: Freeze charter and compatibility axes",
+      "naming: Freeze binary/config/env/error naming",
+      "policy: Lockfile preservation and experimental gates",
+      "docs: Publish charter + ADR template",
+      "verify: Map INDEX MVPs to charter objectives",
+      "migration: Draft incumbent PM migration narrative"
+    ]
+  },
+  "0002": {
+    "phase": "Foundation",
+    "packages": [
+      "internal/features",
+      "cmd/m",
+      "testdata/features"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker",
+      "internal/runtime"
+    ],
+    "featureRows": [
+      "| m features table/json | Planned | Machine-readable inventory | 0002 |",
+      "| Full capability matrix | Nub surface + Mew extensions | Single inventory schema | 0002 |",
+      "| CI inventory gates | Nub conformance lists | Shipped-command coverage | 0002, 0080 |"
+    ],
+    "dataFlowNodes": "nubDocs[NubDocs] --> extract[InventoryExtract] --> schema[features.json] --> cli[m features] --> ci[CIGates]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m features` | `--format table\\|json`, `--module`, `--status` | May be stubbed until CLI 0010 |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| `features/inventory.schema.json` | Versioned schema |\n| `features/inventory.json` | Authoritative inventory |\n| Generated docs tables | Human-readable views |",
+    "scopeItems": [
+      "Define versioned feature-inventory JSON schema",
+      "Define statuses: planned, in-progress, shipped, intentional-omit, deferred",
+      "Define compatibility_class: parity, extension, divergence, deferred",
+      "Require fields: id, module, nub_status, mew_status, primary_mvp, tests[]",
+      "Extract all public Nub commands, flags, config keys, and documented behaviors",
+      "Add Mew-only features from charter",
+      "Assign every feature to exactly one primary MVP",
+      "Link conformance test IDs where known",
+      "Specify m features table and JSON output shapes",
+      "Hide internal source paths from user-facing output",
+      "Schema validation tests",
+      "Inventory-to-command-tree consistency test (after 0010)",
+      "Inventory-to-documentation consistency test",
+      "CI fails when shipped commands are absent from inventory",
+      "Generate human-readable tables from inventory",
+      "Document how agents update inventory on behavior changes",
+      "Ensure every INDEX MVP owns at least one inventory row"
+    ],
+    "fixtures": [
+      "testdata/features/minimal-inventory.json",
+      "testdata/features/invalid-missing-mvp.json",
+      "testdata/features/golden-table.txt"
+    ],
+    "acceptance": [
+      "Schema rejects inventory rows missing primary_mvp",
+      "Every INDEX MVP owns at least one inventory row",
+      "Mew extensions marked compatibility_class=extension",
+      "m features --format json validates against schema"
+    ],
+    "conformance": [
+      "Nub CLI verb inventory coverage | parity",
+      "Mew-only features flagged | extension"
+    ],
+    "openDecisions": [
+      "Whether inventory ships inside the binary via go:embed or remains docs-only until 0010"
+    ],
+    "todoSummaries": [
+      "schema: Freeze inventory JSON schema",
+      "extract: Populate Nub + Mew feature rows",
+      "assign: Map features to primary MVPs",
+      "cli: Specify m features output",
+      "ci: Add inventory consistency gates",
+      "docs: Generate human-readable inventory tables"
+    ]
+  },
+  "0003": {
+    "phase": "Foundation",
+    "packages": [
+      "cmd/m",
+      "cmd/mx",
+      "internal/app",
+      "internal/cli",
+      "internal/config",
+      "internal/manifest",
+      "internal/project",
+      "internal/workspace",
+      "internal/registry",
+      "internal/resolver",
+      "internal/lockfile",
+      "internal/fetch",
+      "internal/archive",
+      "internal/store",
+      "internal/linker",
+      "internal/transaction",
+      "internal/lifecycle",
+      "internal/policy",
+      "internal/runner",
+      "internal/process",
+      "internal/runtime",
+      "internal/transform",
+      "internal/node",
+      "internal/pmmanager",
+      "internal/compat",
+      "internal/testkit",
+      "runtime/"
+    ],
+    "forbiddenImports": [
+      "cmd/* must not import internal implementation details beyond app/cli",
+      "internal/cli must not import linker/resolver directly",
+      "internal/resolver must not import linker/fetch/store"
+    ],
+    "featureRows": [
+      "| Go control plane | Nub Rust CLI | Go packages | 0003 |",
+      "| Embedded JS loaders | Nub runtime/*.mjs | go:embed assets | 0003, 0050 |",
+      "| Transform service | nub-native OXC | Go transform + IPC | 0003, 0051 |",
+      "| Atomic mutation boundary | Aube engine | inspect→resolve→plan→fetch→verify→stage→commit | 0003, 0017 |"
+    ],
+    "dataFlowNodes": "cmd[cmd/m mx] --> app[internal/app] --> cli[internal/cli] --> pm[manifest project workspace registry resolver lockfile] --> mutate[fetch archive store linker transaction]",
+    "commandsFlags": "N/A — architecture document. Package import rules enforced by tests after 0004.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Architecture diagram in docs | Dependency direction |\n| `tools/archcheck` or go test import guards | Prevent cycles |\n| IPC protocol sketch for transform service | Versioned later in 0051 |",
+    "scopeItems": [
+      "Produce full package map with one-line purpose per directory",
+      "Define core interfaces: Registry, Resolver, Store, Linker, LockfileAdapter, Transaction, ScriptRunner, ProcessSupervisor",
+      "Decide immutability boundaries and copy-on-write points",
+      "Specify transform IPC framing, auth, cancellation sketch",
+      "Define extension points without public plugin ABI",
+      "Document stock-Node augmentation boundary (no libnode fork)",
+      "Document resolve-complete-before-mutate rule",
+      "Map every Nub crate to Mew package or intentional omission",
+      "List forbidden import edges",
+      "Keep cmd/m and cmd/mx as thin entrypoints in the diagram",
+      "Document presentation vs domain separation",
+      "Compile-time or test-time import graph checks",
+      "Interface fakes proving independent testability",
+      "IPC round-trip sketch tests when protocol exists",
+      "Expand proposed repository tree to full listing",
+      "Link architecture from AGENTS.md",
+      "Record decisions that block later MVPs",
+      "Document embedded runtime asset digest verification and cache versioning"
+    ],
+    "fixtures": [
+      "docs/architecture/package-map.md",
+      "docs/architecture/forbidden-imports.md"
+    ],
+    "acceptance": [
+      "Every AGENTS.md package appears in the map",
+      "No cyclic dependency in the documented graph",
+      "JS surface limited to Node extension APIs",
+      "Transaction boundary documented for all install-family mutations"
+    ],
+    "conformance": [
+      "Nub stock-Node augmentation | parity",
+      "OXC native addon replacement strategy | divergence"
+    ],
+    "openDecisions": [
+      "Transform IPC vs in-process only for v1 (see 0089)",
+      "Whether internal/pm umbrella package exists or flat packages only"
+    ],
+    "todoSummaries": [
+      "map: Finalize package map and forbidden edges",
+      "ifaces: Freeze core interfaces",
+      "boundary: Document Node augmentation + JS embed rules",
+      "archcheck: Specify import-graph tests",
+      "docs: Publish architecture package listing",
+      "nubmap: Map Nub crates to Mew packages"
+    ]
+  },
+  "0004": {
+    "phase": "Foundation",
+    "packages": [
+      "go.mod",
+      "cmd/m",
+      "cmd/mx",
+      "internal/testkit",
+      "Makefile",
+      ".github/workflows",
+      "AGENTS.md",
+      "tools/"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker",
+      "internal/fetch"
+    ],
+    "featureRows": [
+      "| Repo bootstrap | Nub workspace CI | Go module + gates | 0004 |",
+      "| Agent guidance | Nub AGENTS.md | AGENTS.md + skills | 0004 |",
+      "| Cross-platform CI matrix | Nub profiles | Linux/macOS/Windows amd64/arm64 | 0004 |"
+    ],
+    "dataFlowNodes": "clone[CleanClone] --> tools[PinnedTools] --> test[go test vet lint] --> ci[GitHubActionsMatrix] --> releaseReady[ReleaseTrainInput]",
+    "commandsFlags": "| Developer command | Purpose |\n|---|---|\n| `make test` / `go test ./...` | Unit + integration |\n| `make lint` | golangci-lint |\n| `make vet` | go vet |\n| `m development doctor` | Later; stub contract only |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| `go.mod` / `go.sum` | Module identity |\n| CI workflow YAMLs | Matrix builds |\n| Fixture home helpers | Isolated tests |",
+    "scopeItems": [
+      "Choose Go minimum version and document it",
+      "Initialize module path and license headers",
+      "Define directory skeleton matching 0003",
+      "Add Makefile/task targets: test, vet, lint, race, fuzz-smoke, vuln",
+      "Pin golangci-lint and govulncheck versions",
+      "Create internal/testkit with temp home and fixture registry helpers",
+      "Add license and dependency allowlist checks",
+      "Stub cmd/m and cmd/mx main packages compiling to --help placeholder",
+      "Document developer doctor command contract",
+      "Clean-clone bootstrap test",
+      "CI self-test that fails each quality gate intentionally in a job",
+      "Cross-platform compile matrix including Windows",
+      "Write AGENTS.md with ownership and reading order",
+      "Add CONTRIBUTING with exact commands",
+      "Document fixture checksum policy",
+      "Add GitHub Actions for Linux, macOS, Windows, amd64, arm64",
+      "Configure race tests and fuzz smoke targets"
+    ],
+    "fixtures": [
+      "fixtures/bootstrap/empty-module",
+      "internal/testkit examples"
+    ],
+    "acceptance": [
+      "Fresh clone: go test ./... passes on Linux/macOS/Windows CI",
+      "Lint and vet wired in CI",
+      "AGENTS.md present and linked from README",
+      "cmd/m and cmd/mx build"
+    ],
+    "conformance": [
+      "Nub CI discipline — process parity | parity"
+    ],
+    "openDecisions": [
+      "Makefile vs just vs task — pick one runner",
+      "Module path github org/name finalization"
+    ],
+    "todoSummaries": [
+      "module: Init go.mod and package skeleton",
+      "gates: Wire test vet lint race vuln",
+      "ci: Add OS/arch matrix",
+      "testkit: Temp home + fixture helpers",
+      "docs: AGENTS.md + CONTRIBUTING",
+      "doctor: Stub m development doctor contract"
+    ]
+  },
+  "0005": {
+    "phase": "Foundation",
+    "packages": [
+      "internal/diagnostics",
+      "internal/apperr",
+      "internal/trace"
+    ],
+    "forbiddenImports": [
+      "internal/registry",
+      "internal/fetch",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| Stable error codes | Nub diagnostics | ERR_M_* registry | 0005 |",
+      "| Progress events / NDJSON | Nub reporters | Event schema | 0005, 0040 |",
+      "| Credential redaction | Nub presentation | Fail-closed scrubbing | 0005 |"
+    ],
+    "dataFlowNodes": "op[Operation] --> err[TypedError+Code] --> redact[Redaction] --> out[HumanOrNDJSON]",
+    "commandsFlags": "| Flag / env | Purpose |\n|---|---|\n| `--reporter default\\|ndjson` | Structured diagnostics |\n| `--debug` / `M_LOG=debug` | Verbose traces |\n| `--color` / `--no-color` | Presentation |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Error code registry doc | Stable codes |\n| Event schema JSON | Progress/reporter contracts |\n| `m doctor report` archive spec | Debug bundles without secrets |",
+    "scopeItems": [
+      "Define typed error with stable code, operation, subject",
+      "Publish initial error code registry",
+      "Define progress event schema (phase, package, bytes, …)",
+      "Define redaction rules for URLs, tokens, headers",
+      "Implement error wrapping helpers",
+      "Implement human and NDJSON reporters",
+      "Implement cancellation mapping to exit codes",
+      "Add trace span hooks without mandatory OTel dependency",
+      "Map codes to exit statuses",
+      "Ensure secrets never print in default or debug modes without explicit unsafe flag",
+      "Table tests for code→exit mapping",
+      "Redaction golden tests",
+      "Progress event golden tests",
+      "Document codes for users and agents",
+      "Document reporter formats",
+      "Implement TTY detection, color policy, and width-safe rendering",
+      "Add panic recovery at command boundaries with crash IDs"
+    ],
+    "fixtures": [
+      "testdata/diagnostics/redact-cases.json",
+      "testdata/diagnostics/progress-golden.ndjson",
+      "testdata/diagnostics/error-golden.json"
+    ],
+    "acceptance": [
+      "Every public failure path yields a stable code",
+      "Tokens in registry URLs are redacted in logs",
+      "JSON reporter validates against schema",
+      "NDJSON progress events are line-atomic under concurrency"
+    ],
+    "conformance": [
+      "Nub reporter concepts | parity",
+      "Mew error code registry | extension"
+    ],
+    "openDecisions": [
+      "Adopt OpenTelemetry optionally later vs custom spans only"
+    ],
+    "todoSummaries": [
+      "codes: Freeze error code registry",
+      "types: Implement typed errors + wrapping",
+      "reporter: Human + NDJSON progress",
+      "redact: Credential/URL redaction",
+      "tests: Golden diagnostics fixtures",
+      "panic: Command-boundary panic recovery"
+    ]
+  },
+  "0006": {
+    "phase": "Foundation",
+    "packages": [
+      "internal/config",
+      "internal/project"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker",
+      "internal/fetch"
+    ],
+    "featureRows": [
+      "| Layered config | Nub/npmrc-like | Mew config layers | 0006 |",
+      "| PM identity detection | Nub | packageManager + lockfile order | 0006 |",
+      "| Source-aware config | Nub JSONC | Provenance on effective values | 0006 |"
+    ],
+    "dataFlowNodes": "env[Env] --> merge[ConfigMerge] --> identity[IdentityDetect] --> effective[EffectiveConfig]",
+    "commandsFlags": "| Command | Notes |\n|---|---|\n| `m config get/set/list` | May land with 0026; define keys now |\n| `m config list --sources` | Show layer provenance |\n| Global flags | `--config`, `--cwd`, `--offline` |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| User config file | `~/.config/github.com/mewisme/m/config.toml` (final path per naming doc) |\n| Project config | Neutral names where convention exists |\n| Effective config dump | Debug only with redaction |",
+    "scopeItems": [
+      "Define config layer precedence: defaults, global, project, env, CLI",
+      "Define identity detection order matching AGENTS.md",
+      "List owned config keys vs pass-through npmrc keys",
+      "Forbid reading unrelated branded PM config as authority",
+      "Implement layered loader with deterministic merge",
+      "Implement identity detector for packageManager, devEngines, lockfile, Mew native",
+      "Implement offline/prefer-offline flags in config model",
+      "Validate unknown keys policy (warn vs fail)",
+      "Specify config command grammar",
+      "Effective-config debug output with redaction",
+      "Precedence table tests",
+      "Identity detection fixtures for each lockfile type",
+      "Malformed config fail-closed tests",
+      "Document every public config key",
+      "Document identity detection with examples",
+      "Preserve comments and ordering when modifying user-owned JSONC",
+      "Separate credential references from non-secret configuration",
+      "Add unsupported-config diagnostics that never silently ignore safety-critical options"
+    ],
+    "fixtures": [
+      "fixtures/identity/npm-lock",
+      "fixtures/identity/pnpm-lock",
+      "fixtures/identity/nub-lock",
+      "fixtures/identity/packageManager-field",
+      "fixtures/identity/conflict-signals"
+    ],
+    "acceptance": [
+      "Detection order matches AGENTS.md",
+      "Conflicting signals produce explicit errors, not silent picks",
+      "Env overrides project overrides user as documented",
+      "pnpm-specific files are not read for Mew-identity projects unless importing"
+    ],
+    "conformance": [
+      "packageManager field precedence | parity",
+      "No foreign branded config authority | extension"
+    ],
+    "openDecisions": [
+      "TOML vs JSON vs yaml for Mew-native config file",
+      "Final neutral project config filename (m.jsonc vs ADR-selected name)"
+    ],
+    "todoSummaries": [
+      "layers: Freeze config precedence",
+      "identity: Implement detection order",
+      "keys: Publish owned config key list",
+      "tests: Identity + merge fixtures",
+      "docs: Config reference",
+      "creds: Separate credential references from config"
+    ]
+  },
+  "0007": {
+    "phase": "Foundation",
+    "packages": [
+      "internal/manifest",
+      "internal/lockfile",
+      "internal/resolver",
+      "internal/policy",
+      "internal/transaction"
+    ],
+    "forbiddenImports": [
+      "internal/fetch",
+      "internal/linker",
+      "internal/registry"
+    ],
+    "featureRows": [
+      "| Canonical graph model | Aube models | Go types | 0007 |",
+      "| Plan / snapshot models | Mew extension | Shared types | 0007, 0017, 0028 |",
+      "| Loss-report model | Lock adapters | Round-trip fidelity | 0007, 0023 |"
+    ],
+    "dataFlowNodes": "manifest[Manifest] --> graph[CanonicalGraph] --> lock[LockAdapters] --> plan[MutationPlan] --> tx[Transaction]",
+    "commandsFlags": "N/A — data model freeze only.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Versioned Go types | Shared across core |\n| Golden JSON/YAML encodings | Deterministic ordering tests |",
+    "scopeItems": [
+      "Freeze Manifest, Dependency, Importer, Package, Graph, Edge types",
+      "Freeze ResolutionDecision and PeerContext types",
+      "Freeze Policy, Plan, Snapshot, Capsule descriptors",
+      "Define deterministic sort keys for all collections",
+      "Define immutability rules for graph values",
+      "Define ID schemes for packages and importers",
+      "Define integrity and tarball URL fields",
+      "Define migration-friendly version fields",
+      "Keep source-format fields in adapter-owned extension maps",
+      "Use sorted slices or explicit deterministic encoders rather than map iteration",
+      "Specify explain/plan JSON shapes consumed by 0028",
+      "Round-trip golden encoding tests",
+      "Ordering stability tests",
+      "Invalid graph rejection tests",
+      "Publish data-model doc with diagrams",
+      "Link types to owning packages",
+      "Provide builders for tests while keeping production models immutable after validation",
+      "Version serialized internal caches independently from public lockfiles"
+    ],
+    "fixtures": [
+      "testdata/graph/simple-app.json",
+      "testdata/graph/peers.json",
+      "testdata/graph/workspace.json",
+      "testdata/graph/loss-report.json"
+    ],
+    "acceptance": [
+      "All later core MVPs can depend on these types without reaching into adapters",
+      "Deterministic encoding byte-identical across platforms",
+      "Version field present on every persistent model",
+      "Peer-context identity collisions are detectable and rejected"
+    ],
+    "conformance": [
+      "Aube canonical graph concepts | parity"
+    ],
+    "openDecisions": [
+      "Exact package ID string format (link 0015)"
+    ],
+    "todoSummaries": [
+      "types: Freeze canonical Go models",
+      "ids: Freeze package/importer ID schemes",
+      "order: Deterministic collection ordering",
+      "golden: Encoding fixtures",
+      "docs: Data-model reference",
+      "loss: Define loss-report model for adapter round-trips"
+    ]
+  },
+  "0008": {
+    "phase": "Foundation",
+    "packages": [
+      "internal/testkit",
+      "tests/conformance",
+      "tests/integration",
+      "fixtures/registry",
+      "fixtures/projects"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Fixture registry | Nub/Aube tests | Local registry | 0008 |",
+      "| Conformance harness | Nub | Differential fixtures | 0008, 0080 |",
+      "| Clean-home isolation | Nub soak scripts | Hermetic test homes | 0008 |"
+    ],
+    "dataFlowNodes": "fix[Fixtures] --> reg[LocalRegistry] --> mew[MewUnderTest] --> cmp[Compare] --> ref[ReferencePM]",
+    "commandsFlags": "| Harness command | Purpose |\n|---|---|\n| `go test ./tests/...` | Suites |\n| `make conformance` | Differential runs |\n| `make fuzz-smoke` | Short fuzz |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| `fixtures/registry/v1/` | Packaged tarballs + metadata |\n| `fixtures/projects/*` | Project corpora |\n| Golden outputs | Lockfiles, trees, stdout |",
+    "scopeItems": [
+      "Define fixture manifest format and checksums",
+      "Define clean-home test contract",
+      "Define differential comparison report schema",
+      "Implement local fixture registry server helper",
+      "Implement isolated HOME/XDG/cache redirection",
+      "Implement reference PM invocation wrappers (optional when tools present)",
+      "Define fuzz targets list for parsers",
+      "Document how to add a fixture",
+      "Document required metadata: OS, tool versions",
+      "Smoke: install from fixture registry",
+      "Failure injection helpers: network cut, disk full simulation",
+      "Cross-platform path/symlink/junction probes",
+      "Testing strategy doc with layout diagram",
+      "Conformance inventory stub for 0080",
+      "Never make normal CI dependent on the public npm registry",
+      "Keep large ecosystem corpus tests in scheduled jobs",
+      "Normalize nondeterministic output before comparison",
+      "Add known-bad corpus verifying parsers fail safely"
+    ],
+    "fixtures": [
+      "fixtures/registry/v1/lodash-4.17.21.tgz",
+      "fixtures/projects/basic-cjs",
+      "fixtures/projects/basic-esm",
+      "fixtures/projects/typescript-app",
+      "fixtures/projects/workspace-simple"
+    ],
+    "acceptance": [
+      "Tests never require public registry access",
+      "Clean-home tests do not touch developer global state",
+      "Fixture checksums verified on load",
+      "Differential harness smoke test passes on pinned Nub revision when available"
+    ],
+    "conformance": [
+      "Local-registry testing discipline | parity"
+    ],
+    "openDecisions": [
+      "Which reference PM versions to pin in CI images"
+    ],
+    "todoSummaries": [
+      "layout: Freeze fixtures/ and tests/ layout",
+      "registry: Local fixture registry helper",
+      "home: Clean-home isolation helpers",
+      "fuzz: List parser fuzz targets",
+      "docs: Testing strategy guide",
+      "diff: Differential comparison report schema"
+    ]
+  },
+  "0009": {
+    "phase": "Foundation",
+    "packages": [
+      "docs/release-train.md",
+      "plans/INDEX.md"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Release train | Nub modules | Ordered MVPs | 0009 |",
+      "| Experimental gates | Nub | Feature flags | 0009 |",
+      "| Stabilization gates | Nub certification | 0031/0046/0057 checkpoints | 0009 |"
+    ],
+    "dataFlowNodes": "F[Foundation0001-0009] --> C1[Core0010-0016] --> C2[Core0017-0022] --> C3[Core0023-0031] --> R[Runners0040-0046]",
+    "commandsFlags": "N/A — sequencing policy.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Milestone dependency graph | No cycles |\n| Channel criteria | alpha/beta/rc/stable |\n| Stop-the-line criteria | Corruption, security, determinism regressions |",
+    "scopeItems": [
+      "Create milestone dependency graph with no cycles",
+      "Define alpha/beta/rc/stable criteria",
+      "Define which MVPs may ship experimentally",
+      "Define support windows for lock adapters and Node",
+      "Define stop-the-line criteria",
+      "Map every inventory feature to a milestone",
+      "Define backport and format-migration policy",
+      "Require readers before writers for public formats",
+      "Document feature-flag naming for experimental commands",
+      "Validate graph has no cycles",
+      "Dry-run release checklist on empty scaffold",
+      "Publish release-train doc",
+      "Keep INDEX.md synchronized",
+      "Every MVP must preserve rollback to the preceding stable release",
+      "Public formats require validation before migration",
+      "No calendar promises; sequencing is dependency-driven",
+      "Link stabilization gates 0031, 0046, 0057 to release channels",
+      "Define compatibility certification gates before GA"
+    ],
+    "fixtures": [
+      "docs/release-train.md",
+      "testdata/release/empty-scaffold-checklist.md"
+    ],
+    "acceptance": [
+      "Every inventory feature has a milestone",
+      "Stabilization gates 0031/0046/0057 cannot start early",
+      "Stop-the-line criteria include corruption and integrity failures",
+      "Milestone graph has no cycles and matches INDEX.md ordering"
+    ],
+    "conformance": [
+      "Ordered delivery vs Nub module layout | divergence"
+    ],
+    "openDecisions": [
+      "Public versioning scheme 0.x vs 1.0 timing (0084)"
+    ],
+    "todoSummaries": [
+      "graph: Publish MVP dependency graph",
+      "channels: Define alpha/beta/rc/stable",
+      "gates: Experimental + stop-the-line rules",
+      "map: Inventory features to milestones",
+      "docs: Release-train overview",
+      "sync: Keep INDEX.md and release-train aligned"
+    ]
+  }
+}

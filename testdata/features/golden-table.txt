@@ -1,0 +1,3 @@
+ID                       MODULE      FEATURE                               NUB               MEW      CLASS      MVP
+foundation.charter       foundation  program charter and product contract  shipped           shipped  parity     0001
+runner.direct-shortcuts  runner      direct m dev / m start shortcuts      intentional-omit  planned  extension  0042

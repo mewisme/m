@@ -1,0 +1,1683 @@
+{
+  "0040": {
+    "phase": "Runner / MVP 1",
+    "packages": [
+      "internal/runner",
+      "internal/process",
+      "internal/manifest",
+      "internal/project",
+      "internal/lifecycle",
+      "cmd/m (run subcommand)"
+    ],
+    "forbiddenImports": [
+      "internal/runtime",
+      "internal/transform",
+      "internal/resolver"
+    ],
+    "featureRows": [
+      "| m run script execution | Nub nub run | npm-compatible env + hooks | 0040 |",
+      "| Lifecycle pre/post hooks | Nub runner | pre/post expansion | 0040 |",
+      "| Reporter modes | Nub reporters | human/silent/stream/aggregate/json/ndjson | 0040 |",
+      "| Regex script selectors | Nub | /^pattern/ selection | 0040 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  cli[m run] --> lookup[ScriptLookup]\n  lookup --> env[EnvBuilder]\n  env --> hooks[LifecycleHooks]\n  hooks --> sup[ProcessSupervisor]\n  sup --> child[ShellOrBinChild]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m run <script>` | `--if-present`, reporter flags | Explicit script escape hatch |\n| `m run build -- --flag` | `--` separator | Args after `--` forwarded to script |\n| `m run \"/^test:/\"` | regex selector | Pattern-based script selection |\n\nEnvironment: npm lifecycle vars, INIT_CWD, PATH injection. Exit codes: child exit code propagated.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Runner event schema (draft) | Structured task/output events |\n| Shell quoting golden outputs | Cross-platform regression baselines |",
+    "scopeItems": [
+      "Define ScriptRunner interface with context cancellation and stable error codes",
+      "Implement package.json script lookup with explicit missing-script diagnostics",
+      "Implement pre/post lifecycle hook expansion with ordering guarantees",
+      "Implement pure npm-compatible environment builder (INIT_CWD, npm_* vars, PATH)",
+      "Implement cross-platform shell selection and command quoting",
+      "Implement argument forwarding with `--` separator semantics",
+      "Implement reusable ProcessSupervisor with process groups",
+      "Implement signal forwarding, cancellation, and exit-code propagation",
+      "Implement stdin/TTY preservation and output interleaving policy",
+      "Implement human, silent, stream, aggregate, JSON, and NDJSON reporters",
+      "Implement per-package output prefix handling for future workspace use",
+      "Implement regex script selector parsing where adopted",
+      "Implement shell completion from manifest scripts",
+      "Add unit tests for env builder determinism and hook ordering",
+      "Add integration tests for signal, exit code, and quoting fixtures",
+      "Add conformance fixtures against Nub script runner behavior",
+      "Document m run as unambiguous escape hatch for built-in collisions",
+      "Benchmark script startup hot path without unbounded goroutines"
+    ],
+    "fixtures": [
+      "fixtures/runner/basic-scripts — pre/post hook ordering",
+      "fixtures/runner/shell-quoting — bash/cmd/PowerShell quoting matrix",
+      "fixtures/runner/signals — SIGINT/SIGTERM propagation",
+      "fixtures/runner/env-parity — npm lifecycle environment golden",
+      "fixtures/runner/reporters — output mode snapshots"
+    ],
+    "acceptance": [
+      "m run dev executes script with npm-compatible environment on Linux/macOS/Windows",
+      "pre/post hooks run in documented order with correct failure propagation",
+      "Signals forwarded to child; exit code matches child process",
+      "m run remains explicit path when script name collides with built-in",
+      "Reporter modes produce deterministic structured output in CI"
+    ],
+    "conformance": [
+      "Nub script runner env + hooks | parity",
+      "Nub reporters and prefix handling | parity",
+      "Nub workspace script selection | defer to 0041"
+    ],
+    "openDecisions": [
+      "Default shell on Windows: cmd vs PowerShell for npm script parity",
+      "Whether regex script selectors ship in v1 or behind experimental gate"
+    ],
+    "todoSummaries": [
+      "runner: Implement ScriptRunner and script lookup",
+      "env: Build npm-compatible environment and PATH injection",
+      "supervisor: Process groups, signals, exit codes",
+      "reporters: Human/JSON/NDJSON output modes",
+      "hooks: pre/post lifecycle expansion",
+      "tests: Shell quoting and signal fixtures",
+      "docs: m run forwarding and escape hatch"
+    ]
+  },
+  "0041": {
+    "phase": "Runner / MVP 2",
+    "packages": [
+      "internal/runner",
+      "internal/workspace",
+      "internal/process",
+      "cmd/m (-r run, --filter)"
+    ],
+    "forbiddenImports": [
+      "internal/runtime",
+      "internal/transform",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| Workspace script orchestration | Nub recursive run | Topology + concurrency | 0041 |",
+      "| Workspace filters | Nub --filter | Package selection integration | 0041 |",
+      "| Failure policies | Nub bail/continue | bail, continue, resume, changed-only | 0041 |",
+      "| Output multiplexing | Nub streaming reporter | Per-package prefixes + summaries | 0041 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  filter[WorkspaceFilter] --> graph[TaskGraph]\n  graph --> sched[Scheduler]\n  sched --> run[ScriptRunner]\n  run --> mux[OutputMux]\n  mux --> report[Reporter]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m -r run build` | `-r`, `--recursive` | Run across workspace packages |\n| `m --filter api... run test` | `--filter` | Filter graph before scheduling |\n| `m run lint --workspace-concurrency 4` | `--workspace-concurrency` | Bounded parallelism |\n\nPolicies: topological, reverse-topological, parallel, sequential, bail, continue, resume.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Workspace task event schema | Machine-readable scheduler events |\n| Resume metadata store (optional) | Changed-only and resume state |",
+    "scopeItems": [
+      "Integrate workspace filter from 0022 into script runner dispatch",
+      "Implement task graph generation from workspace dependency graph",
+      "Implement topological and reverse-topological scheduling modes",
+      "Implement parallel and sequential execution modes",
+      "Implement concurrency limits with resource-aware defaults",
+      "Implement bail, continue, resume, and changed-only failure policies",
+      "Detect workspace cycles and fail with explicit cycle diagnostics",
+      "Implement per-package output prefixes and summary aggregation",
+      "Preserve child cancellation and signal semantics from 0040",
+      "Implement readiness queue scheduler without deadlocks",
+      "Add machine-readable task events for CI consumption",
+      "Implement resume metadata for incremental workspace runs",
+      "Add synthetic DAG scheduling unit tests",
+      "Add cycle detection and failure propagation fixtures",
+      "Stress-test large workspace output and cancellation",
+      "Benchmark scheduler overhead on wide monorepos",
+      "Document workspace runner flags and failure policy semantics",
+      "Ensure deterministic task ordering for identical inputs"
+    ],
+    "fixtures": [
+      "fixtures/workspace-runner/dag-simple — topological ordering",
+      "fixtures/workspace-runner/cycle — cycle detection diagnostics",
+      "fixtures/workspace-runner/large — output multiplex stress",
+      "fixtures/workspace-runner/failure-bail — bail vs continue matrix",
+      "fixtures/workspace-runner/changed-only — resume metadata"
+    ],
+    "acceptance": [
+      "m -r run build executes packages in correct topological order",
+      "Concurrency limit respected; no unbounded goroutine fan-out",
+      "Workspace cycles diagnosed without deadlock",
+      "Per-package output remains attributable under parallel execution",
+      "Failure policies behave deterministically across platforms"
+    ],
+    "conformance": [
+      "Nub recursive/filtered script runner | parity",
+      "Nub topological scheduling | parity",
+      "Nub streaming reporter behavior | parity"
+    ],
+    "openDecisions": [
+      "Default workspace-concurrency heuristic for CI vs interactive",
+      "Whether changed-only requires VCS integration in v1"
+    ],
+    "todoSummaries": [
+      "graph: Task graph from workspace dependencies",
+      "sched: Scheduler with concurrency and failure policies",
+      "mux: Per-package output multiplexing",
+      "events: Machine-readable task events",
+      "tests: DAG, cycle, and stress fixtures",
+      "docs: Workspace runner flags and policies"
+    ]
+  },
+  "0042": {
+    "phase": "Runner / Mew Extension",
+    "packages": [
+      "internal/cli",
+      "internal/runner",
+      "internal/manifest",
+      "cmd/m (dispatch)"
+    ],
+    "forbiddenImports": [
+      "internal/runtime",
+      "internal/resolver",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| Direct m <script> shortcuts | Nub requires nub run | Intentional Mew extension | 0042 |",
+      "| Dispatch precedence | N/A | built-in, alias, script, local bin, suggest, error | 0042 |",
+      "| Collision diagnostics | Nub explicit run | m run add for script named add | 0042 |",
+      "| Script suggestions | npm-style | Levenshtein ranking, no fuzzy execution | 0042 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  argv[Argv] --> builtin[BuiltInCmd]\n  builtin --> alias[BuiltInAlias]\n  alias --> script[ExactScript]\n  script --> localbin[LocalBinPolicy]\n  localbin --> suggest[Suggestions]\n  suggest --> err[Error]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m dev` | script args without `--` when unambiguous | Direct script shortcut |\n| `m start` | same | Common lifecycle script |\n| `m build -- --mode production` | `--` when needed | Arg forwarding rules |\n| `m run add` | explicit run | Script colliding with built-in pm verb |\n\nPrecedence: built-in > alias > exact script > optional local bin > suggestions > error.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Dispatch precedence table | Documented in charter and user docs |\n| Collision matrix test corpus | Exhaustive built-in vs script cases |",
+    "scopeItems": [
+      "Implement two-pass CLI dispatch after built-in and alias resolution",
+      "Wire exact package.json script fallback into main m dispatch",
+      "Preserve m run as unambiguous escape hatch for reserved names",
+      "Implement direct argument forwarding without requiring `--` when unambiguous",
+      "Implement reserved-name and built-in collision diagnostics",
+      "Implement Levenshtein or equivalent suggestion ranking (suggestions only)",
+      "Reject fuzzy execution; suggestions never auto-run scripts",
+      "Implement optional local executable lookup behind explicit policy flag",
+      "Add shell completion for dynamic manifest scripts",
+      "Document one-letter m shell alias conflicts",
+      "Build exhaustive collision matrix tests (built-in vs script names)",
+      "Test argument ambiguity and global-flag interaction",
+      "Test no-project and malformed-manifest behavior",
+      "Record intentional divergence from Nub in conformance inventory",
+      "Benchmark dispatch overhead on cold vs warm manifest reads",
+      "Gate behavior behind experimental flag until stabilization",
+      "Update feature inventory with extension compatibility_class",
+      "Ensure mx dispatch unaffected unless explicitly shared"
+    ],
+    "fixtures": [
+      "fixtures/dispatch/collision-matrix — built-in vs script exhaust",
+      "fixtures/dispatch/arg-ambiguity — global flags vs script args",
+      "fixtures/dispatch/no-project — missing package.json",
+      "fixtures/dispatch/malformed-manifest — parse error UX",
+      "fixtures/dispatch/suggestions — typo ranking golden"
+    ],
+    "acceptance": [
+      "m dev runs dev script when not a built-in command",
+      "m add runs built-in add; m run add runs add script if present",
+      "Misspelled commands show suggestions without executing",
+      "Dispatch precedence matches documented charter order",
+      "No fuzzy script execution occurs"
+    ],
+    "conformance": [
+      "Nub requires nub run <script> | divergence (documented extension)",
+      "npm/pnpm script naming | reference for collision tests | defer"
+    ],
+    "openDecisions": [
+      "Whether bare m opens interactive script picker in v1",
+      "Opt-in flag for local bin lookup in direct dispatch"
+    ],
+    "todoSummaries": [
+      "dispatch: Two-pass built-in then script resolution",
+      "args: Direct forwarding rules without `--`",
+      "collision: Reserved-name diagnostics and m run escape",
+      "suggest: Typo suggestions without fuzzy execution",
+      "tests: Exhaustive collision matrix",
+      "docs: Document Mew extension vs Nub",
+      "inventory: Mark direct shortcuts as extension"
+    ]
+  },
+  "0043": {
+    "phase": "Runner / MVP 4",
+    "packages": [
+      "internal/runner",
+      "internal/linker",
+      "internal/compat",
+      "cmd/m (exec subcommand)"
+    ],
+    "forbiddenImports": [
+      "internal/runtime",
+      "internal/transform",
+      "internal/resolver"
+    ],
+    "featureRows": [
+      "| m exec local binaries | Nub exec | Network-free local execution | 0043 |",
+      "| Workspace bin lookup | Nub | ancestor and workspace .bin discovery | 0043 |",
+      "| PnP bin adapter | Nub PnP helper | PnP execution path | 0043 |",
+      "| No registry fallback | Nub local-first | m exec never fetches remotely | 0043 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  cli[m exec] --> resolve[BinResolver]\n  resolve --> layout[LayoutAdapter]\n  layout --> spawn[DirectSpawn]\n  spawn --> sup[ProcessSupervisor]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m exec eslint .` | bin name + args | Current importer bin lookup |\n| `m exec --package typescript tsc --version` | `--package` | Explicit package-to-bin selection |\n\nNo network/registry fallback. PATH, cwd, TTY, signals preserved.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Bin index cache (in-memory) | Fast repeated exec in CI |\n| Install suggestion templates | Actionable miss diagnostics |",
+    "scopeItems": [
+      "Implement bin index and lookup for current importer",
+      "Walk ancestor and workspace packages for .bin discovery",
+      "Implement explicit package-to-bin selection with ambiguity errors",
+      "Implement node_modules layout execution adapter",
+      "Implement Yarn PnP bin resolution adapter",
+      "Resolve executable identity before spawning (shebang, extensions)",
+      "Use direct process spawning; shell only when requested",
+      "Handle Windows cmd/PowerShell shims and Unix executable bits",
+      "Preserve PATH, cwd, TTY, signals, and exit codes",
+      "Fail closed with install suggestion on local miss (no registry fetch)",
+      "Integrate with ProcessSupervisor from 0040",
+      "Add bin collision and multiple-bin fixtures",
+      "Add Windows shim and PnP conformance tests",
+      "Document m exec vs mx remote execution boundary",
+      "Benchmark bin lookup on large node_modules trees",
+      "Redact credentials from exec diagnostics",
+      "Add stable error codes for missing/ambiguous bins",
+      "Ensure mx dlx does not weaken local-only exec contract"
+    ],
+    "fixtures": [
+      "fixtures/exec/single-bin — eslint-style lookup",
+      "fixtures/exec/multi-bin — ambiguity errors",
+      "fixtures/exec/workspace — monorepo bin resolution",
+      "fixtures/exec/pnp — PnP bin execution",
+      "fixtures/exec/windows-shim — cmd/ps1 shim matrix"
+    ],
+    "acceptance": [
+      "m exec eslint runs local bin without network access",
+      "Ambiguous package bins produce clear selection errors",
+      "PnP projects resolve bins through adapter",
+      "Windows shims execute with correct quoting",
+      "Local miss suggests install; never silently fetches"
+    ],
+    "conformance": [
+      "Nub exec local-first behavior | parity",
+      "Nub PnP bin helper | parity",
+      "Nub workspace bin discovery | parity"
+    ],
+    "openDecisions": [
+      "Whether m exec supports global -g installed bins in v1",
+      "Shell mode default on Windows for .cmd shims"
+    ],
+    "todoSummaries": [
+      "lookup: Bin index and workspace discovery",
+      "pnp: PnP bin resolution adapter",
+      "spawn: Direct spawn and Windows shims",
+      "policy: No registry fallback on exec miss",
+      "tests: Collision, PnP, and shim fixtures",
+      "docs: m exec vs mx boundary"
+    ]
+  },
+  "0044": {
+    "phase": "Runner / MVP 5",
+    "packages": [
+      "cmd/mx",
+      "internal/runner",
+      "internal/resolver",
+      "internal/store",
+      "internal/linker",
+      "internal/transaction",
+      "internal/policy"
+    ],
+    "forbiddenImports": [
+      "internal/runtime",
+      "internal/transform"
+    ],
+    "featureRows": [
+      "| mx remote execution | Nubx DLX | Temporary package execution | 0044 |",
+      "| Local-first lookup | Nubx | Prefer local bin unless -p forces remote | 0044 |",
+      "| Consent flow | Nubx | TTY consent; --yes for CI | 0044 |",
+      "| Execution cache | Nubx | Versioned ephemeral environments | 0044 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  mx[mx argv] --> local[LocalFirstLookup]\n  local -->|miss| consent[ConsentGate]\n  consent --> resolve[Resolver]\n  resolve --> stage[EphemeralLink]\n  stage --> exec[ProcessSupervisor]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `mx create-vite` | package spec inference | Bin name from package |\n| `mx vite@latest` | version pin | Explicit version |\n| `mx -p typescript tsc --version` | `-p` / `--package` | Force package context |\n| `mx --offline prettier .` | `--offline` | Cache-only execution |\n\nNon-TTY without --yes fails closed on implicit fetch.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Execution cache directory | Content-addressed ephemeral roots |\n| Consent record store | Trust policy keyed by normalized spec |",
+    "scopeItems": [
+      "Implement mx argument parser and top-level dispatch",
+      "Implement local-first bin lookup reusing 0043 resolver",
+      "Implement package spec parsing and bin inference",
+      "Build ephemeral importer and minimal lock graph for remote packages",
+      "Reuse resolver, store, linker, lifecycle policy, and supervisor",
+      "Implement versioned execution-cache identity and atomic transaction",
+      "Implement TTY consent on first implicit fetch",
+      "Fail closed in non-TTY without explicit --yes",
+      "Support multiple packages and shell mode execution",
+      "Implement bin ambiguity errors with actionable diagnostics",
+      "Implement cache retention, cleanup, and prune commands",
+      "Add local-hit/no-network integration tests",
+      "Add consent and non-TTY matrix tests",
+      "Test concurrent same-spec cache construction",
+      "Add malicious lifecycle package fixtures with policy enforcement",
+      "Document mx vs m exec security boundary",
+      "Benchmark cold vs warm mx execution cache hits",
+      "Ensure execution environments isolated from project unless requested"
+    ],
+    "fixtures": [
+      "fixtures/mx/local-hit — no network when bin present",
+      "fixtures/mx/consent — TTY and --yes matrices",
+      "fixtures/mx/concurrent-cache — parallel same-spec builds",
+      "fixtures/mx/malicious-lifecycle — policy enforcement",
+      "fixtures/mx/offline — cache-only execution"
+    ],
+    "acceptance": [
+      "mx vite@latest runs after explicit consent or --yes in CI",
+      "Local bin preferred without fetch when available",
+      "Non-TTY implicit fetch fails without --yes",
+      "Concurrent mx invocations share safe cache construction",
+      "Malicious lifecycle scripts blocked by policy"
+    ],
+    "conformance": [
+      "Nubx local-first DLX | parity",
+      "Nubx consent and cache behavior | parity",
+      "Nubx package flags | parity"
+    ],
+    "openDecisions": [
+      "Default execution-cache retention TTL",
+      "Whether mx shares consent store with m pm operations"
+    ],
+    "todoSummaries": [
+      "parser: mx argument parser and dispatch",
+      "cache: Execution-cache identity and transactions",
+      "consent: TTY and noninteractive consent rules",
+      "ephemeral: Ephemeral resolve/link pipeline",
+      "tests: Local-hit, consent, and malicious fixtures",
+      "policy: Lifecycle trust enforcement",
+      "docs: mx security and offline modes"
+    ]
+  },
+  "0045": {
+    "phase": "Runner / MVP 6",
+    "packages": [
+      "internal/runner",
+      "internal/lockfile",
+      "internal/transaction",
+      "cmd/m",
+      "cmd/mx"
+    ],
+    "forbiddenImports": [
+      "internal/transform",
+      "internal/runtime/augment"
+    ],
+    "featureRows": [
+      "| Unified execution model | Nub exec/dlx split | Single environment builder | 0045 |",
+      "| Snapshot execution | Nub | mx --snapshot ID | 0045 |",
+      "| Capsule execution | Nub capsules | m exec --capsule | 0045 |",
+      "| Environment inspection | Nub | provenance and cache visibility | 0045 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  req[ExecutionRequest] --> provider[EnvProvider]\n  provider --> prepare[PreparedEnvironment]\n  prepare --> resolve[ExecutableResolver]\n  resolve --> sup[ProcessSupervisor]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `mx --snapshot ID eslint .` | `--snapshot` | Historical lock snapshot |\n| `m exec --capsule capsule.mcap tool` | `--capsule` | Immutable capsule environment |\n| `m env inspect` | subcommand | Environment identity and provenance |\n\nSources: current project, temp package set, snapshot, capsule. No implicit graph merge.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Execution request schema | Versioned unified request model |\n| Environment identity digest | Diagnostics and cache keys |",
+    "scopeItems": [
+      "Define ExecutionRequest and PreparedEnvironment interfaces",
+      "Define environment provider contract for each source type",
+      "Refactor m exec local path onto shared environment builder",
+      "Refactor mx DLX path onto shared executable resolver",
+      "Add snapshot environment provider using lock adapters",
+      "Add capsule environment provider with integrity verification",
+      "Unify PATH, bin resolution, policy, reporter, and supervision",
+      "Expose environment identity in diagnostics and structured events",
+      "Implement explicit no-network and immutable execution modes",
+      "Add environment inspection command with provenance output",
+      "Implement cleanup leases for ephemeral execution roots",
+      "Never merge incompatible dependency graphs implicitly",
+      "Add behavior equivalence tests across all providers",
+      "Add leak and cleanup stress tests for ephemeral roots",
+      "Test concurrent execution isolation between environments",
+      "Document provider selection and failure semantics",
+      "Benchmark environment preparation across providers",
+      "Freeze public interfaces for 0046 stabilization"
+    ],
+    "fixtures": [
+      "fixtures/unified-exec/project — current importer baseline",
+      "fixtures/unified-exec/dlx — ephemeral package set",
+      "fixtures/unified-exec/snapshot — historical lock replay",
+      "fixtures/unified-exec/capsule — capsule.mcap execution",
+      "fixtures/unified-exec/isolation — concurrent env leaks"
+    ],
+    "acceptance": [
+      "m exec and mx produce equivalent supervision through shared layer",
+      "Snapshot and capsule providers verify integrity before execution",
+      "Incompatible graphs never merge without explicit user action",
+      "Environment inspect shows identity, provenance, and cache state",
+      "Ephemeral roots cleaned up on success and failure"
+    ],
+    "conformance": [
+      "Nub exec/dlx environment split | parity via unified model",
+      "Nub snapshot/capsule concepts | parity where adopted"
+    ],
+    "openDecisions": [
+      "Capsule format version and signing requirements",
+      "Whether env inspect is stable CLI or debug-only in v1"
+    ],
+    "todoSummaries": [
+      "model: ExecutionRequest and PreparedEnvironment types",
+      "refactor: Unify exec and mx onto shared services",
+      "providers: Snapshot and capsule environment sources",
+      "inspect: Environment provenance command",
+      "cleanup: Ephemeral root leases",
+      "tests: Equivalence and isolation fixtures"
+    ]
+  },
+  "0046": {
+    "phase": "Runner / Stabilization",
+    "packages": [
+      "internal/runner",
+      "internal/process",
+      "cmd/m",
+      "cmd/mx",
+      "tests/conformance/runner"
+    ],
+    "forbiddenImports": [
+      "internal/resolver (new features)",
+      "internal/runtime"
+    ],
+    "featureRows": [
+      "| Runner stabilization gate | Nub runner surface | Certify 0040-0045 | 0046 |",
+      "| Conformance harness | Nub | m conformance run runner | 0046 |",
+      "| Divergence matrix | Charter | Direct script extension documented | 0046 |",
+      "| mx security review | Nubx | consent and cache certification | 0046 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  corpus[RealWorldCorpus] --> run[RunnerStack]\n  run --> compare[NubCompare]\n  compare --> matrix[CompatibilityMatrix]\n  matrix --> gate[StabilizationGate]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m conformance run runner` | suite selector | Full runner conformance |\n| `m benchmark runner` | `--cold`, `--warm` | Published baselines |\n\nGate blocks stable runtime work (0050+) until exit criteria met.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Runner compatibility matrix | Parity/divergence/extension per feature |\n| Frozen runner event schema | Stable machine-readable events |\n| Benchmark baseline artifacts | CI regression tracking |",
+    "scopeItems": [
+      "Assemble real-world script corpus across npm/pnpm/Yarn/Bun layouts",
+      "Run cross-shell quoting and process semantics corpus on all platforms",
+      "Soak long-lived processes and watch-like cancellation scenarios",
+      "Review executable trust UX for mx consent and policy surfaces",
+      "Freeze runner event schema with version field",
+      "Publish runner compatibility and divergence matrix",
+      "Verify no signal, exit-code, stdin, or output corruption bugs remain",
+      "Fully test direct script shortcut collision behavior",
+      "Certify mx never fetches implicitly in non-TTY without consent",
+      "Verify workspace scheduler determinism and resource bounds",
+      "Run multi-day process leak soak on supervisor",
+      "Run interactive TTY smoke on supported terminals",
+      "Run CI noninteractive behavior regression suite",
+      "Document known limitations and waivers with owners",
+      "Integrate runner conformance into CI stop-the-line gates",
+      "Benchmark runner hot paths against published baselines",
+      "Sign off interfaces consumed by runtime MVPs",
+      "Update feature inventory statuses to shipped where certified"
+    ],
+    "fixtures": [
+      "tests/conformance/runner/corpus — real-world scripts",
+      "tests/conformance/runner/shell-matrix — cross-shell semantics",
+      "tests/conformance/runner/workspace-soak — scheduler stress",
+      "tests/conformance/runner/mx-security — consent/cache review",
+      "tests/conformance/runner/TTY-smoke — interactive terminals"
+    ],
+    "acceptance": [
+      "No known signal, exit-code, stdin, or output corruption bug",
+      "Direct script shortcut collisions fully tested and documented",
+      "mx never fetches implicitly in non-TTY without explicit consent",
+      "Workspace scheduler deterministic and resource bounded",
+      "Runner conformance suite passes on Linux, macOS, Windows"
+    ],
+    "conformance": [
+      "Complete Nub runner behavior | parity except documented extensions",
+      "Mew direct m <script> | extension | certified",
+      "Nubx DLX security model | parity"
+    ],
+    "openDecisions": [
+      "Waivers for known cross-platform shell differences",
+      "Date to remove experimental gate on direct script shortcuts"
+    ],
+    "todoSummaries": [
+      "corpus: Real-world script conformance corpus",
+      "soak: Process leak and cancellation soak",
+      "matrix: Publish compatibility/divergence matrix",
+      "schema: Freeze runner event schema",
+      "mx: Security and consent certification",
+      "ci: Stop-the-line runner conformance gates"
+    ]
+  },
+  "0050": {
+    "phase": "Runtime / MVP 1",
+    "packages": [
+      "internal/runtime",
+      "internal/node",
+      "internal/process",
+      "runtime/",
+      "cmd/m"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker",
+      "internal/transform (beyond embed bridge)"
+    ],
+    "featureRows": [
+      "| Stock Node launch | Nub augments stock Node | No Node fork or embed | 0050 |",
+      "| Preload injection | Nub --import/--require | Embedded CJS/ESM assets | 0050 |",
+      "| --node escape hatch | Nub compat opt-out | Zero augmentation mode | 0050 |",
+      "| Runtime asset cache | Nub extraction cache | Digest-verified embed extract | 0050 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  dispatch[FileRunDispatch] --> nodeSel[NodeSelection]\n  nodeSel --> assets[RuntimeAssets]\n  assets --> launch[NodeLaunch]\n  launch --> preload[PreloadInject]\n  preload --> child[StockNodeProcess]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m app.js` | entry detection | JavaScript file run |\n| `m --node app.js` | `--node` | Plain stock Node, no augmentation |\n| `m node-args -- --trace-warnings app.js` | `node-args` | V8/Node flag partition |\n\nGo orchestrates; stock Node executes JS. Never patch Node binary.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Embedded runtime assets (go:embed) | Versioned preload modules |\n| Runtime extraction cache | Content-addressed asset store |",
+    "scopeItems": [
+      "Implement file-run dispatch without colliding with built-ins and scripts",
+      "Implement Node discovery interface for later 0060 integration",
+      "Implement Node argument and V8 flag classification/partitioning",
+      "Embed CommonJS and ESM preload assets via go:embed",
+      "Extract, hash-verify, and garbage-collect runtime assets on disk",
+      "Inject ESM/CJS preloads through supported Node extension surfaces",
+      "Implement --node and compatibility opt-out (zero augmentation)",
+      "Forward signals and exit codes through shared ProcessSupervisor",
+      "Detect JavaScript entrypoints (.js, .mjs, .cjs, later .ts via 0051)",
+      "Validate runtime asset digests before extraction or use",
+      "Add Node version matrix integration tests",
+      "Add CJS/ESM entrypoint and argument forwarding fixtures",
+      "Test runtime asset corruption and re-extraction recovery",
+      "Parity-test opt-out mode against plain node invocation",
+      "Document augmentation boundary vs stock Node",
+      "Benchmark cold asset extraction vs warm cache",
+      "Never mutate or patch the Node binary",
+      "Leave hooks for transform service without implementing TS yet"
+    ],
+    "fixtures": [
+      "fixtures/runtime/entrypoints — cjs/esm/mjs argument matrix",
+      "fixtures/runtime/opt-out — plain Node parity",
+      "fixtures/runtime/assets-corrupt — digest failure recovery",
+      "fixtures/runtime/node-matrix — supported Node versions",
+      "fixtures/runtime/flags — V8 flag partitioning"
+    ],
+    "acceptance": [
+      "m app.js launches stock Node with embedded preloads when augmentation enabled",
+      "m --node app.js matches plain node behavior within documented tolerance",
+      "Corrupted runtime assets rejected and re-extracted safely",
+      "Signals and exit codes propagate correctly",
+      "No Node source patching or private libnode embedding"
+    ],
+    "conformance": [
+      "Nub stock Node augmentation model | parity",
+      "Nub --node opt-out | parity",
+      "Nub embedded runtime cache | parity"
+    ],
+    "openDecisions": [
+      "Node LTS floor for v1 certification (link 0084/0089)",
+      "Default augmentation on vs opt-in experimental gate"
+    ],
+    "todoSummaries": [
+      "launch: File-run dispatch and Node selection",
+      "assets: Embed, extract, hash runtime assets",
+      "preload: CJS/ESM injection hooks",
+      "optout: --node zero-augmentation path",
+      "tests: Node matrix and opt-out parity",
+      "docs: Stock Node augmentation boundary"
+    ]
+  },
+  "0051": {
+    "phase": "Runtime / MVP 2",
+    "packages": [
+      "internal/transform",
+      "internal/runtime",
+      "runtime/loader-bridge",
+      "cmd/m"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| Go transform service | Nub OXC N-API | Go-native transform + IPC | 0051 |",
+      "| TypeScript execution | Nub zero-config TS | m app.ts without tsc step | 0051 |",
+      "| tsconfig discovery | Nub | extends chain and option subset | 0051 |",
+      "| Transpile cache | Nub | content-addressed cache | 0051 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  entry[m app.ts] --> loader[NodeLoaderBridge]\n  loader --> ipc[TransformIPC]\n  ipc --> svc[GoTransformService]\n  svc --> cache[TranspileCache]\n  cache --> node[StockNode]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m app.ts` | auto format detect | TS/MTS/CTS entry |\n| `m src/index.mts` | module type aware | ESM TypeScript |\n| `m src/tool.cts` | CJS TypeScript | CTS execution |\n\nSynchronous hooks require bounded low-latency IPC or precompile strategy.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Transform IPC protocol spec | Versioned request/response |\n| Transpile cache store | Content-addressed outputs + source maps |",
+    "scopeItems": [
+      "Benchmark candidate Go transformers (e.g. esbuild) against Nub/OXC corpus",
+      "Define transform request/response protocol with version, digest, options, errors, maps",
+      "Implement transform service startup, auth token, health check, cancellation",
+      "Implement idle shutdown and crash recovery for transform service",
+      "Implement Node loader bridge and format detection for .ts/.mts/.cts",
+      "Implement tsconfig parser, extends chain, and normalized compiler-option subset",
+      "Implement path mapping handoff to later resolver (0053)",
+      "Implement content-addressed transpile cache with atomic publication",
+      "Map diagnostics to original source locations",
+      "Implement fallback for unsupported syntax/options with clear errors",
+      "Add TS syntax corpus across supported Node versions",
+      "Test IPC corruption, timeout, service crash, and concurrent transforms",
+      "Add source-map stack trace integration tests",
+      "Benchmark warm-cache transform latency against budget",
+      "Document unsupported-feature report vs Nub/OXC",
+      "Keep transform output scoped to user source representation only",
+      "Spike synchronous loader IPC latency before freezing protocol",
+      "Use BLAKE3 or reviewed fast digest for cache keys"
+    ],
+    "fixtures": [
+      "fixtures/transform/ts-corpus — syntax coverage",
+      "fixtures/transform/tsconfig-extends — discovery chain",
+      "fixtures/transform/ipc-failure — timeout/crash/corruption",
+      "fixtures/transform/cache-warm — latency benchmarks",
+      "fixtures/transform/unsupported — fallback diagnostics"
+    ],
+    "acceptance": [
+      "m app.ts executes TypeScript through stock Node without separate tsc step",
+      "Transform service recovers from crash without wedging Node loader",
+      "Transpile cache hits produce identical output bytes",
+      "Diagnostics reference original TypeScript sources",
+      "Unsupported options fail with actionable messages"
+    ],
+    "conformance": [
+      "Nub zero-config TypeScript execution | parity",
+      "Nub tsconfig discovery | parity",
+      "Nub transpile cache behavior | parity"
+    ],
+    "openDecisions": [
+      "Final Go transformer library choice after benchmark spike",
+      "IPC vs precompile strategy for synchronous hooks"
+    ],
+    "todoSummaries": [
+      "benchmark: Evaluate Go transformers vs OXC corpus",
+      "protocol: Freeze transform IPC schema",
+      "service: Lifecycle, auth, crash recovery",
+      "loader: Node loader bridge for TS formats",
+      "tsconfig: Discovery and normalized options",
+      "cache: Content-addressed transpile store",
+      "tests: IPC failure and syntax corpus"
+    ]
+  },
+  "0052": {
+    "phase": "Runtime / MVP 3",
+    "packages": [
+      "internal/transform",
+      "internal/runtime",
+      "cmd/m"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| JSX/TSX transforms | Nub JSX options | classic + automatic runtimes | 0052 |",
+      "| Decorators | Nub | standard + legacy TS decorators | 0052 |",
+      "| emitDecoratorMetadata | Nub | separately certified capability | 0052 |",
+      "| Source maps | Nub | inline/external + stack mapping | 0052 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  src[TSX/Decorators] --> norm[OptionNormalize]\n  norm --> xform[TransformPipeline]\n  xform --> maps[SourceMaps]\n  maps --> diag[Diagnostics]\n  diag --> node[StockNode]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m component.tsx` | jsx from tsconfig | React/Preact/custom runtime |\n| `m decorator-example.ts` | decorator options | legacy + standard |\n| `m transform report` | debug subcommand | parity report for transforms |\n\nMew is transpiler not type checker; document TS compiler differences.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Transform parity report output | Unsupported/divergent feature inventory |\n| Source map chain metadata | Cache keys include transform options |",
+    "scopeItems": [
+      "Implement JSX option normalization (classic, automatic, importSource, dev)",
+      "Support React, Preact, and custom JSX runtimes via tsconfig",
+      "Implement or integrate standard decorator transforms",
+      "Implement legacy TypeScript decorator compatibility path",
+      "Research and choose decorator metadata emission strategy",
+      "Implement inline and external source map generation",
+      "Implement source-map chaining across loader stages",
+      "Define source content inclusion policy for maps",
+      "Implement diagnostic code frames pointing to original sources",
+      "Add transform warnings and unsupported-option diagnostics",
+      "Add transform parity report command for debugging",
+      "Test React/Preact/custom JSX fixture projects",
+      "Test decorator framework fixtures (legacy + standard)",
+      "Verify stack traces through imports and async functions",
+      "Include JSX/decorator options in transpile cache keys",
+      "Document exact differences from TypeScript compiler",
+      "Treat decorator metadata as separately certified capability",
+      "Benchmark JSX/decorator transform hot paths"
+    ],
+    "fixtures": [
+      "fixtures/transform/jsx-react — automatic runtime",
+      "fixtures/transform/jsx-preact — importSource custom",
+      "fixtures/transform/decorators-standard — TC39 decorators",
+      "fixtures/transform/decorators-legacy — experimental legacy",
+      "fixtures/transform/sourcemaps — stack trace mapping"
+    ],
+    "acceptance": [
+      "m component.tsx runs with correct JSX runtime per tsconfig",
+      "Legacy and standard decorators transpile for supported frameworks",
+      "Stack traces map to original TSX/TS sources",
+      "Transform parity report lists known divergences",
+      "Cache keys change when relevant JSX/decorator options change"
+    ],
+    "conformance": [
+      "Nub JSX options | parity",
+      "Nub decorators and emitDecoratorMetadata | parity where certified",
+      "Nub source-map integration | parity"
+    ],
+    "openDecisions": [
+      "Decorator metadata: Go-native vs embedded JS vs native helper",
+      "Default jsxImportSource when absent from tsconfig"
+    ],
+    "todoSummaries": [
+      "jsx: Option normalization and runtimes",
+      "decorators: Standard and legacy transform paths",
+      "metadata: Decorator metadata emission design",
+      "maps: Source-map chaining and diagnostics",
+      "report: Transform parity debug command",
+      "tests: JSX and decorator framework fixtures"
+    ]
+  },
+  "0053": {
+    "phase": "Runtime / MVP 4",
+    "packages": [
+      "internal/runtime",
+      "runtime/",
+      "internal/compat",
+      "cmd/m"
+    ],
+    "forbiddenImports": [
+      "internal/resolver (install-time)",
+      "internal/linker (mutations)"
+    ],
+    "featureRows": [
+      "| Module resolution hooks | Nub module.register | Narrow Node augmentation | 0053 |",
+      "| tsconfig paths | Nub | baseUrl and paths matcher | 0053 |",
+      "| Custom loaders | Nub | ESM loader/preload chaining | 0053 |",
+      "| PnP runtime adapter | Nub PnP helpers | Layout-aware resolution | 0053 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  req[ImportRequest] --> hook[ResolverHook]\n  hook --> paths[TsconfigPaths]\n  paths --> layout[LayoutAdapter]\n  layout --> load[LoaderChain]\n  load --> node[NodeResolution]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m app.ts --loader ./loader.mjs` | `--loader` | Custom ESM loader chain |\n| `m resolve-module @app/core` | debug subcommand | Resolution trace |\n\nPreserve Node CJS/ESM semantics; augment via hooks only.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Module trace diagnostic format | Structured resolution logs |\n| Loader ordering manifest | Documented hook chain |",
+    "scopeItems": [
+      "Plan resolver augmentation without replacing Node resolution wholesale",
+      "Preserve Node CJS and ESM resolution semantics baseline",
+      "Implement tsconfig baseUrl and paths matcher",
+      "Implement .js to .ts development extension mapping policy",
+      "Implement CJS require registration hooks where needed",
+      "Implement ESM custom loader and preload chaining",
+      "Document and enforce custom loader execution order",
+      "Pass original user loader arguments through chain",
+      "Implement isolated node_modules layout awareness",
+      "Implement Yarn PnP runtime resolution adapter",
+      "Support package imports/exports and conditions where explicitly adopted",
+      "Implement self-reference and URL module policy boundaries",
+      "Preserve Node-compatible error context plus Mew explanations",
+      "Add module trace diagnostics command",
+      "Test Node package exports/imports corpus",
+      "Test CJS/ESM interop and monorepo path alias fixtures",
+      "Test custom loader composition scenarios",
+      "Benchmark resolution hot path with cache"
+    ],
+    "fixtures": [
+      "fixtures/resolution/exports — package exports corpus",
+      "fixtures/resolution/cjs-esm — interop matrix",
+      "fixtures/resolution/paths — tsconfig path aliases",
+      "fixtures/resolution/pnp — Yarn PnP projects",
+      "fixtures/resolution/custom-loader — loader chaining"
+    ],
+    "acceptance": [
+      "tsconfig paths resolve consistently in monorepos",
+      "Custom loaders run in documented order with user args preserved",
+      "PnP projects resolve modules through adapter",
+      "Resolution errors include Node context and Mew guidance",
+      "Plain Node opt-out bypasses Mew resolution hooks"
+    ],
+    "conformance": [
+      "Nub module.register and tsconfig paths | parity",
+      "Nub custom loader support | parity",
+      "Nub PnP runtime helpers | parity"
+    ],
+    "openDecisions": [
+      ".js to .ts mapping default in development vs production",
+      "URL import support scope for v1"
+    ],
+    "todoSummaries": [
+      "paths: tsconfig baseUrl/paths matcher",
+      "hooks: CJS register and ESM loader chain",
+      "pnp: PnP resolution adapter",
+      "policy: Extension mapping and conditions",
+      "trace: Module resolution diagnostics",
+      "tests: Exports corpus and loader composition"
+    ]
+  },
+  "0054": {
+    "phase": "Runtime / MVP 5",
+    "packages": [
+      "internal/runtime",
+      "internal/config",
+      "cmd/m"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| .env auto-discovery | Nub | mode-aware .env* loading | 0054 |",
+      "| Env precedence | Nub | shell vs file vs flags | 0054 |",
+      "| Worker propagation | Nub | inherit runtime hooks in workers | 0054 |",
+      "| Web Storage APIs | Nub | selected browser-compatible APIs | 0054 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  discover[EnvDiscovery] --> parse[EnvParser]\n  parse --> merge[PrecedenceMerge]\n  merge --> child[ChildEnvOverlay]\n  child --> worker[WorkerPropagation]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m --env-file .env.local app.ts` | `--env-file` | Explicit env file |\n| `m --no-env-file app.ts` | `--no-env-file` | Kill auto-discovery |\n| `m --mode production app.ts` | `--mode` | Mode-aware .env* selection |\n\nNever mutate global process env from concurrent Go code.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Env trace diagnostic format | Redacted precedence chain |\n| Storage persistence policy doc | Web Storage data locations |",
+    "scopeItems": [
+      "Implement .env parser with variable expansion rules",
+      "Implement mode-aware .env* discovery and precedence",
+      "Support explicit --env-file and --no-env-file kill switch",
+      "Define shell environment vs file vs flag precedence",
+      "Construct per-child environment overlays explicitly in Go",
+      "Never mutate global process environment from concurrent Go code",
+      "Inject runtime state into worker threads and child Node processes",
+      "Ensure worker augmentation avoids recursive unrelated services",
+      "Implement selected Web Storage compatibility APIs",
+      "Define storage persistence and isolation policy",
+      "Wire NODE_ENV and --mode interaction documented",
+      "Add environment trace diagnostics with redacted values by default",
+      "Test precedence and expansion matrix exhaustively",
+      "Prepare watch reload hooks for env/tsconfig changes (0055)",
+      "Test worker and child-process propagation",
+      "Test storage isolation and corruption recovery",
+      "Document security implications of env expansion",
+      "Benchmark env overlay construction per spawn"
+    ],
+    "fixtures": [
+      "fixtures/runtime/env/precedence — shell/file/flag matrix",
+      "fixtures/runtime/env/expansion — variable substitution",
+      "fixtures/runtime/env/mode — production vs development files",
+      "fixtures/runtime/workers — hook propagation",
+      "fixtures/runtime/storage — Web Storage isolation"
+    ],
+    "acceptance": [
+      "--env-file overrides auto-discovery per documented policy",
+      "Child processes receive explicit env overlays; parent env not raced",
+      "Workers inherit transform/runtime hooks without recursive services",
+      "Env trace redacts secrets by default",
+      "Web Storage APIs behave per documented persistence policy"
+    ],
+    "conformance": [
+      "Nub .env discovery and precedence | parity",
+      "Nub worker propagation | parity",
+      "Nub Web Storage behavior | parity where provided"
+    ],
+    "openDecisions": [
+      "Default auto-discovery enablement in CI",
+      "Which Web Storage APIs ship in v1 vs deferred"
+    ],
+    "todoSummaries": [
+      "parser: .env parse and expansion",
+      "discovery: Mode-aware .env* loading",
+      "precedence: Shell/file/flag merge rules",
+      "workers: Runtime hook propagation",
+      "storage: Web Storage compatibility layer",
+      "trace: Redacted env diagnostics",
+      "tests: Precedence and worker fixtures"
+    ]
+  },
+  "0055": {
+    "phase": "Runtime / MVP 6",
+    "packages": [
+      "internal/runtime",
+      "internal/process",
+      "cmd/m (watch)"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| m watch | Nub watch supervisor | dependency-aware restarts | 0055 |",
+      "| Dependency graph watch | Nub | from transform + resolution | 0055 |",
+      "| Debounce/restart policy | Nub | coalescing and clear-screen | 0055 |",
+      "| Watcher backends | Nub | native + polling fallback | 0055 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  sup[WatchSupervisor] --> watch[FileWatcher]\n  watch --> deps[DependencyCollect]\n  deps --> restart[RestartStateMachine]\n  restart --> child[AppChildProcess]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m watch src/index.ts` | entry file | Long-lived supervisor |\n| `m watch --clear-screen=false app.ts` | `--clear-screen` | Terminal UX policy |\n\nSupervisor never executes user application code directly.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Watch event diagnostic schema | Restart reason tracing |\n| Dependency file index | Collected from runtime hooks |",
+    "scopeItems": [
+      "Implement watcher abstraction with native and polling backends",
+      "Implement long-lived supervisor and short-lived application child",
+      "Collect dependency files from transform and module resolution hooks",
+      "Watch tsconfig extends chains, package.json, env files, and globs",
+      "Implement debounce and restart coalescing policy",
+      "Implement clear-screen policy flag",
+      "Implement restart-on-demand interactive key",
+      "Rebuild child environment and runtime state on every restart",
+      "Implement restart state machine with signal escalation",
+      "Normalize short/long paths, case, and symlinks for watcher identity",
+      "Handle atomic save, rename, delete/recreate edge cases",
+      "Reload env and tsconfig changes without supervisor crash",
+      "Never execute user application code in supervisor process",
+      "Add rapid change and restart storm tests",
+      "Test child ignoring termination and forced kill paths",
+      "Run resource leak soak on watch sessions",
+      "Benchmark watcher CPU use on large trees",
+      "Document platform watcher limitations"
+    ],
+    "fixtures": [
+      "fixtures/watch/atomic-save — editor save patterns",
+      "fixtures/watch/symlink-case — path identity normalization",
+      "fixtures/watch/restart-storm — debounce coalescing",
+      "fixtures/watch/stubborn-child — signal escalation",
+      "fixtures/watch/deps-graph — hook-collected dependencies"
+    ],
+    "acceptance": [
+      "m watch restarts app when relevant source or config changes",
+      "Supervisor survives env/tsconfig reloads",
+      "Debouncing prevents restart storms on rapid saves",
+      "No process or file descriptor leaks in soak tests",
+      "TTY and signal behavior preserved across restarts"
+    ],
+    "conformance": [
+      "Nub watch supervisor | parity",
+      "Nub dependency graph watch | parity",
+      "Nub Windows path normalization in watch | parity"
+    ],
+    "openDecisions": [
+      "Default debounce interval",
+      "Polling fallback trigger conditions on each OS"
+    ],
+    "todoSummaries": [
+      "watcher: Platform backends and polling fallback",
+      "deps: Collect files from runtime hooks",
+      "restart: State machine and signal escalation",
+      "debounce: Coalescing and clear-screen policy",
+      "env: Reload env/tsconfig on change",
+      "tests: Atomic save and leak soak fixtures"
+    ]
+  },
+  "0056": {
+    "phase": "Runtime / MVP 7",
+    "packages": [
+      "internal/runtime",
+      "internal/transform",
+      "cmd/m (doctor, trace)"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| Node inspector passthrough | Nub V8 flags | --inspect/--inspect-brk | 0056 |",
+      "| Source-map debugging | Nub | mapped breakpoints/stacks | 0056 |",
+      "| Runtime traces | Nub diagnostics | transform/module/cache traces | 0056 |",
+      "| Support bundles | Nub | redacted diagnostic archives | 0056 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  flags[InspectorFlags] --> node[StockNodeInspector]\n  traces[TraceEvents] --> schema[RuntimeTraceSchema]\n  maps[SourceMaps] --> dbg[DebuggerMapping]\n  bundle[SupportBundle] --> redact[RedactionPolicy]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m --inspect app.ts` | `--inspect`, `--inspect-brk` | Pass through to Node |\n| `m runtime trace app.ts` | trace subcommand | Structured runtime events |\n| `m doctor runtime` | doctor | Health and compatibility report |\n| `m cache explain` | explain | Transpile cache introspection |\n\nPass Node inspector semantics; do not emulate debugger protocol.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Runtime trace event schema | Versioned structured diagnostics |\n| Support bundle format | Redacted support archive spec |",
+    "scopeItems": [
+      "Route --inspect and --inspect-brk flags to stock Node unchanged",
+      "Handle inspector port allocation and collision diagnostics",
+      "Integrate source-map support across transforms and loaders",
+      "Define runtime trace event schema with versioning",
+      "Emit transform, cache, env, module, worker, and watch trace events",
+      "Implement module and transform timing diagnostic views",
+      "Implement cache explain command for transpile cache",
+      "Implement support bundle collection with redaction policy",
+      "Ensure traces do not materially change runtime ordering",
+      "Redact secrets and sensitive source content per policy",
+      "Add inspector startup and break-on-start tests",
+      "Test mapped breakpoints and stack traces in TS/TSX",
+      "Benchmark trace overhead when diagnostics enabled",
+      "Document debugger configuration for common editors",
+      "Compare behavior against m --node opt-out baseline",
+      "Publish safe defaults for CI (no inspect bind to 0.0.0.0)",
+      "Freeze trace schema before 0057 stabilization",
+      "Add doctor runtime checks for common misconfigurations"
+    ],
+    "fixtures": [
+      "fixtures/debug/inspect — inspector startup/break",
+      "fixtures/debug/breakpoints — mapped TS/TSX stacks",
+      "fixtures/debug/trace-redaction — secrets stripped",
+      "fixtures/debug/support-bundle — archive format golden",
+      "fixtures/debug/overhead — trace cost benchmarks"
+    ],
+    "acceptance": [
+      "m --inspect-brk app.ts breaks on first line with mapped sources",
+      "Stack traces map through transforms to original TypeScript",
+      "Support bundles contain no secrets or full source by default",
+      "Trace output validates against published schema",
+      "Diagnostics do not change execution order materially"
+    ],
+    "conformance": [
+      "Nub Node/V8 flag injection | parity",
+      "Nub diagnostics and traces | parity",
+      "Nub source-map debugging | parity"
+    ],
+    "openDecisions": [
+      "Default support bundle contents vs opt-in verbosity",
+      "Whether runtime trace ships enabled in CI problem matchers"
+    ],
+    "todoSummaries": [
+      "inspect: Flag routing to stock Node",
+      "schema: Runtime trace event format",
+      "maps: Source-map debugger integration",
+      "bundle: Redacted support archive",
+      "cache: Transpile cache explain command",
+      "doctor: Runtime health diagnostics",
+      "tests: Inspector and breakpoint fixtures"
+    ]
+  },
+  "0057": {
+    "phase": "Runtime / Stabilization",
+    "packages": [
+      "internal/runtime",
+      "internal/transform",
+      "tests/conformance/runtime",
+      "cmd/m"
+    ],
+    "forbiddenImports": [
+      "internal/resolver (new features)",
+      "internal/linker (mutations)"
+    ],
+    "featureRows": [
+      "| Runtime stabilization gate | Nub runtime surface | Certify 0050-0056 | 0057 |",
+      "| Node version certification | Nub | supported floor + matrix | 0057 |",
+      "| Transform service soak | Nub OXC | crash/leak certification | 0057 |",
+      "| Plain Node escape hatch | Nub --node | behavioral plainness | 0057 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  corpus[SyntaxFrameworkCorpus] --> rt[RuntimeStack]\n  rt --> cert[NodeVersionCert]\n  cert --> soak[TransformSoak]\n  soak --> matrix[SupportMatrix]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m conformance run runtime` | suite selector | Full runtime conformance |\n| `m benchmark runtime` | `--cold`, `--warm` | Startup and cache baselines |\n\nBlocks manager/product stable channels until exit criteria met.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Runtime support matrix | Certified Node versions and syntax features |\n| Frozen runtime protocol versions | IPC, loader, trace schemas |\n| Known limitations document | Explicit parity gaps |",
+    "scopeItems": [
+      "Run syntax and framework corpus across supported Node versions",
+      "Certify CJS/ESM/loader/worker/watch coverage with published results",
+      "Run Node compatibility and --node opt-out differential tests",
+      "Soak transform service for crashes, leaks, and IPC failure recovery",
+      "Complete security review of IPC and embedded runtime assets",
+      "Freeze runtime protocol versions (transform IPC, trace, loader bridge)",
+      "Publish runtime support matrix with certification evidence",
+      "Verify no transform cache corruption or source-map integrity bugs",
+      "Verify watch and workers do not leak processes or file descriptors",
+      "Run cold/warm startup benchmark suite with baselines",
+      "Document fallback behavior and known limitations",
+      "Integrate runtime conformance into CI stop-the-line gates",
+      "Run long-running worker/watch multi-day soak",
+      "Sign off interfaces for 0060 Node manager integration",
+      "Update feature inventory to shipped for certified runtime features",
+      "Record waivers with owners for documented divergences",
+      "Ensure plain Node escape hatch remains behaviorally plain",
+      "Gate experimental runtime features behind explicit flags"
+    ],
+    "fixtures": [
+      "tests/conformance/runtime/syntax-corpus — language features",
+      "tests/conformance/runtime/frameworks — React/etc smoke",
+      "tests/conformance/runtime/node-matrix — version certification",
+      "tests/conformance/runtime/transform-soak — service crash/leak",
+      "tests/conformance/runtime/opt-out — plain Node differential"
+    ],
+    "acceptance": [
+      "Supported syntax and Node versions have published certification",
+      "No known transform cache corruption or source-map integrity bug",
+      "Watch and workers pass leak soak without orphaned processes",
+      "Plain Node escape hatch matches stock node within tolerance",
+      "Runtime conformance passes on Linux, macOS, Windows"
+    ],
+    "conformance": [
+      "Complete Nub runtime and watch surface | parity except documented gaps",
+      "Mew Go transform vs Nub OXC | divergence with parity report"
+    ],
+    "openDecisions": [
+      "Waivers for transformer features below OXC parity",
+      "Date to declare runtime stable vs experimental"
+    ],
+    "todoSummaries": [
+      "corpus: Syntax and framework certification",
+      "nodes: Node version matrix results",
+      "soak: Transform service crash/leak soak",
+      "security: IPC and embedded asset review",
+      "matrix: Publish runtime support matrix",
+      "protocols: Freeze runtime schema versions"
+    ]
+  },
+  "0060": {
+    "phase": "Managers / MVP 1",
+    "packages": [
+      "internal/node",
+      "internal/fetch",
+      "internal/archive",
+      "internal/store",
+      "cmd/m (node subcommand)"
+    ],
+    "forbiddenImports": [
+      "internal/runtime/augment",
+      "internal/transform"
+    ],
+    "featureRows": [
+      "| Node version manager | Nub Node provisioning | m node install/use | 0060 |",
+      "| Version pin discovery | Nub | .nvmrc, .node-version, engines | 0060 |",
+      "| Checksum verification | Nub | before extraction | 0060 |",
+      "| Offline cache | Nub | prune and offline install | 0060 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  pin[PinDiscovery] --> resolve[VersionResolve]\n  resolve --> fetch[ArtifactFetch]\n  fetch --> verify[ChecksumVerify]\n  verify --> install[ImmutableInstall]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m node install 24` | version spec | Download and install Node |\n| `m node use 22` | alias/range | Select active version |\n| `m node list` | | Installed versions |\n| `m node remove 20` | | Uninstall version |\n| `m node resolve` | | Show resolved version for project |\n\nInstallations immutable and content-verified. Reuse registry HTTP foundations.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Node install store | Immutable versioned Node roots |\n| Release metadata cache | nodejs.org index with ETag |",
+    "scopeItems": [
+      "Implement Node release metadata client and local cache",
+      "Implement version range, alias, and LTS resolution",
+      "Select platform/architecture artifacts deterministically",
+      "Download artifacts with retries and proxy/CA support",
+      "Verify checksums before any extraction",
+      "Extract and atomically publish immutable Node installations",
+      "Discover pins from .nvmrc, .node-version, package.json engines/devEngines",
+      "Define pin precedence across project and Mew config",
+      "Implement per-project pin and automatic provisioning hooks",
+      "Integrate resolved Node selection with 0050 runtime launch",
+      "Implement m node command family with stable error codes",
+      "Implement offline cache usage and installation GC/prune",
+      "Add platform artifact fixture server tests",
+      "Add checksum and extraction attack corpus tests",
+      "Test version precedence and offline install scenarios",
+      "Document separation of version resolution vs PATH shims (0062)",
+      "Benchmark install and resolve hot paths",
+      "Never execute unverified downloaded Node binary"
+    ],
+    "fixtures": [
+      "fixtures/node/releases — metadata and artifact stubs",
+      "fixtures/node/checksum-attack — tampered tarball rejection",
+      "fixtures/node/pin-precedence — engines vs .nvmrc matrix",
+      "fixtures/node/offline — cache-only install",
+      "fixtures/node/platforms — arch selection matrix"
+    ],
+    "acceptance": [
+      "m node install 22 installs verified Node for current platform",
+      "Tampered artifacts rejected before extraction",
+      "Project pin resolves consistently across commands",
+      "Runtime launch uses Node manager selection from 0050",
+      "Offline install works from warm cache"
+    ],
+    "conformance": [
+      "Nub Node provisioning and checksums | parity",
+      "Nub version file discovery | parity",
+      "Nub offline cache behavior | parity"
+    ],
+    "openDecisions": [
+      "Custom Node distribution mirror support in v1",
+      "Default auto-provision on missing pin behavior"
+    ],
+    "todoSummaries": [
+      "metadata: Node release index client/cache",
+      "resolve: Version range and pin precedence",
+      "install: Checksum verify and atomic extract",
+      "integrate: Wire 0050 Node selection",
+      "cli: m node command family",
+      "tests: Checksum attack and offline fixtures"
+    ]
+  },
+  "0061": {
+    "phase": "Managers / MVP 2",
+    "packages": [
+      "internal/pmmanager",
+      "internal/compat",
+      "internal/lockfile",
+      "cmd/m (pm subcommand)"
+    ],
+    "forbiddenImports": [
+      "internal/runtime",
+      "internal/transform"
+    ],
+    "featureRows": [
+      "| PM meta-manager | Nub pm which/pin | Corepack replacement | 0061 |",
+      "| Manager detection | Nub | packageManager, lockfiles, config | 0061 |",
+      "| Verified acquisition | Nub | download/cache external PMs | 0061 |",
+      "| Migration planner | Nub pm migrate | lock adapter migrations | 0061 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  detect[PMDetect] --> acquire[VerifiedAcquire]\n  acquire --> invoke[PMInvoke]\n  invoke --> migrate[MigrationPlanner]\n  migrate --> report[LossReport]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m pm which` | | Detect active package manager |\n| `m pm pin pnpm@10` | pin | Pin manager version in project |\n| `m pm migrate bun` | migrate | Plan/execute migration |\n| `m pm update` | | Update pinned manager |\n| `m pm cache list` | | Inspect PM cache |\n\nMigrations produce semantic loss report and rollback snapshot.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| PM acquisition cache | Verified external manager installs |\n| Migration rollback snapshot | Pre-migration state journal |",
+    "scopeItems": [
+      "Implement package-manager identity and version resolver",
+      "Detect from packageManager, devEngines, lockfiles, executables, config",
+      "Implement verified acquisition and content-addressed PM cache",
+      "Run external managers in isolated verified environments",
+      "Select Node version via 0060 for external PM invocation",
+      "Implement m pm pin and update commands with per-major models",
+      "Implement migration planner using lock adapters from core PM MVPs",
+      "Execute migrations inside transaction with rollback snapshot",
+      "Produce semantic loss report for every migration",
+      "Implement cache inspection and prune commands",
+      "Never silently rewrite incumbent lockfile identity",
+      "Preserve m.lock as native; support npm/pnpm/Yarn/Bun round trips",
+      "Add pinned manager install and invocation tests",
+      "Add migration corpus with rollback verification",
+      "Test ambiguous identity detection and diagnostics",
+      "Document Corepack replacement positioning",
+      "Benchmark PM invocation startup overhead",
+      "Integrate trust policy for downloaded manager artifacts"
+    ],
+    "fixtures": [
+      "fixtures/pm/detect — identity from lockfiles and manifest",
+      "fixtures/pm/pin-invoke — pinned pnpm/npm/yarn/bun runs",
+      "fixtures/pm/migrate — adapter migration corpus",
+      "fixtures/pm/rollback — failed migration recovery",
+      "fixtures/pm/ambiguous — conflicting identity signals"
+    ],
+    "acceptance": [
+      "m pm which reports correct manager for incumbent lockfiles",
+      "Pinned manager version used for invocation",
+      "Migration produces loss report and rollback snapshot",
+      "Failed migration restores prior manifest/lock state",
+      "External PM runs under selected Node from 0060"
+    ],
+    "conformance": [
+      "Nub pm which/pin/migrate/update | parity",
+      "Nub PM cache behavior | parity",
+      "Incumbent lockfile preservation | Mew policy | extension"
+    ],
+    "openDecisions": [
+      "Which external PM majors are certified in v1",
+      "Auto-migrate on m install vs explicit m pm migrate"
+    ],
+    "todoSummaries": [
+      "detect: PM identity resolver",
+      "acquire: Verified PM download/cache",
+      "invoke: External PM under selected Node",
+      "migrate: Planner, transaction, loss report",
+      "pin: Pin/update commands",
+      "tests: Migration and rollback corpus"
+    ]
+  },
+  "0062": {
+    "phase": "Managers / MVP 3",
+    "packages": [
+      "internal/node",
+      "internal/pmmanager",
+      "cmd/m (shim subcommand)"
+    ],
+    "forbiddenImports": [
+      "internal/runtime/augment",
+      "internal/transform"
+    ],
+    "featureRows": [
+      "| PATH shims | Nub Node hijack contract | node shim resolves pin only | 0062 |",
+      "| PM shims | Nub | pnpm/npm/yarn dispatch | 0062 |",
+      "| Self shims | Nub | optional Mew version pin | 0062 |",
+      "| Recursion guards | Nub | bypass env vars | 0062 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  shim[ShimLauncher] --> resolve[VersionResolve]\n  resolve --> target[TargetBinary]\n  target --> guard[RecursionGuard]\n  guard --> exec[DirectExec]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m shim install` | | Install shims to user PATH dir |\n| `m shim status` | | Show shim targets and health |\n| `m shim remove` | | Uninstall shims safely |\n| `m pm shim` | | PM-specific shim install |\n| `m pm unshim` | | Remove PM shims |\n\nnode shim selects version only; augmentation stays on m/mx.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Shim launcher binaries | Tiny auditable POSIX/Windows stubs |\n| Shim installation manifest | Backup paths and repair metadata |",
+    "scopeItems": [
+      "Design shim protocol and cross-platform installation paths",
+      "Implement POSIX launcher scripts and Windows exe/cmd strategy",
+      "Resolve pinned Node version for node shim without runtime augmentation",
+      "Dispatch package-manager shims from project identity via 0061",
+      "Support optional Mew self-version pinning in shims",
+      "Implement recursion prevention and emergency bypass env vars",
+      "Implement shim status, repair, backup, and uninstall flows",
+      "Never replace unrelated executables without confirmation and backup",
+      "Report resolved target in debug/diagnostic mode",
+      "Integrate shell completion and PATH setup instructions",
+      "Test PATH precedence matrix across shells",
+      "Test recursion and broken-pin recovery scenarios",
+      "Test Windows quoting and executable extension handling",
+      "Document node vs m/mx augmentation boundary clearly",
+      "Audit shim contents for minimal attack surface",
+      "Benchmark shim dispatch overhead",
+      "Coordinate with 0072 installers for default shim paths",
+      "Ensure plain node calls through shim do not inject Mew preloads"
+    ],
+    "fixtures": [
+      "fixtures/shim/path-precedence — shell PATH matrix",
+      "fixtures/shim/recursion — MEW_SHIM_BYPASS scenarios",
+      "fixtures/shim/windows — cmd/ps1/exe quoting",
+      "fixtures/shim/broken-pin — recovery and repair",
+      "fixtures/shim/pm-dispatch — project manager routing"
+    ],
+    "acceptance": [
+      "node shim runs pinned stock Node without Mew augmentation",
+      "m/mx shims resolve project-pinned Mew version when configured",
+      "Recursion guards prevent shim loops",
+      "m shim remove restores prior PATH state from backup",
+      "Windows shims handle extensions and quoting correctly"
+    ],
+    "conformance": [
+      "Nub Node PATH-hijack contract | parity",
+      "Nub PM shims and self-shim provisioning | parity"
+    ],
+    "openDecisions": [
+      "Default shim install location per OS",
+      "Whether github.com/mewisme/m/mewx alias shims ship in v1"
+    ],
+    "todoSummaries": [
+      "protocol: Shim launcher design",
+      "install: POSIX and Windows shim paths",
+      "resolve: Node/PM/Mew version routing",
+      "guards: Recursion prevention and bypass",
+      "repair: Status, backup, uninstall flows",
+      "tests: PATH and Windows shim matrix"
+    ]
+  },
+  "0070": {
+    "phase": "Product / MVP 1",
+    "packages": [
+      "internal/app",
+      "internal/manifest",
+      "internal/transaction",
+      "cmd/m (init)",
+      "templates/init"
+    ],
+    "forbiddenImports": [
+      "internal/runtime (beyond generated project smoke)",
+      "internal/transform (full pipeline)"
+    ],
+    "featureRows": [
+      "| m init scaffold | Nub TypeScript-first init | opinionated TS template | 0070 |",
+      "| manifest-only mode | Nub | --manifest-only | 0070 |",
+      "| Template delegation | Nub | mx create-* for frameworks | 0070 |",
+      "| Transactional init | Mew | rollback on failure | 0070 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  prompt[InitPrompts] --> plan[FilePlan]\n  plan --> txn[InstallTransaction]\n  txn --> tree[ProjectTree]\n  tree --> smoke[BuildRunSmoke]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m init` | interactive prompts | TypeScript-first scaffold |\n| `m init --manifest-only` | | package.json only |\n| `mx create-vite` | via 0044 | Delegated framework templates |\n\nGenerated projects deterministic for identical inputs and Mew version.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Embedded init templates (versioned) | Deterministic scaffold assets |\n| Init file plan format | Dry-run preview output |",
+    "scopeItems": [
+      "Define scaffold templates as embedded versioned assets",
+      "Implement interactive and noninteractive init prompts/flags",
+      "Generate package.json with module type, scripts, and Mew identity defaults",
+      "Generate tsconfig with sensible strict defaults",
+      "Generate source layout, gitignore, and editor config stubs",
+      "Implement dry-run file plan preview before write",
+      "Integrate initial install via transaction boundary from core PM",
+      "Rollback all writes on init failure or interruption",
+      "Refuse overwrite of nonempty directories without explicit policy",
+      "Delegate specialized framework templates to mx create-* hints",
+      "Use m.lock as default for greenfield projects",
+      "Preserve incumbent lockfile if detected in existing directory",
+      "Add golden tests for generated project trees",
+      "Smoke-test build/run on generated projects via 0051 runtime",
+      "Test nonempty directory and interruption recovery",
+      "Document every generated choice before commit",
+      "Benchmark init time cold vs warm cache",
+      "Publish migration notes from npm create equivalents"
+    ],
+    "fixtures": [
+      "fixtures/init/golden — deterministic tree snapshots",
+      "fixtures/init/manifest-only — minimal output",
+      "fixtures/init/nonempty — refusal/overwrite policy",
+      "fixtures/init/interrupt — rollback journal",
+      "fixtures/init/smoke — generated project build/run"
+    ],
+    "acceptance": [
+      "m init creates deterministic TS project that runs with m dev",
+      "Failed init leaves no partial manifest or half-written tree",
+      "manifest-only mode writes only package.json",
+      "Nonempty directory policy enforced with clear errors",
+      "Framework templates directed to mx, not hidden in m init"
+    ],
+    "conformance": [
+      "Nub TypeScript-first init | parity",
+      "Greenfield m.lock default | Mew policy"
+    ],
+    "openDecisions": [
+      "Default module type: ESM vs dual package",
+      "Interactive vs CI-default noninteractive init"
+    ],
+    "todoSummaries": [
+      "templates: Embedded versioned scaffold assets",
+      "prompts: Interactive and flag-driven init",
+      "generate: package.json, tsconfig, layout",
+      "txn: Install transaction and rollback",
+      "golden: Deterministic project snapshots",
+      "smoke: Build/run generated projects"
+    ]
+  },
+  "0071": {
+    "phase": "Product / MVP 2",
+    "packages": [
+      "internal/cli",
+      "internal/runner",
+      "cmd/m (plugin subcommand)"
+    ],
+    "forbiddenImports": [
+      "internal/runtime",
+      "internal/transform"
+    ],
+    "featureRows": [
+      "| m-<verb> plugins | Nub nub-<verb> | external subprocess convention | 0071 |",
+      "| PATH discovery | Nub | discover m-* executables | 0071 |",
+      "| Built-in precedence | Nub | plugins cannot shadow built-ins | 0071 |",
+      "| Plugin handshake | Nub | metadata, version, completion | 0071 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  argv[m hello] --> builtin[BuiltInCheck]\n  builtin --> discover[PATHDiscovery]\n  discover --> handshake[PluginHandshake]\n  handshake --> spawn[PluginSubprocess]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m hello` | dispatches to m-hello | If on PATH |\n| `m plugin list` | | Discovered plugins |\n| `m plugin doctor` | | Compatibility and trust diagnostics |\n\nPlugins are subprocesses; no in-process Go plugins or unstable ABI.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Plugin handshake protocol spec | Versioned metadata exchange |\n| Plugin SDK examples | JS, Go, shell reference plugins |",
+    "scopeItems": [
+      "Define m-<verb> executable naming and handshake protocol",
+      "Discover plugins from PATH without loading untrusted code into m",
+      "Enforce built-in command precedence; plugins never shadow built-ins",
+      "Implement plugin metadata cache for completion and doctor",
+      "Implement version compatibility checks in handshake",
+      "Spawn plugins as subprocesses with minimized environment/credentials",
+      "Implement structured plugin events and exit code propagation",
+      "Implement m plugin list and doctor commands",
+      "Display plugin trust and origin in diagnostics",
+      "Support optional installation via mx or package-manager command",
+      "Document SDK examples in JavaScript, Go, and shell",
+      "Test shadowing and version mismatch failures",
+      "Test malicious plugin output/protocol handling",
+      "Test cross-platform executable discovery",
+      "Integrate completion for discovered plugin verbs",
+      "Audit plugin env surface against trust policy",
+      "Benchmark plugin dispatch overhead",
+      "Freeze handshake protocol before public SDK publish"
+    ],
+    "fixtures": [
+      "fixtures/plugins/hello-go — minimal Go m-hello plugin",
+      "fixtures/plugins/hello-js — Node plugin example",
+      "fixtures/plugins/shadow-builtin — must fail dispatch",
+      "fixtures/plugins/malicious-output — protocol hardening",
+      "fixtures/plugins/version-mismatch — compatibility errors"
+    ],
+    "acceptance": [
+      "m hello runs m-hello on PATH when not a built-in",
+      "Built-in commands always win over plugin names",
+      "Plugin handshake rejects incompatible protocol versions",
+      "m plugin doctor reports origin and trust metadata",
+      "No untrusted code loaded into m process address space"
+    ],
+    "conformance": [
+      "Nub nub-<verb> plugin convention | parity"
+    ],
+    "openDecisions": [
+      "Plugin trust tiers and signed plugin support in v1",
+      "Whether plugins receive full project env or filtered subset"
+    ],
+    "todoSummaries": [
+      "protocol: m-<verb> handshake spec",
+      "discover: PATH discovery and precedence",
+      "spawn: Subprocess dispatch with minimal env",
+      "doctor: Trust and compatibility diagnostics",
+      "sdk: Reference plugin examples",
+      "tests: Shadowing and malicious output fixtures"
+    ]
+  },
+  "0072": {
+    "phase": "Distribution / MVP 1",
+    "packages": [
+      "cmd/m",
+      "cmd/mx",
+      ".goreleaser/",
+      "installers/",
+      "docs/install.md"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker",
+      "internal/runtime (feature work)"
+    ],
+    "featureRows": [
+      "| Multi-platform releases | Nub release builds | signed m/mx binaries | 0072 |",
+      "| Install scripts | Nub install.sh/ps1 | POSIX + PowerShell | 0072 |",
+      "| Package channels | Nub npm bootstrap | Homebrew/Scoop/Winget/npm | 0072 |",
+      "| Self-update | Nub | staged replacement + rollback | 0072 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  build[ReproducibleBuild] --> sign[SignAttest]\n  sign --> channel[ChannelManifest]\n  channel --> install[Installer]\n  install --> update[SelfUpdate]",
+    "commandsFlags": "| Command | Flags | Notes |\n|---|---|---|\n| `m upgrade` | channel selector | Self-update with rollback |\n| `m version --json` | `--json` | Version + channel metadata |\n\nInstaller never executes unverified downloaded binary.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Release archives per OS/arch | m, mx binaries + embedded runtime assets |\n| checksums.txt + signatures | Verification material |\n| SBOM + provenance attestations | Supply chain metadata |",
+    "scopeItems": [
+      "Configure GoReleaser or equivalent with reproducible build flags",
+      "Build release matrix for Linux, macOS, Windows supported architectures",
+      "Embed runtime assets and license manifests in release artifacts",
+      "Generate checksums, signatures, attestations, and SBOMs",
+      "Implement POSIX and PowerShell installers with verification step",
+      "Publish Homebrew, Scoop, Winget, and npm bootstrap package definitions",
+      "Implement signed versioned channel manifests",
+      "Implement m upgrade with staged replacement and rollback",
+      "Retain recoverable previous version after update",
+      "Reject tampered manifest or binary during install/update",
+      "Add clean VM installation tests per platform",
+      "Test interrupted replacement and locked-file Windows cases",
+      "Document uninstall instructions per channel",
+      "Coordinate default shim paths with 0062",
+      "Require 0046 and 0057 stabilization before stable channel",
+      "Publish benchmark baselines alongside release artifacts",
+      "Never commit signing keys; use CI secret management",
+      "Include m.lock compatibility note in release notes template"
+    ],
+    "fixtures": [
+      "tests/release/clean-vm — per-OS install smoke",
+      "tests/release/tamper — rejected signatures/checksums",
+      "tests/release/upgrade-rollback — self-update recovery",
+      "tests/release/windows-locked — file replacement edge cases",
+      "tests/release/channels — manifest parsing matrix"
+    ],
+    "acceptance": [
+      "Install script verifies checksum/signature before executing m",
+      "m upgrade rolls back safely on failure",
+      "Release artifacts include m and mx for all supported platforms",
+      "Channel manifests are signed and versioned",
+      "SBOM and provenance published per release"
+    ],
+    "conformance": [
+      "Nub install scripts and npm distribution | parity",
+      "Nub release build patterns | reference"
+    ],
+    "openDecisions": [
+      "Codesigning requirements for macOS/Windows stable channel",
+      "Whether npm package wraps binaries or bootstrap script only"
+    ],
+    "todoSummaries": [
+      "goreleaser: Reproducible release matrix",
+      "sign: Checksums, signatures, SBOM, provenance",
+      "installers: POSIX and PowerShell scripts",
+      "channels: Homebrew/Scoop/Winget/npm defs",
+      "upgrade: Self-update with rollback",
+      "tests: Clean VM and tamper rejection"
+    ]
+  },
+  "0073": {
+    "phase": "Distribution / MVP 2",
+    "packages": [
+      "actions/setup-m/",
+      "docs/ci/github-actions.md"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| setup-m GitHub Action | Nub GH Action | install + cache + Node | 0073 |",
+      "| Cache keys | Nub CI guidance | store/metadata/transform hashes | 0073 |",
+      "| Frozen install mode | Nub | reproducible CI installs | 0073 |",
+      "| Problem matchers | Nub | CI-friendly diagnostics | 0073 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  action[setup-m Action] --> dl[ReleaseDownload]\n  dl --> verify[ChecksumVerify]\n  verify --> cache[CacheRestore]\n  cache --> node[NodeProvision]\n  node --> summary[JobSummary]",
+    "commandsFlags": "| Surface | Input | Notes |\n|---|---|---|\n| `uses: mewjs/setup-m@v1` | `version`, `channel` | Install m/mx |\n| | `node-version` | Via 0060 integration |\n| | `cache` | Store/metadata/transform keys |\n\nCache keys include format versions; never cache credentials.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| actions/setup-m action bundle | Compiled JS action release |\n| Example workflow templates | CI integration docs |",
+    "scopeItems": [
+      "Implement action metadata and TypeScript/JavaScript bundle",
+      "Download release artifacts from 0072 with checksum verification",
+      "Implement version/channel input resolution",
+      "Integrate Node provisioning via m node from 0060",
+      "Implement cache key computation with format version salts",
+      "Restore/save store, metadata, transform, and execution caches",
+      "Implement frozen install and capsule restore helpers for CI",
+      "Add GitHub job summaries and problem matchers",
+      "Keep action outputs stable within major release",
+      "Test GitHub-hosted Linux/macOS/Windows matrix",
+      "Test fork PR credential safety (no secret leakage)",
+      "Test cache poisoning and stale cache invalidation",
+      "Document example workflows for monorepos and m.lock projects",
+      "Never cache credentials or unsafe mutable project state",
+      "Expose diagnostics for cache hit/miss reasons",
+      "Pin action release to signed 0072 artifacts",
+      "Benchmark CI install time cold vs warm cache",
+      "Publish versioning policy for setup-m major bumps"
+    ],
+    "fixtures": [
+      "fixtures/ci/workflows — example GitHub Actions",
+      "tests/ci/matrix — hosted runner smoke",
+      "tests/ci/fork-pr — credential safety",
+      "tests/ci/cache-poison — stale key rejection",
+      "tests/ci/frozen-install — reproducible CI mode"
+    ],
+    "acceptance": [
+      "setup-m installs verified m on GitHub-hosted runners",
+      "Cache restore speeds repeat CI runs without correctness loss",
+      "Fork PRs do not expose repository secrets via action",
+      "Node version inputs provision correct runtime",
+      "Action outputs remain stable for v1 consumers"
+    ],
+    "conformance": [
+      "Nub GitHub Action and CI cache guidance | parity"
+    ],
+    "openDecisions": [
+      "Whether action publishes post-install job annotations by default",
+      "Cache scope: global vs per-lockfile hash"
+    ],
+    "todoSummaries": [
+      "action: setup-m bundle and inputs",
+      "verify: Release download checksum gate",
+      "cache: Key computation and restore/save",
+      "node: Node provisioning integration",
+      "ci: Hosted runner matrix tests",
+      "docs: Example workflow templates"
+    ]
+  },
+  "0074": {
+    "phase": "Distribution / MVP 3",
+    "packages": [
+      "docker/",
+      "docs/ci/docker.md",
+      "builders/"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| Docker images mewjs/m | Nub Docker images | slim + full variants | 0074 |",
+      "| Multi-arch manifests | Nub | linux/amd64, arm64 | 0074 |",
+      "| BuildKit cache mounts | Nub deployment guidance | cache-efficient patterns | 0074 |",
+      "| Rootless operation | Nub | writable cache paths | 0074 |"
+    ],
+    "dataFlowNodes": "flowchart LR\n  release[SignedRelease] --> image[DockerBuild]\n  image --> manifest[MultiArchManifest]\n  manifest --> run[ContainerRun]\n  run --> smoke[SmokeTests]",
+    "commandsFlags": "| Surface | Example | Notes |\n|---|---|---|\n| `docker run mewjs/m:latest m --version` | slim image | Non-root default |\n| BuildKit cache mount docs | RUN --mount=type=cache | Store/transform caches |\n| Capsule workflows | documented patterns | Immutable CI deps |\n\nImages built from signed 0072 artifacts; no registry creds in layers.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| docker/Dockerfile.slim, Dockerfile.full | Image definitions |\n| Multi-arch manifest lists | Published image indexes |\n| BuildKit example Dockerfiles | Cache and capsule patterns |",
+    "scopeItems": [
+      "Create slim and full Dockerfiles from signed release artifacts",
+      "Implement multi-architecture build and publish pipeline",
+      "Run containers as non-root with documented writable cache paths",
+      "Document BuildKit cache mount patterns for store and transform caches",
+      "Provide capsule workflow examples for immutable CI dependencies",
+      "Add hosted-builder install snippets (Railway, Fly, etc.) where applicable",
+      "Detect lockfile type in container entry guidance",
+      "Scan images for vulnerabilities in CI",
+      "Smoke-test rootless and read-only filesystem recipes",
+      "Test multi-arch execution on amd64 and arm64",
+      "Document libc and native-addon implications for musl vs glibc",
+      "Never embed registry credentials in image layers",
+      "Pin image tags to reproducible release versions",
+      "Coordinate Node provisioning inside images with 0060",
+      "Publish read-only filesystem workaround patterns",
+      "Benchmark image size and cold m install in container",
+      "Add docker compose examples for monorepo CI",
+      "Link docs from 0073 GitHub Action for hybrid workflows"
+    ],
+    "fixtures": [
+      "docker/smoke — m --version and m install smoke",
+      "docker/rootless — non-root cache writable paths",
+      "docker/read-only — read-only root recipes",
+      "docker/multi-arch — amd64/arm64 execution",
+      "docker/buildkit — cache mount examples"
+    ],
+    "acceptance": [
+      "docker run mewjs/m:latest m --version succeeds on amd64 and arm64",
+      "Images run non-root by default with working cache dirs",
+      "Vulnerability scan gate passes on release images",
+      "BuildKit examples demonstrate cache-efficient m install",
+      "No credentials appear in image layers or history"
+    ],
+    "conformance": [
+      "Nub Docker images and deployment guidance | parity"
+    ],
+    "openDecisions": [
+      "Default base image: Debian vs Alpine vs distroless",
+      "Whether full image bundles Node or relies on m node provision"
+    ],
+    "todoSummaries": [
+      "dockerfiles: Slim and full image definitions",
+      "multiarch: Build and publish pipeline",
+      "rootless: Non-root cache path recipes",
+      "buildkit: Cache mount documentation",
+      "smoke: Container smoke and vuln scan gates",
+      "docs: Hosted builder snippets"
+    ]
+  }
+}

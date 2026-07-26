@@ -1,0 +1,8 @@
+{
+  "version": "0.0.1",
+  "name": "manifest-format",
+  "dependencies": {
+    "lodash": "4.17.21",
+    "@scope/pkg": "^1.0.0"
+  }
+}

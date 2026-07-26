@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "description": "Conformance inventory stub for MVP 0080. Cases are not yet certified.",
+  "referencePins": {
+    "npm": "10",
+    "pnpm": "9",
+    "nub": ""
+  },
+  "cases": [
+    {
+      "id": "identity.detection",
+      "status": "stub",
+      "fixture": "fixtures/identity",
+      "notes": "Covered by internal/project unit tests; differential pending"
+    },
+    {
+      "id": "registry.hermetic",
+      "status": "stub",
+      "fixture": "fixtures/registry/v1",
+      "notes": "Local fixture registry smoke in tests/integration"
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+package app
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/m/internal/diagnostics"
+)
+
+// Context is the process-level application state for one CLI invocation.
+type Context struct {
+	CWD       string
+	Config    *config.Effective
+	Reporter  diagnostics.Reporter
+	Version   string
+	Commit    string
+	BuildDate string
+	Ctx       context.Context
+}
+
+// Options controls Context construction from CLI globals.
+type Options struct {
+	CWD           string
+	ConfigPath    string
+	Offline       bool
+	PreferOffline bool
+	Env           []string
+	Reporter      diagnostics.Reporter
+	Version       string
+	Commit        string
+	BuildDate     string
+}
+
+type ctxKey struct{}
+
+// New builds an application context: resolve CWD, load config, attach reporter.
+func New(ctx context.Context, opts Options) (*Context, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cwd := opts.CWD
+	if cwd == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		cwd = wd
+	}
+	abs, err := filepath.Abs(cwd)
+	if err != nil {
+		return nil, err
+	}
+	cwd = abs
+
+	cliOverlay := map[string]any{}
+	if opts.Offline {
+		cliOverlay["offline"] = true
+	}
+	if opts.PreferOffline {
+		cliOverlay["prefer-offline"] = true
+	}
+
+	loadOpts := config.LoadOptions{
+		CWD:         cwd,
+		ProjectRoot: cwd,
+		Env:         opts.Env,
+		CLI:         cliOverlay,
+	}
+	if opts.ConfigPath != "" {
+		cfgAbs, err := filepath.Abs(opts.ConfigPath)
+		if err != nil {
+			return nil, err
+		}
+		rel, err := filepath.Rel(cwd, cfgAbs)
+		if err == nil && !strings.HasPrefix(rel, "..") {
+			loadOpts.ProjectPath = cfgAbs
+		} else {
+			loadOpts.GlobalPath = cfgAbs
+		}
+	}
+
+	eff, err := config.Load(ctx, loadOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	rep := opts.Reporter
+	if rep == nil {
+		rep = diagnostics.NewReporter(diagnostics.Options{})
+	}
+
+	return &Context{
+		CWD:       cwd,
+		Config:    eff,
+		Reporter:  rep,
+		Version:   opts.Version,
+		Commit:    opts.Commit,
+		BuildDate: opts.BuildDate,
+		Ctx:       ctx,
+	}, nil
+}
+
+// WithContext stores app Context on a Go context.
+func WithContext(ctx context.Context, ac *Context) context.Context {
+	return context.WithValue(ctx, ctxKey{}, ac)
+}
+
+// FromContext retrieves app Context, or nil.
+func FromContext(ctx context.Context) *Context {
+	if ctx == nil {
+		return nil
+	}
+	ac, _ := ctx.Value(ctxKey{}).(*Context)
+	return ac
+}

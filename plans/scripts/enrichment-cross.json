@@ -1,0 +1,642 @@
+{
+  "0080": {
+    "phase": "Cross-Cutting",
+    "packages": [
+      "tests/conformance",
+      "internal/testkit/conformance",
+      "docs/conformance"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Conformance program | Nub/ref PMs | Continuous certification | 0080 |",
+      "| Differential fixtures | Testing strategy | Behavior + file + runtime | 0080 |"
+    ],
+    "dataFlowNodes": "fixture[Fixture] --> mew[Mew] --> cmp[Compare] --> ref[ReferencePM] --> report[Report]",
+    "commandsFlags": "| Command | Purpose |\n|---|---|\n| `make conformance` | Run certified suites |\n| `go test ./tests/conformance/...` | Package tests |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Conformance reports | CI artifacts |\n| Target matrix | Per PM major |",
+    "scopeItems": [
+      "Define certification axes: behavior, lockfile, layout, runtime",
+      "Maintain target matrix per npm/pnpm/Yarn/Bun/Nub/m.lock majors",
+      "Wire differential fixtures from 0008",
+      "Record pinned tool versions per target",
+      "Fail CI on certified regression without waiver",
+      "Produce machine-readable conformance report",
+      "Human summary for release notes",
+      "Separate experimental vs certified suites",
+      "Document how to add a new target",
+      "Link inventory features to conformance IDs",
+      "Windows/macOS/Linux required for layout tests",
+      "Clean-home mandatory",
+      "No public registry in certified jobs",
+      "Quarantine flaky tests with expiry",
+      "Integrate with 0031/0046/0057 gates",
+      "Dashboard or artifact index",
+      "Periodic re-baselines process",
+      "Agent protocol for updating goldens"
+    ],
+    "fixtures": [
+      "tests/conformance/cases/*",
+      "docs/conformance/targets.md"
+    ],
+    "acceptance": [
+      "Certified suite green on supported OS matrix",
+      "Every compatibility target has pinned version + fixtures",
+      "Regressions block release train gates"
+    ],
+    "conformance": [
+      "Meta-program for all PM targets | extension"
+    ],
+    "openDecisions": [
+      "Which PM majors are certified at v1 GA"
+    ],
+    "todoSummaries": [
+      "matrix: Target matrix per PM major",
+      "harness: Differential runner",
+      "ci: Certified suite gates",
+      "report: Machine-readable reports",
+      "docs: Add-target guide",
+      "waivers: Expiring waiver process"
+    ]
+  },
+  "0081": {
+    "phase": "Cross-Cutting",
+    "packages": [
+      "benchmarks/",
+      "internal/perf",
+      "docs/performance"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Performance program | Nub benches | Continuous budgets | 0081 |",
+      "| Resource ceilings | Engineering | FD/mem/goroutine bounds | 0081 |"
+    ],
+    "dataFlowNodes": "bench[Benchmarks] --> budget[Budgets] --> ci[CICompare] --> waiver[WaiverOrFail]",
+    "commandsFlags": "| Command | Purpose |\n|---|---|\n| `make bench` | Run benchmarks |\n| `go test -bench` | Package benches |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Bench JSON | Baselines |\n| Budget file | Thresholds |",
+    "scopeItems": [
+      "List hot paths: startup, resolve, fetch, extract, link, scripts, transform",
+      "Define cold vs warm cache benches",
+      "Publish baseline artifacts with machine metadata",
+      "CI regression detection with noise tolerance",
+      "Resource ceilings: goroutines, FDs, memory",
+      "Document waiver process with expiry",
+      "Bench install on fixture graphs S/M/L",
+      "Bench m --help startup",
+      "Bench transform TS hello",
+      "Track disk amplification",
+      "Track network request counts",
+      "Flamegraph/pprof guidance",
+      "No unbounded worker pools",
+      "Link budgets to MVP owners",
+      "Windows bench runners where meaningful",
+      "Separate micro vs end-to-end",
+      "Prevent silent bench deletion",
+      "Agent evidence requires bench commands"
+    ],
+    "fixtures": [
+      "benchmarks/graphs/small",
+      "benchmarks/graphs/medium",
+      "docs/performance/budgets.md"
+    ],
+    "acceptance": [
+      "Baselines recorded for critical paths",
+      "CI fails on budget breach without waiver",
+      "Cold/warm separated in reports"
+    ],
+    "conformance": [
+      "Performance discipline | extension"
+    ],
+    "openDecisions": [
+      "Absolute vs relative regression thresholds"
+    ],
+    "todoSummaries": [
+      "paths: Enumerate hot paths",
+      "bench: S/M/L install benches",
+      "budget: Threshold file",
+      "ci: Regression gate",
+      "ceiling: Resource limits",
+      "docs: Perf program guide"
+    ]
+  },
+  "0082": {
+    "phase": "Cross-Cutting",
+    "packages": [
+      "docs/security/threat-model.md",
+      "docs/security/reviews"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Threat model | Supply chain tool | Mandatory reviews | 0082 |",
+      "| Abuse cases | Downloads+exec | Controls mapping | 0082 |"
+    ],
+    "dataFlowNodes": "asset[Assets] --> boundary[TrustBoundaries] --> threat[Threats] --> control[Controls] --> review[ReviewGates]",
+    "commandsFlags": "N/A — security process document. Secure coding checklist used in PR review.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Threat model doc | Living |\n| Review checklists | PR/release |",
+    "scopeItems": [
+      "Identify assets: credentials, lockfiles, store, scripts, Node bins",
+      "Define trust boundaries: registry, git, filesystem, plugins, CI",
+      "Enumerate adversaries and abuse cases",
+      "Map controls to MVPs (integrity, sandbox, consent, redaction)",
+      "Mandatory review triggers for security-boundary changes",
+      "Secure coding checklist",
+      "Fail-closed defaults policy",
+      "Archive extraction threat cases",
+      "Lifecycle script threat cases",
+      "mx consent threat cases",
+      "Shim PATH hijack cases",
+      "Dependency confusion cases",
+      "Signed release verification",
+      "Incident response outline",
+      "Link to 0021/0030/0044/0062",
+      "Periodic threat-model refresh",
+      "No secrets in plans/logs",
+      "Agent escalation triggers"
+    ],
+    "fixtures": [
+      "docs/security/abuse-cases.md",
+      "testdata/security/evil-tarball-cases.md"
+    ],
+    "acceptance": [
+      "Threat model covers download+execute surfaces",
+      "Every abuse case maps to a control or accepted risk",
+      "Security boundary PRs require checklist"
+    ],
+    "conformance": [
+      "Security review discipline | extension"
+    ],
+    "openDecisions": [
+      "External audit timing before GA"
+    ],
+    "todoSummaries": [
+      "assets: Asset inventory",
+      "boundaries: Trust boundaries",
+      "abuse: Abuse case catalog",
+      "controls: Map to MVPs",
+      "checklist: Secure coding + PR gates",
+      "docs: Publish threat model"
+    ]
+  },
+  "0083": {
+    "phase": "Cross-Cutting",
+    "packages": [
+      "docs/migration/nub-to-mew.md",
+      "plans/0083-rust-go-migration-map.md"
+    ],
+    "forbiddenImports": [
+      "Do not transliterate Rust modules into Go packages blindly"
+    ],
+    "featureRows": [
+      "| Rust→Go map | Nub crates | Go packages + tests | 0083 |",
+      "| Intentional omissions | Product | Documented | 0083 |"
+    ],
+    "dataFlowNodes": "nub[NubCrate] --> decision[MapOrOmit] --> goPkg[GoPackage] --> test[CompatTest] --> mvp[OwnerMVP]",
+    "commandsFlags": "N/A — migration inventory.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Per-crate mapping table | Ownership |\n| Omission list | Product decisions |",
+    "scopeItems": [
+      "Inventory Nub crates and runtime assets",
+      "Inventory Aube crates",
+      "Map each to Go package or omission",
+      "Attach owner MVP and test ID",
+      "Mark JS assets that remain JS",
+      "Mark behavioral replacements vs ports",
+      "Document deprecated Nub behaviors Mew changes",
+      "Keep map synchronized with 0003",
+      "Reject line-by-line ports in review",
+      "Cover CLI, core, native, runtime, installers",
+      "Note data formats and error codes",
+      "Note caches and protocols",
+      "Update when upstream Nub commit changes",
+      "Link sources/nub-reference-snapshot.md",
+      "Agent reading order includes this map",
+      "Track gaps as research spikes when needed",
+      "No silent omissions",
+      "Publish human-readable migration guide outline"
+    ],
+    "fixtures": [
+      "docs/migration/crate-map.md",
+      "docs/migration/omissions.md"
+    ],
+    "acceptance": [
+      "Every Nub crate has map/omit row",
+      "Every mapped row has owner MVP",
+      "Intentional omissions documented"
+    ],
+    "conformance": [
+      "Architecture mapping | divergence"
+    ],
+    "openDecisions": [
+      "How often to refresh against upstream Nub"
+    ],
+    "todoSummaries": [
+      "inventory: Nub+Aube crate list",
+      "map: Go package targets",
+      "omit: Intentional omissions",
+      "tests: Attach compat test IDs",
+      "sync: Keep with 0003",
+      "docs: Migration guide outline"
+    ]
+  },
+  "0084": {
+    "phase": "Cross-Cutting",
+    "packages": [
+      "docs/versioning.md",
+      "docs/support-policy.md"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Versioning policy | Product | CLI/APIs/formats/Node/PMs | 0084 |",
+      "| Support windows | Product | Lock adapters + Node | 0084 |"
+    ],
+    "dataFlowNodes": "change[ChangeType] --> class[CompatClass] --> version[VersionBump] --> notes[ReleaseNotes]",
+    "commandsFlags": "Documents how `m --version` and lockfileVersion evolve.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Support matrix | Node + PM |\n| Format version table | lock/cache/plan/capsule |",
+    "scopeItems": [
+      "Define semver promises for CLI",
+      "Define stability for Go public packages if any",
+      "Lockfile version bump rules",
+      "Cache version invalidation rules",
+      "Plan/capsule/plugin compatibility",
+      "Node version support windows",
+      "Package-manager adapter support windows",
+      "Experimental feature graduation rules",
+      "Breaking change communication process",
+      "Deprecation timeline minimums",
+      "Windows/macOS/Linux support statement",
+      "Document what is not covered",
+      "Link to 0009 release channels",
+      "Upgrade/rollback testing requirements",
+      "Agent must note format version impacts",
+      "Compatibility matrix published",
+      "Align with 0087 DoD",
+      "Review cadence"
+    ],
+    "fixtures": [
+      "docs/versioning.md",
+      "docs/support-matrix.md"
+    ],
+    "acceptance": [
+      "Every persistent format has version policy",
+      "Node floor documented",
+      "Experimental graduation criteria clear"
+    ],
+    "conformance": [
+      "Support policy | extension"
+    ],
+    "openDecisions": [
+      "0.x duration before 1.0"
+    ],
+    "todoSummaries": [
+      "semver: CLI compatibility promises",
+      "formats: Version bump rules",
+      "node: Support windows",
+      "pm: Adapter windows",
+      "experimental: Graduation rules",
+      "docs: Publish matrices"
+    ]
+  },
+  "0085": {
+    "phase": "Cross-Cutting",
+    "packages": [
+      "docs/dependencies.md",
+      "go.mod"
+    ],
+    "forbiddenImports": [
+      "New deps require ADR when not stdlib"
+    ],
+    "featureRows": [
+      "| Go dependency roadmap | Engineering | CLI/semver/FS/net/archive/security | 0085 |"
+    ],
+    "dataFlowNodes": "need[Need] --> stdlib[StdlibFirst] --> eval[EvaluateDep] --> pin[Pin] --> review[PeriodicReview]",
+    "commandsFlags": "N/A — dependency governance.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Allowlist | Approved deps |\n| ADR per heavy dep | Rationale |",
+    "scopeItems": [
+      "Prefer stdlib everywhere feasible",
+      "Evaluate CLI library candidates",
+      "Evaluate semver library candidates",
+      "Evaluate archive/compress libs vs stdlib",
+      "Evaluate HTTP hardening needs",
+      "Evaluate FS notify for watch",
+      "Evaluate transform parser deps",
+      "Pin versions in go.mod",
+      "License compatibility checks",
+      "govulncheck in CI",
+      "Periodic review calendar",
+      "Document rejected alternatives",
+      "No dependency for YAGNI features",
+      "Size/attack-surface notes",
+      "Windows support required for chosen deps",
+      "Update 0004 bootstrap accordingly",
+      "Agent must not add deps without ADR when required",
+      "Publish dependency roadmap table"
+    ],
+    "fixtures": [
+      "docs/dependencies/roadmap.md",
+      "docs/adr/"
+    ],
+    "acceptance": [
+      "Roadmap covers CLI, semver, transform, FS, net, archive, security, release",
+      "Every non-stdlib dep has rationale",
+      "Vulncheck wired"
+    ],
+    "conformance": [
+      "Dependency discipline | extension"
+    ],
+    "openDecisions": [
+      "Specific CLI library choice (ties 0010)",
+      "Transform parser library (ties 0051/0089)"
+    ],
+    "todoSummaries": [
+      "inventory: Domains needing deps",
+      "eval: Candidate comparisons",
+      "pin: go.mod policy",
+      "license: License gate",
+      "vuln: govulncheck",
+      "docs: Roadmap + ADRs"
+    ]
+  },
+  "0086": {
+    "phase": "Cross-Cutting",
+    "packages": [
+      "AGENTS.md",
+      "docs/agents/",
+      ".claude/skills/",
+      ".agents/"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| AI agent protocol | Nub AGENTS | Deterministic MVP workflow | 0086 |"
+    ],
+    "dataFlowNodes": "read[RequiredReading] --> scope[ScopeCheck] --> impl[SmallPRs] --> evidence[Evidence] --> handoff[Handoff]",
+    "commandsFlags": "N/A — agent process. Threads under `.agents/threads/`.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Evidence template | PR/agent handoff |\n| Thread template | Multi-turn state |",
+    "scopeItems": [
+      "Required reading order for agents",
+      "Predecessor checks before coding",
+      "Behavior-first research rules",
+      "Small PR policy",
+      "Test and benchmark evidence requirements",
+      "Persistent-format safeguards",
+      "Security escalation triggers",
+      "Handoff status reporting",
+      "Evidence template",
+      "Review checklist",
+      "Thread file schema status values",
+      "Forbid secrets in threads",
+      "Link to plan files and inventory updates",
+      "No force-push/default-branch rules reminder",
+      "Windows verification reminder",
+      "Clean-home test reminder",
+      "Align with AGENTS.md non-negotiables",
+      "Document when to stop for human decisions"
+    ],
+    "fixtures": [
+      "docs/agents/evidence-template.md",
+      "docs/agents/thread-template.md"
+    ],
+    "acceptance": [
+      "Agents have deterministic workflow doc",
+      "Evidence template lists 6 handoff items",
+      "Human-owned decisions called out"
+    ],
+    "conformance": [
+      "Agent workflow | extension"
+    ],
+    "openDecisions": [
+      "Whether to require thread files for every MVP"
+    ],
+    "todoSummaries": [
+      "reading: Required reading order",
+      "scope: Predecessor checks",
+      "evidence: Template",
+      "security: Escalation triggers",
+      "threads: Thread schema",
+      "docs: Publish agent protocol"
+    ]
+  },
+  "0087": {
+    "phase": "Cross-Cutting",
+    "packages": [
+      "docs/definition-of-done.md",
+      "docs/waivers/"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Definition of done | Quality | Non-negotiable MVP completion | 0087 |"
+    ],
+    "dataFlowNodes": "mvp[MVP] --> checklist[DoDChecklist] --> evidence[EvidenceIndex] --> signoff[OwnerSignoff] --> done[Done]",
+    "commandsFlags": "N/A — quality gate. Waivers expire in CI.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| DoD checklist | Reviews |\n| Evidence index | Links tests/benches/docs |\n| Waivers | Expiring exceptions |",
+    "scopeItems": [
+      "Create review checklist covering behavior/interfaces/tests/docs/security/perf/compat/migration/recovery",
+      "Create evidence index template",
+      "Exception/waiver process with expiry",
+      "Owner sign-off for persistent format changes",
+      "Owner sign-off for security boundary changes",
+      "Audit three completed MVPs against checklist (when available)",
+      "CI fails expired waivers",
+      "Final program exit criteria from 0087 plan",
+      "Known-limitations disclosure required",
+      "Feature inventory updated before Done",
+      "Conformance links required",
+      "No open critical integrity issues",
+      "Release artifacts reproducible",
+      "Align stabilization gates",
+      "Agent cannot mark Done without evidence",
+      "Document support expectations",
+      "Link 0080/0081/0082/0084",
+      "Publish DoD in docs/"
+    ],
+    "fixtures": [
+      "docs/definition-of-done.md",
+      "docs/waivers/README.md"
+    ],
+    "acceptance": [
+      "DoD checklist exists and is used",
+      "Waivers expire automatically in policy",
+      "Format/security changes need owner sign-off"
+    ],
+    "conformance": [
+      "Quality bar | extension"
+    ],
+    "openDecisions": [
+      "Who the default owners are per subsystem"
+    ],
+    "todoSummaries": [
+      "checklist: Review checklist",
+      "evidence: Evidence index",
+      "waiver: Expiring waivers",
+      "signoff: Owner sign-off rules",
+      "ci: Expired waiver fail",
+      "docs: Publish DoD"
+    ]
+  },
+  "0088": {
+    "phase": "Cross-Cutting",
+    "packages": [
+      "plans/sources/",
+      "docs/references/"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Reference index | Research | Authoritative sources | 0088 |"
+    ],
+    "dataFlowNodes": "topic[Topic] --> source[PinnedSource] --> note[Notes] --> mvp[ConsumingMVP]",
+    "commandsFlags": "N/A — bibliography.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Reference index | URLs + commits |\n| sources/* | Plan research notes |",
+    "scopeItems": [
+      "Index Nub behavior sources with commit pins",
+      "Index npm/pnpm/Yarn/Bun lock format docs",
+      "Index Node loader/preload/inspector docs",
+      "Index registry protocol docs",
+      "Index security standards (SRI, SBOM, provenance)",
+      "Index Go implementation decision sources",
+      "Keep plans/sources synchronized",
+      "Record retrieval dates",
+      "Mark stale sources",
+      "Link MVPs to references",
+      "No private URLs/secrets",
+      "Process to refresh before major implementation waves",
+      "Agent must cite sources for parity claims",
+      "Separate normative vs informative",
+      "Include license notes",
+      "Cross-link 0083 migration map",
+      "Publish docs/references/README",
+      "Validate links periodically"
+    ],
+    "fixtures": [
+      "plans/sources/nub-reference-snapshot.md",
+      "plans/sources/compatibility-targets.md",
+      "docs/references/index.md"
+    ],
+    "acceptance": [
+      "Authoritative source list exists",
+      "Nub commit pin recorded",
+      "Parity claims can cite a source entry"
+    ],
+    "conformance": [
+      "Research hygiene | extension"
+    ],
+    "openDecisions": [
+      "Automation for link checking"
+    ],
+    "todoSummaries": [
+      "nub: Pin Nub sources",
+      "pm: Lock format sources",
+      "node: Runtime API sources",
+      "security: Standards index",
+      "refresh: Update process",
+      "docs: Publish reference index"
+    ]
+  },
+  "0089": {
+    "phase": "Cross-Cutting",
+    "packages": [
+      "docs/spikes/",
+      ".agents/threads/"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Research spikes | Architecture risks | Decision gates before freeze | 0089 |"
+    ],
+    "dataFlowNodes": "question[OpenQuestion] --> spike[TimeboxedSpike] --> decision[HumanDecision] --> mvp[UnblockMVP]",
+    "commandsFlags": "N/A — research. Spikes may produce throwaway probes only.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Spike reports | Decisions |\n| Throwaway probes | Evidence |",
+    "scopeItems": [
+      "List spikes that can invalidate later contracts",
+      "Timebox each spike",
+      "Require written decision outcome",
+      "Decorator metadata spike linked to 0052",
+      "Transform IPC vs in-process spike linked to 0051",
+      "Yarn PnP write certification spike linked to 0025",
+      "Reflink reliability spike linked to 0018",
+      "Sandbox capability matrix spike linked to 0021",
+      "No production code from spike unless promoted",
+      "Human-owned decisions surfaced",
+      "Update Open Decisions in affected MVPs",
+      "Archive spike evidence",
+      "Prevent starting dependent MVP until gate cleared",
+      "Agent protocol for spike threads",
+      "Keep backlog of resolved spikes",
+      "Link to 0009 stop-the-line when needed",
+      "Do not expand critical path casually",
+      "Publish spike index"
+    ],
+    "fixtures": [
+      "docs/spikes/index.md",
+      "docs/spikes/TEMPLATE.md"
+    ],
+    "acceptance": [
+      "Open spikes listed with owners and due dates",
+      "Blocking spikes prevent dependent MVP start",
+      "Resolved spikes recorded with decisions"
+    ],
+    "conformance": [
+      "Decision gates | extension"
+    ],
+    "openDecisions": [
+      "Prioritize which spike runs first pre-0010"
+    ],
+    "todoSummaries": [
+      "list: Spike inventory",
+      "template: Spike report template",
+      "gates: Blocking rules",
+      "archive: Evidence archive",
+      "sync: Update MVP open decisions",
+      "docs: Spike index"
+    ]
+  },
+  "0090": {
+    "phase": "Future",
+    "packages": [
+      "docs/backlog/future.md"
+    ],
+    "forbiddenImports": [
+      "Must not pull backlog items onto critical path without charter change"
+    ],
+    "featureRows": [
+      "| Future backlog | Post-parity ideas | Non-blocking | 0090 |"
+    ],
+    "dataFlowNodes": "idea[Idea] --> park[Backlog] --> review[PeriodicReview] --> promote[OptionalPromote]",
+    "commandsFlags": "N/A — non-blocking backlog. No ship gate depends on 0090.",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Future backlog doc | Parking lot |",
+    "scopeItems": [
+      "OPTIONAL: Capture post-parity ideas without expanding critical path",
+      "OPTIONAL: Tag each idea with value/risk/effort",
+      "OPTIONAL: Require charter update before promotion",
+      "OPTIONAL: Separate nice-to-have UX polish ideas",
+      "OPTIONAL: Note ideas that conflict with stock-Node boundary",
+      "OPTIONAL: Periodic backlog grooming",
+      "OPTIONAL: Link rejected ideas with rationale",
+      "OPTIONAL: Keep out of stabilization gates",
+      "OPTIONAL: Do not assign primary_mvp that blocks 0031/0046/0057",
+      "OPTIONAL: Agent must not implement backlog as if required",
+      "OPTIONAL: Document promotion checklist",
+      "OPTIONAL: Examples only — phantom dep analysis, extra templates",
+      "OPTIONAL: Ensure INDEX marks 0090 as future",
+      "OPTIONAL: No conformance dependency",
+      "OPTIONAL: Review during release planning only"
+    ],
+    "fixtures": [
+      "docs/backlog/future.md"
+    ],
+    "acceptance": [
+      "Backlog explicitly non-blocking",
+      "No critical-path MVP lists 0090 as required predecessor",
+      "Promotion requires human decision"
+    ],
+    "conformance": [
+      "Out of parity scope | deferred"
+    ],
+    "openDecisions": [
+      "Which ideas if any to promote after GA"
+    ],
+    "todoSummaries": [
+      "park: Maintain non-blocking backlog",
+      "tag: Value/risk/effort tags",
+      "promote: Promotion checklist",
+      "guard: Keep off critical path",
+      "review: Periodic grooming",
+      "docs: Future backlog doc"
+    ]
+  }
+}

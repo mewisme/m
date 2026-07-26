@@ -1,0 +1,182 @@
+package features
+
+func row(id, name, module string, nub, mew Status, class CompatibilityClass, mvp string) Feature {
+	return Feature{
+		ID:                 id,
+		Name:               name,
+		Module:             module,
+		NubStatus:          nub,
+		MewStatus:          mew,
+		CompatibilityClass: class,
+		PrimaryMVP:         mvp,
+		Tests:              []string{},
+	}
+}
+
+func rowWithTests(id, name, module string, nub, mew Status, class CompatibilityClass, mvp string, tests []string) Feature {
+	f := row(id, name, module, nub, mew, class, mvp)
+	f.Tests = tests
+	return f
+}
+
+// Baseline returns the canonical feature inventory rows from plans/0002.
+func Baseline() *Inventory {
+	return &Inventory{
+		SchemaVersion: "1",
+		Features:      baselineFeatures(),
+	}
+}
+
+func baselineFeatures() []Feature {
+	shipped := StatusShipped
+	planned := StatusPlanned
+	inProgress := StatusInProgress
+	omit := StatusIntentionalOmit
+	parity := ClassParity
+	ext := ClassExtension
+
+	return []Feature{
+		// Foundation and cross-cutting
+		row("foundation.charter", "program charter and product contract", "foundation", shipped, shipped, parity, "0001"),
+		row("foundation.features-inventory", "feature inventory and parity matrix", "foundation", omit, inProgress, ext, "0002"),
+		rowWithTests("foundation.architecture", "target Go architecture and boundaries", "foundation", shipped, shipped, parity, "0003", []string{"internal/archcheck"}),
+		rowWithTests("foundation.repository-bootstrap", "repository bootstrap and quality gates", "foundation", shipped, shipped, parity, "0004", []string{"internal/testkit", "internal/bootstrap", "internal/cli"}),
+		rowWithTests("foundation.error-model", "stable error codes and diagnostics", "foundation", shipped, shipped, parity, "0005", []string{"internal/apperr", "internal/diagnostics", "internal/trace", "internal/cli"}),
+		rowWithTests("foundation.config-identity", "configuration and PM identity detection", "foundation", shipped, shipped, parity, "0006", []string{"internal/config", "internal/project", "internal/cli"}),
+		rowWithTests("foundation.data-model", "canonical manifest and graph interfaces", "foundation", shipped, shipped, parity, "0007", []string{"internal/graph", "internal/manifest", "internal/resolver", "internal/lockfile", "internal/plan", "internal/snapshot", "internal/policy"}),
+		rowWithTests("foundation.testing-strategy", "fixtures, fuzzing, and conformance harness", "foundation", shipped, shipped, parity, "0008", []string{"internal/testkit", "tests/integration", "tests/conformance"}),
+		rowWithTests("foundation.release-train", "MVP dependency graph and release train", "foundation", shipped, shipped, parity, "0009", []string{"internal/releasetrain"}),
+		rowWithTests("foundation.cli", "m and mx CLI foundation", "foundation", shipped, shipped, parity, "0010", []string{"internal/cli", "cmd/m", "cmd/mx", "internal/app"}),
+		rowWithTests("foundation.manifest-discovery", "package.json and project discovery", "foundation", shipped, shipped, parity, "0011", []string{"internal/manifest", "internal/project", "internal/workspace", "internal/cli"}),
+		row("foundation.core-stabilization", "package-manager core stabilization gate", "foundation", shipped, planned, parity, "0031"),
+		row("foundation.runner-stabilization", "runner stabilization gate", "foundation", shipped, planned, parity, "0046"),
+		row("foundation.runtime-stabilization", "runtime stabilization gate", "foundation", shipped, planned, parity, "0057"),
+		row("cross.conformance-program", "continuous conformance certification", "cross-cutting", shipped, planned, parity, "0080"),
+		row("cross.performance-program", "performance measurement and gates", "cross-cutting", shipped, planned, parity, "0081"),
+		row("cross.threat-model", "threat model and security reviews", "cross-cutting", shipped, planned, parity, "0082"),
+		row("cross.migration-map", "Nub Rust to Mew Go migration map", "cross-cutting", shipped, planned, parity, "0083"),
+		row("cross.versioning-policy", "versioning and support policy", "cross-cutting", shipped, planned, parity, "0084"),
+		row("cross.dependency-roadmap", "Go dependency selection roadmap", "cross-cutting", shipped, planned, parity, "0085"),
+		row("cross.ai-agent-protocol", "AI agent implementation protocol", "cross-cutting", shipped, planned, parity, "0086"),
+		row("cross.definition-of-done", "global definition of done", "cross-cutting", shipped, planned, parity, "0087"),
+		row("cross.reference-index", "reference index and research sources", "cross-cutting", shipped, planned, parity, "0088"),
+		row("cross.research-spikes", "open research spikes and decision gates", "cross-cutting", shipped, planned, parity, "0089"),
+		row("cross.future-backlog", "post-parity future extensions backlog", "cross-cutting", omit, planned, ext, "0090"),
+
+		// Package-manager commands
+		rowWithTests("pm.install", "install / i", "package-manager", shipped, shipped, parity, "0016", []string{"internal/app", "internal/cli", "tests/integration"}),
+		rowWithTests("pm.ci", "ci / frozen clean install", "package-manager", shipped, shipped, parity, "0016", []string{"internal/cli", "tests/integration"}),
+		rowWithTests("pm.add-remove-update", "add / remove / update", "package-manager", shipped, shipped, parity, "0016", []string{"internal/app", "internal/cli", "tests/integration"}),
+		row("pm.import-dedupe-prune", "import / dedupe / prune / rebuild", "package-manager", shipped, planned, parity, "0026"),
+		row("pm.list-why-outdated", "list / why / outdated / view", "package-manager", shipped, planned, parity, "0026"),
+		row("pm.fetch-pack-publish", "fetch / pack / publish", "package-manager", shipped, planned, parity, "0014"),
+		rowWithTests("pm.store-cache-config", "store / cache / config", "package-manager", shipped, inProgress, parity, "0012", []string{"internal/cli", "internal/config", "internal/registry"}),
+		row("pm.global-install", "global installs where retained", "package-manager", shipped, planned, parity, "0026"),
+
+		// Resolver
+		rowWithTests("resolver.semver", "npm semver ranges and tags", "resolver", shipped, shipped, parity, "0013", []string{"internal/semver", "internal/resolver", "internal/registry"}),
+		rowWithTests("resolver.transitive-graph", "transitive graph and cycles", "resolver", shipped, shipped, parity, "0013", []string{"internal/resolver", "tests/integration"}),
+		row("resolver.peers", "peer dependencies and peer contexts", "resolver", shipped, planned, parity, "0020"),
+		row("resolver.optional-platform", "optional/dev/platform dependencies", "resolver", shipped, planned, parity, "0020"),
+		row("resolver.overrides", "overrides and resolutions", "resolver", shipped, planned, parity, "0020"),
+		row("resolver.workspace-protocol", "workspace protocol and catalogs", "resolver", shipped, planned, parity, "0022"),
+		row("resolver.aliases", "aliases and npm protocol", "resolver", shipped, planned, parity, "0020"),
+		row("resolver.git-sources", "Git, hosted Git, file, link, portal, tarball", "resolver", shipped, planned, parity, "0027"),
+		row("resolver.patches", "patch dependencies", "resolver", shipped, planned, parity, "0027"),
+		rowWithTests("resolver.minimum-release-age", "minimum release age", "resolver", shipped, shipped, parity, "0013", []string{"internal/resolver", "internal/policy"}),
+
+		// Registry
+		rowWithTests("registry.npm-compatible", "npm-compatible registries", "registry", shipped, shipped, parity, "0012", []string{"internal/registry", "internal/fetch", "internal/cli", "tests/integration"}),
+		rowWithTests("registry.scoped-private", "scoped and private registries", "registry", shipped, shipped, parity, "0012", []string{"internal/registry", "internal/config"}),
+		rowWithTests("registry.transport", "proxy, custom CA, redirects, gzip", "registry", shipped, shipped, parity, "0012", []string{"internal/fetch", "internal/registry"}),
+		rowWithTests("registry.metadata-cache", "metadata and tarball cache", "registry", shipped, shipped, parity, "0012", []string{"internal/registry", "tests/integration"}),
+		row("registry.integrity", "SHA-512 SRI and legacy shasum", "registry", shipped, planned, parity, "0014"),
+		row("registry.safe-extraction", "safe archive extraction", "registry", shipped, planned, parity, "0014"),
+		rowWithTests("registry.offline", "offline and prefer-offline", "registry", shipped, shipped, parity, "0012", []string{"internal/registry"}),
+
+		// Lockfiles
+		rowWithTests("lockfile.m-lock", "m.lock native format", "lockfile", omit, shipped, ext, "0015", []string{"internal/lockfile/mlock", "internal/cli", "tests/integration"}),
+		row("lockfile.nub-lock", "nub.lock read/write", "lockfile", shipped, planned, parity, "0023"),
+		row("lockfile.pnpm", "pnpm lockfiles", "lockfile", shipped, planned, parity, "0023"),
+		row("lockfile.npm", "package-lock and shrinkwrap", "lockfile", shipped, planned, parity, "0024"),
+		row("lockfile.bun", "bun.lock", "lockfile", shipped, planned, parity, "0025"),
+		row("lockfile.yarn-classic", "Yarn Classic", "lockfile", shipped, planned, parity, "0025"),
+		row("lockfile.yarn-berry", "Yarn Berry and PnP artifacts", "lockfile", shipped, planned, parity, "0025"),
+		row("lockfile.preservation", "existing-format preservation", "lockfile", shipped, planned, parity, "0023"),
+		row("lockfile.semantic-diff", "semantic diff and validation", "lockfile", shipped, planned, ext, "0028"),
+		row("lockfile.migration", "explicit lock migration and loss report", "lockfile", shipped, planned, ext, "0028"),
+
+		// Linker and reliability
+		rowWithTests("linker.hoisted", "hoisted node_modules", "linker", shipped, shipped, parity, "0016", []string{"internal/linker/hoisted", "tests/integration"}),
+		row("linker.isolated", "isolated virtual store", "linker", shipped, planned, parity, "0019"),
+		row("linker.global-store", "global content-addressed store", "linker", shipped, planned, parity, "0018"),
+		row("linker.platform-links", "hardlink / symlink / junction behavior", "linker", shipped, planned, parity, "0018"),
+		row("linker.reflink-planner", "reflink and automatic filesystem planning", "linker", omit, planned, ext, "0018"),
+		row("linker.transactional-install", "transactional install and recovery", "linker", shipped, planned, ext, "0017"),
+		row("linker.rollback-history", "instant rollback and history", "linker", omit, planned, ext, "0017"),
+		row("linker.time-travel", "dependency time travel", "linker", omit, planned, ext, "0028"),
+		row("linker.capsules", "portable capsules", "linker", omit, planned, ext, "0029"),
+
+		// Lifecycle and security
+		row("lifecycle.scripts", "lifecycle scripts", "lifecycle", shipped, planned, parity, "0021"),
+		row("lifecycle.trusted-deps", "trusted dependencies / build approval", "lifecycle", shipped, planned, parity, "0021"),
+		row("lifecycle.sandbox", "script sandbox", "lifecycle", shipped, planned, parity, "0021"),
+		row("lifecycle.build-cache", "build-output cache", "lifecycle", shipped, planned, parity, "0021"),
+		row("security.audit", "audit and advisories", "security", shipped, planned, parity, "0030"),
+		row("security.sbom", "SBOM export", "security", shipped, planned, parity, "0030"),
+		row("security.provenance", "provenance and signatures", "security", shipped, planned, parity, "0027"),
+		row("security.policy-as-code", "policy-as-code", "security", shipped, planned, ext, "0030"),
+
+		// Workspaces and scripts
+		row("workspace.discovery", "workspace discovery and graph", "workspace", shipped, planned, parity, "0022"),
+		row("workspace.filtered-commands", "recursive and filtered commands", "workspace", shipped, planned, parity, "0022"),
+		row("workspace.parallel-scripts", "topological and parallel script execution", "workspace", shipped, planned, parity, "0041"),
+		row("runner.m-run", "m run script", "runner", shipped, planned, parity, "0040"),
+		row("runner.hooks-env", "pre/post hooks and npm environment", "runner", shipped, planned, parity, "0040"),
+		row("runner.reporters", "reporters and NDJSON", "runner", shipped, planned, parity, "0005"),
+		row("runner.direct-shortcuts", "direct m dev / m start shortcuts", "runner", omit, planned, ext, "0042"),
+		row("runner.interactive-select", "interactive script selection", "runner", omit, planned, ext, "0042"),
+
+		// Executable runner
+		row("exec.local", "local package binary execution (m exec)", "executable", shipped, planned, parity, "0043"),
+		row("exec.mx-dlx", "local-first temporary execution (mx)", "executable", shipped, planned, parity, "0044"),
+		row("exec.package-flags", "package flags and multiple packages", "executable", shipped, planned, parity, "0044"),
+		row("exec.consent", "consent and non-TTY fail-closed behavior", "executable", shipped, planned, parity, "0044"),
+		row("exec.cache-offline", "execution cache and offline mode", "executable", shipped, planned, parity, "0044"),
+		row("exec.snapshot-capsule", "snapshot and capsule execution", "executable", omit, planned, ext, "0045"),
+
+		// Runtime
+		row("runtime.js-cjs-esm", "run JS/CJS/ESM", "runtime", shipped, planned, parity, "0050"),
+		row("runtime.typescript", "run TS/MTS/CTS", "runtime", shipped, planned, parity, "0051"),
+		row("runtime.jsx", "JSX/TSX", "runtime", shipped, planned, parity, "0052"),
+		row("runtime.decorators", "legacy and standard decorators", "runtime", shipped, planned, parity, "0052"),
+		row("runtime.decorator-metadata", "decorator metadata", "runtime", shipped, planned, parity, "0052"),
+		row("runtime.tsconfig-paths", "tsconfig and path aliases", "runtime", shipped, planned, parity, "0051"),
+		row("runtime.sourcemaps", "source maps", "runtime", shipped, planned, parity, "0052"),
+		row("runtime.loaders", "custom loaders and preloads", "runtime", shipped, planned, parity, "0053"),
+		row("runtime.env-loading", "environment auto-loading", "runtime", shipped, planned, parity, "0054"),
+		row("runtime.workers-storage", "workers and Web Storage", "runtime", shipped, planned, parity, "0054"),
+		row("runtime.watch", "watch and automatic restart", "runtime", shipped, planned, parity, "0055"),
+		row("runtime.debugger", "debugger and inspector", "runtime", shipped, planned, parity, "0056"),
+		row("runtime.plain-node", "plain Node escape hatch", "runtime", shipped, planned, parity, "0050"),
+
+		// Node, PM, shims
+		row("node.install-use", "Node install/use/list/remove", "node-manager", shipped, planned, parity, "0060"),
+		row("node.version-discovery", "nvmrc/node-version/engines discovery", "node-manager", shipped, planned, parity, "0060"),
+		row("node.auto-provision", "automatic Node provisioning", "node-manager", shipped, planned, parity, "0060"),
+		row("pm-manager.detect-pin", "PM detect/pin/update/migrate/cache", "pm-manager", shipped, planned, parity, "0061"),
+		row("shim.corepack", "Corepack-style shims", "shim", shipped, planned, parity, "0062"),
+		row("shim.node-plain", "Node PATH shim without augmentation", "shim", shipped, planned, parity, "0062"),
+		row("shim.mew-self", "Mew self-version shim", "shim", shipped, planned, parity, "0062"),
+
+		// Project, plugins, distribution
+		row("product.ts-init", "TypeScript-first init", "product", shipped, planned, parity, "0070"),
+		row("product.template-delegation", "template delegation through mx", "product", shipped, planned, parity, "0070"),
+		row("plugin.external-verbs", "external verb plugins (m-<verb>)", "plugin", shipped, planned, parity, "0071"),
+		row("dist.installers", "direct installers", "distribution", shipped, planned, parity, "0072"),
+		row("dist.channels", "package channels", "distribution", shipped, planned, parity, "0072"),
+		row("dist.self-update", "self-update", "distribution", shipped, planned, parity, "0072"),
+		row("dist.github-action", "GitHub Action", "distribution", shipped, planned, parity, "0073"),
+		row("dist.docker-builders", "Docker and hosted builders", "distribution", shipped, planned, parity, "0074"),
+	}
+}

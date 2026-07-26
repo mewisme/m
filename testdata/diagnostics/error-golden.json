@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "type": "error",
+  "code": "ERR_M_LOCKFILE",
+  "op": "read",
+  "subject": "https://%2A%2A%2A:%2A%2A%2A@registry.npmjs.org/pkg",
+  "message": "ambiguous lockfile",
+  "exit": 1
+}

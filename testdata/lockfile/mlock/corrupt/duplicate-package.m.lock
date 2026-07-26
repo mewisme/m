@@ -1,0 +1,33 @@
+{
+  "lockfileVersion": 1,
+  "checksum": "deadbeef",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask"
+    }
+  },
+  "importers": [
+    {
+      "id": ".",
+      "path": ".",
+      "specifiers": []
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "dup",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "id": {
+        "name": "dup",
+        "version": "1.0.0"
+      }
+    }
+  ],
+  "edges": []
+}

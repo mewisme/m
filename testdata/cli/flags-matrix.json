@@ -1,0 +1,106 @@
+[
+  {
+    "name": "help-exit-0",
+    "args": [
+      "--help"
+    ],
+    "exit": 0,
+    "stdoutContains": [
+      "Available Commands",
+      "version",
+      "completion"
+    ]
+  },
+  {
+    "name": "version-text",
+    "args": [
+      "version"
+    ],
+    "exit": 0,
+    "stdoutContains": [
+      "m 0.0.0-test"
+    ]
+  },
+  {
+    "name": "version-json",
+    "args": [
+      "version",
+      "--json"
+    ],
+    "exit": 0,
+    "stdoutContains": [
+      "\"binary\"",
+      "\"version\"",
+      "\"commit\"",
+      "\"buildDate\""
+    ]
+  },
+  {
+    "name": "update-stub",
+    "args": [
+      "update"
+    ],
+    "exit": 1,
+    "stderrContains": [
+      "ERR_M_UNIMPLEMENTED",
+      "0016"
+    ]
+  },
+  {
+    "name": "dispatch-install",
+    "args": [
+      "__dispatch",
+      "install"
+    ],
+    "exit": 0,
+    "stdoutContains": [
+      "kind=builtin",
+      "path=install"
+    ]
+  },
+  {
+    "name": "dispatch-alias-i",
+    "args": [
+      "__dispatch",
+      "i"
+    ],
+    "exit": 0,
+    "stdoutContains": [
+      "kind=alias",
+      "path=install"
+    ]
+  },
+  {
+    "name": "dispatch-unknown",
+    "args": [
+      "__dispatch",
+      "not-a-real-command"
+    ],
+    "exit": 0,
+    "stdoutContains": [
+      "kind=unknown"
+    ]
+  },
+  {
+    "name": "completion-powershell",
+    "args": [
+      "completion",
+      "powershell"
+    ],
+    "exit": 0,
+    "stdoutContains": [
+      "Register-ArgumentCompleter",
+      "completion"
+    ]
+  },
+  {
+    "name": "unknown-command-usage",
+    "args": [
+      "definitely-not-a-command"
+    ],
+    "exit": 2,
+    "stderrContains": [
+      "ERR_M_USAGE"
+    ]
+  }
+]

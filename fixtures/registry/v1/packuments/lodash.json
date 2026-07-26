@@ -1,0 +1,17 @@
+{
+  "dist-tags": {
+    "latest": "4.17.21"
+  },
+  "name": "lodash",
+  "versions": {
+    "4.17.21": {
+      "dist": {
+        "integrity": "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63",
+        "shasum": "758b80171fc185274170cb6db31a08042813d860",
+        "tarball": "lodash-4.17.21.tgz"
+      },
+      "name": "lodash",
+      "version": "4.17.21"
+    }
+  }
+}

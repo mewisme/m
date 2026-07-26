@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mew.dev/schemas/diagnostics/error.schema.json",
+  "title": "Mew error document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "v",
+    "type",
+    "code",
+    "message",
+    "exit"
+  ],
+  "properties": {
+    "v": {
+      "type": "integer",
+      "const": 1
+    },
+    "type": {
+      "type": "string",
+      "const": "error"
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^ERR_M_"
+    },
+    "op": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "exit": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

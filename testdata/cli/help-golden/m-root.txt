@@ -1,0 +1,49 @@
+Mew is a Go implementation of the Nub product model for package management, scripts, and runtime augmentation.
+
+Usage:
+  m [command]
+
+Available Commands:
+  add         Add a dependency
+  audit       Audit dependencies
+  cache       Manage the download cache
+  ci          Clean install from lockfile
+  completion  Generate shell completion scripts
+  config      Get and set configuration
+  development Developer tooling
+  exec        Execute a local package binary
+  explain     Explain resolution decisions
+  features    List capability inventory and parity status
+  fetch       Download and extract packages from a fetch plan
+  help        Help about any command
+  history     Show install history
+  init        Initialize a project
+  install     Install dependencies
+  link        Link a local package
+  lock        Lockfile utilities
+  pack        Create a package tarball
+  pkg         Read package.json fields
+  plan        Preview install mutations
+  project     Inspect the current project
+  publish     Publish a package
+  remove      Remove a dependency
+  resolve     Resolve dependencies without installing
+  run         Run a package script
+  store       Manage the content store
+  update      Update dependencies
+  version     Print version information
+  view        View package metadata from the registry
+
+Flags:
+      --color string      color: auto|always|never (default "auto")
+      --config string     JSONC config file overlay path
+      --cwd string        project working directory
+      --debug             verbose diagnostics (env MEW_DEBUG or M_LOG=debug)
+  -h, --help              help for m
+      --no-color          disable ANSI color
+      --offline           force offline mode
+      --prefer-offline    prefer cached artifacts
+      --reporter string   output reporter: default|ndjson|json|silent (env MEW_LOG_FORMAT)
+  -v, --version           version for m
+
+Use "m [command] --help" for more information about a command.

@@ -1,0 +1,36 @@
+{
+  "dist-tags": {
+    "latest": "1.0.1"
+  },
+  "name": "pkg-c",
+  "versions": {
+    "1.0.0": {
+      "dist": {
+        "integrity": "sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "tarball": "pkg-c-1.0.0.tgz"
+      },
+      "name": "pkg-c",
+      "time": "2020-01-01T00:00:00Z",
+      "version": "1.0.0"
+    },
+    "1.0.1": {
+      "dist": {
+        "integrity": "sha256-9b75a3d4e441037d52cbcf35988036a38e8e931c5d77c71d729abc85a89ded6a",
+        "tarball": "pkg-c-1.0.1.tgz"
+      },
+      "name": "pkg-c",
+      "time": "2020-06-01T00:00:00Z",
+      "version": "1.0.1"
+    },
+    "1.1.0-beta.1": {
+      "deprecated": "use 1.0.1",
+      "dist": {
+        "integrity": "sha256-2222222222222222222222222222222222222222222222222222222222222222",
+        "tarball": "pkg-c-1.1.0-beta.1.tgz"
+      },
+      "name": "pkg-c",
+      "time": "2099-01-01T00:00:00Z",
+      "version": "1.1.0-beta.1"
+    }
+  }
+}

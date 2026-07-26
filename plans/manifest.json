@@ -1,0 +1,742 @@
+﻿{
+    "name":  "Mew Implementation Plan",
+    "product":  {
+                    "full_name":  "Mew",
+                    "binary":  "m",
+                    "executor_full_name":  "Mewx",
+                    "executor_binary":  "mx",
+                    "native_lockfile":  "m.lock"
+                },
+    "language":  "English",
+    "reference":  {
+                      "repository":  "nubjs/nub",
+                      "commit":  "08a804359ef301ef8b9307f1258cc185b3270698"
+                  },
+    "plan_file_count":  66,
+    "markdown_file_count":  136,
+    "validation_errors":  [
+
+                          ],
+    "files":  [
+                  {
+                      "path":  "_ENRICHED_TEMPLATE.md",
+                      "bytes":  2156,
+                      "sha256":  "fc3b9afd4ff680935122c004ce9729c8b1c7d360ee00b8f5d78b0cce392a6ce6"
+                  },
+                  {
+                      "path":  "0000-README.md",
+                      "bytes":  3792,
+                      "sha256":  "b105b44c57889793118d22b569a59296fba3363f9ed8788082cc78a4b6dacef2"
+                  },
+                  {
+                      "path":  "0001-program-charter.md",
+                      "bytes":  11421,
+                      "sha256":  "be01c7c528daec56a717f8a0bc65c61ef4e52f25428c14ccc2d494091e7a4283"
+                  },
+                  {
+                      "path":  "0002-feature-inventory.md",
+                      "bytes":  19126,
+                      "sha256":  "222a7119a7ab1a2faf503de615cf96ff26bb5ea8eb97a98d0d6da66d928de76f"
+                  },
+                  {
+                      "path":  "0003-target-architecture.md",
+                      "bytes":  17313,
+                      "sha256":  "2cd1f911c24b448de3a2a32d78de2a07ea376128e096df3e8f596a81260ae33c"
+                  },
+                  {
+                      "path":  "0004-repository-bootstrap.md",
+                      "bytes":  9466,
+                      "sha256":  "ddbec774aba88b21028e0b9f40c448d17105b2cfbc07b9193c59e0b03586b2c6"
+                  },
+                  {
+                      "path":  "0005-error-observability.md",
+                      "bytes":  9621,
+                      "sha256":  "f5bfa74f41752c043ed96ab4045fe06497e92dd814ba9256cbc23032b02cbe1a"
+                  },
+                  {
+                      "path":  "0006-configuration-identity.md",
+                      "bytes":  10345,
+                      "sha256":  "f9925c68657899d91f23a7b71581559071aa67035d5a537829fafc9a9f7c9f01"
+                  },
+                  {
+                      "path":  "0007-data-model-interfaces.md",
+                      "bytes":  9803,
+                      "sha256":  "a78486d112e2b8d563906830889db52b98f9f4f2c9f5dee51e79f9b1b14d9d6e"
+                  },
+                  {
+                      "path":  "0008-testing-strategy.md",
+                      "bytes":  11378,
+                      "sha256":  "553d0c4f03cbf3aa8bb96c5ee7aaae9d97a60d7b08af82887589a3d9c6e16a35"
+                  },
+                  {
+                      "path":  "0009-release-train-overview.md",
+                      "bytes":  13333,
+                      "sha256":  "47d7fb687c6b88c5687fa8749b76da18aeaa5a98f1a6fe5e5d4f0e782da70f3b"
+                  },
+                  {
+                      "path":  "0010-cli-foundation.md",
+                      "bytes":  10757,
+                      "sha256":  "f51fba7c020b1ba103d390be85aaec88c023d2f855df732ba9635130c694ef7c"
+                  },
+                  {
+                      "path":  "0011-manifest-project-discovery.md",
+                      "bytes":  10721,
+                      "sha256":  "0b5dd293a30bbfea776a5ed26e071766d7a796bd5561736b04fff076edc2f4d4"
+                  },
+                  {
+                      "path":  "0012-registry-cache.md",
+                      "bytes":  10257,
+                      "sha256":  "434a43336c6c47a4abc823bebc010c02cf0a3d0f5c9406c1820a7691cb426e5f"
+                  },
+                  {
+                      "path":  "0013-semver-basic-resolver.md",
+                      "bytes":  10240,
+                      "sha256":  "2661144817fb88eebb3308c7dfad145e611fc0a8599952b8f34822b21c2b2bbd"
+                  },
+                  {
+                      "path":  "0014-fetch-integrity-extraction.md",
+                      "bytes":  10097,
+                      "sha256":  "6d0c82986086335b4d537120cf9b9126efdc820e8a4e8b9468700567b9979d83"
+                  },
+                  {
+                      "path":  "0015-m-lock.md",
+                      "bytes":  10291,
+                      "sha256":  "d8b0e5531ad74ac4aa691fba86a55752d7b47e47932d24e6d73fdff3d4c059ae"
+                  },
+                  {
+                      "path":  "0016-basic-installer.md",
+                      "bytes":  10353,
+                      "sha256":  "4956ff530550738c496ec7201df0a01dbf575950b49ec24563b3e1ae30c547c6"
+                  },
+                  {
+                      "path":  "0017-transaction-rollback.md",
+                      "bytes":  10438,
+                      "sha256":  "399137216b0cda973a5147762a7d063a8c3cd21593ae4cadc9bfa36879146da0"
+                  },
+                  {
+                      "path":  "0018-global-store-smart-linker.md",
+                      "bytes":  10032,
+                      "sha256":  "7cda285b578250c1dde84e07f112ba4b7af64dbce74b65ee194a76909c0079e6"
+                  },
+                  {
+                      "path":  "0019-isolated-linker.md",
+                      "bytes":  10103,
+                      "sha256":  "f461af12d9a0902e6b2b64534add75a4909529b3977c9502bf5e5d3412dac73e"
+                  },
+                  {
+                      "path":  "0020-advanced-resolver.md",
+                      "bytes":  10355,
+                      "sha256":  "3662fd6dde203d50b98a3ae464d3b7bdae8091a24ce3a5dd150ae8f2f1f55208"
+                  },
+                  {
+                      "path":  "0021-lifecycle-sandbox.md",
+                      "bytes":  10355,
+                      "sha256":  "bc7c45fa78f13afa3263e94325ca34efc7c2043469e2f5409dd44db938f0110a"
+                  },
+                  {
+                      "path":  "0022-workspaces-catalogs.md",
+                      "bytes":  10321,
+                      "sha256":  "bf0329f5a5f70f2682da1f811da2bbb17d65163fcccce5af4f19f4daaf939965"
+                  },
+                  {
+                      "path":  "0023-nub-pnpm-lock-bridge.md",
+                      "bytes":  10355,
+                      "sha256":  "994aecacf53b8ad47b50da2d785a45b2885a6dc731f1def33c125f59c8e3ea57"
+                  },
+                  {
+                      "path":  "0024-npm-locks.md",
+                      "bytes":  9942,
+                      "sha256":  "907342061b2148670bad8ce3b6ebde1e58981fb5ab2073f51397f0798f7b9841"
+                  },
+                  {
+                      "path":  "0025-bun-yarn-locks.md",
+                      "bytes":  10103,
+                      "sha256":  "5ffdd24efd1245bb51dd638a531bd053787f5904a9ddf93538797da35ca85932"
+                  },
+                  {
+                      "path":  "0026-pm-command-surface.md",
+                      "bytes":  10420,
+                      "sha256":  "8382edb7575f621a86b346586006f0a0d8ac6e3b17c6e0fc243ec4ca65c0126d"
+                  },
+                  {
+                      "path":  "0027-advanced-sources-publish.md",
+                      "bytes":  10077,
+                      "sha256":  "390d74b299519a2f825257208bb088e942dd8f4c4161fed8c8d0a363d838b109"
+                  },
+                  {
+                      "path":  "0028-explain-plan-history.md",
+                      "bytes":  10388,
+                      "sha256":  "ad51eb4ae3bd54c6f901bd7da4980da9d27600d52be2e6b1aae6a094290a1276"
+                  },
+                  {
+                      "path":  "0029-performance-offline-capsules.md",
+                      "bytes":  10279,
+                      "sha256":  "ad26d93665b78b931b35b3cfc00cf7386334de80a13528c8910ea102382d3196"
+                  },
+                  {
+                      "path":  "0030-security-audit-sbom.md",
+                      "bytes":  10289,
+                      "sha256":  "34d88144bf5c21bd59974323fda151f1f78485b97545d9d36c20dea69081f55a"
+                  },
+                  {
+                      "path":  "0031-core-stabilization.md",
+                      "bytes":  11171,
+                      "sha256":  "12ef34cb9aed5ed0ce1da1b8672935682f0b18d7743b4dfc0fb12c5e390da526"
+                  },
+                  {
+                      "path":  "0040-script-runner.md",
+                      "bytes":  11338,
+                      "sha256":  "488987c0c40d0ea070de4c12f4af6b454588f28d333a6b3078b4150a05763b51"
+                  },
+                  {
+                      "path":  "0041-workspace-runner.md",
+                      "bytes":  11023,
+                      "sha256":  "69b341dc28ac19437d1354fe6661d09d86501a986a2d98113413ae29f2c4db3c"
+                  },
+                  {
+                      "path":  "0042-direct-script-shortcuts.md",
+                      "bytes":  11144,
+                      "sha256":  "ed08b18e951ffbf8100a3200a172002d7a0d16c5e6a3279a4c53043eddec7eaf"
+                  },
+                  {
+                      "path":  "0043-local-exec.md",
+                      "bytes":  10421,
+                      "sha256":  "36fce0719757a05c0ff168028156cec4191e9ee9416adf4c14047e5bbcae8bbb"
+                  },
+                  {
+                      "path":  "0044-mx-dlx.md",
+                      "bytes":  10883,
+                      "sha256":  "73ce2ee0c75b553e2c20dde92dbbb98e6e208560c5752c5d046f6c21b2dfec81"
+                  },
+                  {
+                      "path":  "0045-unified-execution.md",
+                      "bytes":  10876,
+                      "sha256":  "548545a8074a55012e0904ee7d73b192d4272ee0413f32a2253047f5d296800c"
+                  },
+                  {
+                      "path":  "0046-runner-stabilization.md",
+                      "bytes":  10842,
+                      "sha256":  "7958d5799c9bae18c86af3d55f66ccbaa5daacee86c4dc721179f5e2b33fdbf0"
+                  },
+                  {
+                      "path":  "0050-node-launch-compat.md",
+                      "bytes":  11092,
+                      "sha256":  "687b8ec34d8bfdb5ed0459432ebea73afd02a17fabf4f1e8a68f7d89dfce6106"
+                  },
+                  {
+                      "path":  "0051-go-transform-service.md",
+                      "bytes":  11139,
+                      "sha256":  "f76ddfc978fe55b224784eb42c7e693a26dfea84b7eb7d26b36aecfb475708fa"
+                  },
+                  {
+                      "path":  "0052-jsx-decorators-sourcemaps.md",
+                      "bytes":  10779,
+                      "sha256":  "cded22cbcd5e2651e9164e22d78d613b3940f832e200a1c524bbf6c081053f2b"
+                  },
+                  {
+                      "path":  "0053-module-resolution-loaders.md",
+                      "bytes":  10742,
+                      "sha256":  "15ae9351d54c26f1e16cdfb46399db460eb1412bdd18c1e963b94e6720454c8d"
+                  },
+                  {
+                      "path":  "0054-env-modern-apis.md",
+                      "bytes":  10847,
+                      "sha256":  "4ba22d2034c1ae845a8dd9c4537b16e2257b836e5c84afcb24fcb95b4c059c18"
+                  },
+                  {
+                      "path":  "0055-watch-mode.md",
+                      "bytes":  10690,
+                      "sha256":  "aaa0283bf9af8ccfb3804929a50a1629a70cc4891ba3fef71a87111c99c811a6"
+                  },
+                  {
+                      "path":  "0056-debugging-inspection.md",
+                      "bytes":  10851,
+                      "sha256":  "a6cedc1de29bcfe49ae7b5adb6c873ce15e2c993d0de83b65536fecbef889cb6"
+                  },
+                  {
+                      "path":  "0057-runtime-stabilization.md",
+                      "bytes":  11014,
+                      "sha256":  "4f09ac48058ee3781ac52abf006db2b5e63bc3c3af0a9c64529b00279e14dc44"
+                  },
+                  {
+                      "path":  "0060-node-manager.md",
+                      "bytes":  10678,
+                      "sha256":  "4b40eb198513ce1173cd7fa933c2339c4c118a7c6cf34aa7daad4df0e89f2987"
+                  },
+                  {
+                      "path":  "0061-pm-manager.md",
+                      "bytes":  10863,
+                      "sha256":  "0df280239fe298b6a2c4d3479e4abca1824467a5dabd9e2db56f061e6bbaf587"
+                  },
+                  {
+                      "path":  "0062-shims.md",
+                      "bytes":  10715,
+                      "sha256":  "a299f5f552242737fa779c96596433e92452ba33020fa992a41eca51b91b41be"
+                  },
+                  {
+                      "path":  "0070-project-init.md",
+                      "bytes":  10621,
+                      "sha256":  "eaf3bb0201484ad7449f8fb48c8a014d85a6be6150e8040eec85d0b32dd52548"
+                  },
+                  {
+                      "path":  "0071-plugins.md",
+                      "bytes":  10448,
+                      "sha256":  "9aecc98e812cac93dc8ce7618eacbb622de932c8961d2b21e9a0d9a8bc02d8fa"
+                  },
+                  {
+                      "path":  "0072-installers-releases.md",
+                      "bytes":  10786,
+                      "sha256":  "4d96d346a30e459dbd4310fdb4d1b332a8d249602c74052f1dba43bd8602638e"
+                  },
+                  {
+                      "path":  "0073-github-action.md",
+                      "bytes":  10269,
+                      "sha256":  "5f7df816112317bc75ed77d018d12f455d180389db215e2bab48cb8478edd64c"
+                  },
+                  {
+                      "path":  "0074-docker-builders.md",
+                      "bytes":  10434,
+                      "sha256":  "78c50bb25870adf5f26148b09295cd09d8159a4aa29cdaddbc1f5a59ef26faf5"
+                  },
+                  {
+                      "path":  "0080-conformance-program.md",
+                      "bytes":  8998,
+                      "sha256":  "c2b3c1c044fc2ea3d58989cd2ab81c9d9314a433f6fe8d8e7811013bf1c64c62"
+                  },
+                  {
+                      "path":  "0081-performance-program.md",
+                      "bytes":  8912,
+                      "sha256":  "16b07c7695de9181147244956f8c891571681ee75b425355c91bc509d50c94df"
+                  },
+                  {
+                      "path":  "0082-threat-model.md",
+                      "bytes":  9006,
+                      "sha256":  "8c6ed6547f251ac6a55a66806481ddfcff0180190a3f9ab61150603df5b91020"
+                  },
+                  {
+                      "path":  "0083-rust-go-migration-map.md",
+                      "bytes":  12076,
+                      "sha256":  "79ee4ae2e94b5b5e7ac636a422520299fb5ee292d82e7bbcccec2d240d3df0eb"
+                  },
+                  {
+                      "path":  "0084-release-versioning-policy.md",
+                      "bytes":  8560,
+                      "sha256":  "0ff6ddce035ebcf84f5f331ff025985b7dae918f6e0994c08653f9462a11a36a"
+                  },
+                  {
+                      "path":  "0085-dependency-roadmap.md",
+                      "bytes":  8759,
+                      "sha256":  "3e0dc0a9c45131879369c5b51d58f235fa11c1cb3f5b078dce09c2615208b399"
+                  },
+                  {
+                      "path":  "0086-ai-agent-protocol.md",
+                      "bytes":  8707,
+                      "sha256":  "7db998afd3128a71c0b79425b141b469ecfe66c88e83374407fc21eb970760d2"
+                  },
+                  {
+                      "path":  "0087-definition-of-done.md",
+                      "bytes":  8769,
+                      "sha256":  "9d78ac1ba7b17b7a08f386eb80db3791532fc56f1bc4ba6e425bd36347910053"
+                  },
+                  {
+                      "path":  "0088-reference-index.md",
+                      "bytes":  8790,
+                      "sha256":  "72faf932a6df0a65bcb16b188c4cda378a53f48a6d758672825f2c911a9b13a4"
+                  },
+                  {
+                      "path":  "0089-research-spikes.md",
+                      "bytes":  8795,
+                      "sha256":  "c7b8f457ff912522cbae72788921709ee4d053543422a22918cef56c5ba856d3"
+                  },
+                  {
+                      "path":  "0090-future-backlog.md",
+                      "bytes":  8549,
+                      "sha256":  "1d1e4946806b65b2f0c58bb6e6f9970c810cb1ee8113163be0a22bfc63325565"
+                  },
+                  {
+                      "path":  "CHECKLIST.md",
+                      "bytes":  138393,
+                      "sha256":  "fb5575c938638cc2b500f4c97d592e60963ecca40f5c73fd46023212515d13ad"
+                  },
+                  {
+                      "path":  "cursor/0001-program-charter.plan.md",
+                      "bytes":  3069,
+                      "sha256":  "9d1640d39295e0fc83bb5f234d4172ef93f08f79a82f8bb3eba594bc570fb548"
+                  },
+                  {
+                      "path":  "cursor/0002-feature-inventory.plan.md",
+                      "bytes":  2822,
+                      "sha256":  "c3dd336277cfe32052212ea401312fcfd952860f0efd25fb8db11a48e29c07b6"
+                  },
+                  {
+                      "path":  "cursor/0003-target-architecture.plan.md",
+                      "bytes":  2939,
+                      "sha256":  "975e6890fe8f78f64822a5c79f2b3e81564192c190cc88fa1279f5f81e56015d"
+                  },
+                  {
+                      "path":  "cursor/0004-repository-bootstrap.plan.md",
+                      "bytes":  2836,
+                      "sha256":  "4baba4bebbb26587826dce03d2541fa252f013a8a4c80a9c2206ebcf90082383"
+                  },
+                  {
+                      "path":  "cursor/0005-error-observability.plan.md",
+                      "bytes":  2849,
+                      "sha256":  "6388c0011647af327778cc5ae9dd7c3db8b38b943f488d9d2923deee0f6c35d5"
+                  },
+                  {
+                      "path":  "cursor/0006-configuration-identity.plan.md",
+                      "bytes":  2850,
+                      "sha256":  "ccda350a4097bdf4e871568e4665414007956315ac00245569d53109b9225694"
+                  },
+                  {
+                      "path":  "cursor/0007-data-model-interfaces.plan.md",
+                      "bytes":  2938,
+                      "sha256":  "09a1287cfc6640fa86c75481c6a671e90fca4911416e3f178f74fd23fd29b5da"
+                  },
+                  {
+                      "path":  "cursor/0008-testing-strategy.plan.md",
+                      "bytes":  2910,
+                      "sha256":  "f7c93fe73058e869f880c76a905d31ba0e91fdc9f5af3afd3d4cd39387bbdee9"
+                  },
+                  {
+                      "path":  "cursor/0009-release-train-overview.plan.md",
+                      "bytes":  2856,
+                      "sha256":  "47c8390e91ebbf5deab01eac7aaf3880d2db6d68daf4f4d5c0f8497060f31812"
+                  },
+                  {
+                      "path":  "cursor/0010-cli-foundation.plan.md",
+                      "bytes":  3075,
+                      "sha256":  "3a25991e222f52283e8780650c47aeeaa738db3170589f0496e3738cf2eef3c1"
+                  },
+                  {
+                      "path":  "cursor/0011-manifest-project-discovery.plan.md",
+                      "bytes":  3106,
+                      "sha256":  "4bcec884f9adc48d0965722dcdb40cb8543bb3973c9b8c34c36e05a472aaaa98"
+                  },
+                  {
+                      "path":  "cursor/0012-registry-cache.plan.md",
+                      "bytes":  2990,
+                      "sha256":  "22055a156c339ee661b44df201e26b75b6b4a308cf6b30d8fc0ddc142cfeba4d"
+                  },
+                  {
+                      "path":  "cursor/0013-semver-basic-resolver.plan.md",
+                      "bytes":  3031,
+                      "sha256":  "428164bbb2aeca4d9462b35f30bc060d1152e5f0154e504ae3181f50532f7bfa"
+                  },
+                  {
+                      "path":  "cursor/0014-fetch-integrity-extraction.plan.md",
+                      "bytes":  3014,
+                      "sha256":  "b67a67b3e8aae845273c6f19d2db9f5cd718bc9b5de5cad9b4315d58c955b936"
+                  },
+                  {
+                      "path":  "cursor/0015-m-lock.plan.md",
+                      "bytes":  2957,
+                      "sha256":  "a46d3fc3dcebea17e8184d7243c066fe3713d880b555f9dcc6af27c172c77d57"
+                  },
+                  {
+                      "path":  "cursor/0016-basic-installer.plan.md",
+                      "bytes":  3057,
+                      "sha256":  "cfee79fbd95ada40f0a34674a2abe1fc1d3856dcb08a274ec02bc885945ad288"
+                  },
+                  {
+                      "path":  "cursor/0017-transaction-rollback.plan.md",
+                      "bytes":  3065,
+                      "sha256":  "ab8a388270e639c25d2118fbbff721a0b16d815439f12cf34ba58d732c21a051"
+                  },
+                  {
+                      "path":  "cursor/0018-global-store-smart-linker.plan.md",
+                      "bytes":  3062,
+                      "sha256":  "15fb08e3c9c8d4fdfc0f81e98dca2f07b4ef9362f7fef01ffd4f54155c748fb3"
+                  },
+                  {
+                      "path":  "cursor/0019-isolated-linker.plan.md",
+                      "bytes":  3030,
+                      "sha256":  "c53d058f9f45681c927ae3e4efbaacbaadcf42f44faddb6aa9668ca6a9810dd3"
+                  },
+                  {
+                      "path":  "cursor/0020-advanced-resolver.plan.md",
+                      "bytes":  3030,
+                      "sha256":  "be21187d2bf825c1cd5d8dce948484f16d3e909394e5136306d3a79f4298d571"
+                  },
+                  {
+                      "path":  "cursor/0021-lifecycle-sandbox.plan.md",
+                      "bytes":  3039,
+                      "sha256":  "63ec6a851220f0e9881a1f81f87c2876feea44bdac33ad73933edac4825366ec"
+                  },
+                  {
+                      "path":  "cursor/0022-workspaces-catalogs.plan.md",
+                      "bytes":  3022,
+                      "sha256":  "755c4c88d27b2c914f1b38d0a4c5b17e6f468fa14cd5fba0781a3b5b7b6955e3"
+                  },
+                  {
+                      "path":  "cursor/0023-nub-pnpm-lock-bridge.plan.md",
+                      "bytes":  3042,
+                      "sha256":  "487f1631fd43e4720c05c687d2495e4056079b619503e85affca1bd73fa3e7fd"
+                  },
+                  {
+                      "path":  "cursor/0024-npm-locks.plan.md",
+                      "bytes":  2937,
+                      "sha256":  "322e6025ef2451b246ae1ec67385c0f7d273752876c1daac96a8d42a8a8feb30"
+                  },
+                  {
+                      "path":  "cursor/0025-bun-yarn-locks.plan.md",
+                      "bytes":  2988,
+                      "sha256":  "c65f9a07f191db5dbe090ac026a654ac924ac56c0cb6040a3ea3837aa85a586d"
+                  },
+                  {
+                      "path":  "cursor/0026-pm-command-surface.plan.md",
+                      "bytes":  3026,
+                      "sha256":  "702188e068d1a11e4b399ccc8a39b6fe0c375960efeebd7f813adc750b77c5f7"
+                  },
+                  {
+                      "path":  "cursor/0027-advanced-sources-publish.plan.md",
+                      "bytes":  3004,
+                      "sha256":  "df652b3625727e4153a7be3c8fe561a038918b023b790f40c443f71156babaf6"
+                  },
+                  {
+                      "path":  "cursor/0028-explain-plan-history.plan.md",
+                      "bytes":  3086,
+                      "sha256":  "8db1c1c0c9f3d67e84080b14e382ab4bc31fe1735493fa167aa14a300d28d82e"
+                  },
+                  {
+                      "path":  "cursor/0029-performance-offline-capsules.plan.md",
+                      "bytes":  3110,
+                      "sha256":  "023afe0ac356beb6ac24f07982075fdbdcb06855d1eaa94501511c793017954f"
+                  },
+                  {
+                      "path":  "cursor/0030-security-audit-sbom.plan.md",
+                      "bytes":  3060,
+                      "sha256":  "ae40ddfa837e79beac81365d1d782186ec68e05d068a3dcdc00f3ae7980ffd69"
+                  },
+                  {
+                      "path":  "cursor/0031-core-stabilization.plan.md",
+                      "bytes":  3269,
+                      "sha256":  "1d3fb7f51627a77b90825434d5922a9c61961ae8b329b6582802135a17dbd2aa"
+                  },
+                  {
+                      "path":  "cursor/0040-script-runner.plan.md",
+                      "bytes":  3156,
+                      "sha256":  "45eb9d20766e683c5b6c6779d3473c769abc87774685ce628c5e9e6552c321fc"
+                  },
+                  {
+                      "path":  "cursor/0041-workspace-runner.plan.md",
+                      "bytes":  2983,
+                      "sha256":  "9163693f2c335aa33206f37cec25f06c09e6b0a3bd8cdcc6747e5b10597be425"
+                  },
+                  {
+                      "path":  "cursor/0042-direct-script-shortcuts.plan.md",
+                      "bytes":  3056,
+                      "sha256":  "d5a058aabf55a139f5035fabd7478188e4b21329693c7f79e696bbe46d2ad36d"
+                  },
+                  {
+                      "path":  "cursor/0043-local-exec.plan.md",
+                      "bytes":  2883,
+                      "sha256":  "aac00544afc7c17fecd0e2e1837a8c579f62fc7c7f68064b962850601adfff99"
+                  },
+                  {
+                      "path":  "cursor/0044-mx-dlx.plan.md",
+                      "bytes":  3055,
+                      "sha256":  "724b08a7847d90a908bb41b1d5817a836d9bcb9e62bc88122394fcd01b908be1"
+                  },
+                  {
+                      "path":  "cursor/0045-unified-execution.plan.md",
+                      "bytes":  3047,
+                      "sha256":  "37bb2dd89fc8939f7e11f9e3b0e5c0c566d5b975c1548c5c0450bb45d82705ef"
+                  },
+                  {
+                      "path":  "cursor/0046-runner-stabilization.plan.md",
+                      "bytes":  2980,
+                      "sha256":  "f51e237c6ada5023b42b287df3e7f6e6ead8ddd9a2af3b8e8f460e8430e33d15"
+                  },
+                  {
+                      "path":  "cursor/0050-node-launch-compat.plan.md",
+                      "bytes":  3022,
+                      "sha256":  "fb7bab4b2fbb864d8b22255cd11d13213ed8542714bc988b9b5733448ce84063"
+                  },
+                  {
+                      "path":  "cursor/0051-go-transform-service.plan.md",
+                      "bytes":  3079,
+                      "sha256":  "ed9f625f19284b7178e6fe36cc4692dd0f5d1608e5ee0e6d9c3b0ddc0aa9ee83"
+                  },
+                  {
+                      "path":  "cursor/0052-jsx-decorators-sourcemaps.plan.md",
+                      "bytes":  2998,
+                      "sha256":  "d9c8e6cf39f2185f6557f71f3c6b68c3b927cab44bf7b135a7631a7a88a42925"
+                  },
+                  {
+                      "path":  "cursor/0053-module-resolution-loaders.plan.md",
+                      "bytes":  3004,
+                      "sha256":  "c0ba6d1ab05011a6359203df361b3e13814980a4fd15e2a4f88e2d84a7c838b0"
+                  },
+                  {
+                      "path":  "cursor/0054-env-modern-apis.plan.md",
+                      "bytes":  3049,
+                      "sha256":  "3305621d0051ab498aab7c76bccbdbe895bf624c0c21cb9c54e5eac7e344d71e"
+                  },
+                  {
+                      "path":  "cursor/0055-watch-mode.plan.md",
+                      "bytes":  2937,
+                      "sha256":  "d6afb66ebfe4658e0e90180bde29ff0cef6d06a4f2e67ecf2c2605f325ba2192"
+                  },
+                  {
+                      "path":  "cursor/0056-debugging-inspection.plan.md",
+                      "bytes":  3064,
+                      "sha256":  "bf557057ede4bc8215392c493fc1f91a0171ec17058d31740984daebf3223701"
+                  },
+                  {
+                      "path":  "cursor/0057-runtime-stabilization.plan.md",
+                      "bytes":  3017,
+                      "sha256":  "390b2acdf3a9fa978785d12bf2f28cbb38f9601cbcb67e254da1319ace22b712"
+                  },
+                  {
+                      "path":  "cursor/0060-node-manager.plan.md",
+                      "bytes":  2877,
+                      "sha256":  "339842f9c10ae28bb7b9b2c9a2f8828d0673cd97eda618424e663bcb224e828c"
+                  },
+                  {
+                      "path":  "cursor/0061-pm-manager.plan.md",
+                      "bytes":  2910,
+                      "sha256":  "4580e44fc9d1b7cf0cb0cb4c78efcfbffc568f1a00ac5af5f06a86f4505600a3"
+                  },
+                  {
+                      "path":  "cursor/0062-shims.plan.md",
+                      "bytes":  2898,
+                      "sha256":  "aaff11782873cf1e8d5d5a9a6c2696af6f84b9350a4b690e72c4c282525c481c"
+                  },
+                  {
+                      "path":  "cursor/0070-project-init.plan.md",
+                      "bytes":  2965,
+                      "sha256":  "ca0ec02683a174e0b918cf03660d38775406140be1d2ec54739aaeefabc2c153"
+                  },
+                  {
+                      "path":  "cursor/0071-plugins.plan.md",
+                      "bytes":  2883,
+                      "sha256":  "33d7707d079b26b06614178959f00c4f69c0a6cf8c6c3585cf5e367e16cd1d58"
+                  },
+                  {
+                      "path":  "cursor/0072-installers-releases.plan.md",
+                      "bytes":  2973,
+                      "sha256":  "36eae5a02000cfeb878e08060609ca30246d788d8974b7d8e1d5902016a99a40"
+                  },
+                  {
+                      "path":  "cursor/0073-github-action.plan.md",
+                      "bytes":  2900,
+                      "sha256":  "e99fcd8d9f366073b9ce4105d3cd1dbd40ae7d6ea03287d01ff0d8f5465420a0"
+                  },
+                  {
+                      "path":  "cursor/0074-docker-builders.plan.md",
+                      "bytes":  2925,
+                      "sha256":  "8eb2a099f432c2d8864f9813a4dff250466e7ef2fc9d2dbca1676c49fe7b0d8b"
+                  },
+                  {
+                      "path":  "cursor/0080-conformance-program.plan.md",
+                      "bytes":  2760,
+                      "sha256":  "d7e2b22c92dd92d78c2caf83b40936f67b0c6f8ccffd4615e2e700628efe1ca5"
+                  },
+                  {
+                      "path":  "cursor/0081-performance-program.plan.md",
+                      "bytes":  2693,
+                      "sha256":  "693d590c09735a1a5e21bb76a7403b8bbef8dbd48726675233522c94ac789fb5"
+                  },
+                  {
+                      "path":  "cursor/0082-threat-model.plan.md",
+                      "bytes":  2740,
+                      "sha256":  "f735cb45fb3be83e510ef5db0fb2a85e9f44bdd636c47cf9d46b260cdc0d45c4"
+                  },
+                  {
+                      "path":  "cursor/0083-rust-go-migration-map.plan.md",
+                      "bytes":  2719,
+                      "sha256":  "8e88de747cb91177bc17feca0f28ea89d0527bd40b24a40df47bd177c8f28af6"
+                  },
+                  {
+                      "path":  "cursor/0084-release-versioning-policy.plan.md",
+                      "bytes":  2708,
+                      "sha256":  "6699e95e1ae1a5f119c1083ccdf50353cc71970732d43a14f4cfcdc63a235148"
+                  },
+                  {
+                      "path":  "cursor/0085-dependency-roadmap.plan.md",
+                      "bytes":  2703,
+                      "sha256":  "4f4b3564d90e009f044fe6954aa4241a86ecea8c4973b36535e2bcdf07b4c06b"
+                  },
+                  {
+                      "path":  "cursor/0086-ai-agent-protocol.plan.md",
+                      "bytes":  2718,
+                      "sha256":  "720540c74a628a80f2b764479a4ef630cf4b4de6c9eaa7a4ff9954d126fc1be0"
+                  },
+                  {
+                      "path":  "cursor/0087-definition-of-done.plan.md",
+                      "bytes":  2760,
+                      "sha256":  "ba08c58fcce3a80cadb9e404311940999cfe1a5fbce37315edddbeffc7c3ed32"
+                  },
+                  {
+                      "path":  "cursor/0088-reference-index.plan.md",
+                      "bytes":  2650,
+                      "sha256":  "af67944a33f4d476fef719830d7c9171b4d66be3c346bb1db1309a90d5d6f249"
+                  },
+                  {
+                      "path":  "cursor/0089-research-spikes.plan.md",
+                      "bytes":  2636,
+                      "sha256":  "2a8b866ec8e59971a9ca47dc1b00cb60cfb2c552295ad02a064ac4adb4bb5176"
+                  },
+                  {
+                      "path":  "cursor/0090-future-backlog.plan.md",
+                      "bytes":  2622,
+                      "sha256":  "f2417a74c54a571a5da8de21b56cde334385a3a7401d08a23f057ef4ecc0bfbd"
+                  },
+                  {
+                      "path":  "INDEX.md",
+                      "bytes":  17111,
+                      "sha256":  "df5682084f81f268bf267dd75f51ab00d7ac30d1b7432c4b4eea0565e3c13014"
+                  },
+                  {
+                      "path":  "scripts/enrich-and-generate.ps1",
+                      "bytes":  16193,
+                      "sha256":  "492b29ac8a70ba5a28e2635da1af67e14f5f9008553baff29f031b07b69d5692"
+                  },
+                  {
+                      "path":  "scripts/enrichment-core.json",
+                      "bytes":  76849,
+                      "sha256":  "4034f7ee0fa4f04f21486f0661d59d263973d5ab2fe420decf0bf6a2ddc95b8a"
+                  },
+                  {
+                      "path":  "scripts/enrichment-cross.json",
+                      "bytes":  22774,
+                      "sha256":  "521dc0466c5ca592368ec22723c7dd1617e680c57bee3b4f7b5605137d37901e"
+                  },
+                  {
+                      "path":  "scripts/enrichment-foundation.json",
+                      "bytes":  28917,
+                      "sha256":  "f139cbbb3d15d97c144cb0fce6f8865eea4bcb9f0e5246c1137ee8cbc106f915"
+                  },
+                  {
+                      "path":  "scripts/enrichment-runners-runtime.json",
+                      "bytes":  91136,
+                      "sha256":  "77584cbd4a58f41d36eb6202669b6b168506d2ec71c993b68287d5cbfcfd1313"
+                  },
+                  {
+                      "path":  "scripts/generate-checklist.ps1",
+                      "bytes":  124,
+                      "sha256":  "8dcf085847bcbbe610250b3f830cad3208bccb27b9e2b68bf33eb8c5e10688ce"
+                  },
+                  {
+                      "path":  "scripts/generate-cursor-plans.ps1",
+                      "bytes":  124,
+                      "sha256":  "8dcf085847bcbbe610250b3f830cad3208bccb27b9e2b68bf33eb8c5e10688ce"
+                  },
+                  {
+                      "path":  "scripts/update-manifest.ps1",
+                      "bytes":  124,
+                      "sha256":  "8dcf085847bcbbe610250b3f830cad3208bccb27b9e2b68bf33eb8c5e10688ce"
+                  },
+                  {
+                      "path":  "sources/compatibility-targets.md",
+                      "bytes":  675,
+                      "sha256":  "0c50ac338cf3faacf804ca41286419bae363ab0690efa446f6abe06d4686358d"
+                  },
+                  {
+                      "path":  "sources/nub-reference-snapshot.md",
+                      "bytes":  912,
+                      "sha256":  "13207fd32c17bbddd5f614c03cfb74b6ef98c5c0ec7d705b650d87aa7374b187"
+                  }
+              ]
+}

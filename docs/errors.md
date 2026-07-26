@@ -1,0 +1,37 @@
+# Error codes
+
+Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DETAIL>`
+(see [`naming.md`](naming.md)). Nub `ERR_NUB_*` codes are behavioral references only.
+
+## Registry (MVP 0005)
+
+| Code | Exit | Meaning |
+|---|---|---|
+| `ERR_M_OK` | 0 | Sentinel; not used for failures |
+| `ERR_M_USAGE` | 2 | Invalid arguments or flag misuse |
+| `ERR_M_CANCELLED` | 130 | Context canceled / interrupt |
+| `ERR_M_INTERNAL` | 1 | Unexpected failure |
+| `ERR_M_INTERNAL_PANIC` | 1 | Panic recovered at command boundary |
+| `ERR_M_IO` | 1 | Filesystem I/O |
+| `ERR_M_CONFIG` | 1 | Configuration (seed for 0006) |
+| `ERR_M_NETWORK` | 1 | Network / registry (seed) |
+| `ERR_M_INTEGRITY` | 1 | Checksum / integrity (seed) |
+| `ERR_M_LOCKFILE` | 1 | Lockfile parse, checksum, graph, or frozen manifest drift (MVP 0015) |
+| `ERR_M_UNIMPLEMENTED` | 1 | Reserved command stub not yet implemented (MVP 0010) |
+| `ERR_M_MANIFEST` | 1 | package.json parse / validate (MVP 0011) |
+| `ERR_M_NOT_FOUND` | 1 | Project root or package.json missing (MVP 0011) |
+| `ERR_M_RESOLVE` | 1 | Dependency resolution failure: unsatisfiable range, cycle, missing packument, or limit exceeded (MVP 0013) |
+
+Unknown codes map to exit **1**.
+
+## Go API
+
+Package [`internal/apperr`](../internal/apperr): `New`, `Wrap`, `CodeOf`, `ExitCode`.
+
+Every public failure path should return an `*apperr.Error` (or wrap into one at the CLI boundary).
+
+## Debug bundles
+
+Future `m doctor report` archives must require explicit consent and apply the same
+redaction rules as reporters. Spec pointer: [`reporters.md`](reporters.md).
+Not implemented in 0005.

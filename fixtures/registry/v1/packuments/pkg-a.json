@@ -1,0 +1,19 @@
+{
+  "dist-tags": {
+    "latest": "1.0.0"
+  },
+  "name": "pkg-a",
+  "versions": {
+    "1.0.0": {
+      "dependencies": {
+        "pkg-b": "^1.0.0"
+      },
+      "dist": {
+        "integrity": "sha256-2e1afab8b566a6ac1019ae2ba9201ea8a036b0ca1463ed2b22673d4cc87b2354",
+        "tarball": "pkg-a-1.0.0.tgz"
+      },
+      "name": "pkg-a",
+      "version": "1.0.0"
+    }
+  }
+}

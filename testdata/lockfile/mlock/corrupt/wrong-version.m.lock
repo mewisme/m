@@ -1,0 +1,14 @@
+{
+  "lockfileVersion": 99,
+  "checksum": "abc",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask"
+    }
+  },
+  "importers": [],
+  "packages": [],
+  "edges": []
+}

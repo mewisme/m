@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "importers": [
+    {
+      "id": ".",
+      "name": "app",
+      "path": "."
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "react-dom",
+        "version": "18.2.0"
+      },
+      "integrity": "sha512-dom",
+      "tarballUrl": "https://example.com/react-dom-18.2.0.tgz"
+    },
+    {
+      "id": {
+        "name": "react",
+        "version": "18.2.0",
+        "peerContext": [
+          {
+            "name": "react-dom",
+            "range": "^18.0.0"
+          }
+        ]
+      },
+      "integrity": "sha512-react",
+      "tarballUrl": "https://example.com/react-18.2.0.tgz"
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "to": "react-dom@18.2.0",
+      "kind": "prod",
+      "range": "^18.0.0"
+    },
+    {
+      "from": ".",
+      "to": "react@18.2.0#react-dom@^18.0.0",
+      "kind": "prod",
+      "range": "^18.0.0"
+    }
+  ]
+}

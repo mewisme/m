@@ -1,0 +1,62 @@
+{
+  "lockfileVersion": 1,
+  "checksum": "bb019c2f03dcbb198ddde0633a1ff4daae7bb8b81b2a13d709bfeffc02f92f80",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask"
+    }
+  },
+  "importers": [
+    {
+      "id": ".",
+      "name": "app",
+      "path": ".",
+      "specifiers": [
+        {
+          "name": "left-pad",
+          "range": "^1.0.0",
+          "kind": "prod"
+        },
+        {
+          "name": "ms",
+          "range": "^2.0.0",
+          "kind": "prod"
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "left-pad",
+        "version": "1.0.0"
+      },
+      "integrity": "sha512-aaa",
+      "tarballUrl": "https://example.com/left-pad-1.0.0.tgz"
+    },
+    {
+      "id": {
+        "name": "ms",
+        "version": "2.1.3"
+      },
+      "integrity": "sha512-bbb",
+      "tarballUrl": "https://example.com/ms-2.1.3.tgz"
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "to": "left-pad@1.0.0",
+      "kind": "prod",
+      "range": "^1.0.0"
+    },
+    {
+      "from": ".",
+      "to": "ms@2.1.3",
+      "kind": "prod",
+      "range": "^2.0.0"
+    }
+  ]
+}

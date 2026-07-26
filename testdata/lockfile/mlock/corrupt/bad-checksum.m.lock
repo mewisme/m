@@ -1,0 +1,21 @@
+{
+  "lockfileVersion": 1,
+  "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask"
+    }
+  },
+  "importers": [
+    {
+      "id": ".",
+      "name": "app",
+      "path": ".",
+      "specifiers": []
+    }
+  ],
+  "packages": [],
+  "edges": []
+}

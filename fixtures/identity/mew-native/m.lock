@@ -1,0 +1,21 @@
+{
+  "lockfileVersion": 1,
+  "checksum": "f6f69d6893bb1cd9a14405c9b1666a49a88e9989c30c15ae779ec77db0ee2e30",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask"
+    }
+  },
+  "importers": [
+    {
+      "id": ".",
+      "name": "mew-native",
+      "path": ".",
+      "specifiers": []
+    }
+  ],
+  "packages": [],
+  "edges": []
+}

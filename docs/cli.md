@@ -1,0 +1,137 @@
+# CLI foundation
+
+`m` (primary) and `mx` (package executor) share the Cobra shell in
+[`internal/cli`](../internal/cli). Process state lives in [`internal/app`](../internal/app).
+
+## Binaries and aliases
+
+| Invoked basename | Help / version label |
+|---|---|
+| `m` (default) | `m` |
+| `mew` | `mew` |
+| `mx` (default) | `mx` |
+| `mewx` | `mewx` |
+
+Installer-shipped `mew` / `mewx` aliases are MVP **0072**. Until then, renaming or
+symlinking the binary changes `Use` and `version` labels via basename detection.
+
+## Global flags
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--cwd` | process cwd | Project discovery root; loads into `app.Context.CWD` |
+| `--config` | | Extra JSONC overlay (CLI layer) |
+| `--offline` | false | Force offline |
+| `--prefer-offline` | false | Prefer cache |
+| `--reporter` | env / `default` | `default` \| `ndjson` \| `json` \| `silent` |
+| `--debug` | false | Verbose diagnostics |
+| `--color` | `auto` | `auto` \| `always` \| `never` (TTY-aware) |
+| `--no-color` | false | Force no ANSI |
+
+## Version
+
+```text
+m version
+m version --json
+```
+
+Text form: `m <version> (<commit>)` plus optional `built <date>` when ldflags set
+`buildDate`. JSON object fields: `binary`, `version`, `commit`, `buildDate`.
+
+Build metadata is injected at link time (`-X main.version=…` etc.). Dev default:
+`0.0.0-dev`.
+
+## Completion
+
+```text
+m completion bash|zsh|fish|powershell
+mx completion bash|zsh|fish|powershell
+```
+
+Writes a script to stdout. Do not check generated scripts into the repo.
+
+## Reserved names and stubs
+
+Primary package-manager verbs are reserved so scripts cannot shadow them (script
+fallback is MVP **0042**). Unimplemented verbs return `ERR_M_UNIMPLEMENTED`
+(exit **1**) with the owning MVP id in the message.
+
+Stubs on `m` today: `install` (`i`), `add`, `remove` (`rm`), `update`, `ci`,
+`run`, `exec`, `init`, `audit`, `pack`, `publish`, `store`, `cache`, `link`,
+`explain`, `plan`, `history`.
+
+Shipped built-ins (also reserved): `version`, `features`, `development`,
+`config`, `project`, `pkg`, `cache`, `view`, `resolve`, `fetch`, `lock`,
+`completion`, `help`, hidden `__dispatch`.
+
+## Registry
+
+```text
+m view lodash [--json]
+m cache dir
+m cache verify [--json]
+m cache metadata inspect lodash [--json]
+```
+
+See [`registry.md`](registry.md).
+
+## Resolve
+
+```text
+m resolve [--plan] [--json] [--trace]
+```
+
+Dry dependency resolution without install. See [`resolver.md`](resolver.md).
+`m explain` remains a 0028 stub; use `--trace` for decision lines today.
+
+## Fetch
+
+```text
+m fetch --plan-file plan.json [--dir dest] [--json]
+```
+
+Download, verify, and extract tarballs from a JSON plan. See [`fetch.md`](fetch.md).
+
+## Lock
+
+```text
+m lock format [--json]
+m lock validate [--frozen] [--json]
+```
+
+Canonicalize or validate native `m.lock`. `--frozen` checks manifest specifier
+drift (0016 install flag remains a stub). See [`lockfile.md`](lockfile.md).
+
+## Command precedence
+
+1. Built-in command
+2. Built-in alias
+3. Exact `package.json` script (MVP **0042**, not yet)
+4. Optional local executable lookup when the command contract enables it
+5. Suggestion and error
+
+Use `m run <script>` to force a script when a name collides with a built-in
+(once **0040** / **0042** land).
+
+## Hidden `__dispatch`
+
+```text
+m __dispatch <name>
+```
+
+Prints `kind=builtin|alias|unknown` and a resolved path. Prep for script
+fallback; no script lookup yet.
+
+## Install family
+
+`m install`, `m add`, `m remove`, and `m ci` — see [`install.md`](install.md).
+
+## Signals
+
+`SIGINT` / `SIGTERM` cancel the root context (`signal.NotifyContext`).
+Cancellation maps to `ERR_M_CANCELLED` (exit **130**).
+
+## Process context
+
+`PersistentPreRunE` builds `app.Context` (CWD, effective config, reporter, build
+metadata) and stores it on the command context for subcommands.

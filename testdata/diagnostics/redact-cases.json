@@ -1,0 +1,22 @@
+[
+  {
+    "in": "https://user:token@registry.npmjs.org/left-pad",
+    "want": "https://%2A%2A%2A:%2A%2A%2A@registry.npmjs.org/left-pad"
+  },
+  {
+    "in": "Authorization: Bearer abcdef.ghijklmnop",
+    "want": "Authorization: Bearer ***"
+  },
+  {
+    "in": "https://registry.npmjs.org/-/package?access_token=supersecret&x=1",
+    "want": "https://registry.npmjs.org/-/package?access_token=***&x=1"
+  },
+  {
+    "in": "NPM_TOKEN=abc123 EXTRA=ok",
+    "want": "NPM_TOKEN=*** EXTRA=ok"
+  },
+  {
+    "in": "plain text without secrets",
+    "want": "plain text without secrets"
+  }
+]

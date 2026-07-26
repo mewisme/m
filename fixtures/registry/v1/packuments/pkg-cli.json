@@ -1,0 +1,19 @@
+{
+  "name": "pkg-cli",
+  "dist-tags": {
+    "latest": "1.0.0"
+  },
+  "versions": {
+    "1.0.0": {
+      "name": "pkg-cli",
+      "version": "1.0.0",
+      "bin": {
+        "cli": "./cli.js"
+      },
+      "dist": {
+        "integrity": "sha256-6ffb2697417ee0f02ad400c8d92c46cfb5889cf84603cd1f797146fde316b5d0",
+        "tarball": "pkg-cli-1.0.0.tgz"
+      }
+    }
+  }
+}

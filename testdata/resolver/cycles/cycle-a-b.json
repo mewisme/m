@@ -1,0 +1,9 @@
+{
+  "description": "Synthetic a→b→a cycle for resolver unit tests",
+  "packages": ["cycle-a", "cycle-b"],
+  "edges": [
+    {"from": "cycle-a@1.0.0", "to": "cycle-b", "range": "1.0.0"},
+    {"from": "cycle-b@1.0.0", "to": "cycle-a", "range": "1.0.0"}
+  ],
+  "expectedPath": "cycle-a → cycle-b → cycle-a"
+}

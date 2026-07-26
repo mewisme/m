@@ -1,0 +1,11 @@
+{
+  "name": "semver-ranges",
+  "version": "1.0.0",
+  "dependencies": {
+    "pkg-a": "^1.0.0",
+    "lodash": "~4.17.0"
+  },
+  "devDependencies": {
+    "pkg-c": "1.0.0"
+  }
+}

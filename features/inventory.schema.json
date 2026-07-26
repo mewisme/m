@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mew.dev/schemas/features/inventory.schema.json",
+  "title": "Mew Feature Inventory",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "features"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1"
+    },
+    "features": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/feature"
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "in-progress",
+        "shipped",
+        "intentional-omit",
+        "deferred"
+      ]
+    },
+    "compatibility_class": {
+      "type": "string",
+      "enum": [
+        "parity",
+        "extension",
+        "divergence",
+        "deferred"
+      ]
+    },
+    "mvp_id": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$"
+    },
+    "feature": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "module",
+        "nub_status",
+        "mew_status",
+        "compatibility_class",
+        "primary_mvp",
+        "tests"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "module": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nub_status": {
+          "$ref": "#/$defs/status"
+        },
+        "mew_status": {
+          "$ref": "#/$defs/status"
+        },
+        "compatibility_class": {
+          "$ref": "#/$defs/compatibility_class"
+        },
+        "primary_mvp": {
+          "$ref": "#/$defs/mvp_id"
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

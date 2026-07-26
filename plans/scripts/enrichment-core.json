@@ -1,0 +1,1548 @@
+{
+  "0010": {
+    "phase": "Core PM",
+    "packages": [
+      "cmd/m",
+      "cmd/mx",
+      "internal/app",
+      "internal/cli",
+      "internal/config",
+      "internal/diagnostics"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker",
+      "internal/fetch",
+      "internal/registry"
+    ],
+    "featureRows": [
+      "| m --help / --version | Nub CLI shell | Cobra command tree | 0010 |",
+      "| mx entrypoint | nubx | Executor binary stub | 0010 |",
+      "| Global flags cwd/offline/debug | Nub globals | Config + reporter wiring | 0010, 0006 |",
+      "| Reserved command names | Nub tree | Feature-inventory gate | 0010, 0042 |"
+    ],
+    "dataFlowNodes": "main[cmd/m] --> cli[internal/cli] --> app[internal/app] --> cfg[internal/config] --> diag[internal/diagnostics]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m --help` | `--cwd`, `--offline`, `--debug`, `--color` | Globals parsed before subcommand |\n| `m version` | `--json` | Build metadata from ldflags |\n| `mx --help` | same globals | Thin executor shell |\n| Exit codes | — | Map typed errors to stable CLI codes |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| `cmd/m/main.go` | Primary CLI entry |\n| `cmd/mx/main.go` | Executor entry |\n| Shell completion scripts | Generated from Cobra |",
+    "scopeItems": [
+      "Implement cmd/m and cmd/mx main entrypoints with shared bootstrap",
+      "Create internal/cli root command with Cobra tree and persistent pre-run",
+      "Wire internal/app application context: cwd, config load, reporter init",
+      "Implement m version with semver build metadata from ldflags",
+      "Normalize global flags: --cwd, --offline, --debug, --color, --no-color",
+      "Implement exit-code mapping from internal/diagnostics error codes",
+      "Add context cancellation propagation from SIGINT/SIGTERM",
+      "Register built-in command stubs for later MVPs with stable not-implemented errors",
+      "Implement reserved-name list from feature inventory to block script collisions",
+      "Generate shell completion for bash, zsh, fish, and PowerShell",
+      "Add hidden m __dispatch diagnostic showing effective command resolution",
+      "Detect invoked binary name m vs mew and mx vs mewx for help text",
+      "Ensure global flags apply before any subcommand handler runs",
+      "Add golden tests for --help and version output formatting",
+      "Add table-driven tests for flag parsing edge cases",
+      "Document command precedence: built-in > alias > script (future 0042)",
+      "Keep handlers thin: parse flags, delegate to app services only",
+      "Avoid importing resolver, linker, fetch, or registry packages"
+    ],
+    "fixtures": [
+      "testdata/cli/help-golden/m-root.txt",
+      "testdata/cli/help-golden/mx-root.txt",
+      "testdata/cli/flags-matrix.json",
+      "fixtures/projects/empty-package-json"
+    ],
+    "acceptance": [
+      "m --help and mx --help render stable usage without panic",
+      "m version prints name, semver, commit, and build date",
+      "Global --cwd changes effective project root for downstream services",
+      "SIGINT returns non-zero exit and cancels in-flight context",
+      "Reserved built-in names cannot be shadowed by future script shortcuts"
+    ],
+    "conformance": [
+      "Nub Clap command tree shape | parity",
+      "nubx entrypoint desugaring | parity",
+      "Global flag semantics | parity"
+    ],
+    "openDecisions": [
+      "Whether github.com/mewisme/m/mewx alias binaries ship in v1 installers",
+      "Default --color behavior on Windows terminals without ANSI"
+    ],
+    "todoSummaries": [
+      "entry: cmd/m and cmd/mx bootstrap",
+      "cli: Cobra root command and global flags",
+      "dispatch: Reserved-name policy and precedence",
+      "exit: Error-code to exit-code mapping",
+      "completion: Shell completion generation",
+      "tests: Help/version golden fixtures",
+      "docs: CLI foundation user surface"
+    ]
+  },
+  "0011": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/manifest",
+      "internal/project",
+      "internal/workspace",
+      "internal/app"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker",
+      "internal/fetch"
+    ],
+    "featureRows": [
+      "| package.json read/write | Nub manifest | Lossless round-trip | 0011 |",
+      "| Project root discovery | Nub walk-up | package.json + lock hints | 0011 |",
+      "| Workspace globs | pnpm workspaces | Normalized workspace graph | 0011, 0022 |",
+      "| Dependency declarations | npm fields | deps/devDeps/peerDeps/optional | 0011 |"
+    ],
+    "dataFlowNodes": "cwd[CWD] --> proj[internal/project] --> man[internal/manifest] --> ws[internal/workspace] --> norm[NormalizedProject]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m pkg get <field>` | `--json` | Read normalized manifest fields (dev) |\n| Discovery | `--cwd` | Walk-up from cwd to project root |\n| N/A public install | — | No mutation commands until 0016 |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Normalized manifest model | Shared dependency declarations |\n| Workspace member index | Monorepo discovery cache |",
+    "scopeItems": [
+      "Implement walk-up project root discovery from cwd with package.json boundary",
+      "Parse package.json without destructive reformatting or key reordering",
+      "Normalize dependencies, devDependencies, peerDependencies, optionalDependencies",
+      "Support workspaces field: array and {packages: [...]} forms",
+      "Expand workspace globs to concrete member paths deterministically",
+      "Detect packageManager and devEngines.packageManager for identity hints",
+      "Expose read-only manifest accessor on internal/app project handle",
+      "Implement safe manifest field updates preserving comments and formatting where possible",
+      "Validate package name, version, and bin field shapes with actionable errors",
+      "Handle missing package.json with typed not-found error code",
+      "Support package.json in subpath importers for future workspace installs",
+      "Add golden tests for manifest read/write on representative fixtures",
+      "Add tests for workspace glob edge cases: negation, braces, duplicates",
+      "Document manifest normalization contract for resolver consumers",
+      "Reject cyclic workspace definitions with clear diagnostics",
+      "Cache parsed manifest per project root with file watcher invalidation hook",
+      "Keep manifest package free of network or filesystem mutation beyond package.json"
+    ],
+    "fixtures": [
+      "fixtures/projects/basic-cjs/package.json",
+      "fixtures/projects/workspace-simple/pnpm-workspace.yaml",
+      "fixtures/projects/workspace-nested/apps/*",
+      "testdata/manifest/golden/read-write/"
+    ],
+    "acceptance": [
+      "package.json round-trips without unintended whitespace or key loss",
+      "Workspace globs resolve to stable sorted member list",
+      "Project discovery stops at first valid root from cwd",
+      "Invalid manifest fields produce stable machine-readable error codes",
+      "Normalized dependency map matches npm semantics for scoped packages"
+    ],
+    "conformance": [
+      "package.json field semantics | parity",
+      "Workspace glob expansion | parity",
+      "Project root walk-up | parity"
+    ],
+    "openDecisions": [
+      "Whether to preserve exact JSON key ordering on write",
+      "Support package.json5 or only strict JSON in v1"
+    ],
+    "todoSummaries": [
+      "discover: Walk-up project root detection",
+      "parse: Lossless package.json read",
+      "write: Safe manifest field updates",
+      "workspace: Glob expansion and member index",
+      "normalize: Dependency declaration model",
+      "validate: Name/version/bin validation",
+      "tests: Manifest golden fixtures"
+    ]
+  },
+  "0012": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/registry",
+      "internal/config",
+      "internal/fetch"
+    ],
+    "forbiddenImports": [
+      "internal/resolver",
+      "internal/linker"
+    ],
+    "featureRows": [
+      "| Registry metadata fetch | Nub registry client | npm-compatible packument | 0012 |",
+      "| Auth token resolution | Nub/npmrc | Scoped registry auth | 0012, 0006 |",
+      "| Metadata disk cache | Nub cache | ETag + conditional GET | 0012 |",
+      "| Proxy and retry policy | Nub networking | Bounded workers + backoff | 0012 |"
+    ],
+    "dataFlowNodes": "cfg[config] --> reg[internal/registry] --> cache[MetadataCache] --> net[HTTPClient] --> pack[Packument]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m cache dir` | — | Show registry cache location (stub ok) |\n| Env | `NPM_CONFIG_REGISTRY`, auth tokens | Redacted in logs |\n| Offline | `--offline` | Serve from cache only |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Registry metadata cache | ~/.cache/github.com/mewisme/m/registry or XDG equivalent |\n| Packument normalized model | Input to resolver |",
+    "scopeItems": [
+      "Implement npm registry packument fetch with semver version index",
+      "Support scoped registries via .npmrc and project config layering",
+      "Resolve auth tokens per registry URL with redaction in diagnostics",
+      "Implement metadata disk cache keyed by registry URL + package name",
+      "Honor ETag and If-None-Match for conditional requests",
+      "Implement bounded concurrent metadata fetch worker pool",
+      "Add exponential backoff retry for transient 5xx and network errors",
+      "Respect --offline: fail closed when cache miss",
+      "Support HTTP/SOCKS proxy from config and environment",
+      "Validate packument JSON schema and reject malformed responses",
+      "Normalize dist-tags, versions, and dist.integrity fields",
+      "Add integration tests against fixtures/registry local server",
+      "Add failure tests: 404, 401, timeout, truncated body",
+      "Document registry client interface for resolver package",
+      "Never log auth headers or token values",
+      "Implement cache corruption detection and safe eviction",
+      "Support custom registry URL per scope prefix"
+    ],
+    "fixtures": [
+      "fixtures/registry/v1/lodash-4.17.21.tgz",
+      "fixtures/registry/v1/packuments/lodash.json",
+      "fixtures/registry/v1/packuments/@scope/pkg.json",
+      "testdata/registry/cache-hit-miss/"
+    ],
+    "acceptance": [
+      "Packument fetch succeeds against local fixture registry",
+      "ETag cache returns 304 and avoids re-download",
+      "--offline fails with clear error when metadata absent",
+      "Auth token never appears in stderr or debug logs",
+      "Concurrent fetches respect worker pool limit"
+    ],
+    "conformance": [
+      "npm registry packument format | parity",
+      "Registry auth resolution | parity",
+      "Metadata caching behavior | parity"
+    ],
+    "openDecisions": [
+      "Default registry cache TTL vs rely on ETag only",
+      "Support for custom CA bundles in corporate proxies"
+    ],
+    "todoSummaries": [
+      "client: HTTP registry client with retries",
+      "cache: Disk metadata cache with ETag",
+      "auth: Scoped token resolution",
+      "proxy: HTTP/SOCKS proxy wiring",
+      "offline: Offline-only mode enforcement",
+      "tests: Local fixture registry integration",
+      "interface: Registry client contract for resolver"
+    ]
+  },
+  "0013": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/resolver",
+      "internal/registry",
+      "internal/manifest"
+    ],
+    "forbiddenImports": [
+      "internal/linker",
+      "internal/transaction"
+    ],
+    "featureRows": [
+      "| Semver range resolution | npm semver | Registry version selection | 0013 |",
+      "| Transitive closure | Aube resolver | Deterministic graph build | 0013 |",
+      "| Decision trace | Nub explain | Resolver trace events | 0013, 0028 |",
+      "| Cycle detection | npm | Fail with actionable path | 0013 |"
+    ],
+    "dataFlowNodes": "man[manifest] --> reg[registry] --> res[internal/resolver] --> graph[CanonicalGraph] --> trace[DecisionTrace]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m resolve` | `--json`, `--trace` | Dry resolution without install |\n| `m why <pkg>` | — | Stub pointing to 0028 if not full |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Canonical dependency graph | Resolver output model |\n| Decision trace log | Explain input |",
+    "scopeItems": [
+      "Integrate npm-compatible semver range parsing and satisfaction",
+      "Resolve direct dependencies from normalized manifest declarations",
+      "Expand transitive dependencies from registry packuments recursively",
+      "Produce deterministic canonical graph with stable node ordering",
+      "Detect and report dependency cycles with full path",
+      "Handle scoped package names and registry URL routing",
+      "Select highest matching version for ^ ~ * and exact ranges",
+      "Emit structured decision trace for each version choice",
+      "Support resolution from empty graph (greenfield)",
+      "Support resolution from partial lock hints (prepare for 0015)",
+      "Bound recursion depth and fan-out with clear limits",
+      "Add unit tests for semver edge cases: prerelease, build metadata",
+      "Add integration tests resolving fixture registry graphs",
+      "Add golden tests for deterministic graph encoding",
+      "Document resolver input/output interfaces for lockfile adapter",
+      "Fail closed on missing packument or unsatisfiable range",
+      "Avoid any node_modules or lockfile mutation in this MVP"
+    ],
+    "fixtures": [
+      "fixtures/registry/v1/transitive-a-b-c/",
+      "fixtures/projects/semver-ranges/",
+      "testdata/resolver/golden/graphs/",
+      "testdata/resolver/cycles/cycle-a-b.json"
+    ],
+    "acceptance": [
+      "Simple ^ range resolves to expected highest compatible version",
+      "Transitive closure matches fixture registry graph",
+      "Identical inputs produce byte-identical canonical graph",
+      "Unsatisfiable range returns stable error with package name",
+      "Cycle detection reports full cycle path"
+    ],
+    "conformance": [
+      "npm semver range semantics | parity",
+      "Transitive resolution ordering | parity",
+      "Scoped dependency resolution | parity"
+    ],
+    "openDecisions": [
+      "Prerelease inclusion policy for ^ and ~ ranges",
+      "Maximum resolution depth and breadth limits"
+    ],
+    "todoSummaries": [
+      "semver: npm-compatible range parsing",
+      "resolve: Direct dependency resolution",
+      "transitive: Recursive graph expansion",
+      "determinism: Stable graph ordering",
+      "cycles: Cycle detection and reporting",
+      "trace: Decision trace emission",
+      "tests: Semver and graph golden fixtures"
+    ]
+  },
+  "0014": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/fetch",
+      "internal/archive",
+      "internal/registry",
+      "internal/store"
+    ],
+    "forbiddenImports": [
+      "internal/linker",
+      "internal/transaction"
+    ],
+    "featureRows": [
+      "| Tarball download | Nub fetch | Concurrent bounded workers | 0014 |",
+      "| Integrity verification | npm integrity | sha512 before extract | 0014 |",
+      "| Safe extraction | Nub archive | Path traversal guards | 0014 |",
+      "| Partial download recovery | Nub | Atomic temp files | 0014 |"
+    ],
+    "dataFlowNodes": "reg[registry] --> fetch[internal/fetch] --> verify[IntegrityCheck] --> arch[internal/archive] --> store[ContentAddressedBlob]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| Internal only | — | No new user commands; used by install path |\n| Env | proxy settings | Inherited from registry client |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Download staging temp files | Atomic rename on success |\n| Extracted package tree | Input to linker/store |",
+    "scopeItems": [
+      "Implement tarball download from registry dist.tarball URL",
+      "Verify dist.integrity sha512 before any extraction",
+      "Support concurrent downloads with bounded worker pool",
+      "Write downloads to temp files and atomic rename on success",
+      "Implement gzip tar extraction with path traversal prevention",
+      "Reject absolute paths, .. segments, and symlink escapes in archives",
+      "Normalize file modes and timestamps for reproducible extraction",
+      "Handle truncated downloads and checksum mismatch with retry",
+      "Integrate with registry auth for private package tarballs",
+      "Support --offline: read from local cache only",
+      "Store verified blobs in content-addressed staging area",
+      "Add failure injection tests: corrupt tarball, wrong hash, disk full",
+      "Add cross-platform extraction tests on Windows junctions",
+      "Document fetch/archive interfaces for installer MVP",
+      "Redact signed URLs from error messages and logs",
+      "Implement download resume only if spec requires (document deferral)",
+      "Clean up partial temp files on cancellation"
+    ],
+    "fixtures": [
+      "fixtures/registry/v1/lodash-4.17.21.tgz",
+      "fixtures/archives/traversal-attack.tar",
+      "fixtures/archives/corrupt-hash.tgz",
+      "testdata/fetch/offline-cache-hit/"
+    ],
+    "acceptance": [
+      "Valid tarball extracts to expected file tree",
+      "Integrity mismatch aborts before extraction",
+      "Path traversal archive is rejected without writing files",
+      "Concurrent downloads respect worker limit",
+      "Cancelled download removes partial temp files"
+    ],
+    "conformance": [
+      "npm dist.integrity verification | parity",
+      "Tarball extraction safety | parity",
+      "Concurrent fetch discipline | parity"
+    ],
+    "openDecisions": [
+      "Whether to support download resume in v1",
+      "Maximum tarball size limit policy"
+    ],
+    "todoSummaries": [
+      "download: Registry tarball fetch",
+      "integrity: sha512 verification gate",
+      "extract: Safe tar.gz extraction",
+      "concurrency: Bounded download workers",
+      "offline: Cache-only fetch path",
+      "safety: Path traversal guards",
+      "tests: Attack and corruption fixtures"
+    ]
+  },
+  "0015": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/lockfile",
+      "internal/lockfile/mlock",
+      "internal/resolver"
+    ],
+    "forbiddenImports": [
+      "internal/linker",
+      "internal/transaction"
+    ],
+    "featureRows": [
+      "| m.lock format | Mew native | Versioned deterministic graph | 0015 |",
+      "| Importer sections | pnpm importers | Per-package manifest snapshot | 0015 |",
+      "| Integrity records | npm lock integrity | Per-package hash | 0015 |",
+      "| Settings block | Nub lock settings | Linker/resolver policy | 0015 |"
+    ],
+    "dataFlowNodes": "graph[CanonicalGraph] --> mlock[internal/lockfile/mlock] --> disk[m.lock] --> read[LockfileRead]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m lock` | `--frozen`, `--fix` | Generate or validate m.lock |\n| `m install --frozen-lockfile` | — | Prepare for 0016 |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| `m.lock` | Native deterministic lockfile |\n| Lockfile schema version field | Migration anchor |",
+    "scopeItems": [
+      "Define m.lock schema version and top-level document structure",
+      "Serialize canonical graph to importer-aware lock sections",
+      "Record package identity, resolution, integrity, and dependency edges",
+      "Include settings block for linker mode and resolver policy placeholders",
+      "Implement deterministic key ordering and stable encoding",
+      "Implement lockfile read parser with forward-compatible unknown field handling",
+      "Implement lockfile write from resolver output without data loss",
+      "Validate lockfile against manifest on --frozen-lockfile",
+      "Detect lockfile/manifest drift with actionable diff summary",
+      "Add golden tests for round-trip encode/decode",
+      "Add migration stub for future schema bumps",
+      "Document m.lock field reference for adapter MVPs",
+      "Support peer-context placeholders for 0020 without full peer resolution",
+      "Never embed secrets or auth tokens in lockfile",
+      "Reject ambiguous duplicate package entries",
+      "Integrate with internal/resolver graph model from 0007",
+      "Add fuzz smoke tests for parser robustness"
+    ],
+    "fixtures": [
+      "testdata/lockfile/mlock/golden/basic/",
+      "testdata/lockfile/mlock/golden/workspace/",
+      "fixtures/projects/mlock-greenfield/",
+      "testdata/lockfile/mlock/corrupt/"
+    ],
+    "acceptance": [
+      "Resolver graph round-trips through m.lock losslessly",
+      "Generated m.lock is byte-identical across platforms for same input",
+      "Frozen lockfile mode fails when manifest changes",
+      "Corrupt lockfile returns stable parse error code",
+      "Schema version field present on every document"
+    ],
+    "conformance": [
+      "pnpm lock importer concepts | parity",
+      "npm lock integrity field semantics | parity",
+      "Deterministic lockfile ordering | parity"
+    ],
+    "openDecisions": [
+      "Exact m.lock file name and location (root only vs per-importer)",
+      "Whether to embed full packument metadata or minimal dist fields"
+    ],
+    "todoSummaries": [
+      "schema: m.lock versioned document format",
+      "write: Graph to lockfile serialization",
+      "read: Lockfile parser and validator",
+      "frozen: Manifest/lock drift detection",
+      "golden: Round-trip encoding fixtures",
+      "docs: m.lock field reference",
+      "fuzz: Parser robustness smoke"
+    ]
+  },
+  "0016": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/app",
+      "internal/resolver",
+      "internal/fetch",
+      "internal/lockfile",
+      "internal/linker",
+      "internal/manifest"
+    ],
+    "forbiddenImports": [
+      "internal/transaction",
+      "internal/store"
+    ],
+    "featureRows": [
+      "| m install | Nub install | First end-to-end path | 0016 |",
+      "| m add / m remove | Nub add/remove | Manifest + lock mutation | 0016 |",
+      "| Hoisted node_modules | npm layout | Conservative hoisted linker | 0016, 0019 |",
+      "| .bin shims | npm bin | Platform executables | 0016 |"
+    ],
+    "dataFlowNodes": "cli[m install] --> app[app service] --> resolve --> fetch --> link[hoisted linker] --> nm[node_modules]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m install` | `--prod`, `--frozen-lockfile`, `--dry-run` | Full install path |\n| `m add <pkg>` | `-D`, `-E`, `--save-exact` | Manifest + lock update |\n| `m remove <pkg>` | — | Prune from manifest and tree |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| `node_modules/` | Hoisted install layout |\n| `m.lock` | Updated on add/remove |\n| `.bin/` shims | Executable discovery |",
+    "scopeItems": [
+      "Implement install application service orchestrating resolve-fetch-link",
+      "Resolve from package.json or existing m.lock per policy",
+      "Fetch all packages before any node_modules mutation",
+      "Implement conservative hoisted linker placing deps at top level",
+      "Materialize node_modules in staging directory before publish",
+      "Create .bin directory with platform shims for declared bins",
+      "Implement m add with dev/prod dependency type selection",
+      "Implement m remove with manifest and lockfile update",
+      "Prune stale packages from hoisted tree after remove",
+      "Support --prod to omit devDependencies",
+      "Support --dry-run printing plan without disk mutation",
+      "Support --frozen-lockfile failing on drift",
+      "Emit install summary: added, removed, changed counts",
+      "Add integration tests: install from empty, from lock, add, remove",
+      "Compare require() behavior with npm on basic-cjs fixture",
+      "Failure tests: original node_modules remains usable on error",
+      "Document non-goals: no global store, no isolated layout yet"
+    ],
+    "fixtures": [
+      "fixtures/projects/basic-cjs",
+      "fixtures/projects/typescript-app",
+      "fixtures/projects/scoped-deps",
+      "fixtures/projects/bin-shims"
+    ],
+    "acceptance": [
+      "m install on greenfield project produces working node_modules",
+      "m add lodash updates m.lock and node_modules",
+      "m remove prunes unused packages from hoisted tree",
+      "Failed install does not leave corrupt partial node_modules",
+      "m install --frozen-lockfile fails when package.json changed"
+    ],
+    "conformance": [
+      "npm hoisted install layout | parity",
+      "add/remove manifest mutation | parity",
+      "bin shim behavior | parity"
+    ],
+    "openDecisions": [
+      "Default linker mode before 0019 isolated support",
+      "Whether install runs lifecycle scripts in 0016 or defers to 0021"
+    ],
+    "todoSummaries": [
+      "install: End-to-end install orchestration",
+      "hoist: Conservative hoisted linker",
+      "add-remove: Manifest and lock mutations",
+      "bins: .bin shim generation",
+      "staging: Stage-then-publish layout",
+      "dry-run: Plan-only install mode",
+      "tests: Install integration fixtures"
+    ]
+  },
+  "0017": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/transaction",
+      "internal/app",
+      "internal/linker",
+      "internal/manifest",
+      "internal/lockfile"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Atomic mutations | Nub transactions | inspect-resolve-plan-commit | 0017 |",
+      "| Install journal | Nub journal | Recoverable operation log | 0017 |",
+      "| Snapshot history | Nub snapshots | Point-in-time restore | 0017, 0028 |",
+      "| Rollback on failure | Nub | Old state remains usable | 0017 |"
+    ],
+    "dataFlowNodes": "plan[InstallPlan] --> stage[StagingArea] --> journal[Journal] --> commit[Commit] --> rollback[RollbackOnFailure]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m install` | `--journal` | Enhanced diagnostics |\n| `m snapshot` | `list`, `restore <id>` | History management |\n| `m recover` | — | Resume interrupted transaction |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Transaction journal | ~/.cache/github.com/mewisme/m/journal or project-local |\n| Snapshot store | Manifest + lock + node_modules metadata |\n| Staging directories | Pre-commit install tree |",
+    "scopeItems": [
+      "Define transaction phases: inspect, resolve, plan, fetch, stage, validate, commit",
+      "Journal every filesystem mutation with inverse operations",
+      "Keep original manifest, lockfile, and node_modules until commit succeeds",
+      "Implement rollback applying journal in reverse on any failure",
+      "Implement crash recovery: detect incomplete journal and offer recover",
+      "Create snapshot on successful commit with monotonic ID",
+      "Implement m snapshot list and m snapshot restore",
+      "Validate staged tree before commit: integrity, bins, expected packages",
+      "Integrate transaction boundary with install/add/remove from 0016",
+      "Ensure partial fetch does not mutate committed state",
+      "Add failure injection: kill process mid-commit, disk full, permission denied",
+      "Add tests proving old node_modules works after failed install",
+      "Document journal format and retention policy",
+      "Limit journal size with rotation policy",
+      "Never delete committed state without successful staging validation",
+      "Emit transaction progress events to diagnostics reporter",
+      "Support dry-run generating plan without journal writes"
+    ],
+    "fixtures": [
+      "testdata/transaction/journal-samples/",
+      "fixtures/transaction/interrupted-install/",
+      "fixtures/transaction/rollback-hoisted/"
+    ],
+    "acceptance": [
+      "Failed install leaves prior node_modules intact and usable",
+      "Interrupted commit can be recovered or cleanly rolled back",
+      "Snapshot restore returns project to prior dependency state",
+      "Journal records sufficient ops for full rollback",
+      "Commit is atomic: no half-updated lockfile visible"
+    ],
+    "conformance": [
+      "Nub transaction atomicity | parity",
+      "Snapshot restore semantics | parity",
+      "Journal recovery behavior | parity"
+    ],
+    "openDecisions": [
+      "Project-local vs global journal storage location",
+      "Snapshot retention count and pruning policy"
+    ],
+    "todoSummaries": [
+      "journal: Mutation journal with inverse ops",
+      "rollback: Failure rollback orchestration",
+      "snapshot: Point-in-time snapshot store",
+      "recover: Interrupted transaction recovery",
+      "commit: Atomic commit gate",
+      "tests: Failure injection fixtures",
+      "docs: Transaction phase diagram"
+    ]
+  },
+  "0018": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/store",
+      "internal/linker",
+      "internal/linker/planner",
+      "internal/fetch"
+    ],
+    "forbiddenImports": [
+      "internal/linker/isolated"
+    ],
+    "featureRows": [
+      "| Global content store | pnpm store | Immutable CAS blobs | 0018 |",
+      "| Smart link planner | Nub linker | hardlink/reflink/copy/symlink | 0018 |",
+      "| Filesystem probing | Nub | Per-OS capability detection | 0018 |",
+      "| Dedup across projects | pnpm | Shared store entries | 0018 |"
+    ],
+    "dataFlowNodes": "fetch[verified blob] --> store[internal/store] --> planner[linker/planner] --> link[hardlink|reflink|copy] --> nm[node_modules]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m store path` | — | Show global store location |\n| `m store prune` | `--dry-run` | Remove unreferenced blobs |\n| Env | `MEW_STORE_DIR` | Override store root |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Global content-addressed store | ~/.local/share/github.com/mewisme/m/store |\n| Link plan records | Per-install strategy audit |",
+    "scopeItems": [
+      "Implement content-addressed global store keyed by integrity hash",
+      "Import verified tarballs into store without duplication",
+      "Probe filesystem for hardlink, reflink, symlink, junction support",
+      "Implement link planner choosing safest fastest strategy per path",
+      "Fall back to copy when hardlink/reflink unavailable or cross-device",
+      "Use Windows junctions/symlinks per platform policy",
+      "Integrate store with hoisted linker from 0016",
+      "Track store reference counts from project link manifests",
+      "Implement m store path and m store prune commands",
+      "Prune unreferenced blobs with dry-run preview",
+      "Add cross-platform tests: Linux, macOS, Windows linking",
+      "Add tests for cross-filesystem copy fallback",
+      "Document store layout and garbage collection rules",
+      "Never mutate store blobs in place after import",
+      "Verify integrity on store read before linking",
+      "Support MEW_STORE_DIR override with validation",
+      "Emit link strategy summary in install diagnostics"
+    ],
+    "fixtures": [
+      "testdata/store/layout-golden/",
+      "fixtures/store/cross-device-copy/",
+      "fixtures/store/reflink-probe/"
+    ],
+    "acceptance": [
+      "Identical package imported twice shares one store blob",
+      "Link planner selects copy on cross-device install",
+      "Store prune removes only unreferenced blobs",
+      "Corrupt store entry is detected and re-fetched",
+      "m store path reports configured location"
+    ],
+    "conformance": [
+      "pnpm global store layout | parity",
+      "Smart linking strategy selection | parity",
+      "Store prune semantics | parity"
+    ],
+    "openDecisions": [
+      "Default store location per OS (XDG vs Library/Caches)",
+      "Reflink support detection on APFS/btrfs"
+    ],
+    "todoSummaries": [
+      "store: Content-addressed global store",
+      "planner: Filesystem-aware link planner",
+      "import: Verified blob import",
+      "prune: Store garbage collection",
+      "probe: Platform link capability detection",
+      "integrate: Hoisted linker store backend",
+      "tests: Cross-platform link fixtures"
+    ]
+  },
+  "0019": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/linker/isolated",
+      "internal/linker",
+      "internal/store",
+      "internal/app"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Isolated node_modules | pnpm layout | Per-package virtual store | 0019 |",
+      "| Phantom dep prevention | pnpm | Strict dependency boundaries | 0019 |",
+      "| Hoisted compatibility mode | npm | Configurable linker setting | 0019, 0016 |",
+      "| .pnpm virtual store | pnpm | Symlink/junction structure | 0019 |"
+    ],
+    "dataFlowNodes": "store[global store] --> iso[linker/isolated] --> vstore[.pnpm virtual] --> nm[node_modules/.pnpm]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m install` | `--linker=isolated`, `--linker=hoisted` | Linker mode selection |\n| Config | linker setting in m.lock | Persisted preference |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| `node_modules/.pnpm/` | Virtual store layout |\n| Linker mode in m.lock settings | Per-project policy |",
+    "scopeItems": [
+      "Implement isolated linker creating per-package node_modules trees",
+      "Layout packages under node_modules/.pnpm/<id>/node_modules/",
+      "Symlink or junction top-level aliases to isolated paths",
+      "Prevent access to undeclared dependencies (phantom dep test)",
+      "Support hoisted mode as compatibility fallback via config",
+      "Integrate with global store from 0018 for file linking",
+      "Update m.lock settings block with linker mode",
+      "Handle peer dependency symlink targets in isolated layout",
+      "Create .bin shims resolving through isolated paths",
+      "Add integration tests comparing pnpm fixture layouts",
+      "Add Windows junction tests for long paths",
+      "Document isolated vs hoisted trade-offs",
+      "Ensure transaction rollback works with isolated tree",
+      "Validate staged isolated tree before commit",
+      "Support scoped packages in virtual store paths",
+      "Deterministic ordering of virtual store directory names",
+      "Emit layout summary in install output"
+    ],
+    "fixtures": [
+      "fixtures/projects/isolated-basic",
+      "fixtures/projects/isolated-peers",
+      "fixtures/projects/phantom-dep-negative",
+      "testdata/linker/isolated-layout-golden/"
+    ],
+    "acceptance": [
+      "Isolated install blocks requiring undeclared dependencies",
+      "pnpm-simple fixture layout matches expected structure",
+      "Hoisted mode still works via --linker=hoisted",
+      "Isolated .bin shims execute correctly on Windows",
+      "Linker mode persists in m.lock settings"
+    ],
+    "conformance": [
+      "pnpm isolated node_modules layout | parity",
+      "Phantom dependency prevention | parity",
+      "Hoisted compatibility mode | parity"
+    ],
+    "openDecisions": [
+      "Default linker mode for new m.lock projects",
+      "Peer symlink strategy in isolated layout"
+    ],
+    "todoSummaries": [
+      "isolated: Virtual store linker implementation",
+      "phantom: Undeclared dep access prevention",
+      "mode: Hoisted vs isolated config switch",
+      "bins: Isolated .bin shim paths",
+      "settings: m.lock linker persistence",
+      "tests: pnpm layout comparison fixtures",
+      "windows: Junction and long-path handling"
+    ]
+  },
+  "0020": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/resolver",
+      "internal/manifest",
+      "internal/workspace",
+      "internal/lockfile"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Peer dependencies | npm/Aube | Context-aware resolution | 0020 |",
+      "| Optional + platform filters | npm optionalDependencies | OS/CPU/libc pruning | 0020 |",
+      "| Overrides and aliases | npm overrides | Graph rewriting | 0020 |",
+      "| Workspace protocol | pnpm workspace:* | Monorepo local deps | 0020, 0022 |"
+    ],
+    "dataFlowNodes": "manifest[declarations] --> peer[peer contexts] --> opt[optional/platform] --> ovr[overrides] --> ws[workspace:*] --> graph[CanonicalGraph]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m update` | `--latest`, `--interactive` | Targeted graph updates |\n| `m resolve` | `--trace` | Full resolver trace |\n| `m explain peer <pkg>` | — | Peer conflict diagnostics |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Extended m.lock peer contexts | Peer resolution record |\n| Resolver policy settings | Auto-install peers strictness |",
+    "scopeItems": [
+      "Implement peer dependency constraint collection per importer",
+      "Generate peer contexts as part of package identity",
+      "Implement auto-install peers policy with strict and loose modes",
+      "Prune optional dependencies failing os/cpu/libc filters",
+      "Apply overrides and resolutions rewriting dependency edges",
+      "Support npm: alias protocol and package aliases",
+      "Resolve workspace:* and workspace:^ protocol to local packages",
+      "Support file:, link:, and portal: source placeholders",
+      "Implement incremental lock reuse preserving unaffected subgraph",
+      "Minimize graph churn on targeted m update",
+      "Emit conflict explanation tree for unsatisfiable peers",
+      "Record resolver policy choices in m.lock settings",
+      "Add conformance fixtures for peer, optional, override cases",
+      "Add workspace protocol resolution tests",
+      "Document peer context ID format",
+      "Fail with actionable errors for missing workspace targets",
+      "Benchmark resolver on large monorepo fixture"
+    ],
+    "fixtures": [
+      "fixtures/resolver/peers/react-ecosystem",
+      "fixtures/resolver/optional-platform",
+      "fixtures/resolver/overrides-nested",
+      "fixtures/projects/workspace-protocol"
+    ],
+    "acceptance": [
+      "Conflicting peer deps produce explanation tree not silent wrong version",
+      "workspace:* resolves to correct local package version",
+      "Optional dep skipped on unsupported platform",
+      "Override replaces transitive version deterministically",
+      "Targeted update preserves unrelated lock subgraph"
+    ],
+    "conformance": [
+      "npm peer dependency semantics | parity",
+      "pnpm workspace protocol | parity",
+      "npm overrides | parity",
+      "optionalDependencies platform gating | parity"
+    ],
+    "openDecisions": [
+      "Default auto-install-peers policy strictness",
+      "portal: vs link: semantics alignment with pnpm"
+    ],
+    "todoSummaries": [
+      "peers: Peer context resolution",
+      "optional: Platform and optional pruning",
+      "overrides: Override and alias rewriting",
+      "workspace: workspace:* protocol",
+      "incremental: Targeted lock reuse",
+      "explain: Conflict explanation tree",
+      "tests: Advanced resolver conformance fixtures"
+    ]
+  },
+  "0021": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/lifecycle",
+      "internal/policy",
+      "internal/app",
+      "internal/process"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Lifecycle scripts | npm scripts | preinstall/install/postinstall | 0021 |",
+      "| Trust policy | Nub policy | Allow/deny script execution | 0021 |",
+      "| Sandbox restrictions | Nub | Capability-limited execution | 0021 |",
+      "| Build reproducibility cache | Nub | Cache lifecycle outputs | 0021 |"
+    ],
+    "dataFlowNodes": "install[commit] --> policy[policy check] --> life[internal/lifecycle] --> sandbox[SandboxedExec] --> audit[AuditLog]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m install` | `--ignore-scripts` | Skip all lifecycle scripts |\n| `m config set ignore-scripts true` | — | Persistent policy |\n| `m approve-builds` | — | Trust package build scripts |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Lifecycle audit log | Per-script execution record |\n| Trusted packages list | Policy allowlist store |",
+    "scopeItems": [
+      "Implement lifecycle script discovery from package.json scripts field",
+      "Run preinstall/install/postinstall/prepare in npm order",
+      "Enforce ignore-scripts flag and config",
+      "Implement trust policy: prompt or allowlist for unknown scripts",
+      "Execute scripts in sandbox with restricted env and filesystem",
+      "Propagate correct PATH and node_modules/.bin for script context",
+      "Cache reproducible build script outputs keyed by inputs",
+      "Write audit log entry for every script: package, script, exit code",
+      "Fail install on script failure with rollback via transaction",
+      "Support Windows cmd/sh and Unix sh shebang resolution",
+      "Redact secrets from script environment in logs",
+      "Add tests with benign fixture scripts",
+      "Add failure tests: script exit non-zero triggers rollback",
+      "Document lifecycle policy for CI (--ignore-scripts default?)",
+      "Integrate with isolated linker bin paths",
+      "Never execute lifecycle during --dry-run",
+      "Support m approve-builds to add package to trust list"
+    ],
+    "fixtures": [
+      "fixtures/lifecycle/postinstall-write-file",
+      "fixtures/lifecycle/failing-script",
+      "fixtures/lifecycle/native-addon-build-stub"
+    ],
+    "acceptance": [
+      "postinstall script runs after package materialized",
+      "Failing lifecycle script triggers full install rollback",
+      "--ignore-scripts skips all lifecycle execution",
+      "Untrusted package prompts or blocks per policy",
+      "Audit log records script executions"
+    ],
+    "conformance": [
+      "npm lifecycle script order | parity",
+      "ignore-scripts behavior | parity",
+      "Nub trust policy model | parity"
+    ],
+    "openDecisions": [
+      "Default trust policy for new projects (prompt vs deny)",
+      "Sandbox depth: full sandbox vs path-restricted only"
+    ],
+    "todoSummaries": [
+      "discover: Lifecycle script enumeration",
+      "policy: Trust and ignore-scripts enforcement",
+      "sandbox: Restricted script execution",
+      "audit: Lifecycle audit logging",
+      "cache: Reproducible build output cache",
+      "rollback: Script failure triggers transaction rollback",
+      "tests: Lifecycle fixture scripts"
+    ]
+  },
+  "0022": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/workspace",
+      "internal/manifest",
+      "internal/resolver",
+      "internal/app"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Workspace filters | pnpm --filter | Selective install/run prep | 0022 |",
+      "| Catalogs | pnpm catalog | Shared version definitions | 0022 |",
+      "| Multi-importer install | pnpm -r | Atomic workspace install | 0022 |",
+      "| Root checks | pnpm | Workspace protocol validation | 0022 |"
+    ],
+    "dataFlowNodes": "ws[workspace graph] --> cat[catalogs] --> filt[filters] --> multi[multi-importer resolve] --> install[atomic install]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m install` | `--filter <pattern>` | Subset install |\n| `m install -r` | — | All workspace packages |\n| `m ls -r` | `--depth` | Workspace tree listing |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Catalog definitions in pnpm-workspace or package.json | Shared dep versions |\n| Workspace filter resolution cache | CLI filter expansion |",
+    "scopeItems": [
+      "Parse pnpm catalog: and catalog:default in package.json",
+      "Resolve catalog references to concrete versions in manifests",
+      "Implement --filter pattern matching package names and paths",
+      "Support -r recursive install across workspace members",
+      "Resolve workspace dependency graph with topological ordering",
+      "Install all importers atomically in single transaction",
+      "Validate workspace: protocol targets exist in graph",
+      "Detect duplicate workspace package names across members",
+      "Support root package.json as workspace importer",
+      "Implement m ls -r workspace tree listing",
+      "Add integration tests on workspace-simple and nested fixtures",
+      "Ensure filter install does not break unrelated members",
+      "Record per-importer sections in m.lock for all members",
+      "Document filter grammar compatibility with pnpm",
+      "Fail on catalog reference to undefined catalog entry",
+      "Support negation patterns in filters if pnpm-compatible",
+      "Emit workspace install summary per importer"
+    ],
+    "fixtures": [
+      "fixtures/projects/workspace-simple",
+      "fixtures/projects/workspace-nested",
+      "fixtures/projects/workspace-catalog",
+      "fixtures/projects/workspace-filter"
+    ],
+    "acceptance": [
+      "m install -r installs all workspace members atomically",
+      "catalog: deps resolve to catalog-defined versions",
+      "--filter installs only matching packages and deps",
+      "Broken workspace: reference fails with clear error",
+      "m.lock contains importer section per workspace package"
+    ],
+    "conformance": [
+      "pnpm workspace filters | parity",
+      "pnpm catalogs | parity",
+      "pnpm recursive install | parity"
+    ],
+    "openDecisions": [
+      "catalog: storage location (pnpm-workspace.yaml vs package.json)",
+      "Filter grammar subset for v1"
+    ],
+    "todoSummaries": [
+      "catalog: Catalog parse and resolution",
+      "filter: --filter pattern expansion",
+      "recursive: -r multi-importer install",
+      "graph: Workspace dependency ordering",
+      "lock: Per-importer m.lock sections",
+      "validate: workspace: target checks",
+      "tests: Workspace monorepo fixtures"
+    ]
+  },
+  "0023": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/lockfile",
+      "internal/compat/nub",
+      "internal/compat/pnpm",
+      "internal/resolver"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| nub.lock read | Nub native | Import to canonical graph | 0023 |",
+      "| pnpm-lock.yaml read | pnpm | Supported generations | 0023 |",
+      "| Lock preserve on detect | Mew policy | No silent conversion | 0023 |",
+      "| Explicit migrate | Nub migrate | nub/pnpm to m.lock | 0023 |"
+    ],
+    "dataFlowNodes": "nublock[nub.lock/pnpm-lock] --> adapter[compat adapter] --> graph[CanonicalGraph] --> mlock[m.lock optional]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m install` | — | Uses detected lockfile identity |\n| `m migrate lock` | `--to m.lock`, `--dry-run` | Explicit conversion |\n| `m lock --diff` | — | Compare adapter output |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Preserved nub.lock / pnpm-lock.yaml | Unchanged unless migrate |\n| Migration report | Lossy field documentation |",
+    "scopeItems": [
+      "Detect nub.lock and pnpm-lock.yaml per identity rules from 0006",
+      "Implement nub.lock reader adapter to canonical graph",
+      "Implement pnpm-lock.yaml reader for supported major generations",
+      "Preserve incumbent lockfile on install without user migrate",
+      "Write round-trip safe nub.lock when project identity is Nub",
+      "Write round-trip safe pnpm-lock when identity is pnpm",
+      "Implement m migrate lock --to m.lock with dry-run report",
+      "Document lossy conversions explicitly in migration output",
+      "Validate adapter output against resolver for drift detection",
+      "Add golden tests per lockfile generation fixture",
+      "Add diff tool comparing canonical graph from two lock sources",
+      "Support peer/importer metadata required for isolated layout",
+      "Never overwrite incumbent lock without explicit migrate",
+      "Handle lockfile version unsupported with upgrade guidance",
+      "Integrate with transaction commit for lock writes",
+      "Fuzz parser smoke on lockfile corpora",
+      "Record adapter version in migration report"
+    ],
+    "fixtures": [
+      "fixtures/locks/nub/v1-basic",
+      "fixtures/locks/pnpm/v6",
+      "fixtures/locks/pnpm/v9",
+      "testdata/lockfile/migrate-reports/"
+    ],
+    "acceptance": [
+      "Install on nub.lock project preserves nub.lock format",
+      "pnpm-lock.yaml project installs without silent m.lock conversion",
+      "m migrate lock --dry-run lists lossy fields",
+      "Adapter round-trip nub.lock golden matches source",
+      "Unsupported lock version returns actionable error"
+    ],
+    "conformance": [
+      "nub.lock semantics | parity",
+      "pnpm-lock.yaml supported generations | parity",
+      "Lockfile preservation policy | extension"
+    ],
+    "openDecisions": [
+      "Which pnpm lock major versions are certified in v1",
+      "Whether m can write pnpm-lock.yaml or read-only initially"
+    ],
+    "todoSummaries": [
+      "nub-read: nub.lock import adapter",
+      "pnpm-read: pnpm-lock.yaml import adapter",
+      "preserve: Incumbent lock preservation policy",
+      "migrate: Explicit lock migration command",
+      "diff: Canonical graph diff tooling",
+      "golden: Per-generation lock fixtures",
+      "report: Lossy migration reporting"
+    ]
+  },
+  "0024": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/lockfile",
+      "internal/compat/npm",
+      "internal/resolver"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| package-lock.json read | npm lockfile v2/v3 | Import to graph | 0024 |",
+      "| npm-shrinkwrap | npm | Same adapter path | 0024 |",
+      "| npm identity preservation | Mew policy | Keep package-lock on npm projects | 0024 |",
+      "| npm install semantics | npm | Hoisted layout default | 0024 |"
+    ],
+    "dataFlowNodes": "pkglock[package-lock.json] --> npmAdapter[npm lock adapter] --> graph[CanonicalGraph] --> install[npm-style install]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m install` | — | npm project uses package-lock |\n| `m migrate lock --to m.lock` | `--dry-run` | Optional conversion |\n| `m config set package-lock true` | — | Force lock generation |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| package-lock.json | Preserved on npm identity projects |\n| npm-shrinkwrap.json | Supported read/write |",
+    "scopeItems": [
+      "Implement package-lock.json v2 and v3 parsers",
+      "Map npm lock packages array to canonical graph nodes",
+      "Preserve npm project identity: write package-lock not m.lock",
+      "Support npm-shrinkwrap.json read and write",
+      "Handle lockfileVersion field and forward compatibility",
+      "Import integrity and resolved URL fields from npm lock",
+      "Support bundledDependencies and packages link fields",
+      "Install produces npm-compatible hoisted layout",
+      "Detect package-lock drift vs package.json on frozen install",
+      "Add golden tests for npm lock v2/v3 fixtures",
+      "Add differential tests vs npm install on fixture projects",
+      "Document npm-specific fields preserved in adapter",
+      "Implement migrate to m.lock with loss report",
+      "Never strip package-lock on npm-identity project install",
+      "Handle absent package-lock: generate on first install",
+      "Support workspaces in package-lock v3",
+      "Validate lockfilePackages ordering determinism on write"
+    ],
+    "fixtures": [
+      "fixtures/locks/npm/v2-basic",
+      "fixtures/locks/npm/v3-workspaces",
+      "fixtures/projects/npm-app",
+      "testdata/lockfile/npm-roundtrip/"
+    ],
+    "acceptance": [
+      "npm fixture install matches package-lock dependency tree",
+      "package-lock.json preserved after m install on npm project",
+      "Frozen install fails when package.json conflicts with lock",
+      "npm-shrinkwrap project installs correctly",
+      "Lock v2 and v3 fixtures parse without error"
+    ],
+    "conformance": [
+      "package-lock.json v2/v3 format | parity",
+      "npm install hoisted layout | parity",
+      "npm-shrinkwrap semantics | parity"
+    ],
+    "openDecisions": [
+      "package-lock v1 read support scope",
+      "Whether m writes lockfileVersion 3 by default"
+    ],
+    "todoSummaries": [
+      "parse: package-lock v2/v3 parser",
+      "write: npm lock writer",
+      "identity: npm project lock preservation",
+      "shrinkwrap: npm-shrinkwrap support",
+      "workspaces: npm lock v3 workspaces",
+      "migrate: npm lock to m.lock migration",
+      "tests: npm lock golden fixtures"
+    ]
+  },
+  "0025": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/lockfile",
+      "internal/compat/bun",
+      "internal/compat/yarn",
+      "internal/resolver"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| bun.lock read | Bun | Import to canonical graph | 0025 |",
+      "| yarn.lock classic read | Yarn 1 | Read support | 0025 |",
+      "| Yarn Berry read/write | Yarn 2+ | Certified PnP subset | 0025 |",
+      "| Identity preservation | Mew policy | Per-manager lock files | 0025 |"
+    ],
+    "dataFlowNodes": "bunlock[bun.lock/yarn.lock] --> adapters[bun+yarn adapters] --> graph[CanonicalGraph]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m install` | — | Detect bun/yarn identity |\n| `m migrate lock` | `--from yarn`, `--from bun` | Conversion paths |\n| Berry | `--mode=node-modules` | When PnP unsupported |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| bun.lock / yarn.lock | Preserved per identity |\n| PnP stub hooks | Deferred to runtime MVPs if needed |",
+    "scopeItems": [
+      "Implement bun.lock parser adapter to canonical graph",
+      "Implement yarn.lock classic parser",
+      "Implement Yarn Berry lockfile read for node-modules mode",
+      "Certify Berry PnP read path or document explicit deferral",
+      "Preserve bun.lock on Bun-identity projects",
+      "Preserve yarn.lock on Yarn classic identity projects",
+      "Detect yarn berry via .yarnrc.yml and lockfile format",
+      "Support migrate lock from bun/yarn to m.lock",
+      "Document unsupported Berry features with clear errors",
+      "Add golden fixtures per lock type",
+      "Add differential install tests where reference tool available",
+      "Handle yarn resolutions field mapping to overrides",
+      "Support zero-install cache metadata read-only if present",
+      "Never silently convert yarn/bun locks to m.lock",
+      "Integrate identity detection from 0006",
+      "Validate parser against fuzz corpora",
+      "Emit migration report for lossy bun/yarn conversions"
+    ],
+    "fixtures": [
+      "fixtures/locks/bun/v1-basic",
+      "fixtures/locks/yarn/classic-v1",
+      "fixtures/locks/yarn/berry-nm",
+      "fixtures/locks/yarn/berry-pnp-readonly"
+    ],
+    "acceptance": [
+      "bun.lock fixture imports to valid install graph",
+      "yarn.lock classic project installs with preserved lock",
+      "Berry node-modules fixture installs without PnP",
+      "Unsupported Berry feature fails with documented error",
+      "Identity detection selects correct lock adapter"
+    ],
+    "conformance": [
+      "bun.lock format | parity",
+      "yarn.lock classic | parity",
+      "Yarn Berry node-modules | parity",
+      "Yarn Berry PnP | defer"
+    ],
+    "openDecisions": [
+      "Berry PnP write support timeline vs read-only v1",
+      "bun.lock text vs binary format versions"
+    ],
+    "todoSummaries": [
+      "bun: bun.lock adapter",
+      "yarn-classic: yarn.lock v1 adapter",
+      "berry-nm: Yarn Berry node-modules adapter",
+      "berry-pnp: PnP read path or defer gate",
+      "preserve: bun/yarn lock preservation",
+      "migrate: Lock migration to m.lock",
+      "tests: bun/yarn lock fixtures"
+    ]
+  },
+  "0026": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/cli",
+      "internal/app",
+      "internal/transaction",
+      "internal/manifest",
+      "internal/resolver"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Full PM command family | Nub CLI | Coherent m grammar | 0026 |",
+      "| m ci / m outdated | pnpm/npm | CI and upgrade discovery | 0026 |",
+      "| m dedupe / m prune | npm | Graph maintenance commands | 0026 |",
+      "| Transaction-backed mutations | Nub | All writes via journal | 0026 |"
+    ],
+    "dataFlowNodes": "user[m <pm-cmd>] --> cli[command tree] --> app[app service] --> txn[transaction] --> out[summary]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m ci` | `--frozen-lockfile` | Clean CI install |\n| `m outdated` | `--recursive`, `--json` | Version drift report |\n| `m dedupe` | `--dry-run` | Dedupe dependency tree |\n| `m prune` | `--prod` | Remove extraneous packages |\n| `m publish` | stub | Full surface in 0027 |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Command help text | Complete PM surface docs |\n| CI install marker | node_modules/.m-ci if needed |",
+    "scopeItems": [
+      "Complete PM subcommand tree with consistent flag naming",
+      "Implement m ci: clean install from lock in CI mode",
+      "Implement m outdated with recursive workspace support",
+      "Implement m dedupe rewriting lock to minimal graph",
+      "Implement m prune removing extraneous node_modules packages",
+      "Implement m list (m ls) dependency tree display",
+      "Route all mutating commands through transaction journal",
+      "Unify --dry-run behavior across install family",
+      "Unify --frozen-lockfile across ci and install",
+      "Add pnpm-compatible flag aliases where documented",
+      "Generate comprehensive --help per subcommand",
+      "Add integration tests per command on fixture projects",
+      "Document Mew grammar divergences from pnpm/npm",
+      "Ensure mx does not expose PM commands",
+      "Stable JSON output for outdated --json",
+      "Exit codes consistent across PM commands",
+      "Deprecate stubs replaced by real implementations with warnings"
+    ],
+    "fixtures": [
+      "fixtures/projects/ci-clean-install",
+      "fixtures/projects/outdated-tree",
+      "fixtures/projects/dedupe-duplicates"
+    ],
+    "acceptance": [
+      "m ci fails when lockfile out of sync with manifest",
+      "m outdated reports available updates as JSON",
+      "m dedupe reduces duplicate packages in lock",
+      "All mutating commands rollback on failure",
+      "Help text complete for every PM subcommand"
+    ],
+    "conformance": [
+      "pnpm CLI flag compatibility | parity",
+      "npm ci behavior | parity",
+      "Nub PM command coverage | parity"
+    ],
+    "openDecisions": [
+      "Exact pnpm flag alias set to support in v1",
+      "Whether m import/rebuild ship in 0026 or later"
+    ],
+    "todoSummaries": [
+      "ci: m ci clean install",
+      "outdated: Version drift reporting",
+      "dedupe: Lock deduplication command",
+      "prune: Extraneous package removal",
+      "grammar: Unified PM flag naming",
+      "txn: Transaction wrap all mutations",
+      "help: Complete subcommand documentation"
+    ]
+  },
+  "0027": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/fetch",
+      "internal/manifest",
+      "internal/registry",
+      "internal/archive",
+      "internal/app"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| git/tarball/file sources | npm protocols | Non-registry deps | 0027 |",
+      "| Package patches | pnpm patch | Deterministic patched installs | 0027 |",
+      "| m pack | npm pack | Deterministic tarball creation | 0027 |",
+      "| m publish | npm publish | Authenticated registry publish | 0027 |"
+    ],
+    "dataFlowNodes": "src[git|file|tarball] --> fetch[fetch] --> patch[patch apply] --> pack[m pack] --> pub[m publish]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m add <git url>` | `--save-git` | Git dependency sources |\n| `m patch <pkg>` | `--edit-dir` | Patch workflow |\n| `m pack` | `--pack-destination` | Create tarball |\n| `m publish` | `--tag`, `--access` | Registry publish |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| `patches/` directory | Committed package patches |\n| Packed .tgz | publish input |\n| Provenance attestation hooks | Optional sigstore |",
+    "scopeItems": [
+      "Support git+https, git+ssh, and github: dependency sources",
+      "Support file: and tarball: local dependency paths",
+      "Fetch git sources at resolved commit/tag with submodule policy",
+      "Implement pnpm-style patch commit workflow (m patch)",
+      "Apply patches deterministically during install",
+      "Implement m pack producing npm-compatible tarball",
+      "Validate package files field and .npmignore on pack",
+      "Implement m publish with registry auth and OTP support",
+      "Record non-registry sources in m.lock with integrity",
+      "Validate git URL and ref before fetch",
+      "Sandbox git fetch network access per policy",
+      "Add provenance attestation hook points (optional)",
+      "Add tests for git dep, file dep, patch, pack fixtures",
+      "Redact credentials in publish error output",
+      "Support --dry-run on publish",
+      "Document supported source protocols matrix",
+      "Never execute arbitrary scripts from git deps without policy"
+    ],
+    "fixtures": [
+      "fixtures/sources/git-dep",
+      "fixtures/sources/file-dep",
+      "fixtures/sources/patch-left-pad",
+      "fixtures/pack/minimal-package"
+    ],
+    "acceptance": [
+      "Git dependency installs at pinned commit",
+      "Applied patch changes installed file content deterministically",
+      "m pack tarball matches npm pack file list",
+      "m publish --dry-run validates without uploading",
+      "file: dependency resolves relative to manifest"
+    ],
+    "conformance": [
+      "npm git/file/tarball protocols | parity",
+      "pnpm patch workflow | parity",
+      "npm pack file selection | parity",
+      "npm publish auth | parity"
+    ],
+    "openDecisions": [
+      "Git submodule inclusion policy",
+      "Provenance signing on by default or opt-in"
+    ],
+    "todoSummaries": [
+      "sources: git/file/tarball fetchers",
+      "patch: Patch commit and apply workflow",
+      "pack: Deterministic m pack",
+      "publish: Registry publish with auth",
+      "lock: Non-registry entries in m.lock",
+      "policy: Git fetch sandbox",
+      "tests: Source and patch fixtures"
+    ]
+  },
+  "0028": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/resolver",
+      "internal/transaction",
+      "internal/diagnostics",
+      "internal/app"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| m explain | Nub explain | Resolver decision traces | 0028 |",
+      "| m plan | Nub plan | Preview install mutations | 0028 |",
+      "| m diff | Nub diff | Semantic graph comparison | 0028 |",
+      "| Snapshot restore | 0017 snapshots | Historical state restore | 0028 |"
+    ],
+    "dataFlowNodes": "graph[lock graph] --> explain[explain engine] --> plan[plan preview] --> diff[semantic diff] --> snap[snapshot restore]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m explain <pkg>` | `--json` | Why version selected |\n| `m plan` | `--json`, install flags | Dry mutation preview |\n| `m diff lock` | `--from`, `--to` | Graph semantic diff |\n| `m snapshot restore` | `<id>` | Restore historical state |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Explain trace output | Human and JSON formats |\n| Plan file | Optional saved install plan |",
+    "scopeItems": [
+      "Implement m explain showing version selection reasoning",
+      "Implement m explain peer for peer dependency conflicts",
+      "Implement m plan previewing fetch/link/manifest changes",
+      "Implement semantic diff between two lock graphs",
+      "Compare m.lock revisions and incumbent lock formats",
+      "Integrate snapshot list/restore from 0017 with UX polish",
+      "Emit structured JSON for explain and plan for agents",
+      "Colorize human explain output via diagnostics reporter",
+      "Support diff against npm/pnpm locks via adapters",
+      "Add golden tests for explain output on fixture graphs",
+      "Add plan preview tests matching actual install delta",
+      "Document explain trace schema",
+      "Never mutate state in explain/plan/diff commands",
+      "Support piping plan to file for CI review",
+      "Link explain output to stable error codes",
+      "Performance: explain completes in <1s on large graph fixture",
+      "Add m history showing snapshot timeline"
+    ],
+    "fixtures": [
+      "fixtures/explain/peer-conflict",
+      "fixtures/explain/override-chain",
+      "testdata/plan/install-delta-golden/",
+      "testdata/diff/lock-revisions/"
+    ],
+    "acceptance": [
+      "m explain prints version selection path for target package",
+      "m plan --json matches actual install file changes on dry-run",
+      "m diff lock detects semver bump between two locks",
+      "m snapshot restore returns project to recorded state",
+      "Explain/plan/diff never modify project files"
+    ],
+    "conformance": [
+      "Nub explain output | parity",
+      "Nub plan preview | parity",
+      "Semantic lock diff | parity"
+    ],
+    "openDecisions": [
+      "Whether plan files are persisted by default",
+      "Explain verbosity levels vs single default"
+    ],
+    "todoSummaries": [
+      "explain: Resolver decision explanation",
+      "plan: Install mutation preview",
+      "diff: Semantic lock graph diff",
+      "snapshot: History restore UX",
+      "json: Machine-readable trace output",
+      "perf: Large graph explain benchmark",
+      "tests: Explain/plan/diff golden fixtures"
+    ]
+  },
+  "0029": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/fetch",
+      "internal/store",
+      "internal/registry",
+      "internal/archive",
+      "internal/app"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Install performance | Nub benchmarks | Cold/warm cache paths | 0029 |",
+      "| Offline-first mode | Nub --offline | Metadata + tarball cache | 0029 |",
+      "| CI capsules | Nub capsules | Reproducible dep environments | 0029 |",
+      "| Benchmark suite | 0081 program | Published baselines | 0029 |"
+    ],
+    "dataFlowNodes": "cache[warm cache] --> fast[fast path] --> bench[benchmarks] --> capsule[capsule export] --> offline[offline install]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m install --offline` | — | No network required |\n| `m capsule create` | `--output` | Export dep environment |\n| `m capsule restore` | — | Import capsule |\n| `m bench install` | — | Dev benchmark harness |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Capsule archive | Portable dep snapshot |\n| Benchmark results JSON | CI performance regression gate |",
+    "scopeItems": [
+      "Profile install phases: resolve, fetch, extract, link, lifecycle",
+      "Optimize hot paths identified by profiling",
+      "Implement warm-cache fast path skipping redundant metadata fetches",
+      "Make --offline first-class: preflight cache completeness check",
+      "Implement m capsule create bundling store + lock + metadata",
+      "Implement m capsule restore for CI/container bootstrap",
+      "Add benchmark harness m bench install with cold/warm modes",
+      "Publish baseline benchmark artifacts in repo",
+      "Add CI regression gate on critical path benchmarks",
+      "Tune worker pool defaults per CPU count",
+      "Reduce allocator churn in resolver and linker",
+      "Implement metadata batch fetch where registry supports",
+      "Document offline workflow for air-gapped environments",
+      "Capsule integrity verification on restore",
+      "Never sacrifice integrity for performance",
+      "Add soak test script for repeated install cycles",
+      "Document performance tuning env vars"
+    ],
+    "fixtures": [
+      "fixtures/bench/medium-graph",
+      "fixtures/capsules/basic-export",
+      "testdata/offline/full-cache-project"
+    ],
+    "acceptance": [
+      "Warm install measurably faster than cold on benchmark fixture",
+      "Offline install succeeds when capsule/cache complete",
+      "Capsule round-trip produces identical node_modules hash",
+      "Benchmark CI gate fails on >10% regression without waiver",
+      "Phase timing diagnostics available via --debug"
+    ],
+    "conformance": [
+      "Nub install performance profile | parity",
+      "Offline install behavior | parity",
+      "Capsule reproducibility | extension"
+    ],
+    "openDecisions": [
+      "Capsule format versioning and compression algorithm",
+      "Benchmark machine pinning strategy in CI"
+    ],
+    "todoSummaries": [
+      "profile: Install phase profiling",
+      "optimize: Hot path optimizations",
+      "offline: Offline completeness preflight",
+      "capsule: Create/restore dep capsules",
+      "bench: Install benchmark harness",
+      "ci-gate: Performance regression gate",
+      "docs: Offline and tuning guide"
+    ]
+  },
+  "0030": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/policy",
+      "internal/registry",
+      "internal/resolver",
+      "internal/diagnostics",
+      "internal/app"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| m audit | npm audit | Vulnerability report | 0030 |",
+      "| SBOM export | CycloneDX/SPDX | Machine-readable bill of materials | 0030 |",
+      "| Provenance verify | sigstore/npm | Signed package attestation | 0030 |",
+      "| Org policy rules | Nub policy | Enforceable constraints | 0030 |"
+    ],
+    "dataFlowNodes": "lock[installed graph] --> audit[vuln DB] --> sbom[SBOM export] --> prov[provenance] --> policy[org rules]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m audit` | `--json`, `--fix` | Vulnerability scan |\n| `m sbom` | `--format cyclonedx` | SBOM generation |\n| `m trust verify` | — | Provenance checks |\n| Policy config | `.github.com/mewisme/m/policy.toml` | Org rule file |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Audit report JSON | CI gate input |\n| SBOM document | cyclonedx.json or spdx.json |\n| Policy evaluation log | Deny/warn decisions |",
+    "scopeItems": [
+      "Implement m audit against OSV/npm advisory data",
+      "Support offline audit from cached advisory DB",
+      "Implement m sbom CycloneDX and SPDX export",
+      "Include direct and transitive deps in SBOM",
+      "Verify package provenance attestations when present",
+      "Implement dependency age policy (minimum release age)",
+      "Implement org policy file for deny/warn on licenses and packages",
+      "Fail install when policy severity exceeds threshold",
+      "Redact internal package names in SBOM if configured",
+      "Add audit fixtures with known vulnerable versions",
+      "Add SBOM golden tests validating schema",
+      "Document trust model integration with 0021 lifecycle policy",
+      "Support m audit --fix suggesting safe bumps",
+      "Cache advisory DB with signature verification",
+      "Never phone home with project source code",
+      "Stable JSON schema for audit output",
+      "Integrate policy checks into transaction validate phase"
+    ],
+    "fixtures": [
+      "fixtures/audit/vulnerable-transitive",
+      "fixtures/sbom/medium-graph-cyclonedx-golden.json",
+      "fixtures/policy/deny-gpl"
+    ],
+    "acceptance": [
+      "m audit reports known CVE on fixture vulnerable package",
+      "m sbom output validates against CycloneDX schema",
+      "Policy deny blocks install of blocked package",
+      "Provenance verify passes on signed fixture package",
+      "Audit works offline with cached advisory DB"
+    ],
+    "conformance": [
+      "npm audit report shape | parity",
+      "CycloneDX SBOM completeness | parity",
+      "Nub security policy model | parity"
+    ],
+    "openDecisions": [
+      "Default policy severity threshold for install block",
+      "Advisory DB update cadence and mirror strategy"
+    ],
+    "todoSummaries": [
+      "audit: Vulnerability scanning command",
+      "sbom: CycloneDX/SPDX export",
+      "provenance: Attestation verification",
+      "policy: Org rule enforcement",
+      "offline: Cached advisory DB",
+      "integrate: Policy in install validate phase",
+      "tests: Audit and SBOM fixtures"
+    ]
+  },
+  "0031": {
+    "phase": "Core PM",
+    "packages": [
+      "internal/app",
+      "tests/conformance",
+      "tests/integration",
+      "docs/core-certification.md"
+    ],
+    "forbiddenImports": [],
+    "featureRows": [
+      "| Core certification gate | 0087 DoD | PM core daily-driver ready | 0031 |",
+      "| Conformance matrix | 0080 program | Nub/incumbent parity evidence | 0031 |",
+      "| Cross-platform soak | 0008 strategy | Linux/macOS/Windows | 0031 |",
+      "| Stabilization fixes only | Release policy | No new features | 0031 |"
+    ],
+    "dataFlowNodes": "mvps[0010-0030] --> conformance[conformance suite] --> soak[soak tests] --> cert[core certification] --> gate[runner MVPs unblocked]",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `make core-cert` | — | Full certification command |\n| `m doctor` | — | Environment and install health check |\n| CI | core-stabilization workflow | Required green gate |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| docs/core-certification.md | Certification checklist and evidence |\n| Conformance report | Pass/fail matrix per target |",
+    "scopeItems": [
+      "Run full conformance suite against Nub/npm/pnpm fixtures per 0080",
+      "Execute cross-platform integration matrix on Linux/macOS/Windows CI",
+      "Run soak tests: 100+ install cycles on representative projects",
+      "Fix all P0/P1 defects found during stabilization",
+      "Verify no critical data-loss or corruption paths remain",
+      "Implement m doctor health check for common misconfigurations",
+      "Publish core-certification.md with evidence links",
+      "Freeze public CLI and m.lock schema for runner MVPs",
+      "Review and close open decisions from 0010-0030",
+      "Benchmark baselines recorded and regression gates green",
+      "Security audit of threat model 0082 items for PM core",
+      "Documentation pass for all PM commands shipped",
+      "Verify transaction recovery on all supported platforms",
+      "Verify all lock adapters on certified fixture corpus",
+      "No new features: stabilization and fixes only",
+      "Sign-off checklist per 0087 definition of done",
+      "Unblock 0040 runner MVP with stable install interfaces"
+    ],
+    "fixtures": [
+      "tests/conformance/core-matrix/",
+      "fixtures/soak/representative-projects/",
+      "testdata/certification/sign-off-checklist.md"
+    ],
+    "acceptance": [
+      "Full core conformance suite passes on all CI platforms",
+      "m doctor reports healthy state on clean fixture project",
+      "No open P0/P1 defects in PM core scope",
+      "core-certification.md published with test evidence",
+      "0040 can depend on install/layout interfaces without breakage"
+    ],
+    "conformance": [
+      "Nub PM core behavioral parity | parity",
+      "0087 definition of done | parity",
+      "Cross-platform install reliability | parity"
+    ],
+    "openDecisions": [
+      "Date for core v1 beta channel promotion",
+      "Which Yarn/Berry features remain explicitly deferred post-0031"
+    ],
+    "todoSummaries": [
+      "conformance: Full core conformance run",
+      "soak: Extended install soak tests",
+      "defects: P0/P1 stabilization fixes",
+      "doctor: m doctor health command",
+      "docs: core-certification evidence doc",
+      "freeze: Public API and m.lock schema freeze",
+      "unblock: Runner MVP dependency sign-off"
+    ]
+  }
+}

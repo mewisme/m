@@ -1,0 +1,8 @@
+{
+  "name": "basic-esm",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "lodash": "4.17.21"
+  }
+}
