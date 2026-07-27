@@ -14,9 +14,18 @@ import (
 
 // BinCommandsFromDir reads package.json bin entries from an extracted package dir.
 func BinCommandsFromDir(pkgDir string) (map[string]string, error) {
+	return BinCommandsFromDirNamed(pkgDir, "")
+}
+
+// BinCommandsFromDirNamed reads bin entries when package.json name matches wantName.
+// An empty wantName skips the name check.
+func BinCommandsFromDirNamed(pkgDir, wantName string) (map[string]string, error) {
 	doc, err := manifest.Load(filepath.Join(pkgDir, "package.json"))
 	if err != nil {
 		return nil, err
+	}
+	if wantName != "" && doc.Name != wantName {
+		return nil, nil
 	}
 	return BinCommands(doc)
 }

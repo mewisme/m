@@ -31,8 +31,21 @@ func TestGuardPathAllowsNested(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != filepath.Join(nested, "file.txt") {
-		t.Fatalf("got %q", got)
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	absRoot, err = filepath.EvalSymlinks(absRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(absRoot, "a", "b", "file.txt")
+	want, err = filepath.Abs(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
 	}
 }
 

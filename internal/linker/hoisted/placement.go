@@ -67,7 +67,7 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 				ops = append(ops, linker.Op{Kind: linker.OpCopy, Src: src, Dest: p.DestDir})
 			}
 		}
-		cmds, err := linker.BinCommandsFromDir(src)
+		cmds, err := linker.BinCommandsFromDirNamed(src, packageName(p.Key))
 		if err != nil {
 			return nil, err
 		}

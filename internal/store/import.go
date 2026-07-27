@@ -81,13 +81,21 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integ
 	if err := writePackageMarker(stage, key); err != nil {
 		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", stage, err)
 	}
-	_ = makeTreeReadOnly(stage)
+	if err := makeTreeReadOnly(stage); err != nil {
+		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", stage, err)
+	}
 	manifest, err := generateTreeManifest(stage)
 	if err != nil {
 		return PackageKey{}, err
 	}
+	if err := os.Chmod(stage, 0o755); err != nil {
+		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", stage, err)
+	}
 	if err := writeTreeManifest(stage, manifest); err != nil {
 		return PackageKey{}, err
+	}
+	if err := makeTreeReadOnly(stage); err != nil {
+		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", stage, err)
 	}
 	if err := verifyTreeManifest(stage, manifest); err != nil {
 		return PackageKey{}, err
@@ -105,7 +113,6 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integ
 		}
 		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
 	}
-	_ = makeTreeReadOnly(dest)
 
 	size, _ := dirSize(dest)
 	_ = s.indexUpsert(key, integrity, size)
