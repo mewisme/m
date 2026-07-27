@@ -48,6 +48,26 @@ func TestLoadSpecClonePreservesPaths(t *testing.T) {
 	}
 }
 
+func TestLoadSpecClonePreservesInitializedEmptyEnv(t *testing.T) {
+	opts := config.LoadOptions{
+		CWD:         t.TempDir(),
+		ProjectRoot: t.TempDir(),
+		Env:         []string{},
+		EnvSnapshot: config.NewEnvSnapshot([]string{}, "linux"),
+	}
+	spec := config.LoadSpecFromOptions(opts)
+	if !spec.EnvSnapshot.Initialized() {
+		t.Fatal("expected initialized-empty snapshot in spec")
+	}
+	clone := spec.Clone()
+	if !clone.EnvSnapshot.Initialized() {
+		t.Fatal("clone should preserve initialized-empty snapshot")
+	}
+	if _, ok := clone.EnvSnapshot.Lookup("MEW_OFFLINE"); ok {
+		t.Fatal("initialized-empty clone should not have MEW_OFFLINE")
+	}
+}
+
 func TestRequireProjectConfigMissing(t *testing.T) {
 	root := t.TempDir()
 	missing := filepath.Join(root, "missing.jsonc")

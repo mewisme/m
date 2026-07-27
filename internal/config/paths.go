@@ -222,7 +222,7 @@ func UseGlobalStore(eff *Effective) bool {
 }
 
 func envSnap(eff *Effective) EnvSnapshot {
-	if eff != nil && eff.Env.populated() {
+	if eff != nil && eff.Env.Initialized() {
 		return eff.Env
 	}
 	// safe: ambient env fallback when Effective was built without a snapshot (unit tests).
@@ -230,7 +230,7 @@ func envSnap(eff *Effective) EnvSnapshot {
 }
 
 func envLookup(eff *Effective, key string) (string, bool) {
-	if eff != nil && eff.Env.populated() {
+	if eff != nil && eff.Env.Initialized() {
 		return eff.Env.Lookup(key)
 	}
 	v := os.Getenv(key)

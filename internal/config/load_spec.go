@@ -27,7 +27,7 @@ func LoadSpecFromOptions(opts LoadOptions) LoadSpec {
 	if opts.Env != nil {
 		spec.Env = append([]string(nil), opts.Env...)
 	}
-	if opts.EnvSnapshot.populated() {
+	if opts.EnvSnapshot.Initialized() {
 		spec.EnvSnapshot = opts.EnvSnapshot.Clone()
 	}
 	if opts.CLI != nil {
@@ -76,7 +76,7 @@ func (s LoadSpec) LoadOptions() LoadOptions {
 	if s.Env != nil {
 		opts.Env = append([]string(nil), s.Env...)
 	}
-	if s.EnvSnapshot.populated() {
+	if s.EnvSnapshot.Initialized() {
 		opts.EnvSnapshot = s.EnvSnapshot.Clone()
 	}
 	if s.CLI != nil {

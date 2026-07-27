@@ -75,3 +75,51 @@ func TestEnvSnapshotMEWMixedCaseWindows(t *testing.T) {
 		t.Fatalf("MEW_CACHE_DIR=%q ok=%v", v, ok)
 	}
 }
+
+func TestEnvSnapshotInitializedEmpty(t *testing.T) {
+	nilSnap := config.NewEnvSnapshot(nil, "linux")
+	if !nilSnap.Initialized() {
+		t.Fatal("nil env should be initialized-empty")
+	}
+	if v, ok := nilSnap.Lookup("HOME"); ok || v != "" {
+		t.Fatalf("nil env lookup HOME=%q ok=%v", v, ok)
+	}
+	emptySnap := config.NewEnvSnapshot([]string{}, "linux")
+	if !emptySnap.Initialized() {
+		t.Fatal("empty slice should be initialized-empty")
+	}
+	if v, ok := emptySnap.Lookup("MEW_HOME"); ok || v != "" {
+		t.Fatalf("empty env lookup MEW_HOME=%q ok=%v", v, ok)
+	}
+	env := emptySnap.Environ()
+	if env == nil {
+		t.Fatal("Environ on initialized-empty should return non-nil empty slice")
+	}
+	if len(env) != 0 {
+		t.Fatalf("Environ=%v want []", env)
+	}
+}
+
+func TestEnvSnapshotZeroValueUninitialized(t *testing.T) {
+	var snap config.EnvSnapshot
+	if snap.Initialized() {
+		t.Fatal("zero value should be uninitialized")
+	}
+	if v, ok := snap.Lookup("HOME"); ok || v != "" {
+		t.Fatalf("zero value lookup HOME=%q ok=%v", v, ok)
+	}
+	if snap.Environ() != nil {
+		t.Fatalf("zero value Environ=%v want nil", snap.Environ())
+	}
+}
+
+func TestEnvSnapshotClonePreservesInitializedEmpty(t *testing.T) {
+	snap := config.NewEnvSnapshot([]string{}, "linux")
+	clone := snap.Clone()
+	if !clone.Initialized() {
+		t.Fatal("clone should preserve initialized")
+	}
+	if _, ok := clone.Lookup("X"); ok {
+		t.Fatalf("clone lookup X ok=true")
+	}
+}

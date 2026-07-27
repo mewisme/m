@@ -169,6 +169,67 @@ func TestNewPathsStableAfterAmbientEnvChange(t *testing.T) {
 	}
 }
 
+func TestNewEmptyEnvStaysEmpty(t *testing.T) {
+	testkit.CleanEnv(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"empty-env"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MEW_CACHE_DIR", filepath.Join(root, "ambient-cache"))
+	t.Setenv("MEW_STORE_DIR", filepath.Join(root, "ambient-store"))
+	t.Setenv("MEW_OFFLINE", "true")
+	t.Setenv("MEW_EXPERIMENTAL_GLOBAL_STORE", "1")
+	t.Setenv("NPM_TOKEN", "host-token")
+
+	ac, err := app.New(context.Background(), app.Options{CWD: root, Env: []string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ac.Config.Env.Initialized() {
+		t.Fatal("expected initialized-empty snapshot")
+	}
+	if v, ok := ac.Config.Env.Lookup("MEW_CACHE_DIR"); ok || v != "" {
+		t.Fatalf("MEW_CACHE_DIR=%q ok=%v want empty", v, ok)
+	}
+	if v, ok := ac.Config.Env.Lookup("MEW_STORE_DIR"); ok || v != "" {
+		t.Fatalf("MEW_STORE_DIR=%q ok=%v want empty", v, ok)
+	}
+	if v, ok := ac.Config.Env.Lookup("MEW_OFFLINE"); ok || v != "" {
+		t.Fatalf("MEW_OFFLINE=%q ok=%v want empty", v, ok)
+	}
+	if v, ok := ac.Config.Env.Lookup("MEW_EXPERIMENTAL_GLOBAL_STORE"); ok || v != "" {
+		t.Fatalf("MEW_EXPERIMENTAL_GLOBAL_STORE=%q ok=%v want empty", v, ok)
+	}
+	if v, ok := ac.Config.Env.Lookup("NPM_TOKEN"); ok || v != "" {
+		t.Fatalf("NPM_TOKEN=%q ok=%v want empty", v, ok)
+	}
+	if config.String(ac.Config, "cache.dir", "") != "" {
+		t.Fatalf("cache.dir should use defaults, not ambient")
+	}
+}
+
+func TestNewNilEnvSnapshotsHostOnce(t *testing.T) {
+	testkit.CleanEnv(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"nil-env"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cacheDir := filepath.Join(root, "host-cache")
+	t.Setenv("MEW_CACHE_DIR", cacheDir)
+
+	ac, err := app.New(context.Background(), app.Options{CWD: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := config.String(ac.Config, "cache.dir", ""); got != cacheDir {
+		t.Fatalf("cache.dir=%q want %q", got, cacheDir)
+	}
+	t.Setenv("MEW_CACHE_DIR", filepath.Join(root, "changed"))
+	if got := config.String(ac.Config, "cache.dir", ""); got != cacheDir {
+		t.Fatalf("cache.dir changed after ambient: %q want %q", got, cacheDir)
+	}
+}
+
 func TestNewConfigSpecStableAfterChdir(t *testing.T) {
 	root := t.TempDir()
 	other := t.TempDir()

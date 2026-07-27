@@ -332,6 +332,40 @@ func TestMutationSessionReloadUsesEnvSnapshot(t *testing.T) {
 	}
 }
 
+func TestMutationSessionReloadPreservesInitializedEmptyEnv(t *testing.T) {
+	testkit.CleanEnv(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"empty-reload","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MEW_OFFLINE", "true")
+	ctx := context.Background()
+	ac, err := New(ctx, Options{CWD: root, Env: []string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := BeginMutationSession(ctx, ac, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = sess.Abort(ctx) }()
+
+	t.Setenv("MEW_OFFLINE", "false")
+	if err := sess.ReloadEffectiveConfig(ctx); err != nil {
+		t.Fatal(err)
+	}
+	sac, err := sess.AppContext()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := config.Get(sac.Config, "offline"); v.Raw != false {
+		t.Fatalf("offline=%v want false (empty env must not inherit ambient)", v.Raw)
+	}
+	if !sac.Config.Env.Initialized() {
+		t.Fatal("expected initialized-empty snapshot after reload")
+	}
+}
+
 func TestMutationSessionReloadMissingExplicitConfig(t *testing.T) {
 	testkit.CleanEnv(t)
 	root := t.TempDir()

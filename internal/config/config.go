@@ -160,7 +160,7 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 		root = opts.CWD
 	}
 	snap := opts.EnvSnapshot
-	if !snap.populated() {
+	if !snap.Initialized() {
 		env := opts.Env
 		if env == nil {
 			env = os.Environ()
