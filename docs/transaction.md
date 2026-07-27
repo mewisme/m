@@ -168,6 +168,15 @@ On successful install finish, warning-only cleanup sets `CleanupIncomplete` on t
 result but not `RecoveryRequired` or `TransactionCleanupIncomplete`. Critical
 cleanup after commit returns a non-zero exit with recover guidance.
 
+Human output (`FormatInstallSummary`) suggests `m recover` only when
+`TransactionCleanupIncomplete` or `RecoveryRequired` is set. Warning-only
+committed installs print a non-critical warning line without recover guidance.
+JSON output (`--json`) carries recovery/store hints only in result fields — no
+prose after the JSON document.
+
+Abort cleanup (`populateAbortCleanup`) applies the same severity split: critical
+codes set recovery flags; warning codes append to result warnings only.
+
 The installer emits debug warnings for non-critical housekeeping failures.
 `m recover` may report critical cleanup when post-recovery metadata is incomplete.
 

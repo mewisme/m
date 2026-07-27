@@ -97,6 +97,16 @@ ranges (`internal/semver`).
 make fuzz-smoke
 ```
 
+## Stabilization pass 10 suites (config path resolution + CLI output)
+
+| Area | Package / path | What it proves |
+|---|---|---|
+| Config path resolution | `internal/config/paths_test.go`, `internal/config/global_path_test.go` | `ResolveConfigPath` against invocation CWD; `IsPathWithin` project-root classification; frozen `GlobalConfigPathFromEnv` |
+| App config classification | `internal/app/context_test.go`, `internal/app/mutation_session_test.go` | Monorepo `--config` vs project root; env snapshot global path; reload preserves frozen paths after `chdir` |
+| CLI JSON output | `internal/cli/install_cmd_test.go` | Single JSON document (no post-encode prose); warning-only vs critical field presence |
+| Human cleanup output | `internal/app/finish_cleanup_test.go` | Warning-only vs critical `FormatInstallSummary` messages |
+| Abort cleanup severity | `internal/app/abort_test.go` | `populateAbortCleanup` critical vs warning code handling |
+
 ## Stabilization pass 9 suites (config load spec + cleanup severity)
 
 | Area | Package / path | What it proves |
