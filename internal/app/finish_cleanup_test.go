@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mewisme/m/internal/config"
@@ -130,3 +131,181 @@ func TestPopulateWarningCleanupNoRecovery(t *testing.T) {
 
 // compile-time guard that config package is linked for finish tests using registry fixtures.
 var _ = config.SourceCLI
+
+func TestFormatInstallSummaryWarningOnlyCommitted(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:           true,
+		CleanupIncomplete:   true,
+		CleanupWarningCodes: []string{"finish_hook"},
+		CleanupWarnings:     []string{"finish hook failed"},
+	})
+	if strings.Contains(summary, "m recover") {
+		t.Fatalf("warning-only must not suggest recover: %q", summary)
+	}
+	if !strings.Contains(summary, "non-critical cleanup warning") {
+		t.Fatalf("missing warning message: %q", summary)
+	}
+	if !strings.Contains(summary, "finish hook failed") {
+		t.Fatalf("missing warning detail: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryCriticalCommitted(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:                    true,
+		TransactionCleanupIncomplete: true,
+		RecoveryRequired:             true,
+		CleanupWarningCodes:          []string{cleanupCodeTxnLockRelease},
+		CleanupWarnings:              []string{"lock release failed"},
+	})
+	if !strings.Contains(summary, "m recover") {
+		t.Fatalf("critical must suggest recover: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryStoreMaintenance(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:                true,
+		StoreMaintenanceRequired: true,
+		CleanupWarningCodes:      []string{cleanupCodeStoreImportLockRelease},
+		CleanupWarnings:          []string{"store lock not released"},
+	})
+	if !strings.Contains(summary, "m store status") {
+		t.Fatalf("missing store hint: %q", summary)
+	}
+	if strings.Contains(summary, "m recover") {
+		t.Fatalf("store-only must not suggest recover: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryFinishHookOnly(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:           true,
+		CleanupIncomplete:   true,
+		CleanupWarningCodes: []string{"finish_hook"},
+		CleanupWarnings:     []string{"finish hook failed"},
+	})
+	if strings.Count(summary, "finish hook failed") != 1 {
+		t.Fatalf("expected one finish_hook line: %q", summary)
+	}
+	if strings.Contains(summary, "m store status") {
+		t.Fatalf("finish_hook only must not show store block: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryTxnDirRemoveOnly(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:           true,
+		CleanupIncomplete:   true,
+		CleanupWarningCodes: []string{"txn_dir_remove"},
+		CleanupWarnings:     []string{"txn dir remove failed"},
+	})
+	if strings.Count(summary, "txn dir remove failed") != 1 {
+		t.Fatalf("expected one txn_dir_remove line: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryCombinedTxnAndStore(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:                true,
+		CleanupIncomplete:        true,
+		StoreMaintenanceRequired: true,
+		CleanupWarningCodes: []string{
+			"finish_hook",
+			cleanupCodeStoreImportLockRelease,
+		},
+		CleanupWarnings: []string{
+			"finish hook failed",
+			"store lock not released",
+		},
+	})
+	if strings.Count(summary, "finish hook failed") != 1 {
+		t.Fatalf("missing txn warning: %q", summary)
+	}
+	if strings.Count(summary, "store lock not released") != 1 {
+		t.Fatalf("missing store warning: %q", summary)
+	}
+	if strings.Contains(summary, "m recover") {
+		t.Fatalf("non-critical txn must not suggest recover: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryCriticalPlusStore(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:                    true,
+		TransactionCleanupIncomplete: true,
+		RecoveryRequired:             true,
+		StoreMaintenanceRequired:     true,
+		CleanupWarningCodes: []string{
+			cleanupCodeTxnLockRelease,
+			cleanupCodeStoreImportLockRelease,
+		},
+		CleanupWarnings: []string{
+			"lock release failed",
+			"store lock not released",
+		},
+	})
+	if strings.Count(summary, "lock release failed") != 1 {
+		t.Fatalf("missing critical txn warning: %q", summary)
+	}
+	if strings.Count(summary, "store lock not released") != 1 {
+		t.Fatalf("missing store warning: %q", summary)
+	}
+	if !strings.Contains(summary, "m recover") {
+		t.Fatalf("critical must suggest recover: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryDedupesDuplicateWarnings(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:         true,
+		CleanupIncomplete: true,
+		CleanupWarningCodes: []string{
+			"finish_hook",
+			"finish_hook",
+		},
+		CleanupWarnings: []string{
+			"finish hook failed",
+			"finish hook failed",
+		},
+	})
+	if strings.Count(summary, "finish hook failed") != 1 {
+		t.Fatalf("duplicate warnings should print once: %q", summary)
+	}
+}
+
+func TestFormatInstallSummarySameCodeDifferentMessage(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:         true,
+		CleanupIncomplete: true,
+		CleanupWarningCodes: []string{
+			"finish_hook",
+			"finish_hook",
+		},
+		CleanupWarnings: []string{
+			"first failure",
+			"second failure",
+		},
+	})
+	if strings.Count(summary, "first failure") != 1 {
+		t.Fatalf("missing first failure: %q", summary)
+	}
+	if strings.Count(summary, "second failure") != 1 {
+		t.Fatalf("missing second failure: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryUnknownCode(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:           true,
+		CleanupIncomplete:   true,
+		CleanupWarningCodes: []string{"custom_warning"},
+		CleanupWarnings:     []string{"something odd happened"},
+	})
+	if strings.Count(summary, "something odd happened") != 1 {
+		t.Fatalf("unknown code should appear once: %q", summary)
+	}
+	if strings.Contains(summary, "m store status") {
+		t.Fatalf("unknown txn code must not trigger store block: %q", summary)
+	}
+}

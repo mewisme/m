@@ -87,10 +87,14 @@ func runImportProcChild(t *testing.T, role string) {
 	case "cancel-wait":
 		root := os.Getenv("MEW_STORE_ROOT")
 		keyHex := os.Getenv("MEW_STORE_KEY_HEX")
-		if root == "" || keyHex == "" {
+		ready := os.Getenv("MEW_STORE_IMPORT_READY")
+		if root == "" || keyHex == "" || ready == "" {
 			t.Fatal("missing child env")
 		}
 		writeImportDirLock(t, root, "sha256", keyHex, os.Getpid())
+		if err := os.WriteFile(ready, []byte("ok"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		time.Sleep(5 * time.Second)
 		_ = os.RemoveAll(filepath.Join(root, ".locks", "sha256", keyHex))
 	default:
@@ -205,21 +209,33 @@ func TestImportProcContextCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ready := filepath.Join(root, "import-ready")
+	_ = os.Remove(ready)
 	cmd := exec.Command(os.Args[0], "-test.run=^TestImportProcContextCancel$", "-test.count=1")
 	cmd.Env = append(os.Environ(),
 		importProcEnv+"=cancel-wait",
 		"MEW_STORE_ROOT="+root,
 		"MEW_STORE_KEY_HEX="+key.Hex,
+		"MEW_STORE_IMPORT_READY="+ready,
 	)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = cmd.Process.Kill() }()
-	time.Sleep(100 * time.Millisecond)
+	if err := waitForImportProcFile(ready, 15*time.Second); err != nil {
+		t.Fatal("child did not acquire import lock")
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, err = importIntegrity(ctx, ps, tgz, integrity)
+	done := make(chan error, 1)
+	go func() {
+		_, importErr := importIntegrity(ctx, ps, tgz, integrity)
+		done <- importErr
+	}()
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	err = <-done
 	if err == nil {
 		t.Fatal("expected cancel error")
 	}
@@ -318,4 +334,15 @@ func TestImportProcLockPathLayout(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "packages", "sha256", "abc", ".import.lock")); !os.IsNotExist(err) {
 		t.Fatalf("in-package lock should not exist: %v", err)
 	}
+}
+
+func waitForImportProcFile(path string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(path); err == nil {
+			return nil
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return os.ErrNotExist
 }

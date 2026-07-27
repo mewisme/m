@@ -64,6 +64,7 @@ func PruneStore(ctx context.Context, ac *Context, dryRun bool, scanRoots []strin
 		return res, err
 	}
 	if len(scanRoots) == 0 {
+		// safe: ambient MEW_HOME for default prune scan roots when caller omits roots.
 		if home := os.Getenv("MEW_HOME"); home != "" {
 			scanRoots = []string{home}
 		}
@@ -113,6 +114,7 @@ func DefaultStoreScanRoots(projRoot string) []string {
 	if projRoot != "" {
 		roots = append(roots, projRoot)
 	}
+	// safe: ambient MEW_HOME supplements project root for store manifest discovery.
 	if home := os.Getenv("MEW_HOME"); home != "" {
 		roots = append(roots, home)
 	}

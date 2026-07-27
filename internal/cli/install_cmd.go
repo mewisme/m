@@ -160,18 +160,7 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
-		if err := enc.Encode(result); err != nil {
-			return err
-		}
-		if result.CleanupIncomplete || result.TransactionCleanupIncomplete {
-			_, err := fmt.Fprintln(cmd.OutOrStdout(), "Installation committed, but transaction cleanup is incomplete. Run m recover to clear stale transaction metadata.")
-			return err
-		}
-		if result.StoreMaintenanceRequired && !result.TransactionCleanupIncomplete {
-			_, err := fmt.Fprintln(cmd.OutOrStdout(), "Installation committed, but store cleanup is incomplete. Run m store status for details.")
-			return err
-		}
-		return nil
+		return enc.Encode(result)
 	}
 	prefix := ""
 	if dryRun {

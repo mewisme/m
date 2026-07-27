@@ -119,7 +119,12 @@ func loadEffective(g *globalFlags) (*config.Effective, error) {
 		cli["prefer-offline"] = true
 	}
 	if g.configPath != "" {
-		overlay, err := loadFileOverlay(g.configPath)
+		// m config resolves --config against CLI --cwd (not the mutation reload path).
+		resolved, err := config.ResolveConfigPath(cwd, g.configPath)
+		if err != nil {
+			return nil, err
+		}
+		overlay, err := loadFileOverlay(resolved)
 		if err != nil {
 			return nil, err
 		}

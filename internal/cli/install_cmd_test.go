@@ -11,6 +11,19 @@ import (
 	"github.com/mewisme/m/internal/app"
 )
 
+func decodeSingleJSON(t *testing.T, out string) map[string]json.RawMessage {
+	t.Helper()
+	dec := json.NewDecoder(strings.NewReader(out))
+	var doc map[string]json.RawMessage
+	if err := dec.Decode(&doc); err != nil {
+		t.Fatalf("json decode: %v out=%s", err, out)
+	}
+	if dec.More() {
+		t.Fatalf("expected single JSON document, got trailing data: %s", out)
+	}
+	return doc
+}
+
 func TestWriteInstallResultJSONStoreMaintenance(t *testing.T) {
 	cmd := &cobra.Command{}
 	buf := new(bytes.Buffer)
@@ -27,11 +40,7 @@ func TestWriteInstallResultJSONStoreMaintenance(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	dec := json.NewDecoder(buf)
-	var doc map[string]json.RawMessage
-	if err := dec.Decode(&doc); err != nil {
-		t.Fatalf("json decode: %v out=%s", err, out)
-	}
+	doc := decodeSingleJSON(t, out)
 	for _, key := range []string{
 		"committed",
 		"storeMaintenanceRequired",
@@ -43,8 +52,8 @@ func TestWriteInstallResultJSONStoreMaintenance(t *testing.T) {
 			t.Fatalf("missing %q in %s", key, out)
 		}
 	}
-	if !strings.Contains(out, "m store status") {
-		t.Fatalf("missing store status hint: %s", out)
+	if strings.Contains(out, "m store status") {
+		t.Fatalf("JSON output must not include prose hints: %s", out)
 	}
 	if strings.Contains(out, "m recover") {
 		t.Fatalf("store-only should not suggest recover: %s", out)
@@ -66,10 +75,11 @@ func TestWriteInstallResultJSONWarningOnlyFinish(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if strings.Contains(out, "recoveryRequired") {
+	doc := decodeSingleJSON(t, out)
+	if _, ok := doc["recoveryRequired"]; ok {
 		t.Fatalf("warning-only should not set recoveryRequired: %s", out)
 	}
-	if strings.Contains(out, "transactionCleanupIncomplete") {
+	if _, ok := doc["transactionCleanupIncomplete"]; ok {
 		t.Fatalf("warning-only should not set transactionCleanupIncomplete: %s", out)
 	}
 	if !strings.Contains(out, "finish_hook") {
@@ -86,6 +96,7 @@ func TestWriteInstallResultJSONTransactionCleanup(t *testing.T) {
 		Committed:                    true,
 		TransactionCleanupIncomplete: true,
 		CleanupIncomplete:            true,
+		RecoveryRequired:             true,
 		CleanupWarningCodes:          []string{"transaction_lock_release"},
 		CleanupWarnings:              []string{"lock release failed"},
 	}
@@ -93,8 +104,18 @@ func TestWriteInstallResultJSONTransactionCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "m recover") {
-		t.Fatalf("missing recover hint: %s", out)
+	doc := decodeSingleJSON(t, out)
+	for _, key := range []string{
+		"transactionCleanupIncomplete",
+		"recoveryRequired",
+		"cleanupIncomplete",
+	} {
+		if _, ok := doc[key]; !ok {
+			t.Fatalf("missing %q in %s", key, out)
+		}
+	}
+	if strings.Contains(out, "m recover") {
+		t.Fatalf("JSON output must not include prose hints: %s", out)
 	}
 }
 
@@ -115,11 +136,7 @@ func TestWriteInstallResultJSONAbortTransactionCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	dec := json.NewDecoder(buf)
-	var doc map[string]json.RawMessage
-	if err := dec.Decode(&doc); err != nil {
-		t.Fatalf("json decode: %v out=%s", err, out)
-	}
+	doc := decodeSingleJSON(t, out)
 	for _, key := range []string{
 		"rolledBack",
 		"transactionCleanupIncomplete",
@@ -132,7 +149,56 @@ func TestWriteInstallResultJSONAbortTransactionCleanup(t *testing.T) {
 			t.Fatalf("missing %q in %s", key, out)
 		}
 	}
-	if !strings.Contains(out, "m recover") {
-		t.Fatalf("missing recover hint: %s", out)
+	if strings.Contains(out, "m recover") {
+		t.Fatalf("JSON output must not include prose hints: %s", out)
+	}
+}
+
+func TestWriteInstallResultJSONWarningOnlyCleanEOF(t *testing.T) {
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	result := app.InstallResult{
+		Committed:           true,
+		CleanupIncomplete:   true,
+		CleanupWarningCodes: []string{"txn_dir_remove"},
+		CleanupWarnings:     []string{"txn dir remove failed"},
+	}
+	if err := writeInstallResult(cmd, result, true, false); err != nil {
+		t.Fatal(err)
+	}
+	decodeSingleJSON(t, buf.String())
+}
+
+func TestWriteInstallResultJSONCombinedCriticalAndStore(t *testing.T) {
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	result := app.InstallResult{
+		Committed:                    true,
+		TransactionCleanupIncomplete: true,
+		RecoveryRequired:             true,
+		StoreMaintenanceRequired:     true,
+		CleanupWarningCodes:          []string{"transaction_lock_release", "store_import_lock_release"},
+		CleanupWarnings:              []string{"lock release failed", "store lock not released"},
+	}
+	if err := writeInstallResult(cmd, result, true, false); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	doc := decodeSingleJSON(t, out)
+	for _, key := range []string{
+		"transactionCleanupIncomplete",
+		"recoveryRequired",
+		"storeMaintenanceRequired",
+	} {
+		if _, ok := doc[key]; !ok {
+			t.Fatalf("missing %q in %s", key, out)
+		}
+	}
+	if strings.Contains(out, "m recover") || strings.Contains(out, "m store status") {
+		t.Fatalf("JSON output must not include prose hints: %s", out)
 	}
 }

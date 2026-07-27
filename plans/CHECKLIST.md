@@ -2,16 +2,18 @@
 
 ## Program status
 
-- Current MVP: **0021** — blocked until stabilization pass 9 CI green (`stabilization-pass-9`)
+- Current MVP: **0021** — lifecycle scripts (pass 10 CI green on `3a164d8`)
 - Last updated: 2026-07-28
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) — unblocked after pass 9 CI green on final `stabilization-pass-9` SHA.
+**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md)
 
-Stabilization pass 9 (`stabilization-pass-9` from `fae9b48`): `ConfigLoadSpec` preserves load inputs across mutation reload; `CriticalCleanupError`/`WarningErrors` split; custom-config lock-wait proc test. MVP 0021 gate: all required CI jobs green on final commit.
+Stabilization pass 10 complete on `3a164d8` — CI run https://github.com/mewisme/m/actions/runs/30308833823 (21/21 green). Merge PR #7 to land on `main`, then start 0021.
+
+Stabilization pass 9 (`stabilization-pass-9` from `fae9b48`): `ConfigLoadSpec` preserves load inputs across mutation reload; `CriticalCleanupError`/`WarningErrors` split; custom-config lock-wait proc test.
 
 Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
@@ -752,13 +754,12 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0021 - Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy
 
-- status: planned (blocked on stabilization pass 8 CI gate)
+- status: planned
 - plan: [0021-lifecycle-sandbox.md](0021-lifecycle-sandbox.md)
 - cursor: [cursor/0021-lifecycle-sandbox.plan.md](cursor/0021-lifecycle-sandbox.plan.md)
 
-Stabilization pass 8 fixes stale effective config in `runInstallInSession` and
-aggregates `FinishResult` cleanup failures into abort/finish error chains. Gate:
-pass 8 branch CI green before starting 0021 implementation.
+Stabilization pass 10 completes config source resolution and warning-only CLI
+output. Gate: pass 10 branch CI green before starting 0021 implementation.
 
 - [ ] Implement lifecycle script discovery from package.json scripts field
 - [ ] Run preinstall/install/postinstall/prepare in npm order

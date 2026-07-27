@@ -85,7 +85,7 @@ func (s *MutationSession) AppContext() (*Context, error) {
 	s.sessionAC = &Context{
 		CWD:            s.ac.CWD,
 		Config:         s.effective,
-		ConfigLoadSpec: s.ac.ConfigLoadSpec,
+		ConfigLoadSpec: s.ac.ConfigLoadSpec.Clone(),
 		Reporter:       s.ac.Reporter,
 		Version:        s.ac.Version,
 		Commit:         s.ac.Commit,

@@ -8,6 +8,7 @@ type LoadSpec struct {
 	ProjectPath          string // absolute; empty = default <root>/m.jsonc
 	GlobalPath           string // absolute; empty = default global path
 	Env                  []string
+	EnvSnapshot          EnvSnapshot
 	CLI                  map[string]any
 	RequireProjectConfig bool
 	RequireGlobalConfig  bool
@@ -26,6 +27,9 @@ func LoadSpecFromOptions(opts LoadOptions) LoadSpec {
 	if opts.Env != nil {
 		spec.Env = append([]string(nil), opts.Env...)
 	}
+	if opts.EnvSnapshot.populated() {
+		spec.EnvSnapshot = opts.EnvSnapshot.Clone()
+	}
 	if opts.CLI != nil {
 		spec.CLI = make(map[string]any, len(opts.CLI))
 		for k, v := range opts.CLI {
@@ -41,6 +45,7 @@ func (s LoadSpec) Clone() LoadSpec {
 	if s.Env != nil {
 		out.Env = append([]string(nil), s.Env...)
 	}
+	out.EnvSnapshot = s.EnvSnapshot.Clone()
 	if s.CLI != nil {
 		out.CLI = make(map[string]any, len(s.CLI))
 		for k, v := range s.CLI {
@@ -70,6 +75,9 @@ func (s LoadSpec) LoadOptions() LoadOptions {
 	}
 	if s.Env != nil {
 		opts.Env = append([]string(nil), s.Env...)
+	}
+	if s.EnvSnapshot.populated() {
+		opts.EnvSnapshot = s.EnvSnapshot.Clone()
 	}
 	if s.CLI != nil {
 		opts.CLI = make(map[string]any, len(s.CLI))

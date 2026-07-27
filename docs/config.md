@@ -79,9 +79,19 @@ For **mew** identity, `.npmrc`, `.yarnrc*`, `pnpm-workspace.yaml`, and
 ## Mutation reload (`ConfigLoadSpec`)
 
 `app.New` captures a `config.LoadSpec` on `app.Context` (`ConfigLoadSpec` field).
-The spec is an immutable snapshot of load inputs: CWD, resolved absolute
-`--config` path (project vs global), env slice, and CLI overlays (`offline`,
+The spec is an immutable snapshot of load inputs: invocation CWD, discovered
+project root, resolved absolute `--config` path (project vs global), frozen global
+config path from env snapshot, env slice, and CLI overlays (`offline`,
 `prefer-offline`, etc.).
+
+Relative `--config` paths resolve against invocation CWD (`--cwd`), not the process
+working directory after `app.New`. Explicit config classification uses
+`config.IsPathWithin(projectRoot, path)` against the discovered project root
+(`project.FindRoot`), not invocation CWD alone.
+
+`GlobalConfigPathFromEnv` resolves the default global config path from the env
+snapshot captured at `app.New`. Mutation reload uses the stored `GlobalPath` and
+does not call `os.Getenv` for global discovery.
 
 `MutationSession.ReloadEffectiveConfig` clones the stored spec and may only change
 `ProjectRoot` after `FindRoot`. It must not call `os.Environ()` or rebuild CLI

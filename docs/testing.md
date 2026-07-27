@@ -97,6 +97,16 @@ ranges (`internal/semver`).
 make fuzz-smoke
 ```
 
+## Stabilization pass 10 suites (config path resolution + CLI output)
+
+| Area | Package / path | What it proves |
+|---|---|---|
+| Config path resolution | `internal/config/paths_test.go`, `internal/config/global_path_test.go` | `ResolveConfigPath` against invocation CWD; `IsPathWithin` project-root classification; frozen `GlobalConfigPathFromEnv` |
+| App config classification | `internal/app/context_test.go`, `internal/app/mutation_session_test.go` | Monorepo `--config` vs project root; env snapshot global path; reload preserves frozen paths after `chdir` |
+| CLI JSON output | `internal/cli/install_cmd_test.go` | Single JSON document (no post-encode prose); warning-only vs critical field presence |
+| Human cleanup output | `internal/app/finish_cleanup_test.go` | Warning-only vs critical `FormatInstallSummary` messages |
+| Abort cleanup severity | `internal/app/abort_test.go` | `populateAbortCleanup` critical vs warning code handling |
+
 ## Stabilization pass 9 suites (config load spec + cleanup severity)
 
 | Area | Package / path | What it proves |
@@ -135,10 +145,11 @@ make fuzz-smoke
 | Isolated layout + rollback | `tests/integration/isolated_test.go`, `install_test.go` (`TestInstallFailurePreservesOldTree`) | Virtual store topology; failed install leaves prior tree intact |
 | ABA proc takeover | `internal/fsx/lockdir_aba_proc_test.go` | Cross-process stale lock takeover blocked when live lock reappears (project/import/index) |
 
-Run integration suites without `-short` (proc/crash tests skip under `-short`):
+Run integration suites without `-short` (proc tests skip under `-short`). Crash-matrix files use the `crash` build tag and are excluded from default `go test ./...`:
 
 ```powershell
 go test ./tests/integration/... -count=1
+go test -tags crash ./tests/integration/... -count=1 -run Crash -timeout 30m
 ```
 
 ## Stabilization pass 3 suites (0016–0020 hard correctness)
@@ -203,7 +214,7 @@ when present).
 | `go test ./...` | yes (hermetic; linux/macOS/windows matrix) | yes |
 | `go test -race ./...` | yes (ubuntu) | yes |
 | `race-windows` job | `transaction`, `store`, `fsx` on windows-latest | yes |
-| `crash-integration` job | `go test ./tests/integration/... -run Crash -count=1` (no `-short`) | yes |
+| `crash-integration` job | `go test -tags crash ./tests/integration/... -run Crash -count=1 -timeout 30m` on ubuntu + windows (no `-short`) | yes |
 | `platform-lock` job | cross-process lock + ABA proc tests on all OS (darwin uses `x/sys/unix` flock) | yes |
 | `golangci-lint run` | yes (Ubuntu) | yes |
 | Fixture registry | local only | local only |
