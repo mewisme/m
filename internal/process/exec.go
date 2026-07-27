@@ -200,10 +200,3 @@ func BinDirForPackage(packageDir, nodeModules string) string {
 	}
 	return filepath.Join(filepath.Dir(packageDir), ".bin")
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

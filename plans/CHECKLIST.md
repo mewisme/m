@@ -2,17 +2,16 @@
 
 ## Program status
 
-- Current MVP: **0021** — lifecycle scripts (pass 11 CI green on `67a0ed7`)
+- Current MVP: **0022** — workspaces, catalogs, and filtering
 - Last updated: 2026-07-28
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md)
+**Next:** [0022 - Workspaces, catalogs, and filtering](0022-workspaces-catalogs.md)
 
-Stabilization pass 11 complete on `main` (commits `d631eb2`…`3992093` + pass-11 docs).
-Gate: verify-ci agent runs full local gates + 21-job matrix before starting 0021.
+MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/m/actions/runs/30310739645 (21/21 green).
 
 Stabilization pass 10 merged to `main` at `d980e12`.
 
@@ -44,7 +43,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 | 0018 | Core MVP 9 — Global Content Store and Smart Filesystem Pl... | Core / MVP 9 | 0014, 0017 | [x] | [0018](0018-global-store-smart-linker.md) | [0018-global-store-smart-linker](cursor/0018-global-store-smart-linker.plan.md) |
 | 0019 | Core MVP 10 — Isolated Virtual Store and Node Modules Layout | Core / MVP 10 | 0018 | [x] | [0019](0019-isolated-linker.md) | [0019-isolated-linker](cursor/0019-isolated-linker.plan.md) |
 | 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [x] | [0020](0020-advanced-resolver.md) | [0020-advanced-resolver](cursor/0020-advanced-resolver.plan.md) |
-| 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [ ] | [0021](0021-lifecycle-sandbox.md) | [0021-lifecycle-sandbox](cursor/0021-lifecycle-sandbox.plan.md) |
+| 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [x] | [0021](0021-lifecycle-sandbox.md) | [0021-lifecycle-sandbox](cursor/0021-lifecycle-sandbox.plan.md) |
 | 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [ ] | [0022](0022-workspaces-catalogs.md) | [0022-workspaces-catalogs](cursor/0022-workspaces-catalogs.plan.md) |
 | 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [ ] | [0023](0023-nub-pnpm-lock-bridge.md) | [0023-nub-pnpm-lock-bridge](cursor/0023-nub-pnpm-lock-bridge.plan.md) |
 | 0024 | Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility | Core / MVP 15 | 0023 | [ ] | [0024](0024-npm-locks.md) | [0024-npm-locks](cursor/0024-npm-locks.plan.md) |
@@ -757,40 +756,36 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0021 - Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy
 
-- status: planned
+- status: done
 - plan: [0021-lifecycle-sandbox.md](0021-lifecycle-sandbox.md)
 - cursor: [cursor/0021-lifecycle-sandbox.plan.md](cursor/0021-lifecycle-sandbox.plan.md)
 
-Stabilization pass 11 completes invocation snapshot completeness (registry auth,
-empty-env semantics, store-prune scan roots, independent warning sections). Gate:
-pass 11 CI green on `main` before starting 0021 implementation.
-
-- [ ] Implement lifecycle script discovery from package.json scripts field
-- [ ] Run preinstall/install/postinstall/prepare in npm order
-- [ ] Enforce ignore-scripts flag and config
-- [ ] Implement trust policy: prompt or allowlist for unknown scripts
-- [ ] Execute scripts in sandbox with restricted env and filesystem
-- [ ] Propagate correct PATH and node_modules/.bin for script context
-- [ ] Cache reproducible build script outputs keyed by inputs
-- [ ] Write audit log entry for every script: package, script, exit code
-- [ ] Fail install on script failure with rollback via transaction
-- [ ] Support Windows cmd/sh and Unix sh shebang resolution
-- [ ] Redact secrets from script environment in logs
-- [ ] Add tests with benign fixture scripts
-- [ ] Add failure tests: script exit non-zero triggers rollback
-- [ ] Document lifecycle policy for CI (--ignore-scripts default?)
-- [ ] Integrate with isolated linker bin paths
-- [ ] Never execute lifecycle during --dry-run
-- [ ] Support m approve-builds to add package to trust list
-- [ ] Acceptance: postinstall script runs after package materialized
-- [ ] Acceptance: Failing lifecycle script triggers full install rollback
-- [ ] Acceptance: --ignore-scripts skips all lifecycle execution
-- [ ] Acceptance: Untrusted package prompts or blocks per policy
-- [ ] Acceptance: Audit log records script executions
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement lifecycle script discovery from package.json scripts field
+- [x] Run preinstall/install/postinstall/prepare in npm order
+- [x] Enforce ignore-scripts flag and config
+- [x] Implement trust policy: prompt or allowlist for unknown scripts
+- [x] Execute scripts in sandbox with restricted env and filesystem
+- [x] Propagate correct PATH and node_modules/.bin for script context
+- [x] Cache reproducible build script outputs keyed by inputs
+- [x] Write audit log entry for every script: package, script, exit code
+- [x] Fail install on script failure with rollback via transaction
+- [x] Support Windows cmd/sh and Unix sh shebang resolution
+- [x] Redact secrets from script environment in logs
+- [x] Add tests with benign fixture scripts
+- [x] Add failure tests: script exit non-zero triggers rollback
+- [x] Document lifecycle policy for CI (--ignore-scripts default?)
+- [x] Integrate with isolated linker bin paths
+- [x] Never execute lifecycle during --dry-run
+- [x] Support m approve-builds to add package to trust list
+- [x] Acceptance: postinstall script runs after package materialized
+- [x] Acceptance: Failing lifecycle script triggers full install rollback
+- [x] Acceptance: --ignore-scripts skips all lifecycle execution
+- [x] Acceptance: Untrusted package prompts or blocks per policy
+- [x] Acceptance: Audit log records script executions
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0022 - Core MVP 13 — Workspaces, Catalogs, and Filtering
 

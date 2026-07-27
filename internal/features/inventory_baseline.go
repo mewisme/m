@@ -118,10 +118,10 @@ func baselineFeatures() []Feature {
 		row("linker.capsules", "portable capsules", "linker", omit, planned, ext, "0029"),
 
 		// Lifecycle and security
-		row("lifecycle.scripts", "lifecycle scripts", "lifecycle", shipped, planned, parity, "0021"),
-		row("lifecycle.trusted-deps", "trusted dependencies / build approval", "lifecycle", shipped, planned, parity, "0021"),
-		row("lifecycle.sandbox", "script sandbox", "lifecycle", shipped, planned, parity, "0021"),
-		row("lifecycle.build-cache", "build-output cache", "lifecycle", shipped, planned, parity, "0021"),
+		row("lifecycle.scripts", "lifecycle scripts", "lifecycle", shipped, shipped, parity, "0021"),
+		row("lifecycle.trusted-deps", "trusted dependencies / build approval", "lifecycle", shipped, shipped, parity, "0021"),
+		row("lifecycle.sandbox", "script sandbox", "lifecycle", shipped, shipped, parity, "0021"),
+		row("lifecycle.build-cache", "build-output cache", "lifecycle", shipped, shipped, parity, "0021"),
 		row("security.audit", "audit and advisories", "security", shipped, planned, parity, "0030"),
 		row("security.sbom", "SBOM export", "security", shipped, planned, parity, "0030"),
 		row("security.provenance", "provenance and signatures", "security", shipped, planned, parity, "0027"),

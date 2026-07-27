@@ -4,38 +4,41 @@ Usage:
   m [command]
 
 Available Commands:
-  add         Add a dependency
-  audit       Audit dependencies
-  cache       Manage the download cache
-  ci          Clean install from lockfile
-  completion  Generate shell completion scripts
-  config      Get and set configuration
-  development Developer tooling
-  exec        Execute a local package binary
-  explain     Explain resolution decisions
-  features    List capability inventory and parity status
-  fetch       Download and extract packages from a fetch plan
-  help        Help about any command
-  history     Show install history
-  init        Initialize a project
-  install     Install dependencies
-  link        Link a local package
-  lock        Lockfile utilities
-  pack        Create a package tarball
-  pkg         Read package.json fields
-  plan        Preview install mutations
-  project     Inspect the current project
-  publish     Publish a package
-  recover     Recover from an interrupted install transaction
-  remove      Remove a dependency
-  resolve     Resolve dependencies without installing
-  rollback    Restore the previous install snapshot
-  run         Run a package script
-  snapshot    Manage install snapshots
-  store       Manage the content store
-  update      Update dependencies and refresh the lockfile
-  version     Print version information
-  view        View package metadata from the registry
+  add            Add a dependency
+  approve-builds Approve lifecycle scripts for packages (alias for m trust)
+  audit          Audit dependencies
+  builds         Lifecycle build script audit
+  cache          Manage the download cache
+  ci             Clean install from lockfile
+  completion     Generate shell completion scripts
+  config         Get and set configuration
+  development    Developer tooling
+  exec           Execute a local package binary
+  explain        Explain resolution decisions
+  features       List capability inventory and parity status
+  fetch          Download and extract packages from a fetch plan
+  help           Help about any command
+  history        Show install history
+  init           Initialize a project
+  install        Install dependencies
+  link           Link a local package
+  lock           Lockfile utilities
+  pack           Create a package tarball
+  pkg            Read package.json fields
+  plan           Preview install mutations
+  project        Inspect the current project
+  publish        Publish a package
+  recover        Recover from an interrupted install transaction
+  remove         Remove a dependency
+  resolve        Resolve dependencies without installing
+  rollback       Restore the previous install snapshot
+  run            Run a package script
+  snapshot       Manage install snapshots
+  store          Manage the content store
+  trust          Trust lifecycle scripts for packages
+  update         Update dependencies and refresh the lockfile
+  version        Print version information
+  view           View package metadata from the registry
 
 Flags:
       --color string      color: auto|always|never (default "auto")
