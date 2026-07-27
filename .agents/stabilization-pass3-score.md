@@ -297,8 +297,9 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30304689171
 **Session:** Stabilization Pass 11 (invocation snapshot completeness)  
 **Baseline:** `d980e127d4d6a3b44bca952c25c4b2d2c12a008f`  
 **Branch:** `main` (direct commits, no PR)  
-**Final verification:** 2026-07-28 (Windows local focused gates; full CI pending verify-ci agent)  
-**Gate:** ≥ 9.0 to unblock MVP 0021 — **pending CI**
+**Final SHA:** `67a0ed7f3b005ca41afada6827045d565a7ba64b`  
+**Final verification:** 2026-07-28 (Windows local full suite + GitHub Actions `30310739645`)  
+**Gate:** ≥ 9.0 to unblock MVP 0021 — **met**
 
 ## Commits (pass 11)
 
@@ -308,7 +309,7 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30304689171
 | `a2ac15b` | app: route registry auth through invocation EnvSnapshot |
 | `3462366` | app: snapshot-aware store prune scan roots |
 | `3992093` | app: show all install warning sections independently |
-| `ff49b37` | docs: pass 11 ambient-env audit and snapshot contracts |
+| `67a0ed7` | docs: pass 11 ambient-env audit and snapshot contracts |
 
 ## Gaps fixed
 
@@ -340,20 +341,42 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30304689171
 | `go test ./internal/app/... -run StoreScan\|PruneStore -count=1` | **PASS** (commit 3) |
 | `go test ./tests/integration/... -run StorePruneSnapshot -count=1` | **PASS** (commit 3) |
 | `go test ./internal/app/... -run FormatInstallSummary -count=1` | **PASS** (commit 4) |
-| Full `go test ./...`, race, lint, vuln | **Deferred** — verify-ci agent |
+| Full `go test ./... -count=1` | **PASS** (~29s, Windows) |
+| `go vet ./...` | **PASS** |
+| `golangci-lint run ./...` | **PASS** (0 issues) |
+| `govulncheck ./...` | **PASS** |
+| `go run ./tools/check-deps` | **PASS** |
+| `go test -race …` | **N/A local** (no gcc on Windows); **PASS** in CI (`race`, `race-macos`, `race-windows`) |
+| `go test -tags crash …` | **N/A local** (deferred); **PASS** in CI (`crash-integration` ubuntu + windows) |
+
+## CI jobs — run `30310739645` (`67a0ed7`)
+
+Workflow URL: https://github.com/mewisme/m/actions/runs/30310739645
+
+**All 21 jobs passed.**
+
+| Job | Result |
+|-----|--------|
+| `test` (ubuntu/macos/windows) | **PASS** |
+| `race` / `race-macos` / `race-windows` | **PASS** |
+| `crash-integration` (ubuntu/windows) | **PASS** (windows ~3m48s) |
+| `platform-lock` (3 OS) | **PASS** |
+| `cross` (all matrix) | **PASS** |
+| `lint` / `vuln` / `allowlist` / `gate-probe` | **PASS** |
 
 ## MVP status (pass 11)
 
 | MVP | Status |
 |-----|--------|
 | 0017 Transactional install | **Done** |
+| 0018 Fetch / store pipeline | **Done** (snapshot auth + prune roots) |
 | 0020 Full resolver | **Done** |
-| 0021 Lifecycle scripts | **Not started** — blocked on pass 11 CI green |
+| 0021 Lifecycle scripts | **Unblocked** — pass 11 CI green on `67a0ed7` |
 
 ## Score
 
-**9.40 / 10.0** — deduct 0.40 pending full-repo test + 21-job CI confirmation (no carry-forward from pass 10).
+**10.0 / 10.0**
 
 ## Decision
 
-**PENDING** — implementation complete on `main`; verify-ci agent must run full gates and CI loop.
+**PASS** — local gates and full CI matrix green on `67a0ed7` (run `30310739645`). MVP 0021 may proceed.

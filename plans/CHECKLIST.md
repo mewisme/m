@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current MVP: **0021** — lifecycle scripts (pass 11 gate on `main`; 0021 not started)
+- Current MVP: **0021** — lifecycle scripts (pass 11 CI green on `67a0ed7`)
 - Last updated: 2026-07-28
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
