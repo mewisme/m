@@ -54,7 +54,7 @@ func rollbackSession(ctx context.Context, sess *MutationSession, txn *transactio
 }
 
 func joinSessionCleanup(fr transaction.FinishResult, rollbackErr, lockErr error) error {
-	cleanupErr := fr.CleanupError()
+	cleanupErr := fr.CriticalCleanupError()
 	cleanupErr = joinDistinctCleanup(cleanupErr, rollbackErr)
 	cleanupErr = joinDistinctCleanup(cleanupErr, lockErr)
 	return cleanupErr
