@@ -18,6 +18,8 @@ import (
 func testStoreInstallContext(t *testing.T) (*Context, string, func()) {
 	t.Helper()
 	testkit.CleanEnv(t)
+	store.SetPublishReadOnly(false)
+	t.Cleanup(func() { store.SetPublishReadOnly(true) })
 	t.Setenv("NO_PROXY", "*")
 	t.Setenv("no_proxy", "*")
 	reg := testkit.LoadRegistry(t, "registry/v1")
