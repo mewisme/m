@@ -255,6 +255,52 @@ func TestMutationSessionReloadPreservesExplicitConfigPath(t *testing.T) {
 	}
 }
 
+func TestMutationSessionReloadPreservesFrozenGlobalPath(t *testing.T) {
+	testkit.CleanEnv(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"global-snap","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfgDir := filepath.Join(root, "global-cfg")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	globalFile := filepath.Join(cfgDir, "config.jsonc")
+	if err := os.WriteFile(globalFile, []byte(`{"offline":true}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := []string{"MEW_CONFIG_DIR=" + cfgDir}
+	ctx := context.Background()
+	ac, err := New(ctx, Options{CWD: root, Env: env})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantGlobal := ac.ConfigLoadSpec.GlobalPath
+	sess, err := BeginMutationSession(ctx, ac, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = sess.Abort(ctx) }()
+
+	t.Setenv("MEW_CONFIG_DIR", filepath.Join(root, "other"))
+	if err := os.WriteFile(globalFile, []byte(`{"offline":false}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.ReloadEffectiveConfig(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if ac.ConfigLoadSpec.GlobalPath != wantGlobal {
+		t.Fatalf("global path changed: %q -> %q", wantGlobal, ac.ConfigLoadSpec.GlobalPath)
+	}
+	sac, err := sess.AppContext()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := config.Get(sac.Config, "offline"); v.Raw != false {
+		t.Fatalf("reloaded offline=%v", v.Raw)
+	}
+}
+
 func TestMutationSessionReloadUsesEnvSnapshot(t *testing.T) {
 	testkit.CleanEnv(t)
 	root := t.TempDir()
