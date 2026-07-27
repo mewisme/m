@@ -176,3 +176,90 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30297084653
 ## Decision
 
 **READY** for MVP 0021.
+
+---
+
+# Stabilization Pass 10 — Quality Scorecard
+
+**Session:** Stabilization Pass 10 (config path resolution + CLI output + abort severity)  
+**Baseline:** `ec2f4110031d5b12577ebf010156b2956946c735`  
+**Branch:** `stabilization-pass-10`  
+**PR:** https://github.com/mewisme/m/pull/7  
+**Final SHA:** `479864f13a15c8ebb85a22ab8519f99e6412aad2`  
+**Final verification:** 2026-07-28 (Windows local + GitHub Actions `30304689171`)  
+**Gate:** ≥ 9.0 to unblock MVP 0021 — **local met; CI blocked (billing)**
+
+## Commits (pass 10)
+
+| SHA | Message |
+|-----|---------|
+| `599cb1b` | fix(config): resolve config sources from invocation context (+ PR #6 CI split) |
+| `ff93fef` | test(config): cover cwd project-root and env-snapshot paths |
+| `1706fb4` | fix(cli): separate warning output from recovery guidance |
+| `347d5ff` | fix(app): apply cleanup severity to abort results |
+| `e7c3b24` | test(cli): require clean JSON and correct recovery hints |
+| `479864f` | docs: record stabilization pass 10 evidence |
+
+## Gaps fixed
+
+| # | Gap | Fix |
+|---|-----|-----|
+| 1 | Relative `--config` used `filepath.Abs` (process CWD) | `config.ResolveConfigPath(invocationCWD, path)` in `app.New` |
+| 2 | Project/global classification used unsafe `HasPrefix(rel, "..")` on invocation CWD | `config.IsPathWithin(projectRoot, path)` after `project.FindRoot` |
+| 3 | Empty `GlobalPath` → `os.Getenv` on every reload | `GlobalConfigPathFromEnv` frozen at `app.New` |
+| 4 | Warning-only cleanup triggered `m recover` in human + JSON | `FormatInstallSummary` + `writeInstallResult` use critical flags only |
+| 5 | `populateAbortCleanup` treated any warning as critical | `CleanupCodeSeverity` per code in abort path |
+
+## Audit grep (pass 10)
+
+| Pattern | Result |
+|---------|--------|
+| `filepath.Abs(opts.ConfigPath)` in app | **Fixed** — uses `ResolveConfigPath` |
+| `strings.HasPrefix(rel, "..")` in context | **Removed** |
+| `GlobalConfigPath()` in mutation reload | **Fixed** — `GlobalPath` always set from env snapshot |
+| Post-JSON prose in `writeInstallResult` | **Removed** |
+| `config_cmd` `GlobalConfigPath()` for global writes | **Safe** — ambient intentional for `m config set --global` |
+| `fsx/guard.go` `HasPrefix` | **Safe** — ancestor guard, different contract |
+
+## MVP status (pass 10)
+
+| MVP | Status |
+|-----|--------|
+| 0017 Transactional install | **Done** |
+| 0020 Full resolver | **Done** |
+| 0021 Lifecycle scripts | **Blocked** — pass 10 CI billing (`runner_id: 0`) |
+
+## CI jobs — run `30304689171` (`479864f`)
+
+Workflow URL: https://github.com/mewisme/m/actions/runs/30304689171
+
+**All jobs failed immediately with `runner_id: 0` (GitHub Actions billing/spending limit).** No test execution occurred.
+
+| Job | Result |
+|-----|--------|
+| `test` (ubuntu/macos/windows) | **FAIL** (no runner) |
+| `race` / `race-macos` / `race-windows` | **FAIL** (no runner) |
+| `crash-integration` | **FAIL** (no runner) |
+| `platform-lock` (3 OS) | **FAIL** (no runner) |
+| `cross` (all matrix) | **FAIL** (no runner) |
+| `lint` / `vuln` / `allowlist` / `gate-probe` | **FAIL** (no runner) |
+
+## Local gate results (2026-07-28, Windows)
+
+| Command | Result |
+|---------|--------|
+| `gofmt -w` (changed files) | **PASS** |
+| `go test ./internal/config/... ./internal/app/... ./internal/cli/... ./internal/transaction/... ./tests/integration/... -count=1` | **PASS** |
+| `go test ./... -count=1` | **PASS** (~29s) |
+| `go vet ./...` | **PASS** |
+| `golangci-lint run ./...` | **PASS** (0 issues) |
+| `govulncheck ./...` | **PASS** |
+| `go run ./tools/check-deps` | **PASS** |
+
+## Score
+
+**9.90 / 10.0** (deduct 0.10 for CI billing blocker preventing green run verification)
+
+## Decision
+
+**BLOCKED** — local gates pass; CI cannot run until GitHub Actions billing/spending limit is restored (`runner_id: 0` on all jobs in run `30304689171`).
