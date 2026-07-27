@@ -77,27 +77,27 @@ func (s *MutationSession) ReloadEffectiveConfig(ctx context.Context) error {
 
 // AppContext returns a shallow copy of the session app context with reloaded config.
 // Never mutates the shared context passed to BeginMutationSession.
-func (s *MutationSession) AppContext() *Context {
+// Call ReopenProject (or ReloadEffectiveConfig) before AppContext.
+func (s *MutationSession) AppContext() (*Context, error) {
 	if s == nil || s.ac == nil {
-		return nil
+		return nil, apperr.New(apperr.Internal, "app.mutation", "", "nil session")
 	}
-	cfg := s.effective
-	if cfg == nil {
-		cfg = s.ac.Config
+	if s.effective == nil {
+		return nil, apperr.New(apperr.Internal, "app.mutation", "", "effective config not loaded; call ReopenProject first")
 	}
-	if s.sessionAC != nil && s.sessionAC.Config == cfg {
-		return s.sessionAC
+	if s.sessionAC != nil && s.sessionAC.Config == s.effective {
+		return s.sessionAC, nil
 	}
 	s.sessionAC = &Context{
 		CWD:       s.ac.CWD,
-		Config:    cfg,
+		Config:    s.effective,
 		Reporter:  s.ac.Reporter,
 		Version:   s.ac.Version,
 		Commit:    s.ac.Commit,
 		BuildDate: s.ac.BuildDate,
 		Ctx:       s.ac.Ctx,
 	}
-	return s.sessionAC
+	return s.sessionAC, nil
 }
 
 // ReopenProject reads live package.json, lock hints, and config after ownership is held.

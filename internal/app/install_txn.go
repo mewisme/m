@@ -130,13 +130,16 @@ func dedupeCleanupPairs(codes, warnings []string) (outCodes, outWarns []string) 
 // runInstallInSession performs resolve through commit while the session holds the project lock.
 func runInstallInSession(ctx context.Context, sess *MutationSession, opts InstallOptions, edit manifestEditFn, prepare mutationPrepareFn) (InstallResult, error) {
 	var res InstallResult
-	ac := sess.AppContext()
-	txn := sess.Runner()
 
 	proj, err := sess.ReopenProject(ctx)
 	if err != nil {
 		return res, err
 	}
+	ac, err := sess.AppContext()
+	if err != nil {
+		return res, err
+	}
+	txn := sess.Runner()
 
 	if opts.Frozen && !usesStagedSnapshotInputs(opts) {
 		if err := validateFrozenLockForProject(ctx, ac, proj); err != nil {
