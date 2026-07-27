@@ -1,0 +1,14 @@
+{
+  "dist-tags": { "latest": "1.0.0" },
+  "name": "lifecycle-postinstall-ok",
+  "versions": {
+    "1.0.0": {
+      "name": "lifecycle-postinstall-ok",
+      "version": "1.0.0",
+      "dist": {
+        "integrity": "sha256-eMOvqfhNEd//z2QAXfjChOzYDzMYFTvMNNo04/yRYzQ=",
+        "tarball": "lifecycle-postinstall-ok-1.0.0.tgz"
+      }
+    }
+  }
+}

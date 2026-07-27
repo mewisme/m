@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "blobs": [
+    {"path": "packuments/lifecycle-postinstall-ok.json", "sha256": "a4657cce5dab3d2526a016784df653f9030e375aa58b4a0b2830a52503bc4029"},
+    {"path": "tarballs/lifecycle-postinstall-ok-1.0.0.tgz", "sha256": "78c3afa9f84d11dfffcf64005df8c284ecd80f3318153bcc34da34e3fc916334"},
+    {"path": "packuments/lifecycle-failing.json", "sha256": "89f0cc71dd64ed2acc58807a049272fb814f5628f59c554a860a15d14e10b099"},
+    {"path": "tarballs/lifecycle-failing-1.0.0.tgz", "sha256": "72b3682f63ce554cb04ebbffb1e12c1da60b41c3c975ad161f5cf474fe02a6db"},
+    {"path": "packuments/lifecycle-native-stub.json", "sha256": "617c3462714cb82d0f72fa1af163cc5e9afe7ec0114351c5780488fb3b17bae5"},
+    {"path": "tarballs/lifecycle-native-stub-1.0.0.tgz", "sha256": "6c4bcb5c9903320fea815d850321eff134187e7e23a5093f401ea4edb0a57e3d"},
+    {"path": "packuments/lifecycle-counter.json", "sha256": "4c21f53b3d52b6b015306b40afa5e75b39552b8638d9a8047f46c49cd6418a81"},
+    {"path": "tarballs/lifecycle-counter-1.0.0.tgz", "sha256": "51b927b1ad83eb82d2f3171255f15db9289f7efe772fbfbc8efd9f402f812e23"}
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "dist-tags": { "latest": "1.0.0" },
+  "name": "lifecycle-counter",
+  "versions": {
+    "1.0.0": {
+      "name": "lifecycle-counter",
+      "version": "1.0.0",
+      "dist": {
+        "integrity": "sha256-Ubknsa2D64LS8xcSVfFduSiffv53L7+8jv2fQC+BLiM=",
+        "tarball": "lifecycle-counter-1.0.0.tgz"
+      }
+    }
+  }
+}

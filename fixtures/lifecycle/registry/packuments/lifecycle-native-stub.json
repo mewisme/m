@@ -1,0 +1,14 @@
+{
+  "dist-tags": { "latest": "1.0.0" },
+  "name": "lifecycle-native-stub",
+  "versions": {
+    "1.0.0": {
+      "name": "lifecycle-native-stub",
+      "version": "1.0.0",
+      "dist": {
+        "integrity": "sha256-bEvLXJkDMg/qgV2FAyHv8TQYfn4jpQk/QB6k7bClfj0=",
+        "tarball": "lifecycle-native-stub-1.0.0.tgz"
+      }
+    }
+  }
+}

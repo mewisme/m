@@ -1,0 +1,7 @@
+{
+  "name": "lifecycle-native-stub",
+  "version": "1.0.0",
+  "scripts": {
+    "prepare": "node -e \"require('fs').writeFileSync('gyp-stub.txt','ok')\""
+  }
+}

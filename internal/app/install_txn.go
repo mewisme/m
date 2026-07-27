@@ -263,6 +263,10 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		}
 	}
 
+	if err := runLifecyclePhase(ctx, ac, proj, opts, stageNM, resolution.Graph, linkPlan); err != nil {
+		return res, err
+	}
+
 	emitPhase(ac, "validate", "")
 	if err := validateStaged(stage, linkPlan, resolution.Graph, linkerMode); err != nil {
 		return res, err

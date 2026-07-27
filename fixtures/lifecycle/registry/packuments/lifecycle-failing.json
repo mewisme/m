@@ -1,0 +1,14 @@
+{
+  "dist-tags": { "latest": "1.0.0" },
+  "name": "lifecycle-failing",
+  "versions": {
+    "1.0.0": {
+      "name": "lifecycle-failing",
+      "version": "1.0.0",
+      "dist": {
+        "integrity": "sha256-crNoL2POVUywTrv/seEsHaYLQcPJda0WH1z0dP4Cpts=",
+        "tarball": "lifecycle-failing-1.0.0.tgz"
+      }
+    }
+  }
+}

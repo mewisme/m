@@ -1,0 +1,7 @@
+{
+  "name": "lifecycle-postinstall-ok",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "node -e \"require('fs').writeFileSync(require('path').join(__dirname,'marker.txt'),'ok')\""
+  }
+}

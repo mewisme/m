@@ -9,11 +9,12 @@ import (
 
 func newUpdateCmd() *cobra.Command {
 	var (
-		latest      bool
-		dryRun      bool
-		keepJournal bool
-		linkerMode  string
-		asJSON      bool
+		latest        bool
+		dryRun        bool
+		keepJournal   bool
+		linkerMode    string
+		ignoreScripts bool
+		asJSON        bool
 	)
 	cmd := &cobra.Command{
 		Use:   "update [pkg...]",
@@ -28,9 +29,10 @@ func newUpdateCmd() *cobra.Command {
 				Targets: args,
 				Latest:  latest,
 				Install: app.InstallOptions{
-					DryRun:      dryRun,
-					KeepJournal: keepJournal,
-					Linker:      linkerMode,
+					DryRun:        dryRun,
+					KeepJournal:   keepJournal,
+					Linker:        linkerMode,
+					IgnoreScripts: ignoreScripts,
 				},
 			})
 			if err != nil {
@@ -43,6 +45,7 @@ func newUpdateCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "resolve and print plan without mutating disk")
 	cmd.Flags().BoolVar(&keepJournal, "journal", false, "keep transaction journal after success")
 	cmd.Flags().StringVar(&linkerMode, "linker", "", "node linker mode: hoisted or isolated")
+	cmd.Flags().BoolVar(&ignoreScripts, "ignore-scripts", false, "skip lifecycle scripts")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON (includes plan on dry-run)")
 	return cmd
 }

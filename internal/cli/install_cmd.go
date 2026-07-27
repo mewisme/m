@@ -12,12 +12,13 @@ import (
 
 func newInstallCmd() *cobra.Command {
 	var (
-		prod        bool
-		frozen      bool
-		dryRun      bool
-		keepJournal bool
-		linkerMode  string
-		asJSON      bool
+		prod          bool
+		frozen        bool
+		dryRun        bool
+		keepJournal   bool
+		linkerMode    string
+		ignoreScripts bool
+		asJSON        bool
 	)
 	cmd := &cobra.Command{
 		Use:     "install",
@@ -29,7 +30,7 @@ func newInstallCmd() *cobra.Command {
 			if ac == nil {
 				return apperr.New(apperr.Internal, "install", "", "missing app context")
 			}
-			opts := app.InstallOptions{Prod: prod, Frozen: frozen, DryRun: dryRun, KeepJournal: keepJournal, Linker: linkerMode}
+			opts := app.InstallOptions{Prod: prod, Frozen: frozen, DryRun: dryRun, KeepJournal: keepJournal, Linker: linkerMode, IgnoreScripts: ignoreScripts}
 			result, err := app.Install(cmd.Context(), ac, opts)
 			outErr := writeInstallResult(cmd, result, asJSON, dryRun)
 			if err != nil {
@@ -46,16 +47,18 @@ func newInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "resolve and print plan without mutating disk")
 	cmd.Flags().BoolVar(&keepJournal, "journal", false, "keep transaction journal after success")
 	cmd.Flags().StringVar(&linkerMode, "linker", "", "node linker mode: hoisted or isolated")
+	cmd.Flags().BoolVar(&ignoreScripts, "ignore-scripts", false, "skip lifecycle scripts")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
 	return cmd
 }
 
 func newAddCmd() *cobra.Command {
 	var (
-		dev        bool
-		saveExact  bool
-		linkerMode string
-		asJSON     bool
+		dev           bool
+		saveExact     bool
+		linkerMode    string
+		ignoreScripts bool
+		asJSON        bool
 	)
 	cmd := &cobra.Command{
 		Use:   "add <package>",
@@ -69,7 +72,7 @@ func newAddCmd() *cobra.Command {
 			result, err := app.Add(cmd.Context(), ac, args[0], app.AddOptions{
 				Dev:       dev,
 				SaveExact: saveExact,
-				Install:   app.InstallOptions{Linker: linkerMode},
+				Install:   app.InstallOptions{Linker: linkerMode, IgnoreScripts: ignoreScripts},
 			})
 			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {
@@ -84,6 +87,7 @@ func newAddCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&dev, "save-dev", "D", false, "save to devDependencies")
 	cmd.Flags().BoolVarP(&saveExact, "save-exact", "E", false, "save exact version")
 	cmd.Flags().StringVar(&linkerMode, "linker", "", "node linker mode: hoisted or isolated")
+	cmd.Flags().BoolVar(&ignoreScripts, "ignore-scripts", false, "skip lifecycle scripts")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
 	return cmd
 }
@@ -121,9 +125,10 @@ func newRemoveCmd() *cobra.Command {
 
 func newCiCmd() *cobra.Command {
 	var (
-		prod       bool
-		linkerMode string
-		asJSON     bool
+		prod          bool
+		linkerMode    string
+		ignoreScripts bool
+		asJSON        bool
 	)
 	cmd := &cobra.Command{
 		Use:   "ci",
@@ -135,9 +140,10 @@ func newCiCmd() *cobra.Command {
 				return apperr.New(apperr.Internal, "ci", "", "missing app context")
 			}
 			result, err := app.Install(cmd.Context(), ac, app.InstallOptions{
-				Prod:   prod,
-				Frozen: true,
-				Linker: linkerMode,
+				Prod:          prod,
+				Frozen:        true,
+				Linker:        linkerMode,
+				IgnoreScripts: ignoreScripts,
 			})
 			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {
@@ -151,6 +157,7 @@ func newCiCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&prod, "prod", false, "omit devDependencies")
 	cmd.Flags().StringVar(&linkerMode, "linker", "", "node linker mode: hoisted or isolated")
+	cmd.Flags().BoolVar(&ignoreScripts, "ignore-scripts", false, "skip lifecycle scripts")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
 	return cmd
 }
