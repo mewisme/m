@@ -36,6 +36,10 @@ type InstallOptions struct {
 	AddSaveExact bool
 	// IgnoreScripts skips lifecycle script execution when true.
 	IgnoreScripts bool
+	// Recursive installs all workspace importers (-r).
+	Recursive bool
+	// Filter limits install to matched workspace importers (--filter).
+	Filter []string
 }
 
 // UpdateResolveOptions selects incremental update resolve parameters.

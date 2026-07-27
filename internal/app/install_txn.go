@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
@@ -17,10 +18,12 @@ import (
 	"github.com/mewisme/m/internal/linker/isolated"
 	"github.com/mewisme/m/internal/linker/planner"
 	"github.com/mewisme/m/internal/lockfile/mlock"
+	"github.com/mewisme/m/internal/manifest"
 	"github.com/mewisme/m/internal/project"
 	"github.com/mewisme/m/internal/resolver"
 	"github.com/mewisme/m/internal/snapshot"
 	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/m/internal/workspace"
 )
 
 // manifestEditFn applies in-memory manifest changes before staging (no live write).
@@ -153,6 +156,9 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 			return res, err
 		}
 	}
+	if err := requireWorkspacesGate(ac, opts); err != nil {
+		return res, err
+	}
 
 	emitPhase(ac, "resolve", "")
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0
@@ -171,7 +177,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 			return res, err
 		}
 	}
-	if err := guardLocalInstall(resolution); err != nil {
+	if err := guardLocalInstall(ac, resolution); err != nil {
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_resolve", 0); err != nil {
@@ -200,7 +206,11 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		return res, err
 	}
 	useStore := config.UseGlobalStore(ac.Config)
-	fetchOut, err := fetchPackages(ctx, ac, resolution.Graph, extractDir, useStore)
+	localExtracts, err := buildLocalExtractDirs(proj.Root, resolution)
+	if err != nil {
+		return res, err
+	}
+	fetchOut, err := fetchPackages(ctx, ac, resolution.Graph, extractDir, useStore, localExtracts)
 	applyFetchOutcome(&res, fetchOut)
 	if err != nil {
 		return res, err
@@ -243,7 +253,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		if err := os.WriteFile(filepath.Join(stage, lockFileName), opts.StagedLock, 0o644); err != nil {
 			return res, apperr.Wrap(apperr.IO, "app.install", lockFileName, err)
 		}
-	} else if err := writeStagedLock(stage, ac, proj, resolution); err != nil {
+	} else if err := writeStagedLock(stage, ac, proj, resolution, opts); err != nil {
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_lockfile", 0); err != nil {
@@ -330,6 +340,9 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 			return res, err
 		}
 	}
+	if err := requireWorkspacesGate(ac, opts); err != nil {
+		return res, err
+	}
 	emitPhase(ac, "resolve", "")
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0
 	if edit != nil {
@@ -347,7 +360,7 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 			return res, err
 		}
 	}
-	if err := guardLocalInstall(resolution); err != nil {
+	if err := guardLocalInstall(ac, resolution); err != nil {
 		return res, err
 	}
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
@@ -448,19 +461,86 @@ func writeStagedManifest(stage string, proj *project.Project) error {
 	return proj.Doc.Write(filepath.Join(stage, "package.json"))
 }
 
-func writeStagedLock(stage string, ac *Context, proj *project.Project, res *resolver.Resolution) error {
+func writeStagedLock(stage string, ac *Context, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {
 	settings, err := mlock.SettingsWithFingerprints(ac.Config, proj.Normalized.Overrides)
 	if err != nil {
 		return err
 	}
-	specs := map[graph.ImporterID][]mlock.Specifier{
-		graph.RootImporter: mlock.SpecifiersFromManifest(proj.Normalized),
+	specs, err := buildImporterSpecifiers(proj, res)
+	if err != nil {
+		return err
+	}
+	if workspace.Enabled(ac.Config) && len(opts.Filter) > 0 {
+		if priorDoc, readErr := readLockDocument(proj.Root); readErr == nil && priorDoc != nil {
+			mergePriorImporterSpecs(specs, priorDoc, res.Graph)
+		}
 	}
 	doc, err := mlock.FromResolution(res, specs, settings)
 	if err != nil {
 		return err
 	}
+	if workspace.Enabled(ac.Config) && len(opts.Filter) > 0 {
+		if priorDoc, readErr := readLockDocument(proj.Root); readErr == nil && priorDoc != nil {
+			mergePriorImporterSections(doc, priorDoc, importerIDsInGraph(res.Graph))
+		}
+	}
 	return mlock.WriteAtomic(filepath.Join(stage, lockFileName), doc)
+}
+
+func mergePriorImporterSections(doc *mlock.Document, prior *mlock.Document, active map[graph.ImporterID]bool) {
+	if doc == nil || prior == nil {
+		return
+	}
+	have := map[graph.ImporterID]bool{}
+	for _, im := range doc.Importers {
+		have[im.ID] = true
+	}
+	for _, sec := range prior.Importers {
+		if active[sec.ID] || have[sec.ID] {
+			continue
+		}
+		doc.Importers = append(doc.Importers, sec)
+		have[sec.ID] = true
+	}
+	sort.Slice(doc.Importers, func(i, j int) bool { return doc.Importers[i].ID < doc.Importers[j].ID })
+}
+
+func buildImporterSpecifiers(proj *project.Project, res *resolver.Resolution) (map[graph.ImporterID][]mlock.Specifier, error) {
+	specs := map[graph.ImporterID][]mlock.Specifier{
+		graph.RootImporter: mlock.SpecifiersFromManifest(proj.Normalized),
+	}
+	if res == nil || res.Graph == nil {
+		return specs, nil
+	}
+	for _, im := range res.Graph.Importers {
+		if im.ID == graph.RootImporter {
+			continue
+		}
+		memPath := string(im.ID)
+		doc, err := manifest.Load(filepath.Join(proj.Root, filepath.FromSlash(memPath), "package.json"))
+		if err != nil {
+			return nil, apperr.Wrap(apperr.Manifest, "app.install", memPath, err)
+		}
+		norm, err := manifest.ToNormalized(doc)
+		if err != nil {
+			return nil, err
+		}
+		specs[im.ID] = mlock.SpecifiersFromManifest(norm)
+	}
+	return specs, nil
+}
+
+func mergePriorImporterSpecs(specs map[graph.ImporterID][]mlock.Specifier, prior *mlock.Document, g *graph.Graph) {
+	if prior == nil || g == nil {
+		return
+	}
+	active := importerIDsInGraph(g)
+	for _, sec := range prior.Importers {
+		if active[sec.ID] {
+			continue
+		}
+		specs[sec.ID] = append([]mlock.Specifier(nil), sec.Specifiers...)
+	}
 }
 
 func validateStaged(stage string, linkPlan *linker.Plan, g *graph.Graph, linkerMode string) error {
@@ -520,7 +600,7 @@ func validateStagedIsolated(nm string, linkPlan *linker.Plan, g *graph.Graph) er
 		if e.From == string(graph.RootImporter) {
 			continue
 		}
-		if err := validateIsolatedDep(nm, e, placedDestSet(linkPlan.Placements)); err != nil {
+		if err := validateIsolatedDep(nm, g, linkPlan, e); err != nil {
 			return err
 		}
 	}
@@ -603,15 +683,17 @@ func binNodeModulesForValidate(pkgInstallDir string) string {
 	}
 }
 
-func validateIsolatedDep(nm string, e graph.Edge, placed map[string]struct{}) error {
-	privateNM := filepath.Join(nm, ".pnpm", isolated.StoreIDFromKey(e.From), "node_modules")
-	depName := e.Name
-	if depName == "" {
-		depName = packageNameFromKey(e.To)
-	}
-	link := filepath.Join(append([]string{privateNM}, installSegments(depName)...)...)
-	if _, ok := placed[e.To]; !ok {
+func validateIsolatedDep(nm string, g *graph.Graph, plan *linker.Plan, e graph.Edge) error {
+	if _, ok := placedDestSet(plan.Placements)[e.To]; !ok {
 		return apperr.New(apperr.Integrity, "app.validate.isolated", e.To, "missing placement")
+	}
+	layout, err := isolated.ComputeLayout(g, nm)
+	if err != nil {
+		return apperr.Wrap(apperr.Integrity, "app.validate.isolated", e.To, err)
+	}
+	link := isolated.DepLinkPath(nm, g, layout.Packages, e)
+	if link == "" {
+		return apperr.New(apperr.Integrity, "app.validate.isolated", e.From, "missing parent private node_modules")
 	}
 	if _, err := os.Stat(filepath.Join(link, "package.json")); err != nil {
 		return apperr.Wrap(apperr.Integrity, "app.validate.isolated", e.To, err)
@@ -777,10 +859,22 @@ func emitLinkSummary(ac *Context, summary linker.LinkSummary) {
 	ac.Reporter.Progress(diagnostics.Event{V: 1, Type: "progress", Phase: "link", Package: subject})
 }
 
-func guardLocalInstall(res *resolver.Resolution) error {
+func guardLocalInstall(ac *Context, res *resolver.Resolution) error {
 	if res == nil || !resolver.HasLocalSources(res.Extensions) {
 		return nil
 	}
-	return apperr.New(apperr.Install, "app.install", "",
-		"local source install not implemented; resolved in lock only")
+	locals, err := resolver.DecodeLocalSources(res.Extensions)
+	if err != nil {
+		return err
+	}
+	workspacesOn := ac != nil && ac.Config != nil && workspace.Enabled(ac.Config)
+	for key, src := range locals {
+		if src.Protocol == "workspace" && workspacesOn {
+			continue
+		}
+		_ = key
+		return apperr.New(apperr.Install, "app.install", "",
+			"local source install not implemented; resolved in lock only")
+	}
+	return nil
 }

@@ -31,6 +31,8 @@ func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, 
 	ropts := resolver.ResolveOptions{
 		OmitRootDev: opts.Prod,
 		Policy:      resolver.PolicyFromEffective(ac.Config),
+		Recursive:   opts.Recursive,
+		Filter:      append([]string(nil), opts.Filter...),
 	}
 	if !manifestChanged {
 		if prior, err := readLockHints(ctx, ac, proj); err == nil && prior != nil {
@@ -108,11 +110,11 @@ func readLockHints(ctx context.Context, ac *Context, proj *project.Project) (*gr
 	return ReadLockGraph(ctx, ac)
 }
 
-func fetchPackages(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string, useGlobalStore bool) (FetchOutcome, error) {
+func fetchPackages(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string, useGlobalStore bool, preExtracts map[string]string) (FetchOutcome, error) {
 	if useGlobalStore {
-		return fetchAndImportGraph(ctx, ac, g)
+		return fetchAndImportGraph(ctx, ac, g, preExtracts)
 	}
-	extracts, err := fetchGraphLegacy(ctx, ac, g, extractRoot)
+	extracts, err := fetchGraphLegacy(ctx, ac, g, extractRoot, preExtracts)
 	return FetchOutcome{Extracts: extracts}, err
 }
 
@@ -154,7 +156,7 @@ func mergeFetchImportResult(out *FetchOutcome, result store.ImportResult) {
 	}
 }
 
-func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string) (map[string]string, error) {
+func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string, preExtracts map[string]string) (map[string]string, error) {
 	if err := os.MkdirAll(extractRoot, 0o755); err != nil {
 		return nil, apperr.Wrap(apperr.IO, "app.install", extractRoot, err)
 	}
@@ -169,6 +171,10 @@ func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractR
 			return nil, err
 		}
 		key := pkg.ID.Key()
+		if dir, ok := preExtracts[key]; ok {
+			extracts[key] = dir
+			continue
+		}
 		dest := filepath.Join(extractRoot, sanitizeKeyDir(key))
 		_ = os.RemoveAll(dest)
 		art, err := dl.Download(ctx, fetch.DownloadRequest{
@@ -188,7 +194,7 @@ func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractR
 	return extracts, nil
 }
 
-func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph) (FetchOutcome, error) {
+func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preExtracts map[string]string) (FetchOutcome, error) {
 	var out FetchOutcome
 	dl, err := newDownloader(ac)
 	if err != nil {
@@ -208,6 +214,10 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph) (Fetc
 			return out, err
 		}
 		key := pkg.ID.Key()
+		if dir, ok := preExtracts[key]; ok {
+			out.Extracts[key] = dir
+			continue
+		}
 		art, err := dl.Download(ctx, fetch.DownloadRequest{
 			URL:       pkg.TarballURL,
 			Integrity: pkg.Integrity,

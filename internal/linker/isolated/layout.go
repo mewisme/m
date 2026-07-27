@@ -70,6 +70,7 @@ func computeLayout(g *graph.Graph, nmRoot string) (*Layout, error) {
 	}
 
 	for from, edges := range children {
+		parentPrivate := PrivateNMForEdgeFrom(nmRoot, g, out.Packages, from)
 		for _, edge := range edges {
 			target, ok := contentOf[edge.toKey]
 			if !ok {
@@ -80,7 +81,6 @@ func computeLayout(g *graph.Graph, nmRoot string) (*Layout, error) {
 				out.Aliases = append(out.Aliases, aliasLink{Src: target, Dest: dest})
 				continue
 			}
-			parentPrivate := privateNMFor(out.Packages, from)
 			if parentPrivate == "" {
 				continue
 			}
@@ -91,6 +91,11 @@ func computeLayout(g *graph.Graph, nmRoot string) (*Layout, error) {
 	sort.Slice(out.Aliases, func(i, j int) bool { return out.Aliases[i].Dest < out.Aliases[j].Dest })
 	sort.Slice(out.DepLinks, func(i, j int) bool { return out.DepLinks[i].Dest < out.DepLinks[j].Dest })
 	return out, nil
+}
+
+// ComputeLayout builds isolated virtual store layout for g under nmRoot.
+func ComputeLayout(g *graph.Graph, nmRoot string) (*Layout, error) {
+	return computeLayout(g, nmRoot)
 }
 
 // PackageContentDirs returns package key -> content directory for tests and validation.
