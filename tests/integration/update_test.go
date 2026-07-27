@@ -168,12 +168,11 @@ func TestUpdateFetchFailPreservesTree(t *testing.T) {
 		t.Fatal("install failed")
 	}
 	seed, _ := os.ReadFile(filepath.Join(projDir, "node_modules", "lodash", "package.json"))
-	badCfg := filepath.Join(projDir, "m-bad.jsonc")
-	if err := os.WriteFile(badCfg, []byte(`{"registry":"http://127.0.0.1:1"}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(`{"registry":"http://127.0.0.1:1"}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	_ = os.RemoveAll(filepath.Join(projDir, ".mew", "cache"))
-	code, _ := runM(t, projDir, badCfg, "update", "pkg-a")
+	code, _ := runM(t, projDir, cfgPath, "update", "pkg-a")
 	if code == 0 {
 		t.Fatal("expected fetch failure")
 	}
