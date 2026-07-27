@@ -67,6 +67,7 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 
 	env := opts.Env
 	if env == nil {
+		// intentional: snapshot host env once when caller does not supply Options.Env.
 		env = os.Environ()
 	}
 

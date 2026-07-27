@@ -16,7 +16,7 @@ client.Packument(ctx, registryBase, name) (*Packument, error)
 `PackageMetadata` carries `Name`, `Version`, `Integrity`, `TarballURL`.
 `Packument` carries dist-tags and version map (dependencies fields available for 0013).
 
-Construct via `registry.NewFromApp(eff, projectRoot, identity, environ)` or
+Construct via `registry.NewFromApp(eff, projectRoot, identity)` or
 `registry.NewClient(Options{...})`.
 
 ## Cache layout

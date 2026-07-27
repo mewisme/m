@@ -182,6 +182,7 @@ func loadFileOverlay(path string) (map[string]any, error) {
 
 func configWritePath(g *globalFlags, global bool) (string, error) {
 	if global {
+		// intentional: m config set --global writes ambient user config path.
 		return config.GlobalConfigPath(), nil
 	}
 	cwd := g.cwd

@@ -48,6 +48,7 @@ func (g *globalFlags) resolveFormat() string {
 	if g.reporter != "" {
 		return g.reporter
 	}
+	// intentional: pre-app.New presentation flags read ambient env before snapshot exists.
 	if v := os.Getenv("MEW_LOG_FORMAT"); v != "" {
 		return v
 	}
@@ -58,6 +59,7 @@ func (g *globalFlags) resolveDebug() bool {
 	if g.debug {
 		return true
 	}
+	// intentional: pre-app.New debug flags read ambient env before snapshot exists.
 	if os.Getenv("MEW_DEBUG") != "" {
 		return true
 	}

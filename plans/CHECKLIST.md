@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current MVP: **0021** — lifecycle scripts (pass 10 CI green on `3a164d8`)
+- Current MVP: **0021** — lifecycle scripts (pass 11 gate on `main`; 0021 not started)
 - Last updated: 2026-07-28
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
@@ -11,7 +11,10 @@
 
 **Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md)
 
-Stabilization pass 10 complete on `3a164d8` — CI run https://github.com/mewisme/m/actions/runs/30308833823 (21/21 green). Merge PR #7 to land on `main`, then start 0021.
+Stabilization pass 11 complete on `main` (commits `d631eb2`…`3992093` + pass-11 docs).
+Gate: verify-ci agent runs full local gates + 21-job matrix before starting 0021.
+
+Stabilization pass 10 merged to `main` at `d980e12`.
 
 Stabilization pass 9 (`stabilization-pass-9` from `fae9b48`): `ConfigLoadSpec` preserves load inputs across mutation reload; `CriticalCleanupError`/`WarningErrors` split; custom-config lock-wait proc test.
 
@@ -758,8 +761,9 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - plan: [0021-lifecycle-sandbox.md](0021-lifecycle-sandbox.md)
 - cursor: [cursor/0021-lifecycle-sandbox.plan.md](cursor/0021-lifecycle-sandbox.plan.md)
 
-Stabilization pass 10 completes config source resolution and warning-only CLI
-output. Gate: pass 10 branch CI green before starting 0021 implementation.
+Stabilization pass 11 completes invocation snapshot completeness (registry auth,
+empty-env semantics, store-prune scan roots, independent warning sections). Gate:
+pass 11 CI green on `main` before starting 0021 implementation.
 
 - [ ] Implement lifecycle script discovery from package.json scripts field
 - [ ] Run preinstall/install/postinstall/prepare in npm order

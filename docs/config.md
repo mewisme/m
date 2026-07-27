@@ -54,6 +54,18 @@ Unknown keys under owned namespaces fail load with `ERR_M_CONFIG`.
 Store references only (`registry.auth_token_env=NPM_TOKEN`). Raw tokens in config
 values are rejected. `m config list --sources` redacts secret-shaped strings.
 
+At runtime, `config.AuthToken` resolves the named variable from the invocation
+`EnvSnapshot` on `app.Context` (not ambient `os.Environ()`). Resolver packument
+fetch and tarball download both use this token. Windows lookups are
+case-insensitive (`NPM_TOKEN` config matches `npm_token` in the snapshot).
+
+### Explicit empty environment
+
+`app.Options.Env: []string{}` produces an **initialized-empty** snapshot: path
+overrides, offline flags, and registry tokens do not inherit the host process
+environment. Use this in tests and hermetic CI to prove snapshot isolation.
+`Options.Env == nil` (CLI default) snapshots `os.Environ()` once at `app.New`.
+
 ## Commands
 
 ```text
@@ -109,3 +121,7 @@ Default discovery (`m.jsonc` absent) remains optional.
 If `app.Options.Env` is nil, `app.New` snapshots `os.Environ()` once into
 `ConfigLoadSpec`. Later `t.Setenv` / process env changes do not affect mutation
 reload.
+
+`Options.Env: []string{}` is an initialized-empty snapshot: `EnvSnapshot.Lookup`
+never falls through to ambient env. `config.Load` preserves initialized-empty
+snapshots and does not re-read `os.Environ()`.

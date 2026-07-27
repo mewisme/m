@@ -97,6 +97,16 @@ ranges (`internal/semver`).
 make fuzz-smoke
 ```
 
+## Stabilization pass 11 suites (invocation snapshot completeness)
+
+| Area | Package / path | What it proves |
+|---|---|---|
+| EnvSnapshot semantics | `internal/config/env_snapshot_test.go`, `internal/config/load_spec_test.go` | `Initialized()` vs zero-value; initialized-empty never reads ambient |
+| Empty env isolation | `internal/app/context_test.go`, `internal/app/mutation_session_test.go` | `Options.Env: []string{}` blocks host `MEW_*` and tokens after reload |
+| Registry auth snapshot | `internal/config/auth_token_test.go`, `internal/app/auth_snapshot_test.go` | Packument + tarball `Authorization` from invocation token; Windows casing |
+| Store prune scan roots | `internal/app/store_prune_test.go`, `tests/integration/store_prune_snapshot_test.go` | `MEW_HOME` from snapshot, not ambient, for prune manifest scan |
+| Install warning sections | `internal/app/finish_cleanup_test.go` | Critical + non-critical + store sections emit independently |
+
 ## Stabilization pass 10 suites (config path resolution + CLI output)
 
 | Area | Package / path | What it proves |

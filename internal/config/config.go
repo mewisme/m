@@ -116,7 +116,7 @@ func defaults() map[string]any {
 }
 
 // GlobalConfigPath resolves the user config.jsonc path.
-// safe: ambient env for m config set --global outside app.New snapshot.
+// intentional: ambient env for m config set --global outside app.New snapshot.
 func GlobalConfigPath() string {
 	if d := os.Getenv("MEW_CONFIG_DIR"); d != "" {
 		return filepath.Join(d, "config.jsonc")
@@ -163,6 +163,7 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 	if !snap.Initialized() {
 		env := opts.Env
 		if env == nil {
+			// intentional: unit-test compat when Load is called without a snapshot.
 			env = os.Environ()
 		}
 		snap = NewEnvSnapshot(env, runtime.GOOS)

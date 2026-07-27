@@ -289,3 +289,71 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30304689171
 ## Decision
 
 **PASS** — local gates and full CI matrix green on `3a164d8` (run `30308833823`). MVP 0021 may proceed after PR #7 merges to `main`.
+
+---
+
+# Stabilization Pass 11 — Quality Scorecard
+
+**Session:** Stabilization Pass 11 (invocation snapshot completeness)  
+**Baseline:** `d980e127d4d6a3b44bca952c25c4b2d2c12a008f`  
+**Branch:** `main` (direct commits, no PR)  
+**Final verification:** 2026-07-28 (Windows local focused gates; full CI pending verify-ci agent)  
+**Gate:** ≥ 9.0 to unblock MVP 0021 — **pending CI**
+
+## Commits (pass 11)
+
+| SHA | Message |
+|-----|---------|
+| `d631eb2` | config: add EnvSnapshot.Initialized() for empty-env semantics |
+| `a2ac15b` | app: route registry auth through invocation EnvSnapshot |
+| `3462366` | app: snapshot-aware store prune scan roots |
+| `3992093` | app: show all install warning sections independently |
+| `ff49b37` | docs: pass 11 ambient-env audit and snapshot contracts |
+
+## Gaps fixed
+
+| # | Gap | Fix |
+|---|-----|-----|
+| 1 | `populated()` treated `[]string{}` as uninitialized | `EnvSnapshot.Initialized()`; initialized-empty never reads ambient |
+| 2 | Registry auth via `os.Environ()` at fetch/resolve | `AuthToken(eff)` + `NewFromApp(eff, …)` without environ param |
+| 3 | Store prune scan roots used ambient `MEW_HOME` | `DefaultStoreScanRoots(snap, projectRoot)` from invocation snapshot |
+| 4 | Critical txn warnings hid non-critical/store sections | Independent section emitters with shared dedupe |
+
+## Audit grep (pass 11)
+
+| Pattern | Result |
+|---------|--------|
+| `os.Environ()` in resolver/registry/fetch/install paths | **Fixed** — snapshot-only after `app.New` |
+| `AuthToken(.*environ` | **Removed** |
+| `NewFromApp(.*environ` | **Removed** |
+| `DefaultStoreScanRoots` without snapshot | **Fixed** — takes `config.EnvSnapshot` |
+| `PruneStore` / `store_cmd` `os.Getenv("MEW_HOME")` | **Fixed** |
+| `populated()` | **Removed** — `Initialized()` |
+| Retained ambient (marked `// intentional:`) | `app.New` nil Env; `GlobalConfigPath`; `config_cmd` global writes; `execute.go` pre-snapshot flags; unit-test fallbacks in `envLookup`/`AuthToken` |
+
+## Local gate results (2026-07-28, Windows — focused per commit)
+
+| Command | Result |
+|---------|--------|
+| `go test ./internal/config/... ./internal/app/... -count=1` | **PASS** (commits 1–4) |
+| `go test ./internal/config/... ./internal/app/... ./internal/resolver/... ./internal/registry/... ./internal/cli/... -count=1` | **PASS** (commit 2) |
+| `go test ./internal/app/... -run StoreScan\|PruneStore -count=1` | **PASS** (commit 3) |
+| `go test ./tests/integration/... -run StorePruneSnapshot -count=1` | **PASS** (commit 3) |
+| `go test ./internal/app/... -run FormatInstallSummary -count=1` | **PASS** (commit 4) |
+| Full `go test ./...`, race, lint, vuln | **Deferred** — verify-ci agent |
+
+## MVP status (pass 11)
+
+| MVP | Status |
+|-----|--------|
+| 0017 Transactional install | **Done** |
+| 0020 Full resolver | **Done** |
+| 0021 Lifecycle scripts | **Not started** — blocked on pass 11 CI green |
+
+## Score
+
+**9.40 / 10.0** — deduct 0.40 pending full-repo test + 21-job CI confirmation (no carry-forward from pass 10).
+
+## Decision
+
+**PENDING** — implementation complete on `main`; verify-ci agent must run full gates and CI loop.

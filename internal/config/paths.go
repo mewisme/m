@@ -225,7 +225,7 @@ func envSnap(eff *Effective) EnvSnapshot {
 	if eff != nil && eff.Env.Initialized() {
 		return eff.Env
 	}
-	// safe: ambient env fallback when Effective was built without a snapshot (unit tests).
+	// intentional: ambient env fallback when Effective was built without a snapshot (unit tests).
 	return NewEnvSnapshot(os.Environ(), runtime.GOOS)
 }
 
@@ -233,6 +233,7 @@ func envLookup(eff *Effective, key string) (string, bool) {
 	if eff != nil && eff.Env.Initialized() {
 		return eff.Env.Lookup(key)
 	}
+	// intentional: ambient env fallback when Effective was built without a snapshot (unit tests).
 	v := os.Getenv(key)
 	return v, v != ""
 }
@@ -265,6 +266,7 @@ func AuthToken(eff *Effective) string {
 		return ""
 	}
 	if eff == nil || !eff.Env.Initialized() {
+		// intentional: zero-value Effective compat for unit tests without a snapshot.
 		return os.Getenv(name)
 	}
 	v, ok := eff.Env.Lookup(name)
