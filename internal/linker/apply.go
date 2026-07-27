@@ -23,8 +23,18 @@ func Apply(ctx context.Context, plan *Plan) error {
 		}
 	}
 	if len(plan.Bins) > 0 {
-		if err := WriteBins(plan.NodeModules, plan.Bins); err != nil {
-			return err
+		byNM := map[string][]BinSource{}
+		for _, src := range plan.Bins {
+			nm := src.NodeModules
+			if nm == "" {
+				nm = plan.NodeModules
+			}
+			byNM[nm] = append(byNM[nm], src)
+		}
+		for nm, sources := range byNM {
+			if err := WriteBins(nm, sources); err != nil {
+				return err
+			}
 		}
 	}
 	plan.LinkSummary.TallyFromOps(plan.Ops)

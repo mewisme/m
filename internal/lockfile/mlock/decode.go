@@ -1,6 +1,7 @@
 package mlock
 
 import (
+	"bytes"
 	"encoding/json"
 
 	"github.com/mewisme/m/internal/apperr"
@@ -46,6 +47,10 @@ func Decode(data []byte) (*Document, error) {
 		}
 	}
 	if v, ok := raw["packages"]; ok {
+		if doc.LockfileVersion == lockfileV1 && bytes.Contains(v, []byte(`"peerContext"`)) && bytes.Contains(v, []byte(`"range"`)) {
+			return nil, apperr.New(apperr.Lockfile, "mlock.migrate", "m.lock",
+				"lockfile v1 uses range-based peerContext; re-resolve with m lock to upgrade to lockfileVersion 2 (peerProviders)")
+		}
 		if err := json.Unmarshal(v, &doc.Packages); err != nil {
 			return nil, apperr.Wrap(apperr.Lockfile, "mlock.decode", "packages", err)
 		}

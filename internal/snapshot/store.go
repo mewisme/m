@@ -54,6 +54,68 @@ func GraphDigest(g *graph.Graph) (string, error) {
 	return "sha256:" + hex.EncodeToString(sum[:]), nil
 }
 
+// StageCreate writes snapshot payload under stageRoot without touching the live index.
+func (s *Store) StageCreate(stageRoot, id string, manifest, lock []byte, graphDigest string) error {
+	if s == nil || stageRoot == "" {
+		return apperr.New(apperr.Internal, "snapshot.stage", id, "nil store or stage root")
+	}
+	if id == "" {
+		return apperr.New(apperr.Internal, "snapshot.stage", "", "empty id")
+	}
+	dir := filepath.Join(stageRoot, id)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return apperr.Wrap(apperr.IO, "snapshot.stage", dir, err)
+	}
+	meta := &Snapshot{
+		SchemaVersion: SchemaVersion,
+		ID:            id,
+		CreatedAt:     time.Now().UTC(),
+		GraphDigest:   graphDigest,
+	}
+	metaBytes, err := EncodeJSON(meta)
+	if err != nil {
+		return err
+	}
+	for name, data := range map[string][]byte{
+		metaFileName:     metaBytes,
+		manifestFileName: manifest,
+		lockFileName:     lock,
+	} {
+		if err := writeAtomic(filepath.Join(dir, name), data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// StageIndex writes the snapshot index document under stageRoot.
+func (s *Store) StageIndex(stageRoot string, ids []string, nextSeq int) error {
+	if s == nil || stageRoot == "" {
+		return apperr.New(apperr.Internal, "snapshot.stage-index", "", "nil store or stage root")
+	}
+	idx := &indexDoc{SchemaVersion: SchemaVersion, NextSeq: nextSeq, IDs: append([]string(nil), ids...)}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(idx); err != nil {
+		return apperr.Wrap(apperr.Internal, "snapshot.stage-index", indexName, err)
+	}
+	return writeAtomic(filepath.Join(stageRoot, indexName), buf.Bytes())
+}
+
+// PlannedIndex returns live index ids plus the next snapshot id and next sequence.
+func (s *Store) PlannedIndex() (ids []string, nextID string, nextSeq int, err error) {
+	idx, err := s.readIndex()
+	if err != nil {
+		return nil, "", 0, err
+	}
+	nextID = fmt.Sprintf("%06d", idx.NextSeq)
+	nextSeq = idx.NextSeq + 1
+	ids = append(append([]string(nil), idx.IDs...), nextID)
+	return ids, nextID, nextSeq, nil
+}
+
 // Create writes manifest, lock, and metadata for id.
 func (s *Store) Create(id string, manifest, lock []byte, graphDigest string) error {
 	if s == nil || s.Root == "" {

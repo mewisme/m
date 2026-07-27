@@ -1,0 +1,24 @@
+{
+  "packages": [
+    {"name": "shared", "version": "1.0.0", "key": "shared@1.0.0"},
+    {"name": "shared", "version": "2.0.0", "key": "shared@2.0.0"},
+    {"name": "pkg-a", "version": "1.0.0", "key": "pkg-a@1.0.0"},
+    {"name": "pkg-b", "version": "1.0.0", "key": "pkg-b@1.0.0"}
+  ],
+  "edges": [
+    {"from": ".", "to": "shared@2.0.0", "kind": "prod"},
+    {"from": ".", "to": "pkg-a@1.0.0", "kind": "prod"},
+    {"from": ".", "to": "pkg-b@1.0.0", "kind": "prod"},
+    {"from": "pkg-a@1.0.0", "to": "shared@1.0.0", "kind": "prod"},
+    {"from": "pkg-b@1.0.0", "to": "shared@1.0.0", "kind": "prod"}
+  ],
+  "expect": {
+    "shared@2.0.0": "node_modules/shared",
+    "shared@1.0.0": "node_modules/pkg-a/node_modules/shared",
+    "pkg-a@1.0.0": "node_modules/pkg-a",
+    "pkg-b@1.0.0": "node_modules/pkg-b"
+  },
+  "alsoExpect": {
+    "shared@1.0.0": "node_modules/pkg-b/node_modules/shared"
+  }
+}

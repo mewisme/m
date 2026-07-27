@@ -94,3 +94,45 @@ func TestSmartLinkInstall(t *testing.T) {
 		t.Fatal("store manifest missing")
 	}
 }
+
+func TestStoreMutationIsolation(t *testing.T) {
+	enableGlobalStore(t)
+	projDir, cfgPath, _ := setupRegistryProject(t, `{
+  "name": "mutation",
+  "version": "1.0.0",
+  "dependencies": { "lodash": "4.17.21" }
+}`)
+	if code, out := runM(t, projDir, cfgPath, "install"); code != 0 {
+		t.Fatalf("install: %s", out)
+	}
+	nmFile := filepath.Join(projDir, "node_modules", "lodash", "package.json")
+	before, err := os.ReadFile(nmFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(nmFile, []byte(`{"name":"tampered"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	storeRoot := os.Getenv("MEW_STORE_DIR")
+	entries, err := os.ReadDir(filepath.Join(storeRoot, "packages", "sha256"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one store entry, got %d", len(entries))
+	}
+	storePkg := filepath.Join(storeRoot, "packages", "sha256", entries[0].Name(), "package.json")
+	storeData, err := os.ReadFile(storePkg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(storeData) == `{"name":"tampered"}` {
+		t.Fatal("store package was mutated via node_modules link")
+	}
+	if string(storeData) != string(before) {
+		t.Fatal("store package content changed after node_modules mutation")
+	}
+	if _, err := os.Stat(filepath.Join(storeRoot, "packages", "sha256", entries[0].Name(), ".mew-tree-manifest.json")); err != nil {
+		t.Fatal("tree manifest missing in store")
+	}
+}

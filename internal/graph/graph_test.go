@@ -39,13 +39,13 @@ func TestPackageIDKey(t *testing.T) {
 	withPeers := graph.PackageID{
 		Name:    "react",
 		Version: "18.2.0",
-		PeerContext: graph.PeerContext{
-			{Name: "scheduler", Range: "^0.23.0"},
-			{Name: "react-dom", Range: "^18.0.0"},
+		PeerProviderContext: graph.PeerProviderContext{
+			{Name: "react-dom", Version: "18.0.0", Key: "react-dom@18.0.0"},
+			{Name: "scheduler", Version: "0.23.0", Key: "scheduler@0.23.0"},
 		},
 	}
 	withPeers.Normalize()
-	want := "react@18.2.0#react-dom@^18.0.0,scheduler@^0.23.0"
+	want := "react@18.2.0#react-dom@18.0.0,scheduler@0.23.0"
 	if got := withPeers.Key(); got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}

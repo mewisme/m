@@ -71,12 +71,12 @@ func TestAdvancedResolverPeerContextFixture(t *testing.T) {
 		if p.ID.Name != "react" {
 			continue
 		}
-		if len(p.ID.PeerContext) == 0 {
-			t.Fatalf("react missing peer context: %#v", p.ID)
+		if len(p.ID.PeerProviderContext) == 0 {
+			t.Fatalf("react missing peer providers: %#v", p.ID)
 		}
 		reactKey = p.ID.Key()
 	}
-	if reactKey != "react@18.2.0#react-dom@^18.0.0" {
+	if reactKey != "react@18.2.0#react-dom@18.2.0" {
 		t.Fatalf("react key=%q", reactKey)
 	}
 }

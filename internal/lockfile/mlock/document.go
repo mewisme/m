@@ -7,7 +7,7 @@ import (
 )
 
 // LockfileVersion is the current m.lock schema version.
-const LockfileVersion = 1
+const LockfileVersion = 2
 
 // Document is the on-disk m.lock v1 shape.
 type Document struct {

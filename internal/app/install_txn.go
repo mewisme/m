@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,6 +25,12 @@ import (
 // manifestEditFn applies in-memory manifest changes before staging (no live write).
 type manifestEditFn func(*project.Project) error
 
+type commitPlanInput struct {
+	manifestChanged bool
+	useStore        bool
+	snapshotID      string
+}
+
 // runInstallTxn resolves, stages, validates, and commits install-family mutations.
 func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit manifestEditFn) (InstallResult, error) {
 	var res InstallResult
@@ -41,12 +48,11 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	}
 
 	emitPhase(ac, "resolve", "")
-	manifestChanged := false
+	manifestChanged := opts.WriteManifest
 	if edit != nil {
 		if err := edit(proj); err != nil {
 			return res, err
 		}
-		manifestChanged = true
 	}
 	priorKeys, _ := priorPackageKeys(ctx, ac, proj)
 	resolution, err := resolveForInstall(ctx, ac, proj, opts, manifestChanged)
@@ -59,6 +65,9 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
 
 	if opts.DryRun {
+		if p, err := BuildMutationPlan(resolution.Graph); err == nil {
+			res.Plan = p
+		}
 		return res, nil
 	}
 
@@ -123,9 +132,21 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 		_ = txn.Rollback(ctx)
 		return res, err
 	}
+	if useStore {
+		if err := writeStagedStoreManifest(stage, resolution.Graph); err != nil {
+			_ = txn.Rollback(ctx)
+			return res, err
+		}
+	}
+
+	snapID, err := stageSnapshot(ctx, stage, proj, resolution)
+	if err != nil {
+		_ = txn.Rollback(ctx)
+		return res, err
+	}
 
 	emitPhase(ac, "validate", "")
-	if err := validateStaged(stage, resolution.Graph, linkerMode); err != nil {
+	if err := validateStaged(stage, linkPlan, resolution.Graph, linkerMode); err != nil {
 		_ = txn.Rollback(ctx)
 		return res, err
 	}
@@ -133,14 +154,27 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 		_ = txn.Rollback(ctx)
 		return res, err
 	}
+	if err := transaction.InvokeTestHook("post_validate", 0); err != nil {
+		_ = txn.Rollback(ctx)
+		return res, apperr.Wrap(apperr.Transaction, "app.install", "validate", err)
+	}
 
-	for _, rel := range []string{"package.json", lockFileName, "node_modules", filepath.Join(".mew", "store-manifest.json")} {
-		if rel == "package.json" && !manifestChanged {
-			continue
-		}
-		if rel == filepath.Join(".mew", "store-manifest.json") && !useStore {
-			continue
-		}
+	plan := buildCommitPlan(commitPlanInput{manifestChanged: manifestChanged, useStore: useStore, snapshotID: snapID})
+	if err := txn.SetPlan(plan); err != nil {
+		_ = txn.Rollback(ctx)
+		return res, err
+	}
+
+	backupPaths := []string{lockFileName, "node_modules"}
+	if manifestChanged {
+		backupPaths = append([]string{"package.json"}, backupPaths...)
+	}
+	if useStore {
+		backupPaths = append(backupPaths, filepath.Join(".mew", "store-manifest.json"))
+	}
+	backupPaths = append(backupPaths, filepath.Join(".mew", "snapshots", "index.json"))
+
+	for _, rel := range backupPaths {
 		if err := txn.RecordBackup(rel); err != nil {
 			emitPhase(ac, "rollback", rel)
 			_ = txn.Rollback(ctx)
@@ -149,30 +183,13 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	}
 
 	emitPhase(ac, "commit", "")
-	commitOps := buildCommitOps(manifestChanged)
-	if err := txn.Commit(ctx, commitOps); err != nil {
-		emitPhase(ac, "rollback", "")
-		_ = txn.Rollback(ctx)
-		return res, err
-	}
-	liveNM := filepath.Join(proj.Root, "node_modules")
-	if err := publishNodeModules(stageNM, liveNM); err != nil {
+	if err := txn.Commit(ctx, nil); err != nil {
 		emitPhase(ac, "rollback", "")
 		_ = txn.Rollback(ctx)
 		return res, err
 	}
 
-	if useStore {
-		if err := writeStoreManifest(proj.Root, resolution.Graph); err != nil {
-			emitPhase(ac, "rollback", "")
-			_ = txn.Rollback(ctx)
-			return res, err
-		}
-	}
-
-	if err := createSnapshot(ctx, ac, proj, resolution); err != nil {
-		emitPhase(ac, "rollback", "")
-		_ = txn.Rollback(ctx)
+	if err := pruneSnapshots(ac, proj); err != nil {
 		return res, err
 	}
 
@@ -182,15 +199,91 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	return res, nil
 }
 
-func buildCommitOps(manifestChanged bool) []transaction.Op {
+func buildCommitPlan(in commitPlanInput) []transaction.Op {
 	var ops []transaction.Op
-	if manifestChanged {
+	if in.manifestChanged {
 		ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: "package.json", Backup: "stage/package.json"})
 	}
-	ops = append(ops,
-		transaction.Op{Kind: transaction.OpRename, Path: lockFileName, Backup: "stage/m.lock"},
-	)
+	ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: lockFileName, Backup: "stage/m.lock"})
+	ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: "node_modules", Backup: "stage/node_modules"})
+	if in.useStore {
+		ops = append(ops, transaction.Op{
+			Kind:   transaction.OpRename,
+			Path:   filepath.Join(".mew", "store-manifest.json"),
+			Backup: filepath.Join("stage", ".mew", "store-manifest.json"),
+		})
+	}
+	if in.snapshotID != "" {
+		snapRel := filepath.Join(".mew", "snapshots")
+		ops = append(ops,
+			transaction.Op{Kind: transaction.OpMkdir, Path: snapRel},
+			transaction.Op{Kind: transaction.OpRename, Path: filepath.Join(snapRel, in.snapshotID), Backup: filepath.Join("stage", "snapshots", in.snapshotID)},
+			transaction.Op{Kind: transaction.OpRename, Path: filepath.Join(snapRel, "index.json"), Backup: filepath.Join("stage", "snapshots", "index.json")},
+		)
+	}
 	return ops
+}
+
+func stageSnapshot(ctx context.Context, stage string, proj *project.Project, res *resolver.Resolution) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	store := snapshot.NewStore(proj.Root)
+	ids, id, nextSeq, err := store.PlannedIndex()
+	if err != nil {
+		return "", err
+	}
+	manifestPath := filepath.Join(proj.Root, "package.json")
+	if _, statErr := os.Stat(filepath.Join(stage, "package.json")); statErr == nil {
+		manifestPath = filepath.Join(stage, "package.json")
+	}
+	manifest, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return "", apperr.Wrap(apperr.IO, "app.snapshot", "package.json", err)
+	}
+	lockBytes, err := os.ReadFile(filepath.Join(stage, lockFileName))
+	if err != nil {
+		return "", apperr.Wrap(apperr.IO, "app.snapshot", lockFileName, err)
+	}
+	digest, err := snapshot.GraphDigest(res.Graph)
+	if err != nil {
+		return "", err
+	}
+	stageSnap := filepath.Join(stage, "snapshots")
+	if err := store.StageCreate(stageSnap, id, manifest, lockBytes, digest); err != nil {
+		return "", err
+	}
+	if err := store.StageIndex(stageSnap, ids, nextSeq); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func pruneSnapshots(ac *Context, proj *project.Project) error {
+	store := snapshot.NewStore(proj.Root)
+	return store.Prune(snapshotRetention(ac))
+}
+
+func snapshotRetention(ac *Context) int {
+	const defaultRetain = 10
+	if ac == nil || ac.Config == nil {
+		return defaultRetain
+	}
+	v, err := config.Get(ac.Config, "transaction.snapshot_retention")
+	if err != nil {
+		return defaultRetain
+	}
+	switch n := v.Raw.(type) {
+	case int:
+		if n > 0 {
+			return n
+		}
+	case float64:
+		if int(n) > 0 {
+			return int(n)
+		}
+	}
+	return defaultRetain
 }
 
 func writeStagedManifest(stage string, proj *project.Project) error {
@@ -212,27 +305,45 @@ func writeStagedLock(stage string, ac *Context, proj *project.Project, res *reso
 	return mlock.WriteAtomic(filepath.Join(stage, lockFileName), doc)
 }
 
-func validateStaged(stage string, g *graph.Graph, linkerMode string) error {
-	if g == nil {
+func validateStaged(stage string, linkPlan *linker.Plan, g *graph.Graph, linkerMode string) error {
+	if g == nil || linkPlan == nil {
 		return nil
 	}
 	nm := filepath.Join(stage, "node_modules")
 	if linkerMode == "isolated" {
-		return validateStagedIsolated(nm, g)
+		return validateStagedIsolated(nm, linkPlan, g)
 	}
-	for _, pkg := range g.Packages {
-		pkgPath := packageJSONPath(nm, pkg.ID.Name)
-		if _, err := os.Stat(pkgPath); err != nil {
-			return apperr.Wrap(apperr.Integrity, "app.validate", pkg.ID.Key(), err)
-		}
-	}
-	return nil
+	return validateStagedHoisted(nm, linkPlan, g)
 }
 
-func validateStagedIsolated(nm string, g *graph.Graph) error {
-	children := map[string][]string{}
-	for _, e := range g.Edges {
-		children[e.From] = append(children[e.From], e.To)
+func validateStagedHoisted(nm string, linkPlan *linker.Plan, g *graph.Graph) error {
+	children := childEdgesForValidate(g)
+	byKey := packagesByKey(g)
+	placed := placementsByKey(linkPlan.Placements)
+
+	for _, pl := range linkPlan.Placements {
+		if err := validatePlacementPackage(nm, pl, byKey); err != nil {
+			return err
+		}
+	}
+	for from, tos := range children {
+		for _, toKey := range tos {
+			if err := validateReachableDep(nm, from, toKey, placed, byKey); err != nil {
+				return err
+			}
+		}
+	}
+	return validateBinTargets(linkPlan.Bins)
+}
+
+func validateStagedIsolated(nm string, linkPlan *linker.Plan, g *graph.Graph) error {
+	children := childEdgesForValidate(g)
+	byKey := packagesByKey(g)
+
+	for _, pl := range linkPlan.Placements {
+		if err := validatePlacementPackage(nm, pl, byKey); err != nil {
+			return err
+		}
 	}
 	for _, e := range g.Edges {
 		if e.From != string(graph.RootImporter) {
@@ -244,15 +355,167 @@ func validateStagedIsolated(nm string, g *graph.Graph) error {
 			return apperr.Wrap(apperr.Integrity, "app.validate", e.To, err)
 		}
 	}
-	for _, pkg := range g.Packages {
-		sid := isolated.StoreID(pkg.ID)
-		content := filepath.Join(nm, ".pnpm", sid, "node_modules")
-		content = filepath.Join(append([]string{content}, installSegments(pkg.ID.Name)...)...)
-		if _, err := os.Stat(filepath.Join(content, "package.json")); err != nil {
-			return apperr.Wrap(apperr.Integrity, "app.validate", pkg.ID.Key(), err)
+	for from, tos := range children {
+		if from == string(graph.RootImporter) {
+			continue
+		}
+		if err := validateIsolatedDeps(nm, from, tos, placedDestSet(linkPlan.Placements)); err != nil {
+			return err
 		}
 	}
 	return validateIsolatedBoundaries(nm, g, children)
+}
+
+func validatePlacementPackage(nm string, pl linker.Placement, byKey map[string]graph.Package) error {
+	pkgPath := filepath.Join(pl.DestDir, "package.json")
+	st, err := os.Stat(pkgPath)
+	if err != nil {
+		return apperr.Wrap(apperr.Integrity, "app.validate", pl.Key, err)
+	}
+	if st.IsDir() {
+		return apperr.New(apperr.Integrity, "app.validate", pl.Key, "package.json is a directory")
+	}
+	pkg, ok := byKey[pl.Key]
+	if !ok {
+		return apperr.New(apperr.Integrity, "app.validate", pl.Key, "package missing from graph")
+	}
+	gotName, gotVersion, err := readPackageIdentity(pkgPath)
+	if err != nil {
+		return apperr.Wrap(apperr.Integrity, "app.validate", pl.Key, err)
+	}
+	if gotName != pkg.ID.Name || gotVersion != pkg.ID.Version {
+		return apperr.New(apperr.Integrity, "app.validate", pl.Key,
+			"package.json identity mismatch")
+	}
+	_ = nm
+	return nil
+}
+
+func validateReachableDep(nm, from, toKey string, placed map[string][]linker.Placement, byKey map[string]graph.Package) error {
+	_ = byKey
+	targets, ok := placed[toKey]
+	if !ok || len(targets) == 0 {
+		return apperr.New(apperr.Integrity, "app.validate.reachable", toKey, "missing placement")
+	}
+	if from == string(graph.RootImporter) {
+		return nil
+	}
+	parents, ok := placed[from]
+	if !ok || len(parents) == 0 {
+		return apperr.New(apperr.Integrity, "app.validate.reachable", from, "missing parent placement")
+	}
+	depName := packageNameFromKey(toKey)
+	for _, parent := range parents {
+		nestedNM := filepath.Join(parent.DestDir, "node_modules")
+		candidate := filepath.Join(append([]string{nestedNM}, installSegments(depName)...)...)
+		for _, target := range targets {
+			if filepath.Clean(target.DestDir) == filepath.Clean(candidate) {
+				return nil
+			}
+			if isHoistedReachable(parent.DestDir, nm, target.DestDir, depName) {
+				return nil
+			}
+		}
+	}
+	return apperr.New(apperr.Integrity, "app.validate.reachable", toKey, "not reachable from "+from)
+}
+
+func isHoistedReachable(parentDest, nmRoot, targetDest, depName string) bool {
+	scope := binNodeModulesForValidate(parentDest)
+	if scope == "" {
+		scope = nmRoot
+	}
+	candidate := filepath.Join(append([]string{scope}, installSegments(depName)...)...)
+	return filepath.Clean(candidate) == filepath.Clean(targetDest)
+}
+
+func binNodeModulesForValidate(pkgInstallDir string) string {
+	dir := filepath.Clean(pkgInstallDir)
+	for {
+		parent := filepath.Dir(dir)
+		if filepath.Base(parent) == "node_modules" {
+			return parent
+		}
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+func validateIsolatedDeps(nm, from string, tos []string, placed map[string]struct{}) error {
+	privateNM := filepath.Join(nm, ".pnpm", isolated.StoreIDFromKey(from), "node_modules")
+	for _, toKey := range tos {
+		depName := packageNameFromKey(toKey)
+		link := filepath.Join(append([]string{privateNM}, installSegments(depName)...)...)
+		if _, ok := placed[toKey]; !ok {
+			return apperr.New(apperr.Integrity, "app.validate.isolated", toKey, "missing placement")
+		}
+		if _, err := os.Stat(filepath.Join(link, "package.json")); err != nil {
+			return apperr.Wrap(apperr.Integrity, "app.validate.isolated", toKey, err)
+		}
+	}
+	return nil
+}
+
+func placementsByKey(ps []linker.Placement) map[string][]linker.Placement {
+	out := map[string][]linker.Placement{}
+	for _, p := range ps {
+		out[p.Key] = append(out[p.Key], p)
+	}
+	return out
+}
+
+func placedDestSet(ps []linker.Placement) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, p := range ps {
+		out[p.Key] = struct{}{}
+	}
+	return out
+}
+
+func childEdgesForValidate(g *graph.Graph) map[string][]string {
+	out := map[string][]string{}
+	for _, e := range g.Edges {
+		out[e.From] = append(out[e.From], e.To)
+	}
+	return out
+}
+
+func packagesByKey(g *graph.Graph) map[string]graph.Package {
+	out := map[string]graph.Package{}
+	for _, p := range g.Packages {
+		out[p.ID.Key()] = p
+	}
+	return out
+}
+
+func validateBinTargets(bins []linker.BinSource) error {
+	for _, b := range bins {
+		if b.Cmd == "" || b.Target == "" || b.PackageDir == "" {
+			return apperr.New(apperr.Integrity, "app.validate.bin", b.Cmd, "incomplete bin source")
+		}
+		script := filepath.Join(b.PackageDir, filepath.FromSlash(strings.TrimPrefix(b.Target, "./")))
+		if _, err := os.Stat(script); err != nil {
+			return apperr.Wrap(apperr.Integrity, "app.validate.bin", b.Cmd, err)
+		}
+	}
+	return nil
+}
+
+func readPackageIdentity(pkgPath string) (name, version string, err error) {
+	raw, err := os.ReadFile(pkgPath)
+	if err != nil {
+		return "", "", err
+	}
+	var doc struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return "", "", err
+	}
+	return doc.Name, doc.Version, nil
 }
 
 func validateIsolatedBoundaries(nm string, g *graph.Graph, children map[string][]string) error {
@@ -313,65 +576,6 @@ func installSegments(name string) []string {
 	}
 	return []string{name}
 }
-
-func packageJSONPath(nm, name string) string {
-	if strings.HasPrefix(name, "@") {
-		if i := strings.Index(name, "/"); i > 0 {
-			return filepath.Join(nm, name[:i], name[i+1:], "package.json")
-		}
-	}
-	return filepath.Join(nm, name, "package.json")
-}
-
-func createSnapshot(ctx context.Context, ac *Context, proj *project.Project, res *resolver.Resolution) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	store := snapshot.NewStore(proj.Root)
-	id, err := store.NextID()
-	if err != nil {
-		return err
-	}
-	manifest, err := os.ReadFile(filepath.Join(proj.Root, "package.json"))
-	if err != nil {
-		return apperr.Wrap(apperr.IO, "app.snapshot", "package.json", err)
-	}
-	lock, err := os.ReadFile(LockPath(proj.Root))
-	if err != nil {
-		return apperr.Wrap(apperr.IO, "app.snapshot", lockFileName, err)
-	}
-	digest, err := snapshot.GraphDigest(res.Graph)
-	if err != nil {
-		return err
-	}
-	if err := store.Create(id, manifest, lock, digest); err != nil {
-		return err
-	}
-	return store.Prune(snapshotRetention(ac))
-}
-
-func snapshotRetention(ac *Context) int {
-	const defaultRetain = 10
-	if ac == nil || ac.Config == nil {
-		return defaultRetain
-	}
-	v, err := config.Get(ac.Config, "transaction.snapshot_retention")
-	if err != nil {
-		return defaultRetain
-	}
-	switch n := v.Raw.(type) {
-	case int:
-		if n > 0 {
-			return n
-		}
-	case float64:
-		if int(n) > 0 {
-			return int(n)
-		}
-	}
-	return defaultRetain
-}
-
 func emitPhase(ac *Context, phase, subject string) {
 	if ac == nil || ac.Reporter == nil {
 		return

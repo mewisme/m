@@ -58,6 +58,9 @@ func (r *Runner) Begin(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := AcquireProjectLock(r.ProjectRoot, id); err != nil {
+		return err
+	}
 	r.ID = id
 	r.Root = filepath.Join(TxnRoot(r.ProjectRoot), id)
 	r.doc = &Document{
@@ -67,15 +70,26 @@ func (r *Runner) Begin(ctx context.Context) error {
 		State:         StateStaging,
 	}
 	if err := os.MkdirAll(r.StagePath(), 0o755); err != nil {
+		_ = ReleaseProjectLock(r.ProjectRoot)
 		return apperr.Wrap(apperr.IO, "transaction.begin", r.Root, err)
 	}
 	if err := os.MkdirAll(filepath.Join(r.Root, backupsDir), 0o755); err != nil {
+		_ = ReleaseProjectLock(r.ProjectRoot)
 		return apperr.Wrap(apperr.IO, "transaction.begin", r.Root, err)
 	}
 	if err := r.saveJournal(); err != nil {
+		_ = ReleaseProjectLock(r.ProjectRoot)
 		return err
 	}
-	return writeCurrent(r.ProjectRoot, id)
+	if err := invokeTestHook("journal_created", 0); err != nil {
+		_ = ReleaseProjectLock(r.ProjectRoot)
+		return apperr.Wrap(apperr.Transaction, "transaction.begin", r.ID, err)
+	}
+	if err := writeCurrent(r.ProjectRoot, id); err != nil {
+		_ = ReleaseProjectLock(r.ProjectRoot)
+		return err
+	}
+	return nil
 }
 
 // SetState updates journal state and persists.
@@ -84,6 +98,22 @@ func (r *Runner) SetState(state string) error {
 		return apperr.New(apperr.Transaction, "transaction.state", "", "transaction not begun")
 	}
 	r.doc.State = state
+	return r.saveJournal()
+}
+
+// SetPlan records ordered forward ops before the first live mutation.
+func (r *Runner) SetPlan(plan []Op) error {
+	if r.doc == nil {
+		return apperr.New(apperr.Transaction, "transaction.plan", "", "transaction not begun")
+	}
+	cp := make([]Op, len(plan))
+	for i, op := range plan {
+		cp[i] = op
+		if cp[i].Progress == "" {
+			cp[i].Progress = ProgressPending
+		}
+	}
+	r.doc.Plan = cp
 	return r.saveJournal()
 }
 
@@ -96,21 +126,42 @@ func (r *Runner) RecordBackup(rel string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(live); os.IsNotExist(err) {
-		return nil
-	} else if err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.backup", rel, err)
-	}
-	backupRel := filepath.Join(backupsDir, filepath.Base(rel))
-	backupAbs := filepath.Join(r.Root, backupRel)
-	if err := copyPath(live, backupAbs); err != nil {
+	kind, target, hadPrior, err := pathKind(live)
+	if err != nil {
 		return err
 	}
-	r.doc.Ops = append(r.doc.Ops, Op{Kind: OpBackup, Path: rel, Backup: backupRel})
-	return r.saveJournal()
+	op := Op{
+		Kind:      OpBackup,
+		Path:      rel,
+		HadPrior:  hadPrior,
+		PriorKind: kind,
+		Progress:  ProgressApplied,
+	}
+	if !hadPrior {
+		r.doc.Ops = append(r.doc.Ops, op)
+		return r.saveJournal()
+	}
+	backupRel := filepath.Join(backupsDir, sanitizeBackupName(rel))
+	backupAbs := filepath.Join(r.Root, backupRel)
+	op.Backup = backupRel
+	op.DestKind = kind
+	op.SymlinkTarget = target
+	if kind == DestKindSymlink || kind == DestKindJunction {
+		if err := os.WriteFile(backupAbs+".link", []byte(target), 0o644); err != nil {
+			return apperr.Wrap(apperr.IO, "transaction.backup", rel, err)
+		}
+		op.Backup = backupRel + ".link"
+	} else if err := copyPath(live, backupAbs); err != nil {
+		return err
+	}
+	r.doc.Ops = append(r.doc.Ops, op)
+	if err := r.saveJournal(); err != nil {
+		return err
+	}
+	return invokeTestHook("backup", len(r.doc.Ops)-1)
 }
 
-// Commit applies forward ops in order; on any error, rolls back.
+// Commit applies the forward plan; marks committed only after the last op succeeds.
 func (r *Runner) Commit(ctx context.Context, extra []Op) error {
 	if r.doc == nil {
 		return apperr.New(apperr.Transaction, "transaction.commit", "", "transaction not begun")
@@ -118,26 +169,43 @@ func (r *Runner) Commit(ctx context.Context, extra []Op) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	ops := append(append([]Op{}, r.doc.Ops...), extra...)
+	plan := append(append([]Op{}, r.doc.Plan...), extra...)
+	if len(plan) == 0 && r.doc.SchemaVersion < SchemaVersion {
+		// v1 callers passed all forward ops via extra.
+		plan = extra
+	}
+	if len(plan) > 0 && len(r.doc.Plan) == 0 {
+		r.doc.Plan = plan
+	}
 	if err := r.SetState(StateCommitting); err != nil {
 		return err
 	}
-	for i, op := range ops {
+	for i := range r.doc.Plan {
+		if err := invokeTestHook("publish", i); err != nil {
+			_ = r.Rollback(ctx)
+			return apperr.Wrap(apperr.Transaction, "transaction.commit", r.doc.Plan[i].Path, err)
+		}
 		if err := invokeTestHook("commit", i); err != nil {
 			_ = r.Rollback(ctx)
-			return apperr.Wrap(apperr.Transaction, "transaction.commit", op.Path, err)
+			return apperr.Wrap(apperr.Transaction, "transaction.commit", r.doc.Plan[i].Path, err)
 		}
-		if err := r.applyForward(ctx, op); err != nil {
+		if err := r.applyPlanOp(ctx, i, true); err != nil {
 			_ = r.Rollback(ctx)
 			return err
 		}
 	}
-	r.doc.Ops = ops
+	if err := invokeTestHook("pre_committed", 0); err != nil {
+		_ = r.Rollback(ctx)
+		return apperr.Wrap(apperr.Transaction, "transaction.commit", "", err)
+	}
 	r.doc.State = StateCommitted
-	return r.saveJournal()
+	if err := r.saveJournal(); err != nil {
+		return err
+	}
+	return invokeTestHook("committed", 0)
 }
 
-// Rollback restores backups in reverse order and sets state=aborted.
+// Rollback restores backups and inverses applied forward ops.
 func (r *Runner) Rollback(ctx context.Context) error {
 	if r.doc == nil {
 		return nil
@@ -145,13 +213,26 @@ func (r *Runner) Rollback(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if err := invokeTestHook("rollback", 0); err != nil {
+		return apperr.Wrap(apperr.Transaction, "transaction.rollback", "", err)
+	}
+	_ = repairPartialNodeModules(r.ProjectRoot)
+	for i := len(r.doc.Plan) - 1; i >= 0; i-- {
+		op := r.doc.Plan[i]
+		if op.Progress != ProgressApplied && op.Progress != ProgressApplying {
+			continue
+		}
+		if err := invokeTestHook("rollback", i+1); err != nil {
+			return apperr.Wrap(apperr.Transaction, "transaction.rollback", op.Path, err)
+		}
+		if err := r.applyPlanOp(ctx, i, false); err != nil {
+			return err
+		}
+	}
 	for i := len(r.doc.Ops) - 1; i >= 0; i-- {
 		op := r.doc.Ops[i]
 		if op.Kind != OpBackup {
 			continue
-		}
-		if err := invokeTestHook("rollback", i); err != nil {
-			return apperr.Wrap(apperr.Transaction, "transaction.rollback", op.Path, err)
 		}
 		if err := r.applyInverse(ctx, op); err != nil {
 			return err
@@ -162,6 +243,7 @@ func (r *Runner) Rollback(ctx context.Context) error {
 		return err
 	}
 	_ = clearCurrent(r.ProjectRoot)
+	_ = ReleaseProjectLock(r.ProjectRoot)
 	return nil
 }
 
@@ -171,6 +253,7 @@ func (r *Runner) Finish(keepJournal bool) error {
 		return nil
 	}
 	_ = clearCurrent(r.ProjectRoot)
+	_ = ReleaseProjectLock(r.ProjectRoot)
 	if keepJournal {
 		return nil
 	}
@@ -180,6 +263,7 @@ func (r *Runner) Finish(keepJournal bool) error {
 // Discard removes an incomplete transaction without restoring backups.
 func (r *Runner) Discard() error {
 	_ = clearCurrent(r.ProjectRoot)
+	_ = ReleaseProjectLock(r.ProjectRoot)
 	if r.Root == "" {
 		return nil
 	}
@@ -193,6 +277,7 @@ func (r *Runner) Document() *Document {
 	}
 	cp := *r.doc
 	cp.Ops = append([]Op(nil), r.doc.Ops...)
+	cp.Plan = append([]Op(nil), r.doc.Plan...)
 	return &cp
 }
 
@@ -206,23 +291,74 @@ func LoadIncomplete(projectRoot string) (*Runner, error) {
 		return nil, nil
 	}
 	root := filepath.Join(TxnRoot(projectRoot), id)
-	data, err := os.ReadFile(filepath.Join(root, JournalName))
-	if err != nil {
-		if os.IsNotExist(err) {
-			_ = clearCurrent(projectRoot)
-			return nil, nil
-		}
-		return nil, apperr.Wrap(apperr.IO, "transaction.load", root, err)
-	}
-	doc, err := Decode(data)
+	doc, err := loadJournal(root)
 	if err != nil {
 		return nil, err
 	}
-	if doc.State == StateCommitted || doc.State == StateAborted {
+	if doc == nil {
 		_ = clearCurrent(projectRoot)
 		return nil, nil
 	}
+	if doc.State == StateCommitted || doc.State == StateAborted {
+		_ = clearCurrent(projectRoot)
+		_ = ReleaseProjectLock(projectRoot)
+		return nil, nil
+	}
 	return &Runner{ProjectRoot: projectRoot, ID: id, Root: root, doc: doc}, nil
+}
+
+// RecoverIncomplete rolls back or resumes an interrupted transaction (idempotent).
+func RecoverIncomplete(ctx context.Context, projectRoot string) error {
+	if err := invokeTestHook("recovery", 0); err != nil {
+		return apperr.Wrap(apperr.Transaction, "transaction.recover", projectRoot, err)
+	}
+	txn, err := LoadIncomplete(projectRoot)
+	if err != nil || txn == nil {
+		return err
+	}
+	switch txn.doc.State {
+	case StateStaging:
+		return txn.Discard()
+	case StateValidated:
+		return txn.Discard()
+	case StateCommitting:
+		return txn.Rollback(ctx)
+	default:
+		return nil
+	}
+}
+
+func (r *Runner) applyPlanOp(ctx context.Context, index int, forward bool) error {
+	if index < 0 || index >= len(r.doc.Plan) {
+		return nil
+	}
+	op := r.doc.Plan[index]
+	if forward {
+		if op.Progress == ProgressApplied {
+			return nil
+		}
+		r.doc.Plan[index].Progress = ProgressApplying
+		if err := r.saveJournal(); err != nil {
+			return err
+		}
+		if err := r.applyForward(ctx, op); err != nil {
+			return err
+		}
+		r.doc.Plan[index].Progress = ProgressApplied
+		return r.saveJournal()
+	}
+	if op.Progress != ProgressApplied && op.Progress != ProgressApplying {
+		return nil
+	}
+	r.doc.Plan[index].Progress = ProgressRollingBack
+	if err := r.saveJournal(); err != nil {
+		return err
+	}
+	if err := r.applyInverse(ctx, op); err != nil {
+		return err
+	}
+	r.doc.Plan[index].Progress = ProgressRolledBack
+	return r.saveJournal()
 }
 
 func (r *Runner) saveJournal() error {
@@ -230,7 +366,11 @@ func (r *Runner) saveJournal() error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(r.Root, JournalName)
+	name := JournalName
+	if r.doc != nil && r.doc.SchemaVersion == 1 {
+		name = JournalNameV1
+	}
+	path := filepath.Join(r.Root, name)
 	tmp, err := os.CreateTemp(r.Root, ".journal.*.tmp")
 	if err != nil {
 		return apperr.Wrap(apperr.IO, "transaction.journal", path, err)
@@ -257,13 +397,27 @@ func (r *Runner) saveJournal() error {
 	return nil
 }
 
+func loadJournal(root string) (*Document, error) {
+	for _, name := range []string{JournalName, JournalNameV1} {
+		data, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, apperr.Wrap(apperr.IO, "transaction.load", root, err)
+		}
+		return Decode(data)
+	}
+	return nil, nil
+}
+
 func (r *Runner) applyForward(ctx context.Context, op Op) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	switch op.Kind {
 	case OpBackup:
-		return nil // backup already performed at RecordBackup
+		return nil
 	case OpRename:
 		return r.renameOp(op, true)
 	case OpWrite:
@@ -291,20 +445,7 @@ func (r *Runner) applyInverse(ctx context.Context, op Op) error {
 	}
 	switch op.Kind {
 	case OpBackup:
-		if op.Backup == "" {
-			return nil
-		}
-		live, err := GuardPath(r.ProjectRoot, op.Path)
-		if err != nil {
-			return err
-		}
-		backup := filepath.Join(r.Root, op.Backup)
-		if _, err := os.Stat(backup); os.IsNotExist(err) {
-			_ = os.RemoveAll(live)
-			return nil
-		}
-		_ = os.RemoveAll(live)
-		return copyPath(backup, live)
+		return r.restoreBackup(op)
 	case OpRename:
 		return r.renameOp(op, false)
 	case OpWrite:
@@ -335,6 +476,37 @@ func (r *Runner) applyInverse(ctx context.Context, op Op) error {
 	default:
 		return apperr.New(apperr.Transaction, "transaction.rollback", op.Kind, "unknown op kind")
 	}
+}
+
+func (r *Runner) restoreBackup(op Op) error {
+	live, err := GuardPath(r.ProjectRoot, op.Path)
+	if err != nil {
+		return err
+	}
+	hadPrior := op.HadPrior || op.Backup != ""
+	if !hadPrior {
+		return os.RemoveAll(live)
+	}
+	if op.Backup == "" {
+		return nil
+	}
+	backup := filepath.Join(r.Root, op.Backup)
+	if op.PriorKind == DestKindSymlink || op.PriorKind == DestKindJunction {
+		target, err := os.ReadFile(backup)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return os.RemoveAll(live)
+			}
+			return apperr.Wrap(apperr.IO, "transaction.rollback", op.Path, err)
+		}
+		_ = os.RemoveAll(live)
+		return os.Symlink(strings.TrimSpace(string(target)), live)
+	}
+	if _, err := os.Stat(backup); os.IsNotExist(err) {
+		return os.RemoveAll(live)
+	}
+	_ = os.RemoveAll(live)
+	return copyPath(backup, live)
 }
 
 func (r *Runner) renameOp(op Op, forward bool) error {
@@ -398,6 +570,53 @@ func (r *Runner) writeOp(op Op) error {
 		}
 	}
 	return nil
+}
+
+// repairPartialNodeModules fixes interrupted node_modules rename choreography.
+func repairPartialNodeModules(projectRoot string) error {
+	live := filepath.Join(projectRoot, "node_modules")
+	backup := live + ".mew-old"
+	liveStat, liveErr := os.Stat(live)
+	backupStat, backupErr := os.Stat(backup)
+	if liveErr != nil && os.IsNotExist(liveErr) {
+		if backupErr == nil && backupStat.IsDir() {
+			return os.Rename(backup, live)
+		}
+		return nil
+	}
+	if backupErr == nil && backupStat.IsDir() && liveErr == nil && liveStat.IsDir() {
+		_ = os.RemoveAll(backup)
+	}
+	return nil
+}
+
+func pathKind(path string) (kind, target string, hadPrior bool, err error) {
+	info, statErr := os.Lstat(path)
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
+			return DestKindNone, "", false, nil
+		}
+		return "", "", false, apperr.Wrap(apperr.IO, "transaction.pathkind", path, statErr)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		tgt, readErr := os.Readlink(path)
+		if readErr != nil {
+			return "", "", false, apperr.Wrap(apperr.IO, "transaction.pathkind", path, readErr)
+		}
+		return DestKindSymlink, tgt, true, nil
+	}
+	if info.IsDir() {
+		return DestKindDir, "", true, nil
+	}
+	return DestKindFile, "", true, nil
+}
+
+func sanitizeBackupName(rel string) string {
+	s := strings.NewReplacer(string(filepath.Separator), "_", "..", "_").Replace(rel)
+	if s == "" {
+		return "backup"
+	}
+	return s
 }
 
 // publishDir swaps stageDir into liveDir using rename choreography (Windows-safe).

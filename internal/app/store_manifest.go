@@ -8,6 +8,7 @@ import (
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/m/internal/store"
 )
 
 const storeManifestSchemaVersion = 1
@@ -22,7 +23,11 @@ func storeManifestPath(projectRoot string) string {
 	return filepath.Join(projectRoot, ".mew", "store-manifest.json")
 }
 
-func writeStoreManifest(projectRoot string, g *graph.Graph) error {
+func writeStagedStoreManifest(stageDir string, g *graph.Graph) error {
+	return writeStoreManifestAt(filepath.Join(stageDir, ".mew", "store-manifest.json"), g)
+}
+
+func writeStoreManifestAt(path string, g *graph.Graph) error {
 	if g == nil {
 		return nil
 	}
@@ -42,14 +47,13 @@ func writeStoreManifest(projectRoot string, g *graph.Graph) error {
 	doc := StoreManifest{SchemaVersion: storeManifestSchemaVersion, Packages: keys}
 	raw, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
-		return apperr.Wrap(apperr.IO, "app.store-manifest", projectRoot, err)
+		return apperr.Wrap(apperr.IO, "app.store-manifest", path, err)
 	}
 	raw = append(raw, '\n')
-	dir := filepath.Dir(storeManifestPath(projectRoot))
+	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return apperr.Wrap(apperr.IO, "app.store-manifest", dir, err)
 	}
-	path := storeManifestPath(projectRoot)
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
 		return apperr.Wrap(apperr.IO, "app.store-manifest", path, err)
@@ -80,29 +84,7 @@ func ReadStoreManifest(projectRoot string) (*StoreManifest, error) {
 	return &doc, nil
 }
 
-// CollectReferencedIntegrities scans manifest files under roots for prune.
+// CollectReferencedIntegrities scans manifest files and active txn journals under roots.
 func CollectReferencedIntegrities(roots []string) (map[string]struct{}, error) {
-	out := map[string]struct{}{}
-	for _, root := range roots {
-		if root == "" {
-			continue
-		}
-		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-			if err != nil || d == nil || d.IsDir() {
-				return err
-			}
-			if filepath.Base(path) != "store-manifest.json" {
-				return nil
-			}
-			doc, err := ReadStoreManifest(filepath.Dir(filepath.Dir(path)))
-			if err != nil {
-				return nil
-			}
-			for _, k := range doc.Packages {
-				out[k] = struct{}{}
-			}
-			return nil
-		})
-	}
-	return out, nil
+	return store.CollectReferencedIntegrities(roots)
 }

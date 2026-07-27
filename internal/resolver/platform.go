@@ -26,17 +26,40 @@ func CurrentTarget() Target {
 
 // Matches reports whether meta's optional/platform constraints include target.
 // Empty constraint lists match every platform.
+// npm-compatible: positive entries require a match; !prefixed entries exclude.
 func (t Target) Matches(meta registry.VersionMeta) bool {
-	if len(meta.OS) > 0 && !containsFold(meta.OS, t.OS) {
+	if len(meta.OS) > 0 && !platformListMatches(meta.OS, t.OS) {
 		return false
 	}
-	if len(meta.CPU) > 0 && !containsFold(meta.CPU, t.CPU) {
+	if len(meta.CPU) > 0 && !platformListMatches(meta.CPU, t.CPU) {
 		return false
 	}
-	if len(meta.Libc) > 0 && t.Libc != "" && !containsFold(meta.Libc, t.Libc) {
+	if len(meta.Libc) > 0 && t.Libc != "" && !platformListMatches(meta.Libc, t.Libc) {
 		return false
 	}
 	return true
+}
+
+func platformListMatches(list []string, want string) bool {
+	var hasPositive bool
+	for _, entry := range list {
+		neg := strings.HasPrefix(entry, "!")
+		val := entry
+		if neg {
+			val = strings.TrimPrefix(entry, "!")
+		}
+		if neg {
+			if strings.EqualFold(val, want) {
+				return false
+			}
+			continue
+		}
+		hasPositive = true
+		if strings.EqualFold(val, want) {
+			return true
+		}
+	}
+	return !hasPositive
 }
 
 func normalizeOS(goos string) string {
@@ -72,13 +95,4 @@ func detectLibc() string {
 		}
 	}
 	return "glibc"
-}
-
-func containsFold(list []string, want string) bool {
-	for _, v := range list {
-		if strings.EqualFold(v, want) {
-			return true
-		}
-	}
-	return false
 }

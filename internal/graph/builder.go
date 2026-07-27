@@ -37,6 +37,25 @@ func (b *Builder) EdgeEx(from, to string, kind DepKind, rng string, optional boo
 	return b
 }
 
+// RemapPackageKey rewrites a resolved package key and updates incident edges.
+func (b *Builder) RemapPackageKey(oldKey, newKey string, newID PackageID) {
+	newID.Normalize()
+	for i := range b.packages {
+		if b.packages[i].ID.Key() == oldKey {
+			b.packages[i].ID = newID
+			break
+		}
+	}
+	for i := range b.edges {
+		if b.edges[i].From == oldKey {
+			b.edges[i].From = newKey
+		}
+		if b.edges[i].To == oldKey {
+			b.edges[i].To = newKey
+		}
+	}
+}
+
 // Build validates and returns an immutable graph.
 func (b *Builder) Build() (*Graph, error) {
 	g := &Graph{

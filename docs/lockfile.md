@@ -10,15 +10,15 @@ Mew's native lockfile is deterministic JSON at the project root. Format decision
 | Filename | `m.lock` |
 | Project root only | yes |
 | Identity signal | `m.lock` present → `mew` (see [`identity.md`](identity.md)) |
-| Schema version field | `lockfileVersion` (currently `1`) |
+| Schema version field | `lockfileVersion` (currently `2`) |
 
-`lockfileVersion` is independent of `graph.SchemaVersion`.
+`lockfileVersion` is independent of `graph.SchemaVersion` (also `2`).
 
-## Document shape (v1)
+## Document shape (v2)
 
 ```json
 {
-  "lockfileVersion": 1,
+  "lockfileVersion": 2,
   "checksum": "<sha256-hex>",
   "settings": {
     "linker": "auto",
@@ -55,9 +55,11 @@ Mew's native lockfile is deterministic JSON at the project root. Format decision
 | `edges[]` | `graph.Edge` dependency links |
 | `extensions` | Forward-compatible unknown top-level fields (omitted when empty) |
 
-Package `id` may include `peerContext` when peer resolution supplies it (MVP 0020).
-Peer context IDs sort peer names lexicographically and append `#peer@range,...` to the
+Package `id` may include `peerProviders` when peer resolution supplies resolved provider identity (MVP 0020 / schema v2).
+Each entry is `{name, version, key}` where `key` is the resolved provider package key. IDs sort providers by name and append `#providerKey,...` to the
 base `name@version` key (see `testdata/graph/peers.json`).
+
+**v1 migration:** lockfiles with range-based `peerContext` are rejected with `ERR_M_LOCKFILE`; run `m lock` to regenerate v2.
 
 `extensions.mew.resolver/local` maps package keys (`name@version`) to local source
 metadata:

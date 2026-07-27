@@ -73,32 +73,6 @@ func newExplainPeerCmd() *cobra.Command {
 }
 
 func printConflictTree(cmd *cobra.Command, tree resolver.ConflictTree) error {
-	_, err := fmt.Fprintf(cmd.OutOrStdout(), "peer %s\n", tree.Peer)
-	if err != nil {
-		return err
-	}
-	return printConflictNode(cmd, tree.Root, 0)
-}
-
-func printConflictNode(cmd *cobra.Command, n resolver.ConflictNode, depth int) error {
-	prefix := ""
-	for i := 0; i < depth; i++ {
-		prefix += "  "
-	}
-	line := prefix + n.Constraint
-	if n.Importer != "" {
-		line += fmt.Sprintf(" required by %s", n.Importer)
-	}
-	if len(n.Candidates) > 0 {
-		line += fmt.Sprintf(" candidates=%v", n.Candidates)
-	}
-	if _, err := fmt.Fprintln(cmd.OutOrStdout(), line); err != nil {
-		return err
-	}
-	for _, child := range n.Children {
-		if err := printConflictNode(cmd, child, depth+1); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err := fmt.Fprint(cmd.OutOrStdout(), resolver.FormatConflictTree(tree))
+	return err
 }

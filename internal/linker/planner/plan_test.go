@@ -23,10 +23,10 @@ func TestPlanPackageLinkPrefersReflink(t *testing.T) {
 	}
 }
 
-func TestPlanPackageLinkHardlinkWhenNoReflink(t *testing.T) {
+func TestPlanPackageLinkCopyWhenNoReflink(t *testing.T) {
 	caps := planner.Capabilities{SameVolume: true, Hardlink: true, Reflink: false}
 	op := planner.PlanPackageLink("/src/pkg", "/dest/pkg", caps)
-	if op.Kind != linker.OpHardlink {
-		t.Fatalf("kind=%s want hardlink", op.Kind)
+	if op.Kind != linker.OpCopy {
+		t.Fatalf("kind=%s want copy", op.Kind)
 	}
 }

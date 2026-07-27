@@ -1,0 +1,5 @@
+peer react-dom
+react-dom@^18.0.0 required by react (importer .)
+search: .
+candidates: (none resolved)
+remediation: install react-dom@^18.0.0 in the dependency tree or enable resolve.autoInstallPeers

@@ -15,48 +15,34 @@ import (
 type UpdateOptions struct {
 	Targets []string
 	Latest  bool
+	Install InstallOptions
 }
 
-// Update re-resolves with incremental hints and writes m.lock.
-func Update(ctx context.Context, ac *Context, opts UpdateOptions) error {
-	proj, err := OpenProject(ctx, ac)
-	if err != nil {
-		return err
-	}
-	prior, err := readLockHints(ctx, ac, proj)
-	if err != nil {
-		return err
-	}
-	if opts.Latest {
-		if err := bumpDependencyRanges(ctx, ac, proj, opts.Targets); err != nil {
-			return err
-		}
+// Update re-resolves with incremental hints and commits via install transaction.
+func Update(ctx context.Context, ac *Context, opts UpdateOptions) (InstallResult, error) {
+	updateParams := &UpdateResolveOptions{Targets: opts.Targets}
+	edit := func(proj *project.Project) error {
 		norm, err := manifest.ToNormalized(proj.Doc)
 		if err != nil {
 			return err
 		}
-		proj.Normalized = norm
-	}
-	eng, err := resolver.NewFromApp(ac.Config, proj, os.Environ())
-	if err != nil {
-		return err
-	}
-	ropts := resolver.ResolveOptions{
-		Prior:             prior,
-		Hints:             prior,
-		UpdateTargets:     opts.Targets,
-		IncrementalUpdate: true,
-	}
-	res, err := eng.ResolveProject(ctx, proj, ropts)
-	if err != nil {
-		return err
-	}
-	if opts.Latest {
-		if err := proj.Doc.Write(""); err != nil {
-			return err
+		updateParams.PriorOverrides = cloneOverrides(norm.Overrides)
+		if opts.Latest {
+			if err := bumpDependencyRanges(ctx, ac, proj, opts.Targets); err != nil {
+				return err
+			}
+			norm, err = manifest.ToNormalized(proj.Doc)
+			if err != nil {
+				return err
+			}
 		}
+		proj.Normalized = norm
+		return nil
 	}
-	return WriteLock(ctx, ac, res)
+	inst := opts.Install
+	inst.WriteManifest = opts.Latest
+	inst.Update = updateParams
+	return runInstallTxn(ctx, ac, inst, edit)
 }
 
 func bumpDependencyRanges(ctx context.Context, ac *Context, proj *project.Project, targets []string) error {
@@ -116,4 +102,15 @@ func depsForField(doc *manifest.Document, field string) map[string]string {
 	default:
 		return nil
 	}
+}
+
+func cloneOverrides(m map[string]string) map[string]string {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }

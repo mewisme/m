@@ -179,6 +179,9 @@ func safeJoin(destAbs, name string) (string, error) {
 		if strings.Contains(strings.ToLower(name), `\windows\`) {
 			return "", apperr.New(apperr.Integrity, "archive.path", name, "windows system path")
 		}
+		if isWindowsReservedName(path.Base(clean)) {
+			return "", apperr.New(apperr.Integrity, "archive.path", name, "windows reserved name")
+		}
 	}
 	target := filepath.Join(destAbs, filepath.FromSlash(clean))
 	targetAbs, err := filepath.Abs(target)
@@ -226,4 +229,24 @@ func fileMode(hdr *tar.Header) os.FileMode {
 		mode |= 0o111
 	}
 	return mode
+}
+
+func isWindowsReservedName(base string) bool {
+	if base == "" {
+		return false
+	}
+	name := strings.ToUpper(strings.TrimSuffix(base, filepath.Ext(base)))
+	switch name {
+	case "CON", "PRN", "AUX", "NUL":
+		return true
+	}
+	if len(name) == 4 {
+		if strings.HasPrefix(name, "COM") && name[3] >= '1' && name[3] <= '9' {
+			return true
+		}
+		if strings.HasPrefix(name, "LPT") && name[3] >= '1' && name[3] <= '9' {
+			return true
+		}
+	}
+	return false
 }

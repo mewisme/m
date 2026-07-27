@@ -21,8 +21,17 @@ Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DE
 | `ERR_M_MANIFEST` | 1 | package.json parse / validate (MVP 0011) |
 | `ERR_M_NOT_FOUND` | 1 | Project root or package.json missing (MVP 0011) |
 | `ERR_M_RESOLVE` | 1 | Dependency resolution failure: unsatisfiable range, cycle, missing packument, or limit exceeded (MVP 0013) |
-| `ERR_M_TRANSACTION` | 1 | Transaction journal, commit, rollback, or recovery failure (MVP 0017) |
+| `ERR_M_TRANSACTION` | 1 | Transaction journal, commit, rollback, recovery, or project lock failure (MVP 0017) |
 | `ERR_M_STORE` | 1 | Global content store import, verify, or prune failure (MVP 0018) |
+
+### Transaction detail (0017 journal v2)
+
+| Situation | Code | Notes |
+|---|---|---|
+| Concurrent install (`lock` held) | `ERR_M_TRANSACTION` | Another process holds `.mew/txn/lock` |
+| Commit / publish failure | `ERR_M_TRANSACTION` | Roll back via `m recover` when incomplete |
+| Recovery failure | `ERR_M_TRANSACTION` | Partial `node_modules` rename may need manual cleanup |
+| Post-commit prune failure | `ERR_M_IO` | Install already committed; retry prune or `m snapshot list` |
 
 Unknown codes map to exit **1**.
 

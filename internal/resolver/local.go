@@ -26,9 +26,6 @@ func (s *resolveState) processLocal(item workItem) error {
 		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
 			fmt.Sprintf("resolution depth exceeded %d", maxDepth))
 	}
-	if pathContains(item.path, item.name) {
-		return cycleError(item.path, item.name)
-	}
 
 	protocol := string(item.protocol)
 	targetDir, relPath, err := resolveLocalPath(s.proj.Root, item.declarerPath, item.rng)
@@ -58,19 +55,28 @@ func (s *resolveState) processLocal(item workItem) error {
 		edgeRange = protocol + ":" + item.rng
 	}
 	s.b.EdgeEx(item.from, key, item.kind, edgeRange, false)
+	s.recordProvides(item.from, item.display, key)
 
 	if _, ok := s.seenPkg[key]; ok {
+		return nil
+	}
+	if _, ok := s.resolving[key]; ok {
 		return nil
 	}
 	if len(s.seenPkg) >= maxPackages {
 		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
 			fmt.Sprintf("resolution package count exceeded %d", maxPackages))
 	}
+	s.resolving[key] = struct{}{}
+	defer delete(s.resolving, key)
+
 	s.seenPkg[key] = struct{}{}
 	s.b.Package(id, "", "")
 	s.localSources[key] = LocalSource{Protocol: protocol, Path: relPath}
+	s.pkgEnv[key] = append([]string(nil), item.envKeys...)
+	s.pkgFrom[key] = item.from
 
-	return s.expandLocalManifest(key, relPath, item.depth, item.path)
+	return s.expandLocalManifest(key, relPath, item.depth, item.path, item.envKeys)
 }
 
 func resolveLocalPath(root, declarerPath, rel string) (absDir, relToRoot string, err error) {
@@ -125,7 +131,7 @@ func readLocalPackage(targetDir, fallbackName string, protocol manifest.Protocol
 	return name, version, nil
 }
 
-func (s *resolveState) expandLocalManifest(fromKey, memberPath string, depth int, path []string) error {
+func (s *resolveState) expandLocalManifest(fromKey, memberPath string, depth int, namePath, envKeys []string) error {
 	doc, err := manifest.Load(filepath.Join(s.proj.Root, filepath.FromSlash(memberPath), "package.json"))
 	if err != nil {
 		return apperr.Wrap(apperr.Resolve, "resolver.local", memberPath, err)
@@ -134,8 +140,9 @@ func (s *resolveState) expandLocalManifest(fromKey, memberPath string, depth int
 	if err != nil {
 		return err
 	}
-	nextPath := append(append([]string(nil), path...), parsePackageKey(fromKey).Name)
-	return s.seedDeps(fromKey, memberPath, norm, depth, nextPath)
+	nextNamePath := append(append([]string(nil), namePath...), parsePackageKey(fromKey).Name)
+	nextEnv := append(append([]string(nil), envKeys...), fromKey)
+	return s.seedDeps(fromKey, memberPath, norm, depth, nextNamePath, nextEnv)
 }
 
 func (s *resolveState) buildExtensions() lockfile.Extensions {
@@ -175,5 +182,26 @@ func DecodeLocalSources(ext lockfile.Extensions) (map[string]LocalSource, error)
 	if err := json.Unmarshal(raw, &locals); err != nil {
 		return nil, err
 	}
+	if err := ValidateLocalPaths(locals); err != nil {
+		return nil, err
+	}
 	return locals, nil
+}
+
+// ValidateLocalPaths rejects untrusted relative paths that escape a project root.
+func ValidateLocalPaths(locals map[string]LocalSource) error {
+	for key, src := range locals {
+		p := strings.TrimSpace(src.Path)
+		if p == "" {
+			continue
+		}
+		clean := filepath.Clean(filepath.FromSlash(p))
+		if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			return apperr.New(apperr.Lockfile, "resolver.local", key, "local path escapes project root")
+		}
+		if filepath.IsAbs(clean) {
+			return apperr.New(apperr.Lockfile, "resolver.local", key, "absolute local path not allowed")
+		}
+	}
+	return nil
 }

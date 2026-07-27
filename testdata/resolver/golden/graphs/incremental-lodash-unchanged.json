@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "importers": [
+    {
+      "id": ".",
+      "name": "root",
+      "path": "."
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "lodash",
+        "version": "4.17.21"
+      },
+      "integrity": "sha256-l",
+      "tarballUrl": "http://example/lodash.tgz"
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "to": "lodash@4.17.21",
+      "kind": "prod",
+      "range": "^4.17.0"
+    }
+  ]
+}

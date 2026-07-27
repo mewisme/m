@@ -82,7 +82,7 @@ func (s *resolveState) seedWorkspaceMembers() error {
 			s.b.Importer(importerID, norm.Name)
 			s.seededImporters[importerID] = true
 		}
-		if err := s.seedDeps(string(importerID), memPath, norm, 1, nil); err != nil {
+		if err := s.seedDeps(string(importerID), memPath, norm, 1, nil, nil); err != nil {
 			return err
 		}
 	}
@@ -100,9 +100,6 @@ func (s *resolveState) processWorkspace(item workItem) error {
 	if item.depth > maxDepth {
 		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
 			fmt.Sprintf("resolution depth exceeded %d", maxDepth))
-	}
-	if pathContains(item.path, item.name) {
-		return cycleError(item.path, item.name)
 	}
 	if s.wsByName == nil {
 		return apperr.New(apperr.Resolve, "resolver.workspace", item.name,
@@ -136,19 +133,28 @@ func (s *resolveState) processWorkspace(item workItem) error {
 		edgeRange = item.spec
 	}
 	s.b.EdgeEx(item.from, key, item.kind, edgeRange, false)
+	s.recordProvides(item.from, item.display, key)
 
 	if _, ok := s.seenPkg[key]; ok {
+		return nil
+	}
+	if _, ok := s.resolving[key]; ok {
 		return nil
 	}
 	if len(s.seenPkg) >= maxPackages {
 		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
 			fmt.Sprintf("resolution package count exceeded %d", maxPackages))
 	}
+	s.resolving[key] = struct{}{}
+	defer delete(s.resolving, key)
+
 	s.seenPkg[key] = struct{}{}
 	s.b.Package(id, "", "")
 	s.localSources[key] = LocalSource{Protocol: "workspace", Path: member.Path}
+	s.pkgEnv[key] = append([]string(nil), item.envKeys...)
+	s.pkgFrom[key] = item.from
 
-	return s.expandLocalManifest(key, member.Path, item.depth, item.path)
+	return s.expandLocalManifest(key, member.Path, item.depth, item.path, item.envKeys)
 }
 
 func workspaceVersion(member workspaceMember, rng string) (version, edgeRange string, err error) {

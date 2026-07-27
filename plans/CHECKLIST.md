@@ -35,8 +35,8 @@ Predecessors satisfied for:
 | 0016 | Core MVP 7 — Basic End-to-End Installer | Core / MVP 7 | 0011, 0013, 0014, 0015 | [x] | [0016](0016-basic-installer.md) | [0016-basic-installer](cursor/0016-basic-installer.plan.md) |
 | 0017 | Core MVP 8 — Transactional Install and Instant Rollback | Core / MVP 8 | 0016 | [x] | [0017](0017-transaction-rollback.md) | [0017-transaction-rollback](cursor/0017-transaction-rollback.plan.md) |
 | 0018 | Core MVP 9 — Global Content Store and Smart Filesystem Pl... | Core / MVP 9 | 0014, 0017 | [x] | [0018](0018-global-store-smart-linker.md) | [0018-global-store-smart-linker](cursor/0018-global-store-smart-linker.plan.md) |
-| 0019 | Core MVP 10 — Isolated Virtual Store and Node Modules Layout | Core / MVP 10 | 0018 | [x] | [0019](0019-isolated-linker.md) | [0019-isolated-linker](cursor/0019-isolated-linker.plan.md) |
-| 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [x] | [0020](0020-advanced-resolver.md) | [0020-advanced-resolver](cursor/0020-advanced-resolver.plan.md) |
+| 0019 | Core MVP 10 — Isolated Virtual Store and Node Modules Layout | Core / MVP 10 | 0018 | [ ] | [0019](0019-isolated-linker.md) | [0019-isolated-linker](cursor/0019-isolated-linker.plan.md) |
+| 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [ ] | [0020](0020-advanced-resolver.md) | [0020-advanced-resolver](cursor/0020-advanced-resolver.plan.md) |
 | 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [ ] | [0021](0021-lifecycle-sandbox.md) | [0021-lifecycle-sandbox](cursor/0021-lifecycle-sandbox.plan.md) |
 | 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [ ] | [0022](0022-workspaces-catalogs.md) | [0022-workspaces-catalogs](cursor/0022-workspaces-catalogs.plan.md) |
 | 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [ ] | [0023](0023-nub-pnpm-lock-bridge.md) | [0023-nub-pnpm-lock-bridge](cursor/0023-nub-pnpm-lock-bridge.plan.md) |
@@ -680,7 +680,7 @@ Predecessors satisfied for:
 
 ### 0019 - Core MVP 10 — Isolated Virtual Store and Node Modules Layout
 
-- status: done
+- status: experimental
 - plan: [0019-isolated-linker.md](0019-isolated-linker.md)
 - cursor: [cursor/0019-isolated-linker.plan.md](cursor/0019-isolated-linker.plan.md)
 
@@ -700,6 +700,8 @@ Predecessors satisfied for:
 - [x] Validate staged isolated tree before commit
 - [x] Support scoped packages in virtual store paths
 - [x] Deterministic ordering of virtual store directory names
+- [ ] StoreID v2 peer-provider hashing on all platforms — experimental gate
+- [ ] Node `require()` phantom dependency integration on Windows CI — experimental gate
 - [x] Emit layout summary in install output
 - [x] Acceptance: Isolated install blocks requiring undeclared dependencies
 - [x] Acceptance: pnpm-simple fixture layout matches expected structure
@@ -713,7 +715,7 @@ Predecessors satisfied for:
 
 ### 0020 - Core MVP 11 — Full Dependency Resolver
 
-- status: done
+- status: partial
 - plan: [0020-advanced-resolver.md](0020-advanced-resolver.md)
 - cursor: [cursor/0020-advanced-resolver.plan.md](cursor/0020-advanced-resolver.plan.md)
 
@@ -727,7 +729,7 @@ Predecessors satisfied for:
 - [x] Support file:, link:, and portal: source placeholders
 - [x] Implement incremental lock reuse preserving unaffected subgraph
 - [x] Minimize graph churn on targeted m update
-- [x] Emit conflict explanation tree for unsatisfiable peers
+- [x] Emit conflict explanation tree for unsatisfiable peers (golden: `testdata/resolver/explain/`)
 - [x] Record resolver policy choices in m.lock settings
 - [x] Add conformance fixtures for peer, optional, override cases
 - [x] Add workspace protocol resolution tests
@@ -742,6 +744,8 @@ Predecessors satisfied for:
 - [x] Exit: All required tests pass on supported operating systems.
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
 - [x] Exit: Public behavior and intentional deviations are documented.
+- [ ] Full workspace install wiring — deferred to **0022** (resolve-only today)
+- [ ] Full local source install (`file:` / `link:` / `portal:`) — resolve-only; install deferred
 - [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0021 - Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy

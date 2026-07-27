@@ -30,21 +30,28 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 - Root importer resolves `dependencies` and `devDependencies`.
 - Transitive packages expand **prod** `dependencies` only — never their `devDependencies`.
 - Semver: `internal/semver` over Masterminds/v3 (`^`, `~`, `*`, `x`, unions, hyphen ranges). Dist-tags resolve in the registry layer before range selection.
+- **Intentional gaps vs npm** (see `testdata/semver/corpus.json` + `internal/semver/conformance_test.go`):
+  - Build metadata (`+build`) is stripped before comparison; npm treats build metadata as opaque.
+  - Loose / partial ranges (`1.2`, `1`) are not accepted — use exact, caret, tilde, hyphen, or unions.
+  - Prerelease satisfaction follows Masterminds defaults (^ excludes prereleases unless the range explicitly includes them).
+  - `latest` and other dist-tags are not parsed inside `semver`; registry resolves tags first.
 - Fail closed: missing packument, unsatisfiable range, dependency cycle, or limit exceeded → `ERR_M_RESOLVE`.
 - Limits: `maxDepth=64`, `maxPackages=10000` (raise later for large monorepos).
 
 ### Peer dependencies (0020)
 
 - Collect `peerDependencies` (and optional `peerDependenciesMeta`) from packuments.
-- Match peers reachable from the importing context.
+- Match peers via **ancestor walk** from the importing context (nearest provider wins).
 - **Strict by default** (`resolve.strictPeerDependencies=true`): missing required peers fail with `ERR_M_RESOLVE` and a structured peer conflict (see `m explain peer`).
-- **Auto-install** (`resolve.autoInstallPeers=true`): enqueue missing peers as prod edges from the importer (npm 7+ escape hatch).
-- When peer sets diverge, assign `graph.PeerContext` on `PackageID`. Key format: `name@version#peer@range,...` (sorted peer names). Golden: `testdata/graph/peers.json`.
+- **Auto-install** (`resolve.autoInstallPeers=true`): enqueue missing peers as prod edges from the **requesting importer/context** (not always root).
+- Optional peers (`peerDependenciesMeta.optional`) may be absent without error.
+- When peer sets diverge, assign `graph.PeerProviderContext` on `PackageID` after resolution. Key format: `name@version#providerKey,...` where each provider key is the resolved `name@version` (sorted provider names). Golden: `testdata/graph/peers.json`.
+- Dependency cycles keyed by full package identity add edges to in-progress nodes instead of false-positive name-path errors.
 
 ### Optional and platform (0020)
 
 - Root `optionalDependencies` are seeded like prod deps but marked optional.
-- Optional edges skipped when `os` / `cpu` / `libc` on the packument version do not match the current target (`resolver.CurrentTarget()`).
+- Optional edges skipped when `os` / `cpu` / `libc` on the packument version do not match the current target (`resolver.CurrentTarget()`). Supports npm-style `!os` negative selectors and mixed positive/negative lists.
 - Optional transitive resolution failures are recorded (`optional-failed`) and do not fail the install graph.
 
 ### Overrides and aliases (0020)
@@ -68,13 +75,16 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 ### Incremental resolve (0020)
 
 - `ResolveOptions.Prior` + `Hints` reuse pinned versions when specifiers, overrides, and update closure are unchanged.
-- `m update [pkg...]` re-resolves with `UpdateTargets`; empty args refresh direct deps only while preserving unrelated subgraph.
+- Reuse keys incorporate importer, edge kind/range, prior parent package key, resolved peer-provider context, override hash, and policy fingerprint from the prior lock.
+- Pin reuse requires full packument metadata recovery; Mew does not synthesize dependency trees from name/version/integrity alone during incremental update.
+- After resolve, packages outside the update closure are merged verbatim from `Prior` so unrelated subgraphs stay byte-stable.
+- `m update [pkg...]` re-resolves with `UpdateTargets`; empty args refresh direct deps only while preserving unrelated subgraph. Routed through the install transaction (`runInstallTxn`).
 
 ## CLI
 
 ```text
 m resolve [--plan] [--json] [--trace]
-m update [pkg...] [--latest]
+m update [pkg...] [--latest] [--dry-run] [--json]
 m explain peer <name> [--json]
 ```
 

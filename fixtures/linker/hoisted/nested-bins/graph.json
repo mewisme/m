@@ -1,0 +1,18 @@
+{
+  "packages": [
+    {"name": "lodash", "version": "4.17.21", "key": "lodash@4.17.21"},
+    {"name": "lodash", "version": "4.17.20", "key": "lodash@4.17.20"},
+    {"name": "pkg-cli", "version": "1.0.0", "key": "pkg-cli@1.0.0"},
+    {"name": "pkg-a", "version": "1.0.0", "key": "pkg-a@1.0.0"}
+  ],
+  "edges": [
+    {"from": ".", "to": "pkg-cli@1.0.0", "kind": "prod"},
+    {"from": ".", "to": "lodash@4.17.21", "kind": "prod"},
+    {"from": ".", "to": "pkg-a@1.0.0", "kind": "prod"},
+    {"from": "pkg-a@1.0.0", "to": "lodash@4.17.20", "kind": "prod"}
+  ],
+	"expect": {
+		"pkg-cli@1.0.0": "node_modules/pkg-cli",
+		"lodash@4.17.20": "node_modules/pkg-a/node_modules/lodash"
+	}
+}

@@ -15,6 +15,9 @@ type graphHints struct {
 	manifestSpecs    map[string]string
 	priorOverrides   map[string]string
 	currentOverrides map[string]string
+	overrideChanged  bool
+	policyFP         string
+	reuseIndex       map[string]string
 }
 
 func (h graphHints) canPin(name string) bool {
@@ -27,7 +30,7 @@ func (h graphHints) canPin(name string) bool {
 	if _, inClosure := h.updateClosure[name]; inClosure {
 		return false
 	}
-	if !mapsEqual(h.currentOverrides, h.priorOverrides) {
+	if h.overrideChanged || !mapsEqual(h.currentOverrides, h.priorOverrides) {
 		return false
 	}
 	if priorRng, ok := h.priorSpecs[name]; ok {
@@ -56,6 +59,11 @@ func (h graphHints) version(name, rng string) string {
 }
 
 func (h graphHints) pkg(name, version string) (graph.Package, bool) {
+	// Incremental update requires full packument metadata recovery; never synthesize
+	// VersionMeta from integrity/tarball alone (Phase 5.1).
+	if h.incremental {
+		return graph.Package{}, false
+	}
 	if h.g == nil || !h.canPin(name) {
 		return graph.Package{}, false
 	}

@@ -1,7 +1,7 @@
 package graph
 
 // SchemaVersion is the version field on serialized Graph documents.
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 // CacheSchemaVersion versions internal resolve/cache blobs.
 // It is independent of public lockfile formats (m.lock / adapters).

@@ -40,7 +40,8 @@ type workItem struct {
 	declarerPath string
 	kind         graph.DepKind
 	depth        int
-	path         []string
+	path         []string // package name path for overrides
+	envKeys      []string // ancestor package keys for peer resolution
 	optional     bool
 	overrideFrom string
 }
@@ -59,9 +60,13 @@ type resolveState struct {
 	b          *graph.Builder
 	decisions  []ResolutionDecision
 	seenPkg    map[string]struct{}
+	resolving  map[string]struct{}
 	queuedEdge map[string]struct{}
 	pkgPeers   map[string]map[string]string
 	pkgPeerOpt map[string]map[string]bool
+	pkgEnv     map[string][]string
+	pkgFrom    map[string]string
+	provides   map[string]map[string]providedDep
 	queue      []workItem
 
 	wsIndex         *workspace.Index
@@ -126,9 +131,13 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 		omitRootDev:     opts.OmitRootDev,
 		b:               graph.NewBuilder(),
 		seenPkg:         map[string]struct{}{},
+		resolving:       map[string]struct{}{},
 		queuedEdge:      map[string]struct{}{},
 		pkgPeers:        map[string]map[string]string{},
 		pkgPeerOpt:      map[string]map[string]bool{},
+		pkgEnv:          map[string][]string{},
+		pkgFrom:         map[string]string{},
+		provides:        map[string]map[string]providedDep{},
 		localSources:    map[string]LocalSource{},
 		seededImporters: map[graph.ImporterID]bool{graph.RootImporter: true},
 	}
@@ -146,6 +155,7 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 	if err := s.run(); err != nil {
 		return nil, err
 	}
+	s.finalizePeerProviderContexts()
 	if err := s.validatePeers(pol); err != nil {
 		return nil, err
 	}
@@ -153,6 +163,12 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 	g, err := s.b.Build()
 	if err != nil {
 		return nil, apperr.Wrap(apperr.Resolve, "resolver.build", proj.Root, err)
+	}
+	if s.hints.incremental && opts.Prior != nil {
+		g, err = mergeUnchangedSubgraph(opts.Prior, g, s.hints.updateClosure)
+		if err != nil {
+			return nil, apperr.Wrap(apperr.Resolve, "resolver.merge", proj.Root, err)
+		}
 	}
 	return &Resolution{
 		SchemaVersion: ResolutionSchemaVersion,
@@ -163,10 +179,10 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 }
 
 func (s *resolveState) seedFromManifest(m *manifest.Manifest) error {
-	return s.seedDeps(string(graph.RootImporter), ".", m, 1, nil)
+	return s.seedDeps(string(graph.RootImporter), ".", m, 1, nil, nil)
 }
 
-func (s *resolveState) seedDeps(from, declarerPath string, m *manifest.Manifest, depth int, path []string) error {
+func (s *resolveState) seedDeps(from, declarerPath string, m *manifest.Manifest, depth int, namePath, envKeys []string) error {
 	if m == nil {
 		return nil
 	}
@@ -184,19 +200,19 @@ func (s *resolveState) seedDeps(from, declarerPath string, m *manifest.Manifest,
 			kind = graph.DepOptional
 			optional = true
 		}
-		if err := s.enqueue(from, declarerPath, d.Name, d.Range, kind, depth, path, optional); err != nil {
+		if err := s.enqueue(from, declarerPath, d.Name, d.Range, kind, depth, namePath, envKeys, optional); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *resolveState) enqueue(from, declarerPath, display, spec string, kind graph.DepKind, depth int, path []string, optional bool) error {
+func (s *resolveState) enqueue(from, declarerPath, display, spec string, kind graph.DepKind, depth int, namePath, envKeys []string, optional bool) error {
 	overrideFrom := ""
-	if _, ok := matchOverride(s.overrides, path, display); ok {
+	if _, ok := matchOverride(s.overrides, namePath, display); ok {
 		overrideFrom = spec
 	}
-	display, target, rng, protocol, err := rewriteSpecifier(s.overrides, path, display, spec)
+	display, target, rng, protocol, err := rewriteSpecifier(s.overrides, namePath, display, spec)
 	if err != nil {
 		return err
 	}
@@ -211,7 +227,7 @@ func (s *resolveState) enqueue(from, declarerPath, display, spec string, kind gr
 	s.queue = append(s.queue, workItem{
 		from: from, display: display, name: target, spec: spec, rng: rng,
 		protocol: protocol, declarerPath: declarerPath,
-		kind: kind, depth: depth, path: path, optional: optional,
+		kind: kind, depth: depth, path: namePath, envKeys: envKeys, optional: optional,
 		overrideFrom: overrideFrom,
 	})
 	return nil
@@ -288,9 +304,6 @@ func (s *resolveState) processRegistry(item workItem) error {
 		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
 			fmt.Sprintf("resolution depth exceeded %d", maxDepth))
 	}
-	if pathContains(item.path, item.name) {
-		return cycleError(item.path, item.name)
-	}
 
 	base := registry.ResolveBaseForPackage(s.e.Effective, s.proj.Root, s.identity, item.name)
 	pack, err := s.e.Client.Packument(s.ctx, base, item.name)
@@ -309,14 +322,11 @@ func (s *resolveState) processRegistry(item workItem) error {
 		return nil
 	}
 
-	peerCtx := peerContextFromMeta(meta)
-	decision.PeerContext = peerCtx
-
-	if err := s.resolvePeers(item.name, meta, s.pol); err != nil {
+	if err := s.ensurePeersResolved(item.name, meta, item); err != nil {
 		return err
 	}
 
-	id := graph.PackageID{Name: item.name, Version: meta.Version, PeerContext: peerCtx}
+	id := graph.PackageID{Name: item.name, Version: meta.Version}
 	id.Normalize()
 	key := id.Key()
 	decision.Selected = meta.Version
@@ -331,16 +341,25 @@ func (s *resolveState) processRegistry(item workItem) error {
 	}
 
 	s.b.EdgeEx(item.from, key, item.kind, item.rng, false)
+	s.recordProvides(item.from, item.display, key)
 
 	if _, ok := s.seenPkg[key]; ok {
+		return nil
+	}
+	if _, ok := s.resolving[key]; ok {
 		return nil
 	}
 	if len(s.seenPkg) >= maxPackages {
 		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
 			fmt.Sprintf("resolution package count exceeded %d", maxPackages))
 	}
+	s.resolving[key] = struct{}{}
+	defer delete(s.resolving, key)
+
 	s.seenPkg[key] = struct{}{}
 	s.b.Package(id, meta.Dist.Integrity, tarball)
+	s.pkgEnv[key] = append([]string(nil), item.envKeys...)
+	s.pkgFrom[key] = item.from
 
 	if len(meta.PeerDependencies) > 0 {
 		peers := make(map[string]string, len(meta.PeerDependencies))
@@ -353,15 +372,16 @@ func (s *resolveState) processRegistry(item workItem) error {
 		s.pkgPeerOpt[key] = opt
 	}
 
-	nextPath := append(append([]string(nil), item.path...), item.name)
+	nextNamePath := append(append([]string(nil), item.path...), item.name)
+	nextEnv := append(append([]string(nil), item.envKeys...), key)
 	declarer := s.declarerPathFor(key)
 	for _, kv := range sortedDeps(meta.Dependencies) {
-		if err := s.enqueue(key, declarer, kv.name, kv.rng, graph.DepProd, item.depth+1, nextPath, false); err != nil {
+		if err := s.enqueue(key, declarer, kv.name, kv.rng, graph.DepProd, item.depth+1, nextNamePath, nextEnv, false); err != nil {
 			return err
 		}
 	}
 	for _, kv := range sortedDeps(meta.OptionalDependencies) {
-		if err := s.enqueue(key, declarer, kv.name, kv.rng, graph.DepOptional, item.depth+1, nextPath, true); err != nil {
+		if err := s.enqueue(key, declarer, kv.name, kv.rng, graph.DepOptional, item.depth+1, nextNamePath, nextEnv, true); err != nil {
 			return err
 		}
 	}

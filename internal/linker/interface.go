@@ -3,6 +3,7 @@ package linker
 
 import (
 	"context"
+	"strings"
 
 	"github.com/mewisme/m/internal/graph"
 )
@@ -26,17 +27,61 @@ type Op struct {
 	Dest string `json:"dest,omitempty"`
 }
 
-// Placement records where one resolved package is installed under node_modules.
-type Placement struct {
-	Key     string `json:"key"`
-	DestDir string `json:"destDir"`
+// PlacementID uniquely identifies one physical install instance in a hoisted layout.
+// Components: parentPlacement | importer | depName | packageKey | hoistLevel.
+type PlacementID struct {
+	Parent     string `json:"parent,omitempty"`
+	Importer   string `json:"importer"`
+	DepName    string `json:"depName"`
+	PackageKey string `json:"packageKey"`
+	HoistLevel int    `json:"hoistLevel"`
 }
 
-// BinSource describes one command to expose under node_modules/.bin.
+// String returns a stable serialization for sorting and cycle detection.
+func (id PlacementID) String() string {
+	return id.Parent + "|" + id.Importer + "|" + id.DepName + "|" + id.PackageKey + "|" + itoa(id.HoistLevel)
+}
+
+// Compare returns -1, 0, or 1 for deterministic placement ordering.
+func (id PlacementID) Compare(other PlacementID) int {
+	return strings.Compare(id.String(), other.String())
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	neg := n < 0
+	if neg {
+		n = -n
+	}
+	var buf [20]byte
+	i := len(buf)
+	for n > 0 {
+		i--
+		buf[i] = byte('0' + n%10)
+		n /= 10
+	}
+	if neg {
+		i--
+		buf[i] = '-'
+	}
+	return string(buf[i:])
+}
+
+// Placement records where one resolved package is installed under node_modules.
+type Placement struct {
+	ID      PlacementID `json:"id"`
+	Key     string      `json:"key"`
+	DestDir string      `json:"destDir"`
+}
+
+// BinSource describes one command to expose under a node_modules/.bin directory.
 type BinSource struct {
-	Cmd        string `json:"cmd"`
-	Target     string `json:"target"` // script path relative to package root
-	PackageDir string `json:"packageDir"`
+	Cmd         string `json:"cmd"`
+	Target      string `json:"target"` // script path relative to package root
+	PackageDir  string `json:"packageDir"`
+	NodeModules string `json:"nodeModules,omitempty"` // defaults to plan.NodeModules
 }
 
 // LinkSummary tallies filesystem strategies used in a plan.

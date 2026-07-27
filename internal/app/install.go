@@ -7,26 +7,36 @@ import (
 	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/plan"
 	"github.com/mewisme/m/internal/project"
 	"github.com/mewisme/m/internal/registry"
 	"github.com/mewisme/m/internal/resolver"
 )
 
-// InstallOptions controls m install / ci.
+// InstallOptions controls m install / ci / update.
 type InstallOptions struct {
-	Prod        bool
-	Frozen      bool
-	DryRun      bool
-	KeepJournal bool
-	Linker      string // hoisted | isolated | empty
+	Prod          bool
+	Frozen        bool
+	DryRun        bool
+	KeepJournal   bool
+	Linker        string // hoisted | isolated | empty
+	WriteManifest bool   // commit package.json when true
+	Update        *UpdateResolveOptions
+}
+
+// UpdateResolveOptions selects incremental update resolve parameters.
+type UpdateResolveOptions struct {
+	Targets        []string
+	PriorOverrides map[string]string
 }
 
 // InstallResult summarizes package changes.
 type InstallResult struct {
-	Added    int `json:"added"`
-	Removed  int `json:"removed"`
-	Changed  int `json:"changed"`
-	Packages int `json:"packages"`
+	Added    int        `json:"added"`
+	Removed  int        `json:"removed"`
+	Changed  int        `json:"changed"`
+	Packages int        `json:"packages"`
+	Plan     *plan.Plan `json:"plan,omitempty"`
 }
 
 // AddOptions controls m add.
@@ -76,7 +86,9 @@ func Add(ctx context.Context, ac *Context, spec string, opts AddOptions) (Instal
 	edit := func(p *project.Project) error {
 		return p.Doc.SetDependency(field, name, rng)
 	}
-	return runInstallTxn(ctx, ac, opts.Install, edit)
+	inst := opts.Install
+	inst.WriteManifest = true
+	return runInstallTxn(ctx, ac, inst, edit)
 }
 
 // Remove deletes a dependency in memory and reinstalls (manifest written at commit).
@@ -99,6 +111,7 @@ func Remove(ctx context.Context, ac *Context, name string, opts InstallOptions) 
 		}
 		return nil
 	}
+	opts.WriteManifest = true
 	return runInstallTxn(ctx, ac, opts, edit)
 }
 

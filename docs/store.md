@@ -9,9 +9,13 @@ integrity.
 
 ```text
 <store>/
-  index.json                 # optional import metadata (status, prune hints)
-  packages/<algo>/<hex>/     # immutable unpacked package tree
-  .staging/<id>/             # transient import staging (removed after publish)
+  index.json                      # optional import metadata (status, prune hints)
+  packages/<algo>/<hex>/          # immutable unpacked package tree
+    .mew-tree-manifest.json       # content index (path, kind, hash, mode, symlinkTarget)
+    .mew-package-integrity        # npm SRI integrity marker
+    .import.lock                  # transient cross-process import lock
+  packages/<algo>/.quarantine/    # quarantined corrupt trees awaiting re-import
+  .staging/<id>/                  # transient import staging (removed after publish)
 ```
 
 Default store roots follow [`naming.md`](naming.md):
@@ -24,29 +28,49 @@ Default store roots follow [`naming.md`](naming.md):
 
 Override with `store.dir`, `MEW_STORE_DIR`, or `MEW_HOME/store`.
 
-## Import
+## Import and publication
 
 1. Download and verify tarball into blob cache (0014).
-2. Extract into `<store>/.staging/<id>/`.
-3. Verify `package.json` and write `.mew-package-integrity`.
-4. Atomically rename into `packages/<algo>/<hex>/`.
-5. Update `index.json` (best-effort).
+2. Acquire per-package `.import.lock` under `packages/<algo>/<hex>/`.
+3. Extract into `<store>/.staging/<id>/`.
+4. Write `.mew-package-integrity`, set tree read-only (best-effort per OS).
+5. Generate `.mew-tree-manifest.json` listing every file and symlink.
+6. Verify staged tree against the manifest.
+7. Atomically rename into `packages/<algo>/<hex>/`.
+8. Upsert `index.json` (best-effort).
 
 Re-import of the same integrity is a no-op when the existing entry verifies.
+Corrupt entries are quarantined under `packages/<algo>/.quarantine/` and
+re-imported from the verified tarball on the next install.
+
+`m store status` and import both run stale `.staging/` cleanup (dirs older than
+one hour).
+
+## Verification
+
+`VerifyPackage` walks `.mew-tree-manifest.json` on every reuse. It detects:
+
+- modified file content (per-file sha256)
+- symlink target changes
+- permission mode drift
+
+Legacy trees without a tree manifest still pass when the integrity marker and
+`package.json` are present.
 
 ## Project reference manifest
 
 After a successful install with the global store enabled, Mew writes
 `<project>/.mew/store-manifest.json` listing integrity keys for packages in the
-current graph. `m store prune` uses these manifests (plus scan roots under
-`MEW_HOME`) to decide which store entries are still referenced.
+current graph. `m store prune` uses these manifests, active transaction journals
+(staged `store-manifest.json` under `.mew/txn/<id>/stage/`), and scan roots under
+`MEW_HOME` to decide which store entries are still referenced.
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
 | `m store path` | Print resolved store root |
-| `m store status` | Path, package count, bytes on disk |
+| `m store status` | Path, package count, bytes on disk; cleans stale staging |
 | `m store prune [--dry-run]` | Remove unreferenced `packages/` entries |
 | `m development doctor filesystem` | Probe hardlink/reflink/symlink/junction support |
 
@@ -63,8 +87,15 @@ copy into `node_modules`).
 ## Link planner
 
 When the gate is on, the hoisted linker asks the filesystem planner for the
-fastest safe strategy per package tree: reflink → hardlink → copy on the same
-volume; copy across devices. Failures on a single path fall back to copy.
+fastest safe strategy per package tree.
+
+**Hardlink policy:** writable `node_modules` package trees use **reflink → copy
+only**. Hardlink is disabled for project-facing package content so mutations in
+`node_modules` cannot alter immutable store bytes. Store-internal dedup may still
+hardlink within the read-only store when both paths live under `packages/`.
+
+On the same volume: reflink when supported, otherwise copy. Across devices:
+copy only. Failures on a single path fall back to copy.
 
 Install diagnostics emit a `link` phase summary:
 `hardlink=N reflink=N copy=N …`.
@@ -72,13 +103,14 @@ Install diagnostics emit a `link` phase summary:
 ## Non-goals (0018)
 
 - No mid-fetch resume into the store (blob cache only during download).
-- No cross-process store leases (best-effort, same as blob cache).
-- Prune does not scan arbitrary repos — manifest-based only.
+- Prune does not scan arbitrary repos — manifest + active txn journal based only.
 - Isolated virtual store layout is MVP **0019**.
 
 ## Garbage collection rules
 
 - Never mutate a published `packages/<algo>/<hex>/` tree in place.
-- Corrupt entries are deleted and re-imported on next install (`ERR_M_STORE`).
-- `m store prune --dry-run` previews removals; without `--dry-run`, unreferenced
-  package directories are removed. Tarball blobs in `<cache>/blobs` are unaffected.
+- Corrupt entries are quarantined and re-imported on next install (`ERR_M_STORE`).
+- Packages with an active `.import.lock` are never pruned.
+- `m store prune --dry-run` previews removals in deterministic key order; without
+  `--dry-run`, unreferenced package directories are removed. Tarball blobs in
+  `<cache>/blobs` are unaffected.

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "importers": [
     {
       "id": ".",
@@ -20,10 +20,11 @@
       "id": {
         "name": "react",
         "version": "18.2.0",
-        "peerContext": [
+        "peerProviders": [
           {
             "name": "react-dom",
-            "range": "^18.0.0"
+            "version": "18.2.0",
+            "key": "react-dom@18.2.0"
           }
         ]
       },
@@ -40,7 +41,7 @@
     },
     {
       "from": ".",
-      "to": "react@18.2.0#react-dom@^18.0.0",
+      "to": "react@18.2.0#react-dom@18.2.0",
       "kind": "prod",
       "range": "^18.0.0"
     }

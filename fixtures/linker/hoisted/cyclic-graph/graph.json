@@ -1,0 +1,16 @@
+{
+  "packages": [
+    {"name": "cycle-a", "version": "1.0.0", "key": "cycle-a@1.0.0"},
+    {"name": "cycle-b", "version": "1.0.0", "key": "cycle-b@1.0.0"}
+  ],
+  "edges": [
+    {"from": ".", "to": "cycle-a@1.0.0", "kind": "prod"},
+    {"from": "cycle-a@1.0.0", "to": "cycle-b@1.0.0", "kind": "prod"},
+    {"from": "cycle-b@1.0.0", "to": "cycle-a@1.0.0", "kind": "prod"}
+  ],
+  "expect": {
+    "cycle-a@1.0.0": "node_modules/cycle-a",
+    "cycle-b@1.0.0": "node_modules/cycle-b"
+  },
+  "maxPlacements": 2
+}

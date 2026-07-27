@@ -1,14 +1,15 @@
 # Transaction boundary
 
 Every install-family mutation follows one pipeline. The old manifest, lockfile,
-and `node_modules` remain usable until commit. On failure, rollback restores the
-pre-mutation state.
+and `node_modules` remain usable until commit. On failure before the committed
+marker, rollback restores the pre-mutation state.
 
 ## Pipeline
 
 ```text
-inspect -> resolve -> plan -> fetch -> verify -> stage -> validate -> commit
- \-> rollback on failure
+inspect -> resolve -> plan -> fetch -> verify -> stage -> validate -> plan journal
+  -> backup -> commit (all live publishes) -> post-commit cleanup
+ \-> rollback on failure (before committed)
 ```
 
 | Phase | Owner (typical) | Effect |
@@ -20,8 +21,11 @@ inspect -> resolve -> plan -> fetch -> verify -> stage -> validate -> commit
 | verify | `store`, integrity checks | Fail closed on mismatch |
 | stage | `linker`, `transaction` | Write under staged roots |
 | validate | `transaction`, policy | Pre-commit checks |
-| commit | `transaction` | Atomic promote of staged state |
-| rollback | `transaction` | Restore journaled prior state |
+| plan journal | `transaction` | Persist forward op list before live mutation |
+| backup | `transaction` | Copy prior live state with kind metadata |
+| commit | `transaction` | Publish staged artifacts; mark committed last |
+| rollback | `transaction` | Inverse applied ops + restore backups |
+| post-commit | `snapshot` | Prune old snapshots (non-rollback) |
 
 ## Install-family mutations
 
@@ -46,6 +50,16 @@ live `node_modules`.
 ## Journaling
 
 `internal/transaction` journals install-family mutations under
-`<project>/.mew/txn/<id>/journal.v1.json` with inverse backup metadata.
+`<project>/.mew/txn/<id>/journal.v2.json` with a forward **plan**, per-op
+**progress**, and inverse backup metadata (including prior `node_modules` kind).
+
+A project-level lock at `.mew/txn/lock` prevents concurrent install transactions.
+
 See [`transaction.md`](../transaction.md) for format, recovery, and snapshot
 retention.
+
+## Failure semantics
+
+- Before `committed`: `m recover` or automatic rollback restores prior live state.
+- After `committed`: install artifacts are durable; post-commit errors (e.g.
+  snapshot prune) surface as errors but do not roll back lock/`node_modules`.

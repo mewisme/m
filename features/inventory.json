@@ -464,9 +464,10 @@
       "name": "workspace protocol and catalogs",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "in-progress",
       "compatibility_class": "parity",
       "primary_mvp": "0022",
+      "notes": "workspace:* resolve-only; full install wiring deferred to MVP 0022",
       "tests": [
         "internal/resolver",
         "fixtures/projects/workspace-protocol",
@@ -494,6 +495,7 @@
       "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0027",
+      "notes": "file:/link:/portal: resolve-only in graph+lock; install deferred",
       "tests": []
     },
     {
@@ -733,9 +735,10 @@
       "name": "isolated virtual store",
       "module": "linker",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "in-progress",
       "compatibility_class": "parity",
       "primary_mvp": "0019",
+      "notes": "experimental until StoreID v2 + Node phantom require() tests ship on all platforms",
       "tests": [
         "internal/linker/isolated",
         "tests/integration"

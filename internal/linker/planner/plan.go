@@ -106,16 +106,15 @@ func PlanFile(src, dest string, caps Capabilities) linker.Op {
 	return linker.Op{Kind: linker.OpCopy, Src: src, Dest: dest}
 }
 
-// PlanPackageLink picks the fastest safe op for linking a package directory tree.
+// PlanPackageLink picks the fastest safe op for linking a package directory tree
+// into writable project node_modules. Hardlink is disabled so project mutations
+// cannot alter immutable store content; use reflink then copy only.
 func PlanPackageLink(src, dest string, caps Capabilities) linker.Op {
 	if !caps.SameVolume {
 		return linker.Op{Kind: linker.OpCopy, Src: src, Dest: dest}
 	}
 	if caps.Reflink {
 		return linker.Op{Kind: linker.OpReflink, Src: src, Dest: dest}
-	}
-	if caps.Hardlink {
-		return linker.Op{Kind: linker.OpHardlink, Src: src, Dest: dest}
 	}
 	return linker.Op{Kind: linker.OpCopy, Src: src, Dest: dest}
 }

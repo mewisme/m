@@ -15,6 +15,11 @@ func SetTestHook(fn func(phase string, opIndex int) error) {
 	testHook = fn
 }
 
+// InvokeTestHook runs the registered test hook (exported for app-layer injection points).
+func InvokeTestHook(phase string, opIndex int) error {
+	return invokeTestHook(phase, opIndex)
+}
+
 func invokeTestHook(phase string, opIndex int) error {
 	testHookMu.Lock()
 	fn := testHook

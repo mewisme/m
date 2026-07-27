@@ -1,0 +1,15 @@
+{
+  "peer": "react-dom",
+  "root": {
+    "constraint": "react-dom@^18.0.0",
+    "requiringPackage": "react",
+    "importer": ".",
+    "searchPath": [
+      "."
+    ],
+    "candidates": [
+      "(none resolved)"
+    ],
+    "remediation": "install react-dom@^18.0.0 in the dependency tree or enable resolve.autoInstallPeers"
+  }
+}

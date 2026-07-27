@@ -96,6 +96,7 @@ func (s *PackageStore) Status() (count int, bytes int64, err error) {
 	if s == nil || s.Root == "" {
 		return 0, 0, apperr.New(apperr.Store, "store.status", "", "nil store")
 	}
+	_, _ = s.CleanupStaleStaging(time.Hour)
 	idx, err := s.loadIndex()
 	if err != nil {
 		return 0, 0, err
@@ -134,7 +135,7 @@ func (s *PackageStore) ListPackageKeys() ([]PackageKey, error) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if d == nil || !d.IsDir() || filepath.Base(path) != "package.json" {
+		if d == nil || d.IsDir() || filepath.Base(path) != "package.json" {
 			return nil
 		}
 		rel, err := filepath.Rel(pkgRoot, filepath.Dir(path))

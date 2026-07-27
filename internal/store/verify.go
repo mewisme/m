@@ -10,7 +10,7 @@ import (
 
 const packageMarker = ".mew-package-integrity"
 
-// VerifyPackage checks that key exists and contains a valid package tree.
+// VerifyPackage checks that key exists and the published tree matches its manifest.
 func (s *PackageStore) VerifyPackage(ctx context.Context, key PackageKey) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -46,13 +46,28 @@ func verifyPackageDir(dir string, key PackageKey) error {
 		if string(data) != want {
 			return apperr.New(apperr.Store, "store.verify", key.String(), "integrity marker mismatch")
 		}
-		return nil
+	} else if !os.IsNotExist(err) {
+		return apperr.Wrap(apperr.Store, "store.verify", marker, err)
 	}
-	// ponytail: legacy imports without marker pass on package.json presence only
-	return nil
+	manifestPath := treeManifestPath(dir)
+	if _, err := os.Stat(manifestPath); err == nil {
+		m, err := readTreeManifest(dir)
+		if err != nil {
+			return apperr.Wrap(apperr.Store, "store.verify", key.String(), err)
+		}
+		return verifyTreeManifest(dir, m)
+	}
+	if os.IsNotExist(err) {
+		// ponytail: legacy imports without tree manifest pass on marker + package.json
+		if _, markerErr := os.Stat(marker); markerErr == nil {
+			return nil
+		}
+		return apperr.Wrap(apperr.Store, "store.verify", manifestPath, err)
+	}
+	return apperr.Wrap(apperr.Store, "store.verify", manifestPath, err)
 }
 
 // writePackageMarker records integrity after successful publish.
 func writePackageMarker(dir string, key PackageKey) error {
-	return os.WriteFile(filepath.Join(dir, packageMarker), []byte(key.Integrity()), 0o644)
+	return os.WriteFile(filepath.Join(dir, packageMarker), []byte(key.Integrity()), 0o444)
 }

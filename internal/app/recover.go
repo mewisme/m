@@ -34,12 +34,12 @@ func Recover(ctx context.Context, ac *Context) (RecoverResult, error) {
 		return out, nil
 	}
 	switch doc.State {
-	case transaction.StateStaging:
+	case transaction.StateStaging, transaction.StateValidated:
 		if err := txn.Discard(); err != nil {
 			return out, err
 		}
 		out.Action = "discarded"
-	case transaction.StateValidated, transaction.StateCommitting:
+	case transaction.StateCommitting:
 		if err := txn.Rollback(ctx); err != nil {
 			return out, err
 		}
@@ -47,6 +47,10 @@ func Recover(ctx context.Context, ac *Context) (RecoverResult, error) {
 		out.Action = "rolled_back"
 	default:
 		out.Action = "none"
+	}
+	// Idempotent second pass.
+	if again, err := transaction.LoadIncomplete(proj.Root); err == nil && again == nil {
+		return out, nil
 	}
 	return out, nil
 }

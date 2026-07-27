@@ -18,11 +18,11 @@ func TestMatchOverride(t *testing.T) {
 
 func TestParsePackageKey(t *testing.T) {
 	t.Parallel()
-	id := parsePackageKey("react@18.2.0#react-dom@^18.0.0")
+	id := parsePackageKey("react@18.2.0#react-dom@18.2.0")
 	if id.Name != "react" || id.Version != "18.2.0" {
 		t.Fatalf("base id=%#v", id)
 	}
-	if len(id.PeerContext) != 1 || id.PeerContext[0].Name != "react-dom" {
-		t.Fatalf("peer context=%#v", id.PeerContext)
+	if len(id.PeerProviderContext) != 1 || id.PeerProviderContext[0].Name != "react-dom" {
+		t.Fatalf("peer providers=%#v", id.PeerProviderContext)
 	}
 }

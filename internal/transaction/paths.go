@@ -13,6 +13,9 @@ func GuardPath(projectRoot, rel string) (string, error) {
 		return "", apperr.New(apperr.Transaction, "transaction.path", rel, "empty project root")
 	}
 	rel = filepath.Clean(rel)
+	if filepath.IsAbs(rel) {
+		return "", apperr.New(apperr.Transaction, "transaction.path", rel, "absolute path not allowed")
+	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", apperr.New(apperr.Transaction, "transaction.path", rel, "path escapes project root")
 	}

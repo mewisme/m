@@ -102,7 +102,7 @@ func reactPackuments() map[string]registry.Packument {
 	}
 }
 
-func TestResolvePeerContext(t *testing.T) {
+func TestResolvePeerProviders(t *testing.T) {
 	eng, _ := engineWithPackuments(t, reactPackuments())
 	root := writeProject(t, `{
   "name": "app",
@@ -122,23 +122,23 @@ func TestResolvePeerContext(t *testing.T) {
 		if p.ID.Name != "react" {
 			continue
 		}
-		if len(p.ID.PeerContext) == 0 {
-			t.Fatalf("react missing peer context: %#v", p.ID)
+		if len(p.ID.PeerProviderContext) == 0 {
+			t.Fatalf("react missing peer providers: %#v", p.ID)
 		}
-		if p.ID.PeerContext[0].Name != "react-dom" || p.ID.PeerContext[0].Range != "^18.0.0" {
-			t.Fatalf("unexpected peer context: %#v", p.ID.PeerContext)
+		if p.ID.PeerProviderContext[0].Name != "react-dom" || p.ID.PeerProviderContext[0].Version != "18.2.0" {
+			t.Fatalf("unexpected peer providers: %#v", p.ID.PeerProviderContext)
 		}
 		reactKey = p.ID.Key()
 	}
 	if reactKey == "" {
 		t.Fatal("react not resolved")
 	}
-	if reactKey != "react@18.2.0#react-dom@^18.0.0" {
+	if reactKey != "react@18.2.0#react-dom@18.2.0" {
 		t.Fatalf("react key=%q", reactKey)
 	}
 	for _, d := range res.Decisions {
-		if d.Package == "react" && len(d.PeerContext) == 0 {
-			t.Fatalf("decision missing peer context: %#v", d)
+		if d.Package == "react" && len(d.PeerProviders) == 0 {
+			t.Fatalf("decision missing peer providers: %#v", d)
 		}
 	}
 }

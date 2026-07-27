@@ -12,62 +12,67 @@ type ImporterID string
 // RootImporter is the workspace/project root importer id.
 const RootImporter ImporterID = "."
 
-// PeerRef is one peer dependency constraint in a peer context.
-type PeerRef struct {
-	Name  string `json:"name"`
-	Range string `json:"range"`
+// PeerProvider is a resolved peer dependency provider in package identity.
+type PeerProvider struct {
+	Name    string `json:"name"`    // peer package name
+	Version string `json:"version"` // resolved provider version
+	Key     string `json:"key"`     // resolved provider package key
 }
 
-// PeerContext is a sorted set of peer constraints that participate in package identity.
-type PeerContext []PeerRef
+// PeerProviderContext is a sorted set of resolved peer providers in package identity.
+type PeerProviderContext []PeerProvider
 
-// Sort orders peers by name then range for deterministic keys and encoding.
-func (pc PeerContext) Sort() {
-	sort.SliceStable(pc, func(i, j int) bool {
-		if pc[i].Name != pc[j].Name {
-			return pc[i].Name < pc[j].Name
+// Sort orders providers by name then version for deterministic keys and encoding.
+func (ppc PeerProviderContext) Sort() {
+	sort.SliceStable(ppc, func(i, j int) bool {
+		if ppc[i].Name != ppc[j].Name {
+			return ppc[i].Name < ppc[j].Name
 		}
-		return pc[i].Range < pc[j].Range
+		return ppc[i].Version < ppc[j].Version
 	})
 }
 
-// String returns the peer suffix used in PackageID.Key (empty when no peers).
-func (pc PeerContext) String() string {
-	if len(pc) == 0 {
+// String returns the peer suffix used in PackageID.Key (empty when no providers).
+func (ppc PeerProviderContext) String() string {
+	if len(ppc) == 0 {
 		return ""
 	}
-	parts := make([]string, len(pc))
-	for i, p := range pc {
-		parts[i] = p.Name + "@" + p.Range
+	parts := make([]string, len(ppc))
+	for i, p := range ppc {
+		if p.Key != "" {
+			parts[i] = p.Key
+			continue
+		}
+		parts[i] = p.Name + "@" + p.Version
 	}
 	return strings.Join(parts, ",")
 }
 
-// PackageID identifies a resolved package, optionally under a peer context.
+// PackageID identifies a resolved package, optionally under a peer provider context.
 type PackageID struct {
-	Name        string      `json:"name"`
-	Version     string      `json:"version"`
-	PeerContext PeerContext `json:"peerContext,omitempty"`
+	Name                string              `json:"name"`
+	Version             string              `json:"version"`
+	PeerProviderContext PeerProviderContext `json:"peerProviders,omitempty"`
 }
 
 // Key returns the stable package key:
 //
 //	name@version
-//	name@version#peer1@range1,peer2@range2
+//	name@version#providerKey1,providerKey2
 //
-// Peers in PeerContext must already be sorted (Validate/Builder ensure this).
+// Providers in PeerProviderContext must already be sorted (Validate/Builder ensure this).
 func (id PackageID) Key() string {
 	base := id.Name + "@" + id.Version
-	if suffix := id.PeerContext.String(); suffix != "" {
+	if suffix := id.PeerProviderContext.String(); suffix != "" {
 		return base + "#" + suffix
 	}
 	return base
 }
 
-// Normalize sorts PeerContext in place for Key stability.
+// Normalize sorts PeerProviderContext in place for Key stability.
 func (id *PackageID) Normalize() {
 	if id == nil {
 		return
 	}
-	id.PeerContext.Sort()
+	id.PeerProviderContext.Sort()
 }

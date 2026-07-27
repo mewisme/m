@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/archive"
@@ -28,14 +29,32 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integ
 		return PackageKey{}, err
 	}
 
+	_, _ = s.CleanupStaleStaging(time.Hour)
+
 	dest := s.PackagePath(key)
 	if st, err := os.Stat(dest); err == nil && st.IsDir() {
 		if err := s.VerifyPackage(ctx, key); err == nil {
 			return key, nil
 		}
-		_ = os.RemoveAll(dest)
+		_ = quarantinePackage(dest)
 	} else if err != nil && !os.IsNotExist(err) {
 		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
+	}
+
+	release, err := acquireImportLock(dest)
+	if err != nil {
+		return PackageKey{}, err
+	}
+	defer func() {
+		release()
+		clearImportSlot(dest)
+	}()
+
+	if st, err := os.Stat(dest); err == nil && st.IsDir() {
+		if err := s.VerifyPackage(ctx, key); err == nil {
+			return key, nil
+		}
+		_ = quarantinePackage(dest)
 	}
 
 	if err := os.MkdirAll(filepath.Join(s.Root, "packages"), 0o755); err != nil {
@@ -55,16 +74,29 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integ
 	if err := archive.Extract(ctx, tarballPath, stage, archive.DefaultOptions()); err != nil {
 		return PackageKey{}, err
 	}
-	if err := verifyPackageDir(stage, key); err != nil {
-		return PackageKey{}, err
+	pkgJSON := filepath.Join(stage, "package.json")
+	if _, err := os.Stat(pkgJSON); err != nil {
+		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", pkgJSON, err)
 	}
 	if err := writePackageMarker(stage, key); err != nil {
 		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", stage, err)
+	}
+	_ = makeTreeReadOnly(stage)
+	manifest, err := generateTreeManifest(stage)
+	if err != nil {
+		return PackageKey{}, err
+	}
+	if err := writeTreeManifest(stage, manifest); err != nil {
+		return PackageKey{}, err
+	}
+	if err := verifyTreeManifest(stage, manifest); err != nil {
+		return PackageKey{}, err
 	}
 
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
 	}
+	clearImportSlot(dest)
 	if err := os.Rename(stage, dest); err != nil {
 		if st, statErr := os.Stat(dest); statErr == nil && st.IsDir() {
 			if verifyErr := s.VerifyPackage(ctx, key); verifyErr == nil {
@@ -73,6 +105,7 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integ
 		}
 		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
 	}
+	_ = makeTreeReadOnly(dest)
 
 	size, _ := dirSize(dest)
 	_ = s.indexUpsert(key, integrity, size)

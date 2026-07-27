@@ -1,18 +1,25 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "abc123",
   "projectRoot": "/proj",
   "state": "committed",
+  "plan": [
+    {
+      "kind": "rename",
+      "path": "node_modules",
+      "backup": "stage/node_modules",
+      "progress": "applied"
+    }
+  ],
   "ops": [
     {
       "kind": "backup",
       "path": "m.lock",
-      "backup": "backups/m.lock"
-    },
-    {
-      "kind": "rename",
-      "path": "node_modules",
-      "backup": "stage/node_modules"
+      "backup": "backups/m.lock",
+      "progress": "applied",
+      "destKind": "file",
+      "hadPrior": true,
+      "priorKind": "file"
     }
   ]
 }

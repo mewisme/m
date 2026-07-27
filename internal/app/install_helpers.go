@@ -14,12 +14,16 @@ import (
 	"github.com/mewisme/m/internal/linker"
 	"github.com/mewisme/m/internal/manifest"
 	"github.com/mewisme/m/internal/plan"
+	"github.com/mewisme/m/internal/policy"
 	"github.com/mewisme/m/internal/project"
 	"github.com/mewisme/m/internal/resolver"
 	"github.com/mewisme/m/internal/store"
 )
 
 func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, opts InstallOptions, manifestChanged bool) (*resolver.Resolution, error) {
+	if opts.Update != nil {
+		return resolveForUpdate(ctx, ac, proj, *opts.Update)
+	}
 	eng, err := resolver.NewFromApp(ac.Config, proj, os.Environ())
 	if err != nil {
 		return nil, err
@@ -38,6 +42,53 @@ func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, 
 	}
 	proj.Normalized = norm
 	return eng.ResolveProject(ctx, proj, ropts)
+}
+
+func resolveForUpdate(ctx context.Context, ac *Context, proj *project.Project, u UpdateResolveOptions) (*resolver.Resolution, error) {
+	eng, err := resolver.NewFromApp(ac.Config, proj, os.Environ())
+	if err != nil {
+		return nil, err
+	}
+	prior, err := readLockHints(ctx, ac, proj)
+	if err != nil {
+		return nil, err
+	}
+	pol, err := readLockPolicy(proj.Root)
+	if err != nil {
+		return nil, err
+	}
+	if proj.Normalized == nil {
+		norm, err := manifest.ToNormalized(proj.Doc)
+		if err != nil {
+			return nil, err
+		}
+		proj.Normalized = norm
+	}
+	return eng.ResolveProject(ctx, proj, resolver.ResolveOptions{
+		Prior:             prior,
+		Hints:             prior,
+		UpdateTargets:     u.Targets,
+		IncrementalUpdate: true,
+		PriorOverrides:    u.PriorOverrides,
+		Policy:            pol,
+	})
+}
+
+func readLockPolicy(root string) (*policy.Policy, error) {
+	path := LockPath(root)
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			p := policy.Policy{StrictPeerDependencies: true}
+			return &p, nil
+		}
+		return nil, apperr.Wrap(apperr.IO, "app.update", path, err)
+	}
+	doc, err := readLockDocument(root)
+	if err != nil {
+		return nil, err
+	}
+	p := doc.Settings.Policy
+	return &p, nil
 }
 
 func readLockHints(ctx context.Context, ac *Context, proj *project.Project) (*graph.Graph, error) {
@@ -131,25 +182,6 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph) (map[
 
 func sanitizeKeyDir(key string) string {
 	return strings.NewReplacer("@", "_at_", "/", "_", "#", "_").Replace(key)
-}
-
-// ponytail: rename swap; used after journaled lock/manifest commit in 0017.
-func publishNodeModules(stageNM, liveNM string) error {
-	backup := liveNM + ".mew-old"
-	_ = os.RemoveAll(backup)
-	if _, err := os.Stat(liveNM); err == nil {
-		if err := os.Rename(liveNM, backup); err != nil {
-			return apperr.Wrap(apperr.IO, "app.install", liveNM, err)
-		}
-	}
-	if err := os.Rename(stageNM, liveNM); err != nil {
-		if _, statErr := os.Stat(backup); statErr == nil {
-			_ = os.Rename(backup, liveNM)
-		}
-		return apperr.Wrap(apperr.IO, "app.install", stageNM, err)
-	}
-	_ = os.RemoveAll(backup)
-	return nil
 }
 
 func priorPackageKeys(ctx context.Context, ac *Context, proj *project.Project) (map[string]string, error) {

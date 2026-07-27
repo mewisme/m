@@ -190,26 +190,28 @@ func TestResolveUnsatisfiable(t *testing.T) {
 	}
 }
 
-func TestResolveCycle(t *testing.T) {
+func TestResolveValidCycle(t *testing.T) {
 	eng, _ := testEngine(t)
 	root := writeProject(t, `{
   "name": "root",
   "version": "1.0.0",
   "dependencies": { "cycle-a": "1.0.0" }
 }`)
-	_, err := eng.Resolve(context.Background(), root, resolver.ResolveOptions{})
-	if err == nil {
-		t.Fatal("expected cycle error")
+	res, err := eng.Resolve(context.Background(), root, resolver.ResolveOptions{})
+	if err != nil {
+		t.Fatalf("valid same-key cycle should resolve: %v", err)
 	}
-	if apperr.CodeOf(err) != apperr.Resolve {
-		t.Fatalf("code=%s", apperr.CodeOf(err))
+	foundA, foundB := false, false
+	for _, p := range res.Graph.Packages {
+		switch p.ID.Name {
+		case "cycle-a":
+			foundA = true
+		case "cycle-b":
+			foundB = true
+		}
 	}
-	msg := err.Error()
-	if !strings.Contains(msg, "cycle-a") || !strings.Contains(msg, "cycle-b") {
-		t.Fatalf("want full cycle path: %v", err)
-	}
-	if !strings.Contains(msg, "→") {
-		t.Fatalf("want arrow path: %v", err)
+	if !foundA || !foundB {
+		t.Fatalf("expected cycle-a and cycle-b in graph: %#v", res.Graph.Packages)
 	}
 }
 

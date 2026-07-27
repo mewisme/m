@@ -35,14 +35,14 @@ type ResolveOptions struct {
 
 // ResolutionDecision records candidate filtering and version selection for 0028.
 type ResolutionDecision struct {
-	Package      string            `json:"package"`
-	Requested    string            `json:"requested"`
-	Candidates   []string          `json:"candidates"`
-	Selected     string            `json:"selected"`
-	Reason       string            `json:"reason,omitempty"`
-	Rejected     []string          `json:"rejected,omitempty"` // versions filtered by policy
-	PeerContext  graph.PeerContext `json:"peerContext,omitempty"`
-	OverrideFrom string            `json:"overrideFrom,omitempty"`
+	Package       string                    `json:"package"`
+	Requested     string                    `json:"requested"`
+	Candidates    []string                  `json:"candidates"`
+	Selected      string                    `json:"selected"`
+	Reason        string                    `json:"reason,omitempty"`
+	Rejected      []string                  `json:"rejected,omitempty"` // versions filtered by policy
+	PeerProviders graph.PeerProviderContext `json:"peerProviders,omitempty"`
+	OverrideFrom  string                    `json:"overrideFrom,omitempty"`
 }
 
 // Resolution is an immutable resolve result: complete graph plus decision trace.

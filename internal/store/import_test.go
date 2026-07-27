@@ -45,6 +45,9 @@ func TestVerifyDetectsTamper(t *testing.T) {
 		t.Fatal(err)
 	}
 	marker := filepath.Join(ps.PackagePath(key), ".mew-package-integrity")
+	if err := os.Chmod(marker, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(marker, []byte("sha256-dead"), 0o644); err != nil {
 		t.Fatal(err)
 	}

@@ -50,7 +50,7 @@ func TestTransactionRecoverInterruptedCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, transaction.JournalName), data, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, transaction.JournalNameV1), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(transaction.CurrentPath(projDir), []byte(id+"\n"), 0o644); err != nil {

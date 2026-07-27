@@ -21,6 +21,7 @@ backups.
 | `m add <pkg>` | `-D`, `-E`, `--linker`, `--json` | Manifest + lock + install (atomic commit) |
 | `m remove <pkg>` / `rm` | `--linker`, `--json` | Remove dep + reinstall |
 | `m ci` | `--prod`, `--linker`, `--json` | `install --frozen-lockfile` |
+| `m update [pkg...]` | `--latest`, `--dry-run`, `--journal`, `--linker`, `--json` | Incremental lock refresh + install (transactional) |
 | `m snapshot` | `list`, `restore <id>` | Snapshot history |
 | `m recover` | — | Recover interrupted transaction |
 | `m rollback` | — | Restore previous snapshot |
@@ -34,6 +35,7 @@ backups.
 ## Non-goals (0016)
 
 - Lifecycle scripts (`preinstall`, `postinstall`) — **0021**
-- `m update` — still stubbed
+
+`m update` routes through the same install transaction as `m add` / `m remove`: resolve → fetch → link → validate → commit. `--latest` bumps manifest ranges in memory before resolve; `package.json` is written only at commit. `--dry-run` resolves and emits a mutation plan JSON (with `--json`) without touching disk.
 
 See also: [`lockfile.md`](lockfile.md), [`transaction.md`](transaction.md), [`store.md`](store.md), [`linker.md`](linker.md), [`cli.md`](cli.md).

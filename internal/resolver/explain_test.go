@@ -10,12 +10,15 @@ import (
 )
 
 func TestBuildPeerConflictTree(t *testing.T) {
-	conf := resolver.PeerConflict{Package: "react", Peer: "react-dom", Range: "^18.0.0"}
+	conf := resolver.PeerConflict{Package: "react", Peer: "react-dom", Range: "^18.0.0", Importer: "root"}
 	tree := resolver.BuildPeerConflictTree(conf, nil)
 	if tree.Peer != "react-dom" {
 		t.Fatalf("peer=%q", tree.Peer)
 	}
-	if tree.Root.Importer != "react" {
+	if tree.Root.RequiringPackage != "react" {
+		t.Fatalf("requiring=%q", tree.Root.RequiringPackage)
+	}
+	if tree.Root.Importer != "root" {
 		t.Fatalf("importer=%q", tree.Root.Importer)
 	}
 	if !strings.Contains(tree.Root.Constraint, "react-dom") {
@@ -39,7 +42,7 @@ func TestExplainPeerMissing(t *testing.T) {
 	if tree == nil {
 		t.Fatal("expected conflict tree")
 	}
-	if tree.Peer != "react-dom" || tree.Root.Importer != "react" {
+	if tree.Peer != "react-dom" || tree.Root.RequiringPackage != "react" {
 		t.Fatalf("%#v", tree)
 	}
 }

@@ -37,7 +37,7 @@ func TestRunnerCommitRollbackPreservesLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	transaction.SetTestHook(func(phase string, opIndex int) error {
-		if phase == "commit" && opIndex == 1 {
+		if phase == "commit" && opIndex == 0 {
 			return os.ErrPermission
 		}
 		return nil
@@ -47,7 +47,10 @@ func TestRunnerCommitRollbackPreservesLive(t *testing.T) {
 	ops := []transaction.Op{
 		{Kind: transaction.OpRename, Path: "m.lock", Backup: "stage/m.lock"},
 	}
-	err := txn.Commit(ctx, ops)
+	if err := txn.SetPlan(ops); err != nil {
+		t.Fatal(err)
+	}
+	err := txn.Commit(ctx, nil)
 	if err == nil {
 		t.Fatal("expected commit failure")
 	}

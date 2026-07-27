@@ -30,7 +30,7 @@ func PackageKeyFromIntegrity(integrity string) (PackageKey, error) {
 	if !ok || algo == "" || hex == "" {
 		return PackageKey{}, apperr.New(apperr.Store, "store.integrity", integrity, "invalid integrity")
 	}
-	return PackageKey{Algo: strings.ToLower(algo), Hex: strings.ToLower(hex)}, nil
+	return PackageKey{Algo: strings.ToLower(algo), Hex: strings.ToLower(hex)}, validateKey(PackageKey{Algo: strings.ToLower(algo), Hex: strings.ToLower(hex)})
 }
 
 // PackageStore holds unpacked packages at <root>/packages/<algo>/<hex>/.

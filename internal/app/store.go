@@ -73,16 +73,11 @@ func PruneStore(ctx context.Context, ac *Context, dryRun bool, scanRoots []strin
 		return res, err
 	}
 	ps := store.NewPackageStore(root)
-	keys, err := ps.ListPackageKeys()
+	candidates, err := store.PruneCandidates(ps, refs)
 	if err != nil {
 		return res, err
 	}
-	for _, key := range keys {
-		integrity := key.Integrity()
-		if _, ok := refs[integrity]; ok {
-			res.Kept++
-			continue
-		}
+	for _, key := range candidates {
 		path := ps.PackagePath(key)
 		res.Paths = append(res.Paths, path)
 		if !dryRun {
@@ -91,6 +86,10 @@ func PruneStore(ctx context.Context, ac *Context, dryRun bool, scanRoots []strin
 			}
 			res.Removed++
 		}
+	}
+	res.Kept = 0
+	if keys, listErr := ps.ListPackageKeys(); listErr == nil {
+		res.Kept = len(keys) - len(candidates)
 	}
 	if dryRun {
 		res.Removed = len(res.Paths)

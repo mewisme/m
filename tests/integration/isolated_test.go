@@ -84,6 +84,40 @@ func TestIsolatedPhantomDependencyBlocked(t *testing.T) {
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("phantom dep reachable: %v", err)
 	}
+	cmd = exec.Command(node, "-e", "require('pkg-b')")
+	cmd.Dir = projDir
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Fatalf("phantom require succeeded: %s", out)
+	}
+	cmd = exec.Command(node, "-e", "require('pkg-a'); console.log('ok')")
+	cmd.Dir = projDir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("declared dep should resolve: %v\n%s", err, out)
+	}
+}
+
+func TestIsolatedBinShimsCreated(t *testing.T) {
+	enableIsolatedLinker(t)
+	projDir := t.TempDir()
+	testkit.CopyFixture(t, "projects/bin-shims", projDir)
+	reg := testkit.LoadRegistry(t, "registry/v1")
+	srv := reg.Start(t)
+	cfgPath := filepath.Join(projDir, "m.jsonc")
+	if err := os.WriteFile(cfgPath, []byte(`{"registry":"`+srv.URL+`"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, out := runM(t, projDir, cfgPath, "install", "--linker=isolated")
+	if code != 0 {
+		t.Fatalf("exit=%d out=%s", code, out)
+	}
+	binDir := filepath.Join(projDir, "node_modules", ".bin")
+	if _, err := os.Stat(filepath.Join(binDir, "cli")); err == nil {
+		return
+	}
+	if _, err := os.Stat(filepath.Join(binDir, "cli.cmd")); err == nil {
+		return
+	}
+	t.Fatalf("no cli shim in %s", binDir)
 }
 
 func TestIsolatedScopedPackage(t *testing.T) {

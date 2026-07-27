@@ -1,0 +1,24 @@
+{
+  "packages": [
+    {"name": "@scope/a", "version": "1.0.0", "key": "@scope/a@1.0.0"},
+    {"name": "@scope/a", "version": "2.0.0", "key": "@scope/a@2.0.0"},
+    {"name": "pkg-a", "version": "1.0.0", "key": "pkg-a@1.0.0"},
+    {"name": "pkg-b", "version": "1.0.0", "key": "pkg-b@1.0.0"}
+  ],
+  "edges": [
+    {"from": ".", "to": "@scope/a@1.0.0", "kind": "prod"},
+    {"from": ".", "to": "pkg-a@1.0.0", "kind": "prod"},
+    {"from": ".", "to": "pkg-b@1.0.0", "kind": "prod"},
+    {"from": "pkg-a@1.0.0", "to": "@scope/a@2.0.0", "kind": "prod"},
+    {"from": "pkg-b@1.0.0", "to": "@scope/a@2.0.0", "kind": "prod"}
+  ],
+  "expect": {
+    "@scope/a@1.0.0": "node_modules/@scope/a",
+    "@scope/a@2.0.0": "node_modules/pkg-a/node_modules/@scope/a",
+    "pkg-a@1.0.0": "node_modules/pkg-a",
+    "pkg-b@1.0.0": "node_modules/pkg-b"
+  },
+  "alsoExpect": {
+    "@scope/a@2.0.0": "node_modules/pkg-b/node_modules/@scope/a"
+  }
+}

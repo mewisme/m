@@ -15,9 +15,12 @@ func TestJournalRoundTripGolden(t *testing.T) {
 		ID:            "abc123",
 		ProjectRoot:   "/proj",
 		State:         transaction.StateCommitted,
+		Plan: []transaction.Op{
+			{Kind: transaction.OpRename, Path: "node_modules", Backup: "stage/node_modules", Progress: transaction.ProgressApplied},
+		},
 		Ops: []transaction.Op{
-			{Kind: transaction.OpBackup, Path: "m.lock", Backup: "backups/m.lock"},
-			{Kind: transaction.OpRename, Path: "node_modules", Backup: "stage/node_modules"},
+			{Kind: transaction.OpBackup, Path: "m.lock", Backup: "backups/m.lock", Progress: transaction.ProgressApplied,
+				DestKind: transaction.DestKindFile, HadPrior: true, PriorKind: transaction.DestKindFile},
 		},
 	}
 	first, err := transaction.Encode(doc)
