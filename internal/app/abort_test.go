@@ -484,3 +484,113 @@ func TestRecoverAfterAbortCleanupFailure(t *testing.T) {
 		t.Fatalf("lock not restored after recover: %q", data)
 	}
 }
+
+func TestPopulateAbortCleanupWarningOnlyFinishHook(t *testing.T) {
+	var res InstallResult
+	fr := transaction.FinishResult{
+		CleanupWarnings:     []error{errors.New("finish hook failed")},
+		CleanupWarningCodes: []string{"finish_hook"},
+	}
+	populateAbortCleanup(&res, fr)
+	if res.TransactionCleanupIncomplete {
+		t.Fatal("finish_hook must not set TransactionCleanupIncomplete")
+	}
+	if res.RecoveryRequired {
+		t.Fatal("finish_hook must not set RecoveryRequired")
+	}
+	if !res.CleanupIncomplete {
+		t.Fatal("expected CleanupIncomplete")
+	}
+}
+
+func TestPopulateAbortCleanupWarningOnlyTxnDirRemove(t *testing.T) {
+	var res InstallResult
+	fr := transaction.FinishResult{
+		CleanupWarnings:     []error{errors.New("txn dir remove failed")},
+		CleanupWarningCodes: []string{"txn_dir_remove"},
+	}
+	populateAbortCleanup(&res, fr)
+	if res.TransactionCleanupIncomplete {
+		t.Fatal("txn_dir_remove must not set TransactionCleanupIncomplete")
+	}
+	if res.RecoveryRequired {
+		t.Fatal("txn_dir_remove must not set RecoveryRequired")
+	}
+}
+
+func TestPopulateAbortCleanupMixedSeverity(t *testing.T) {
+	var res InstallResult
+	fr := transaction.FinishResult{
+		CleanupWarnings: []error{
+			errors.New("finish hook failed"),
+			errors.New("lock release failed"),
+		},
+		CleanupWarningCodes: []string{"finish_hook", cleanupCodeTxnLockRelease},
+	}
+	populateAbortCleanup(&res, fr)
+	if !res.TransactionCleanupIncomplete {
+		t.Fatal("expected TransactionCleanupIncomplete from critical code")
+	}
+	if !res.RecoveryRequired {
+		t.Fatal("expected RecoveryRequired from critical code")
+	}
+	if len(res.CleanupWarningCodes) != 2 {
+		t.Fatalf("codes=%v", res.CleanupWarningCodes)
+	}
+}
+
+func TestPopulateAbortCleanupCriticalCurrentCleanup(t *testing.T) {
+	var res InstallResult
+	fr := transaction.FinishResult{
+		CleanupWarnings:     []error{errors.New("current cleanup failed")},
+		CleanupWarningCodes: []string{cleanupCodeTxnCurrentCleanup},
+	}
+	populateAbortCleanup(&res, fr)
+	if !res.TransactionCleanupIncomplete {
+		t.Fatal("expected TransactionCleanupIncomplete")
+	}
+	if !res.RecoveryRequired {
+		t.Fatal("expected RecoveryRequired")
+	}
+}
+
+func TestPopulateAbortCleanupRollbackFailPlusWarning(t *testing.T) {
+	root := t.TempDir()
+	writeMinimalProject(t, root)
+	sess, ctx := beginTestSession(t, root)
+	txn := sess.Runner()
+
+	liveLock := filepath.Join(root, "m.lock")
+	if err := os.WriteFile(liveLock, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := txn.RecordBackup("m.lock"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(liveLock, []byte("partial"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	transaction.SetTestHook(func(phase string, opIndex int) error {
+		if phase == "rollback" && opIndex == 0 {
+			return errors.New("injected restore failure")
+		}
+		if phase == "finish" {
+			return errors.New("finish hook failed")
+		}
+		return nil
+	})
+	t.Cleanup(func() { transaction.SetTestHook(nil) })
+
+	primary := apperr.New(apperr.Network, "app.install.fetch", "pkg", "fetch failed")
+	res, err := abortMutation(ctx, sess, txn, primary)
+	if !errors.Is(err, primary) {
+		t.Fatalf("expected primary, got %v", err)
+	}
+	if !res.RecoveryRequired {
+		t.Fatal("rollback failure must set RecoveryRequired")
+	}
+	if apperr.CodeOf(err) != apperr.Network {
+		t.Fatalf("primary code=%s", apperr.CodeOf(err))
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mewisme/m/internal/config"
@@ -130,3 +131,46 @@ func TestPopulateWarningCleanupNoRecovery(t *testing.T) {
 
 // compile-time guard that config package is linked for finish tests using registry fixtures.
 var _ = config.SourceCLI
+
+func TestFormatInstallSummaryWarningOnlyCommitted(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:         true,
+		CleanupIncomplete: true,
+		CleanupWarnings:   []string{"finish hook failed"},
+	})
+	if strings.Contains(summary, "m recover") {
+		t.Fatalf("warning-only must not suggest recover: %q", summary)
+	}
+	if !strings.Contains(summary, "non-critical cleanup warning") {
+		t.Fatalf("missing warning message: %q", summary)
+	}
+	if !strings.Contains(summary, "finish hook failed") {
+		t.Fatalf("missing warning detail: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryCriticalCommitted(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:                    true,
+		TransactionCleanupIncomplete: true,
+		RecoveryRequired:             true,
+		CleanupWarnings:              []string{"lock release failed"},
+	})
+	if !strings.Contains(summary, "m recover") {
+		t.Fatalf("critical must suggest recover: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryStoreMaintenance(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:                true,
+		StoreMaintenanceRequired: true,
+		CleanupWarnings:          []string{"store lock not released"},
+	})
+	if !strings.Contains(summary, "m store status") {
+		t.Fatalf("missing store hint: %q", summary)
+	}
+	if strings.Contains(summary, "m recover") {
+		t.Fatalf("store-only must not suggest recover: %q", summary)
+	}
+}
