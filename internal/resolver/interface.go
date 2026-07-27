@@ -40,6 +40,10 @@ type ResolveOptions struct {
 	// OmitRootDev skips root devDependencies when seeding the resolve queue
 	// (e.g. m install --prod).
 	OmitRootDev bool
+	// Recursive seeds every workspace member as an importer (-r).
+	Recursive bool
+	// Filter limits seeded importers to --filter pattern matches.
+	Filter []string
 }
 
 // ResolutionDecision records candidate filtering and version selection for 0028.

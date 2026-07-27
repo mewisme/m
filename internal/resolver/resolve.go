@@ -71,8 +71,10 @@ type resolveState struct {
 	queue        []workItem
 
 	wsIndex         *workspace.Index
+	wsGraph         *workspace.WorkspaceGraph
 	wsByName        map[string]workspaceMember
 	wsMemberPaths   map[string]struct{}
+	catalog         manifest.Catalog
 	localSources    map[string]LocalSource
 	seededImporters map[graph.ImporterID]bool
 }
@@ -151,7 +153,7 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 	if err := s.seedFromManifest(proj.Normalized); err != nil {
 		return nil, err
 	}
-	if err := s.seedWorkspaceMembers(); err != nil {
+	if err := s.seedWorkspaceMembers(opts); err != nil {
 		return nil, err
 	}
 	if err := s.run(); err != nil {
@@ -218,6 +220,10 @@ func (s *resolveState) enqueue(from, declarerPath, display, spec string, kind gr
 		overrideFrom = spec
 	}
 	display, target, rng, protocol, err := rewriteSpecifier(s.overrides, namePath, display, spec)
+	if err != nil {
+		return err
+	}
+	rng, protocol, err = s.rewriteCatalog(target, spec, protocol, rng)
 	if err != nil {
 		return err
 	}
