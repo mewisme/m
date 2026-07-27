@@ -30,6 +30,7 @@ type InstallInput struct {
 	LinkPlan    *linker.Plan
 	Config      *config.Effective
 	Env         []string
+	Trusted     *TrustStore
 	Interactive bool
 	Supervisor  process.ProcessSupervisor
 	AuditPath   string

@@ -23,6 +23,7 @@ Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DE
 | `ERR_M_RESOLVE` | 1 | Dependency resolution failure: unsatisfiable range, cycle, missing packument, or limit exceeded (MVP 0013) |
 | `ERR_M_TRANSACTION` | 1 | Transaction journal, commit, rollback, recovery, or project lock failure (MVP 0017) |
 | `ERR_M_STORE` | 1 | Global content store import, verify, or prune failure (MVP 0018) |
+| `ERR_M_POLICY` | 1 | Lifecycle script blocked by trust or sandbox policy (MVP 0021) |
 | `ERR_M_INTEGRITY` | 1 | Ambiguous incomplete transaction state, tree manifest collision, or verification failure |
 
 ### Transaction detail (0017 journal v3)

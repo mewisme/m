@@ -27,6 +27,7 @@ const (
 	Install       Code = "ERR_M_INSTALL"
 	Transaction   Code = "ERR_M_TRANSACTION"
 	Store         Code = "ERR_M_STORE"
+	Policy        Code = "ERR_M_POLICY"
 )
 
 // registry maps every published code to a process exit status.
@@ -48,6 +49,7 @@ var registry = map[Code]int{
 	Install:       1,
 	Transaction:   1,
 	Store:         1,
+	Policy:        1,
 }
 
 // AllCodes returns registered codes in a stable order for docs and tests.
@@ -55,7 +57,7 @@ func AllCodes() []Code {
 	return []Code{
 		OK, Usage, Cancelled, Internal, InternalPanic,
 		IO, Config, Network, Integrity, Lockfile, Unimplemented,
-		Manifest, NotFound, Resolve, Install, Transaction, Store,
+		Manifest, NotFound, Resolve, Install, Transaction, Store, Policy,
 	}
 }
 
