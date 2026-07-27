@@ -256,6 +256,92 @@ func TestFormatInstallSummaryCriticalPlusStore(t *testing.T) {
 	}
 }
 
+func TestFormatInstallSummaryCriticalPlusFinishHook(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:                    true,
+		CleanupIncomplete:            true,
+		TransactionCleanupIncomplete: true,
+		RecoveryRequired:             true,
+		CleanupWarningCodes: []string{
+			cleanupCodeTxnLockRelease,
+			"finish_hook",
+		},
+		CleanupWarnings: []string{
+			"lock release failed",
+			"finish hook failed",
+		},
+	})
+	if !strings.Contains(summary, "m recover") {
+		t.Fatalf("critical must suggest recover: %q", summary)
+	}
+	if !strings.Contains(summary, "non-critical cleanup warning") {
+		t.Fatalf("missing non-critical header: %q", summary)
+	}
+	if strings.Count(summary, "lock release failed") != 1 {
+		t.Fatalf("critical detail: %q", summary)
+	}
+	if strings.Count(summary, "finish hook failed") != 1 {
+		t.Fatalf("non-critical detail: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryCriticalPlusTxnDirRemove(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:                    true,
+		CleanupIncomplete:            true,
+		TransactionCleanupIncomplete: true,
+		RecoveryRequired:             true,
+		CleanupWarningCodes: []string{
+			cleanupCodeTxnCurrentCleanup,
+			"txn_dir_remove",
+		},
+		CleanupWarnings: []string{
+			"current cleanup failed",
+			"txn dir remove failed",
+		},
+	})
+	if strings.Count(summary, "current cleanup failed") != 1 {
+		t.Fatalf("critical detail: %q", summary)
+	}
+	if strings.Count(summary, "txn dir remove failed") != 1 {
+		t.Fatalf("non-critical detail: %q", summary)
+	}
+}
+
+func TestFormatInstallSummaryCriticalNonCriticalAndStore(t *testing.T) {
+	summary := FormatInstallSummary(InstallResult{
+		Committed:                    true,
+		CleanupIncomplete:            true,
+		TransactionCleanupIncomplete: true,
+		RecoveryRequired:             true,
+		StoreMaintenanceRequired:     true,
+		CleanupWarningCodes: []string{
+			cleanupCodeTxnLockRelease,
+			"finish_hook",
+			cleanupCodeStoreImportLockRelease,
+		},
+		CleanupWarnings: []string{
+			"lock release failed",
+			"finish hook failed",
+			"store lock not released",
+		},
+	})
+	if !strings.Contains(summary, "m recover") {
+		t.Fatalf("critical must suggest recover: %q", summary)
+	}
+	if !strings.Contains(summary, "non-critical cleanup warning") {
+		t.Fatalf("missing non-critical header: %q", summary)
+	}
+	if !strings.Contains(summary, "m store status") {
+		t.Fatalf("missing store hint: %q", summary)
+	}
+	if strings.Count(summary, "lock release failed") != 1 ||
+		strings.Count(summary, "finish hook failed") != 1 ||
+		strings.Count(summary, "store lock not released") != 1 {
+		t.Fatalf("all sections once: %q", summary)
+	}
+}
+
 func TestFormatInstallSummaryDedupesDuplicateWarnings(t *testing.T) {
 	summary := FormatInstallSummary(InstallResult{
 		Committed:         true,

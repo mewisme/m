@@ -134,17 +134,15 @@ func FormatInstallSummary(r InstallResult) string {
 		for _, w := range formatCleanupSection(r, criticalTxnCleanupCodes, seen) {
 			line += "\n  " + w
 		}
-	} else if r.Committed && r.CleanupIncomplete {
-		line += "\nInstallation committed with a non-critical cleanup warning."
-		for _, w := range formatCleanupSection(r, nonCriticalTxnCleanupCodes, seen) {
-			line += "\n  " + w
-		}
-		for _, w := range formatUnknownCleanupSection(r, seen) {
-			line += "\n  " + w
-		}
 	} else if r.RolledBack && (r.TransactionCleanupIncomplete || r.RecoveryRequired) {
 		line += "\nRollback completed with cleanup warnings. Run m recover if stale transaction metadata remains."
 		for _, w := range formatCleanupSection(r, criticalTxnCleanupCodes, seen) {
+			line += "\n  " + w
+		}
+	}
+	if r.Committed && r.CleanupIncomplete {
+		line += "\nInstallation committed with a non-critical cleanup warning."
+		for _, w := range formatCleanupSection(r, nonCriticalTxnCleanupCodes, seen) {
 			line += "\n  " + w
 		}
 	}
@@ -153,6 +151,9 @@ func FormatInstallSummary(r InstallResult) string {
 		for _, w := range formatCleanupSection(r, storeCleanupCodes, seen) {
 			line += "\n  " + w
 		}
+	}
+	for _, w := range formatUnknownCleanupSection(r, seen) {
+		line += "\n  " + w
 	}
 	return line
 }
