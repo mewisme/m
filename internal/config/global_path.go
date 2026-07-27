@@ -1,51 +1,36 @@
 package config
 
-import (
-	"path/filepath"
-	"strings"
-)
+import "path/filepath"
 
 // GlobalConfigPathFromEnv resolves the user config.jsonc path from a frozen env snapshot.
-func GlobalConfigPathFromEnv(env []string, goos string) string {
-	m := envMap(env)
-	if d := m["MEW_CONFIG_DIR"]; d != "" {
+func GlobalConfigPathFromEnv(snap EnvSnapshot) string {
+	if d, ok := snap.Lookup("MEW_CONFIG_DIR"); ok && d != "" {
 		return absJoin(d, "config.jsonc")
 	}
-	if home := m["MEW_HOME"]; home != "" {
+	if home, ok := snap.Lookup("MEW_HOME"); ok && home != "" {
 		return absJoin(home, "config", "config.jsonc")
 	}
-	if goos == "windows" {
-		base := m["AppData"]
+	if snap.GOOS() == "windows" {
+		base, _ := snap.Lookup("APPDATA")
 		if base == "" {
-			base = filepath.Join(m["USERPROFILE"], "AppData", "Roaming")
+			profile, _ := snap.Lookup("USERPROFILE")
+			base = filepath.Join(profile, "AppData", "Roaming")
 		}
 		return absJoin(base, "mew", "config.jsonc")
 	}
-	cfg := m["XDG_CONFIG_HOME"]
-	if cfg == "" {
-		cfg = filepath.Join(userHomeFromEnv(m), ".config")
+	cfg, ok := snap.Lookup("XDG_CONFIG_HOME")
+	if !ok || cfg == "" {
+		cfg = filepath.Join(userHomeFromSnap(snap), ".config")
 	}
 	return absJoin(cfg, "mew", "config.jsonc")
 }
 
-func envMap(env []string) map[string]string {
-	m := make(map[string]string, len(env))
-	for _, e := range env {
-		key, val, ok := strings.Cut(e, "=")
-		if !ok {
-			m[key] = ""
-			continue
-		}
-		m[key] = val
-	}
-	return m
-}
-
-func userHomeFromEnv(m map[string]string) string {
-	if h := m["HOME"]; h != "" {
+func userHomeFromSnap(snap EnvSnapshot) string {
+	if h, ok := snap.Lookup("HOME"); ok && h != "" {
 		return h
 	}
-	return m["USERPROFILE"]
+	h, _ := snap.Lookup("USERPROFILE")
+	return h
 }
 
 func absJoin(elem ...string) string {

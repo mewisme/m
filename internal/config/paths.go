@@ -122,25 +122,31 @@ func CacheRoot(eff *Effective) string {
 	if d := String(eff, "cache.dir", ""); d != "" {
 		return d
 	}
-	if d := os.Getenv("MEW_CACHE_DIR"); d != "" {
+	snap := envSnap(eff)
+	if d, ok := snap.Lookup("MEW_CACHE_DIR"); ok && d != "" {
 		return d
 	}
-	if home := os.Getenv("MEW_HOME"); home != "" {
+	if home, ok := snap.Lookup("MEW_HOME"); ok && home != "" {
 		return filepath.Join(home, "cache")
 	}
-	if runtime.GOOS == "windows" {
-		base := os.Getenv("LocalAppData")
+	goos := snap.GOOS()
+	if goos == "" {
+		goos = runtime.GOOS
+	}
+	if goos == "windows" {
+		base, _ := snap.Lookup("LOCALAPPDATA")
 		if base == "" {
-			base = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local")
+			profile, _ := snap.Lookup("USERPROFILE")
+			base = filepath.Join(profile, "AppData", "Local")
 		}
 		return filepath.Join(base, "mew", "cache")
 	}
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(userHome(), "Library", "Caches", "mew")
+	if goos == "darwin" {
+		return filepath.Join(userHomeFromSnap(snap), "Library", "Caches", "mew")
 	}
-	xdg := os.Getenv("XDG_CACHE_HOME")
-	if xdg == "" {
-		xdg = filepath.Join(userHome(), ".cache")
+	xdg, ok := snap.Lookup("XDG_CACHE_HOME")
+	if !ok || xdg == "" {
+		xdg = filepath.Join(userHomeFromSnap(snap), ".cache")
 	}
 	return filepath.Join(xdg, "mew")
 }
@@ -161,25 +167,31 @@ func StoreRoot(eff *Effective) (string, error) {
 	if d := String(eff, "store.dir", ""); d != "" {
 		return validateStorePath(d, "store.dir")
 	}
-	if d := os.Getenv("MEW_STORE_DIR"); d != "" {
+	snap := envSnap(eff)
+	if d, ok := snap.Lookup("MEW_STORE_DIR"); ok && d != "" {
 		return validateStorePath(d, "MEW_STORE_DIR")
 	}
-	if home := os.Getenv("MEW_HOME"); home != "" {
+	if home, ok := snap.Lookup("MEW_HOME"); ok && home != "" {
 		return validateStorePath(filepath.Join(home, "store"), "MEW_HOME")
 	}
-	if runtime.GOOS == "windows" {
-		base := os.Getenv("LocalAppData")
+	goos := snap.GOOS()
+	if goos == "" {
+		goos = runtime.GOOS
+	}
+	if goos == "windows" {
+		base, _ := snap.Lookup("LOCALAPPDATA")
 		if base == "" {
-			base = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local")
+			profile, _ := snap.Lookup("USERPROFILE")
+			base = filepath.Join(profile, "AppData", "Local")
 		}
 		return validateStorePath(filepath.Join(base, "mew", "store"), "default")
 	}
-	if runtime.GOOS == "darwin" {
-		return validateStorePath(filepath.Join(userHome(), "Library", "Application Support", "github.com", "mewisme", "m", "store"), "default")
+	if goos == "darwin" {
+		return validateStorePath(filepath.Join(userHomeFromSnap(snap), "Library", "Application Support", "github.com", "mewisme", "m", "store"), "default")
 	}
-	xdg := os.Getenv("XDG_DATA_HOME")
-	if xdg == "" {
-		xdg = filepath.Join(userHome(), ".local", "share")
+	xdg, ok := snap.Lookup("XDG_DATA_HOME")
+	if !ok || xdg == "" {
+		xdg = filepath.Join(userHomeFromSnap(snap), ".local", "share")
 	}
 	return validateStorePath(filepath.Join(xdg, "github.com", "mewisme", "m", "store"), "default")
 }
@@ -203,10 +215,26 @@ func validateStorePath(p, subject string) (string, error) {
 
 // UseGlobalStore reports whether the experimental global store + smart linker path is enabled.
 func UseGlobalStore(eff *Effective) bool {
-	if os.Getenv("MEW_EXPERIMENTAL_GLOBAL_STORE") == "1" {
+	if v, ok := envLookup(eff, "MEW_EXPERIMENTAL_GLOBAL_STORE"); ok && v == "1" {
 		return true
 	}
 	return Bool(eff, "link.use_global_store", false)
+}
+
+func envSnap(eff *Effective) EnvSnapshot {
+	if eff != nil && eff.Env.populated() {
+		return eff.Env
+	}
+	// safe: ambient env fallback when Effective was built without a snapshot (unit tests).
+	return NewEnvSnapshot(os.Environ(), runtime.GOOS)
+}
+
+func envLookup(eff *Effective, key string) (string, bool) {
+	if eff != nil && eff.Env.populated() {
+		return eff.Env.Lookup(key)
+	}
+	v := os.Getenv(key)
+	return v, v != ""
 }
 
 // ScopeRegistries returns @scope → registry URL from registries.* keys.

@@ -38,6 +38,7 @@ type Value struct {
 // Effective is the merged configuration map (dotted keys).
 type Effective struct {
 	Values map[string]Value
+	Env    EnvSnapshot
 }
 
 // Entry is a sorted list row for `m config list`.
@@ -55,6 +56,7 @@ type LoadOptions struct {
 	ProjectPath string // empty = <root>/m.jsonc
 	ProjectRoot string // empty = CWD (caller may set after FindRoot)
 	Env         []string
+	EnvSnapshot EnvSnapshot
 	CLI         map[string]any // already-parsed CLI overlays
 	// RequireProjectConfig/RequireGlobalConfig make explicit --config paths mandatory.
 	RequireProjectConfig bool
@@ -114,6 +116,7 @@ func defaults() map[string]any {
 }
 
 // GlobalConfigPath resolves the user config.jsonc path.
+// safe: ambient env for m config set --global outside app.New snapshot.
 func GlobalConfigPath() string {
 	if d := os.Getenv("MEW_CONFIG_DIR"); d != "" {
 		return filepath.Join(d, "config.jsonc")
@@ -156,7 +159,15 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 	if root == "" {
 		root = opts.CWD
 	}
-	eff := &Effective{Values: map[string]Value{}}
+	snap := opts.EnvSnapshot
+	if !snap.populated() {
+		env := opts.Env
+		if env == nil {
+			env = os.Environ()
+		}
+		snap = NewEnvSnapshot(env, runtime.GOOS)
+	}
+	eff := &Effective{Values: map[string]Value{}, Env: snap}
 
 	putMap(eff, defaults(), SourceDefaults, "defaults")
 
@@ -179,11 +190,7 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 	// Mew identity: do not read branded PM config as authority.
 	_ = opts.IdentityMew
 
-	env := opts.Env
-	if env == nil {
-		env = os.Environ()
-	}
-	mergeEnv(eff, env)
+	mergeEnv(eff, snap)
 
 	for k, v := range opts.CLI {
 		if err := validateKeyValue(k, v); err != nil {
@@ -222,16 +229,9 @@ func mergeFile(eff *Effective, path string, src Source, required bool) error {
 	return nil
 }
 
-func mergeEnv(eff *Effective, environ []string) {
-	envMap := map[string]string{}
-	for _, e := range environ {
-		k, v, ok := strings.Cut(e, "=")
-		if ok {
-			envMap[k] = v
-		}
-	}
+func mergeEnv(eff *Effective, snap EnvSnapshot) {
 	set := func(key, envKey string, coerce func(string) (any, error)) {
-		v, ok := envMap[envKey]
+		v, ok := snap.Lookup(envKey)
 		if !ok || v == "" {
 			return
 		}

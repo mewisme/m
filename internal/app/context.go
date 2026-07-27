@@ -75,12 +75,15 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 		projectRoot = r
 	}
 
+	snap := config.NewEnvSnapshot(env, runtime.GOOS)
+
 	loadOpts := config.LoadOptions{
 		CWD:         cwd,
 		ProjectRoot: projectRoot,
 		Env:         env,
+		EnvSnapshot: snap,
 		CLI:         cliOverlay,
-		GlobalPath:  config.GlobalConfigPathFromEnv(env, runtime.GOOS),
+		GlobalPath:  config.GlobalConfigPathFromEnv(snap),
 	}
 	if opts.ConfigPath != "" {
 		cfgAbs, err := config.ResolveConfigPath(cwd, opts.ConfigPath)

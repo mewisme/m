@@ -1,8 +1,6 @@
 package config
 
 import (
-	"os"
-
 	"github.com/mewisme/m/internal/apperr"
 )
 
@@ -19,7 +17,7 @@ func ResolveLinkerMode(eff *Effective, lockLinker string, frozen bool) (string, 
 	case "hoisted":
 		return "hoisted", nil
 	case "isolated":
-		if os.Getenv("MEW_EXPERIMENTAL_ISOLATED_LINKER") != "1" {
+		if v, ok := envLookup(eff, "MEW_EXPERIMENTAL_ISOLATED_LINKER"); !ok || v != "1" {
 			return "", apperr.New(apperr.Usage, "config.linker", "isolated",
 				"isolated linker requires MEW_EXPERIMENTAL_ISOLATED_LINKER=1")
 		}
