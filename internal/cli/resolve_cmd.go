@@ -53,6 +53,12 @@ func newResolveCmd() *cobra.Command {
 			if trace {
 				for _, d := range res.Decisions {
 					line := fmt.Sprintf("%s@%s → %s (%s)", d.Package, d.Requested, d.Selected, d.Reason)
+					if len(d.PeerContext) > 0 {
+						line += fmt.Sprintf(" peerContext=%v", d.PeerContext)
+					}
+					if d.OverrideFrom != "" {
+						line += fmt.Sprintf(" override=%q", d.OverrideFrom)
+					}
 					if len(d.Rejected) > 0 {
 						line += fmt.Sprintf(" rejected=%v", d.Rejected)
 					}

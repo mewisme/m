@@ -28,7 +28,12 @@ func (b *Builder) Package(id PackageID, integrity, tarball string) *Builder {
 
 // Edge appends a dependency edge.
 func (b *Builder) Edge(from, to string, kind DepKind, rng string) *Builder {
-	b.edges = append(b.edges, Edge{From: from, To: to, Kind: kind, Range: rng})
+	return b.EdgeEx(from, to, kind, rng, false)
+}
+
+// EdgeEx appends a dependency edge with an optional skip marker.
+func (b *Builder) EdgeEx(from, to string, kind DepKind, rng string, optional bool) *Builder {
+	b.edges = append(b.edges, Edge{From: from, To: to, Kind: kind, Range: rng, Optional: optional})
 	return b
 }
 

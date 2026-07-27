@@ -1,0 +1,8 @@
+{
+  "name": "phantom-dep-negative",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "pkg-a": "^1.0.0"
+  }
+}

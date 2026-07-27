@@ -298,7 +298,11 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0016",
-      "tests": ["internal/app", "internal/cli", "tests/integration"]
+      "tests": [
+        "internal/app",
+        "internal/cli",
+        "tests/integration"
+      ]
     },
     {
       "id": "pm.ci",
@@ -308,7 +312,10 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0016",
-      "tests": ["internal/cli", "tests/integration"]
+      "tests": [
+        "internal/cli",
+        "tests/integration"
+      ]
     },
     {
       "id": "pm.add-remove-update",
@@ -318,7 +325,11 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0016",
-      "tests": ["internal/app", "internal/cli", "tests/integration"]
+      "tests": [
+        "internal/app",
+        "internal/cli",
+        "tests/integration"
+      ]
     },
     {
       "id": "pm.import-dedupe-prune",
@@ -693,17 +704,23 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0016",
-      "tests": ["internal/linker/hoisted", "tests/integration"]
+      "tests": [
+        "internal/linker/hoisted",
+        "tests/integration"
+      ]
     },
     {
       "id": "linker.isolated",
       "name": "isolated virtual store",
       "module": "linker",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0019",
-      "tests": []
+      "tests": [
+        "internal/linker/isolated",
+        "tests/integration"
+      ]
     },
     {
       "id": "linker.global-store",

@@ -22,17 +22,26 @@ type Dist struct {
 	Shasum    string `json:"shasum,omitempty"`
 }
 
+// PeerMeta is optional metadata for a peer dependency.
+type PeerMeta struct {
+	Optional bool `json:"optional,omitempty"`
+}
+
 // VersionMeta is one version entry inside a packument.
 type VersionMeta struct {
-	Name                 string            `json:"name,omitempty"`
-	Version              string            `json:"version"`
-	Deprecated           string            `json:"deprecated,omitempty"`
-	Time                 string            `json:"time,omitempty"` // RFC3339 publish time when present
-	Dist                 Dist              `json:"dist"`
-	Dependencies         map[string]string `json:"dependencies,omitempty"`
-	DevDependencies      map[string]string `json:"devDependencies,omitempty"`
-	OptionalDependencies map[string]string `json:"optionalDependencies,omitempty"`
-	PeerDependencies     map[string]string `json:"peerDependencies,omitempty"`
+	Name                 string              `json:"name,omitempty"`
+	Version              string              `json:"version"`
+	Deprecated           string              `json:"deprecated,omitempty"`
+	Time                 string              `json:"time,omitempty"` // RFC3339 publish time when present
+	Dist                 Dist                `json:"dist"`
+	Dependencies         map[string]string   `json:"dependencies,omitempty"`
+	DevDependencies      map[string]string   `json:"devDependencies,omitempty"`
+	OptionalDependencies map[string]string   `json:"optionalDependencies,omitempty"`
+	PeerDependencies     map[string]string   `json:"peerDependencies,omitempty"`
+	PeerDependenciesMeta map[string]PeerMeta `json:"peerDependenciesMeta,omitempty"`
+	OS                   []string            `json:"os,omitempty"`
+	CPU                  []string            `json:"cpu,omitempty"`
+	Libc                 []string            `json:"libc,omitempty"`
 }
 
 // Packument is an npm-compatible package metadata document.

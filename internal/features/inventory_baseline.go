@@ -108,7 +108,7 @@ func baselineFeatures() []Feature {
 
 		// Linker and reliability
 		rowWithTests("linker.hoisted", "hoisted node_modules", "linker", shipped, shipped, parity, "0016", []string{"internal/linker/hoisted", "tests/integration"}),
-		row("linker.isolated", "isolated virtual store", "linker", shipped, planned, parity, "0019"),
+		row("linker.isolated", "isolated virtual store", "linker", shipped, shipped, parity, "0019"),
 		row("linker.global-store", "global content-addressed store", "linker", shipped, shipped, parity, "0018"),
 		rowWithTests("linker.platform-links", "hardlink / symlink / junction behavior", "linker", shipped, shipped, parity, "0018", []string{"internal/linker/planner", "tests/integration"}),
 		rowWithTests("linker.reflink-planner", "reflink and automatic filesystem planning", "linker", omit, shipped, ext, "0018", []string{"internal/linker/planner"}),

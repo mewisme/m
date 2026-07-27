@@ -6,7 +6,7 @@ install path (MVP **0016**).
 ## Pipeline
 
 ```text
-resolve → fetch (blob cache) → [optional: import to global store] → link (hoisted copy or smart link) → validate → commit (journal) → snapshot
+resolve → fetch (blob cache) → [optional: import to global store] → link (hoisted or isolated) → validate → commit (journal) → snapshot
 ```
 
 Work happens under `<project>/.mew/txn/<id>/stage/` until commit. On failure,
@@ -17,24 +17,23 @@ backups.
 
 | Command | Flags | Notes |
 |---|---|---|
-| `m install` / `i` | `--prod`, `--frozen-lockfile`, `--dry-run`, `--journal`, `--json` | Full install |
-| `m add <pkg>` | `-D`, `-E`, `--json` | Manifest + lock + install (atomic commit) |
-| `m remove <pkg>` / `rm` | `--json` | Remove dep + reinstall |
-| `m ci` | `--prod`, `--json` | `install --frozen-lockfile` |
+| `m install` / `i` | `--prod`, `--frozen-lockfile`, `--dry-run`, `--journal`, `--linker`, `--json` | Full install |
+| `m add <pkg>` | `-D`, `-E`, `--linker`, `--json` | Manifest + lock + install (atomic commit) |
+| `m remove <pkg>` / `rm` | `--linker`, `--json` | Remove dep + reinstall |
+| `m ci` | `--prod`, `--linker`, `--json` | `install --frozen-lockfile` |
 | `m snapshot` | `list`, `restore <id>` | Snapshot history |
 | `m recover` | — | Recover interrupted transaction |
 | `m rollback` | — | Restore previous snapshot |
 
 ## Layout
 
-- **Hoisted** copy-based `node_modules` (no hardlinks/symlinks yet — **0018**)
+- **Hoisted** (default): `auto` and `--linker=hoisted` — smart link or copy from global store when enabled (**0018**)
+- **Isolated** (experimental): `--linker=isolated` + `MEW_EXPERIMENTAL_ISOLATED_LINKER=1` — pnpm-style `.pnpm` virtual store (**0019**); see [`linker.md`](linker.md)
 - **`node_modules/.bin`** platform shims for declared `bin` entries
 
 ## Non-goals (0016)
 
 - Lifecycle scripts (`preinstall`, `postinstall`) — **0021**
-- Global content store / smart linking — **0018**
-- Isolated virtual store — **0019**
 - `m update` — still stubbed
 
-See also: [`lockfile.md`](lockfile.md), [`transaction.md`](transaction.md), [`cli.md`](cli.md).
+See also: [`lockfile.md`](lockfile.md), [`transaction.md`](transaction.md), [`store.md`](store.md), [`linker.md`](linker.md), [`cli.md`](cli.md).

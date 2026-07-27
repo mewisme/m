@@ -157,7 +157,7 @@ func (s *Settings) Normalize() error {
 
 // DefaultSettings returns canonical v1 settings.
 func DefaultSettings() Settings {
-	pol := policy.Policy{}
+	pol := policy.Policy{StrictPeerDependencies: true}
 	_ = pol.Normalize()
 	return Settings{Linker: "auto", Policy: pol}
 }

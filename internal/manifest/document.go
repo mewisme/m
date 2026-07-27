@@ -16,6 +16,7 @@ type Document struct {
 	DevDependencies      map[string]string
 	OptionalDependencies map[string]string
 	PeerDependencies     map[string]string
+	Overrides            map[string]json.RawMessage
 	Scripts              map[string]string
 	Engines              map[string]string
 	PackageManager       string

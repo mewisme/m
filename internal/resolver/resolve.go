@@ -12,6 +12,7 @@ import (
 	"github.com/mewisme/m/internal/policy"
 	"github.com/mewisme/m/internal/project"
 	"github.com/mewisme/m/internal/registry"
+	"github.com/mewisme/m/internal/workspace"
 )
 
 // Engine resolves registry dependencies into a deterministic graph.
@@ -30,12 +31,44 @@ func NewEngine(client *registry.Client, eff *config.Effective, identity project.
 }
 
 type workItem struct {
-	from  string // importer id or package key
-	name  string
-	rng   string
-	kind  graph.DepKind
-	depth int
-	path  []string // package names on the path from root (for cycles)
+	from         string
+	display      string
+	name         string
+	spec         string
+	rng          string
+	protocol     manifest.Protocol
+	declarerPath string
+	kind         graph.DepKind
+	depth        int
+	path         []string
+	optional     bool
+	overrideFrom string
+}
+
+type resolveState struct {
+	e           *Engine
+	ctx         context.Context
+	proj        *project.Project
+	pol         *policy.Policy
+	hints       graphHints
+	target      Target
+	overrides   map[string]string
+	identity    project.Identity
+	omitRootDev bool
+
+	b          *graph.Builder
+	decisions  []ResolutionDecision
+	seenPkg    map[string]struct{}
+	queuedEdge map[string]struct{}
+	pkgPeers   map[string]map[string]string
+	pkgPeerOpt map[string]map[string]bool
+	queue      []workItem
+
+	wsIndex         *workspace.Index
+	wsByName        map[string]workspaceMember
+	wsMemberPaths   map[string]struct{}
+	localSources    map[string]LocalSource
+	seededImporters map[graph.ImporterID]bool
 }
 
 // ResolveProject expands an already-open project (used when manifest edits are in memory only).
@@ -70,45 +103,146 @@ func (e *Engine) Resolve(ctx context.Context, root string, opts ResolveOptions) 
 func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts ResolveOptions) (*Resolution, error) {
 	pol := opts.Policy
 	if pol == nil {
-		pol = &policy.Policy{}
-		_ = pol.Normalize()
-	} else if err := pol.Normalize(); err != nil {
+		pol = &policy.Policy{StrictPeerDependencies: true}
+	}
+	if err := pol.Normalize(); err != nil {
 		return nil, err
 	}
-	hints := graphHints{g: opts.Hints}
 
 	identity := e.Identity
 	if identity == "" {
 		identity = proj.Identity
 	}
 
-	b := graph.NewBuilder()
-	b.Importer(graph.RootImporter, proj.Normalized.Name)
+	s := &resolveState{
+		e:               e,
+		ctx:             ctx,
+		proj:            proj,
+		pol:             pol,
+		hints:           prepareHints(opts, proj.Normalized),
+		target:          CurrentTarget(),
+		overrides:       proj.Normalized.Overrides,
+		identity:        identity,
+		omitRootDev:     opts.OmitRootDev,
+		b:               graph.NewBuilder(),
+		seenPkg:         map[string]struct{}{},
+		queuedEdge:      map[string]struct{}{},
+		pkgPeers:        map[string]map[string]string{},
+		pkgPeerOpt:      map[string]map[string]bool{},
+		localSources:    map[string]LocalSource{},
+		seededImporters: map[graph.ImporterID]bool{graph.RootImporter: true},
+	}
+	s.b.Importer(graph.RootImporter, proj.Normalized.Name)
 
-	decisions := []ResolutionDecision{}
-	seenPkg := map[string]struct{}{}
-	queuedEdge := map[string]struct{}{}
-
-	var queue []workItem
-	enqueue := func(from, name, rng string, kind graph.DepKind, depth int, path []string) {
-		key := from + "\x00" + string(kind) + "\x00" + name + "\x00" + rng
-		if _, ok := queuedEdge[key]; ok {
-			return
-		}
-		queuedEdge[key] = struct{}{}
-		queue = append(queue, workItem{from: from, name: name, rng: rng, kind: kind, depth: depth, path: path})
+	if err := s.initWorkspace(); err != nil {
+		return nil, err
+	}
+	if err := s.seedFromManifest(proj.Normalized); err != nil {
+		return nil, err
+	}
+	if err := s.seedWorkspaceMembers(); err != nil {
+		return nil, err
+	}
+	if err := s.run(); err != nil {
+		return nil, err
+	}
+	if err := s.validatePeers(pol); err != nil {
+		return nil, err
 	}
 
-	seedDeps(proj.Normalized, opts.OmitRootDev, func(name, rng string, kind graph.DepKind) {
-		enqueue(string(graph.RootImporter), name, rng, kind, 1, nil)
-	})
+	g, err := s.b.Build()
+	if err != nil {
+		return nil, apperr.Wrap(apperr.Resolve, "resolver.build", proj.Root, err)
+	}
+	return &Resolution{
+		SchemaVersion: ResolutionSchemaVersion,
+		Graph:         g,
+		Decisions:     s.decisions,
+		Extensions:    s.buildExtensions(),
+	}, nil
+}
 
-	for len(queue) > 0 {
-		if err := ctx.Err(); err != nil {
-			return nil, err
+func (s *resolveState) seedFromManifest(m *manifest.Manifest) error {
+	return s.seedDeps(string(graph.RootImporter), ".", m, 1, nil)
+}
+
+func (s *resolveState) seedDeps(from, declarerPath string, m *manifest.Manifest, depth int, path []string) error {
+	if m == nil {
+		return nil
+	}
+	omitDev := from == string(graph.RootImporter) && s.omitRootDev
+	for _, d := range m.Dependencies {
+		if d.Kind == manifest.DepDev && omitDev {
+			continue
 		}
-		sort.SliceStable(queue, func(i, j int) bool {
-			a, c := queue[i], queue[j]
+		kind := d.Kind
+		optional := false
+		switch d.Kind {
+		case manifest.DepPeer:
+			continue
+		case manifest.DepOptional:
+			kind = graph.DepOptional
+			optional = true
+		}
+		if err := s.enqueue(from, declarerPath, d.Name, d.Range, kind, depth, path, optional); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *resolveState) enqueue(from, declarerPath, display, spec string, kind graph.DepKind, depth int, path []string, optional bool) error {
+	overrideFrom := ""
+	if _, ok := matchOverride(s.overrides, path, display); ok {
+		overrideFrom = spec
+	}
+	display, target, rng, protocol, err := rewriteSpecifier(s.overrides, path, display, spec)
+	if err != nil {
+		return err
+	}
+	if declarerPath == "" {
+		declarerPath = s.declarerPathFor(from)
+	}
+	key := from + "\x00" + string(kind) + "\x00" + target + "\x00" + spec
+	if _, ok := s.queuedEdge[key]; ok {
+		return nil
+	}
+	s.queuedEdge[key] = struct{}{}
+	s.queue = append(s.queue, workItem{
+		from: from, display: display, name: target, spec: spec, rng: rng,
+		protocol: protocol, declarerPath: declarerPath,
+		kind: kind, depth: depth, path: path, optional: optional,
+		overrideFrom: overrideFrom,
+	})
+	return nil
+}
+
+func (s *resolveState) declarerPathFor(from string) string {
+	if from == string(graph.RootImporter) {
+		return "."
+	}
+	if s.wsMemberPaths != nil {
+		if _, ok := s.wsMemberPaths[from]; ok {
+			return from
+		}
+	}
+	if loc, ok := s.localSources[from]; ok {
+		return loc.Path
+	}
+	id := parsePackageKey(from)
+	if loc, ok := s.localSources[id.Key()]; ok {
+		return loc.Path
+	}
+	return ""
+}
+
+func (s *resolveState) run() error {
+	for len(s.queue) > 0 {
+		if err := s.ctx.Err(); err != nil {
+			return err
+		}
+		sort.SliceStable(s.queue, func(i, j int) bool {
+			a, c := s.queue[i], s.queue[j]
 			if a.name != c.name {
 				return a.name < c.name
 			}
@@ -120,80 +254,126 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 			}
 			return a.from < c.from
 		})
-		item := queue[0]
-		queue = queue[1:]
+		item := s.queue[0]
+		s.queue = s.queue[1:]
 
-		if item.depth > maxDepth {
-			return nil, apperr.New(apperr.Resolve, "resolver.limit", item.name,
-				fmt.Sprintf("resolution depth exceeded %d", maxDepth))
-		}
-		if pathContains(item.path, item.name) {
-			return nil, cycleError(item.path, item.name)
-		}
-
-		base := registry.ResolveBaseForPackage(e.Effective, proj.Root, identity, item.name)
-		pack, err := e.Client.Packument(ctx, base, item.name)
-		if err != nil {
-			return nil, apperr.Wrap(apperr.Resolve, "resolver.packument", item.name, err)
-		}
-
-		meta, decision, err := selectVersion(pack, item.name, item.rng, pol, &hints)
-		if err != nil {
-			return nil, err
-		}
-		decisions = append(decisions, decision)
-
-		id := graph.PackageID{Name: item.name, Version: meta.Version}
-		key := id.Key()
-		tarball := registry.AbsoluteTarballURL(base, item.name, meta.Dist.Tarball)
-		if tarball == "" {
-			tarball = meta.Dist.Tarball
-		}
-
-		b.Edge(item.from, key, item.kind, item.rng)
-
-		if _, ok := seenPkg[key]; ok {
-			continue
-		}
-		if len(seenPkg) >= maxPackages {
-			return nil, apperr.New(apperr.Resolve, "resolver.limit", item.name,
-				fmt.Sprintf("resolution package count exceeded %d", maxPackages))
-		}
-		seenPkg[key] = struct{}{}
-		b.Package(id, meta.Dist.Integrity, tarball)
-
-		nextPath := append(append([]string(nil), item.path...), item.name)
-		// Expand prod dependencies only — never transitive devDependencies.
-		for _, kv := range sortedDeps(meta.Dependencies) {
-			enqueue(key, kv.name, kv.rng, graph.DepProd, item.depth+1, nextPath)
+		if err := s.processItem(item); err != nil {
+			if item.optional {
+				s.decisions = append(s.decisions, ResolutionDecision{
+					Package:   item.name,
+					Requested: item.rng,
+					Reason:    "optional-failed",
+				})
+				continue
+			}
+			return err
 		}
 	}
-
-	g, err := b.Build()
-	if err != nil {
-		return nil, apperr.Wrap(apperr.Resolve, "resolver.build", proj.Root, err)
-	}
-	return &Resolution{
-		SchemaVersion: ResolutionSchemaVersion,
-		Graph:         g,
-		Decisions:     decisions,
-	}, nil
+	return nil
 }
 
-func seedDeps(m *manifest.Manifest, omitDev bool, add func(name, rng string, kind graph.DepKind)) {
-	if m == nil {
-		return
+func (s *resolveState) processItem(item workItem) error {
+	switch item.protocol {
+	case manifest.ProtocolWorkspace:
+		return s.processWorkspace(item)
+	case manifest.ProtocolFile, manifest.ProtocolLink, manifest.ProtocolPortal:
+		return s.processLocal(item)
+	default:
+		return s.processRegistry(item)
 	}
-	for _, d := range m.Dependencies {
-		switch d.Kind {
-		case manifest.DepProd:
-			add(d.Name, d.Range, d.Kind)
-		case manifest.DepDev:
-			if !omitDev {
-				add(d.Name, d.Range, d.Kind)
-			}
+}
+
+func (s *resolveState) processRegistry(item workItem) error {
+	if item.depth > maxDepth {
+		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
+			fmt.Sprintf("resolution depth exceeded %d", maxDepth))
+	}
+	if pathContains(item.path, item.name) {
+		return cycleError(item.path, item.name)
+	}
+
+	base := registry.ResolveBaseForPackage(s.e.Effective, s.proj.Root, s.identity, item.name)
+	pack, err := s.e.Client.Packument(s.ctx, base, item.name)
+	if err != nil {
+		return apperr.Wrap(apperr.Resolve, "resolver.packument", item.name, err)
+	}
+
+	meta, decision, err := selectVersion(pack, item.name, item.rng, s.pol, &s.hints)
+	if err != nil {
+		return err
+	}
+
+	if platformSkipsOptional(item.optional, meta, s.target) {
+		decision.Reason = "platform-skipped"
+		s.decisions = append(s.decisions, decision)
+		return nil
+	}
+
+	peerCtx := peerContextFromMeta(meta)
+	decision.PeerContext = peerCtx
+
+	if err := s.resolvePeers(item.name, meta, s.pol); err != nil {
+		return err
+	}
+
+	id := graph.PackageID{Name: item.name, Version: meta.Version, PeerContext: peerCtx}
+	id.Normalize()
+	key := id.Key()
+	decision.Selected = meta.Version
+	if item.overrideFrom != "" {
+		decision.OverrideFrom = item.overrideFrom
+	}
+	s.decisions = append(s.decisions, decision)
+
+	tarball := registry.AbsoluteTarballURL(base, item.name, meta.Dist.Tarball)
+	if tarball == "" {
+		tarball = meta.Dist.Tarball
+	}
+
+	s.b.EdgeEx(item.from, key, item.kind, item.rng, false)
+
+	if _, ok := s.seenPkg[key]; ok {
+		return nil
+	}
+	if len(s.seenPkg) >= maxPackages {
+		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
+			fmt.Sprintf("resolution package count exceeded %d", maxPackages))
+	}
+	s.seenPkg[key] = struct{}{}
+	s.b.Package(id, meta.Dist.Integrity, tarball)
+
+	if len(meta.PeerDependencies) > 0 {
+		peers := make(map[string]string, len(meta.PeerDependencies))
+		opt := make(map[string]bool, len(meta.PeerDependencies))
+		for k, v := range meta.PeerDependencies {
+			peers[k] = v
+			opt[k] = peerOptional(meta, k)
+		}
+		s.pkgPeers[key] = peers
+		s.pkgPeerOpt[key] = opt
+	}
+
+	nextPath := append(append([]string(nil), item.path...), item.name)
+	declarer := s.declarerPathFor(key)
+	for _, kv := range sortedDeps(meta.Dependencies) {
+		if err := s.enqueue(key, declarer, kv.name, kv.rng, graph.DepProd, item.depth+1, nextPath, false); err != nil {
+			return err
 		}
 	}
+	for _, kv := range sortedDeps(meta.OptionalDependencies) {
+		if err := s.enqueue(key, declarer, kv.name, kv.rng, graph.DepOptional, item.depth+1, nextPath, true); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func parseDependencySpecifier(displayName, spec string) (display, target, rng string, protocol manifest.Protocol, err error) {
+	sp, err := manifest.ParseSpecifier(displayName, spec)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	return sp.DisplayName, sp.TargetName, sp.Range, sp.Protocol, nil
 }
 
 type namedRange struct {

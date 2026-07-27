@@ -26,8 +26,9 @@ func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, 
 	}
 	ropts := resolver.ResolveOptions{OmitRootDev: opts.Prod}
 	if !manifestChanged {
-		if hints, err := readLockHints(ctx, ac, proj); err == nil && hints != nil {
-			ropts.Hints = hints
+		if prior, err := readLockHints(ctx, ac, proj); err == nil && prior != nil {
+			ropts.Prior = prior
+			ropts.Hints = prior
 		}
 		return eng.Resolve(ctx, proj.Root, ropts)
 	}

@@ -9,10 +9,11 @@ import (
 
 func TestPolicyRoundTrip(t *testing.T) {
 	p := &policy.Policy{
-		SchemaVersion: policy.SchemaVersion,
-		ScriptTrust:   policy.ScriptTrustDeny,
-		Offline:       true,
-		Linker:        "isolated",
+		SchemaVersion:          policy.SchemaVersion,
+		ScriptTrust:            policy.ScriptTrustDeny,
+		Offline:                true,
+		Linker:                 "isolated",
+		StrictPeerDependencies: true,
 	}
 	first, err := policy.EncodeJSON(p)
 	if err != nil {

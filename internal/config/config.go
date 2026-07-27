@@ -68,6 +68,8 @@ var ownedKeys = map[string]string{
 	"cache.dir":                      "string",
 	"store.dir":                      "string",
 	"link.use_global_store":          "bool",
+	"resolve.autoInstallPeers":       "bool",
+	"resolve.strictPeerDependencies": "bool",
 	"network.timeout_ms":             "int",
 	"network.proxy":                  "string",
 	"network.ca_file":                "string",
@@ -94,6 +96,8 @@ func defaults() map[string]any {
 		"cache.dir":                      "",
 		"store.dir":                      "",
 		"link.use_global_store":          false,
+		"resolve.autoInstallPeers":       false,
+		"resolve.strictPeerDependencies": true,
 		"network.timeout_ms":             60000,
 		"network.proxy":                  "",
 		"network.ca_file":                "",
@@ -231,6 +235,8 @@ func mergeEnv(eff *Effective, environ []string) {
 	set("store.dir", "MEW_STORE_DIR", func(s string) (any, error) { return s, nil })
 	set("offline", "MEW_OFFLINE", parseBool)
 	set("prefer-offline", "MEW_PREFER_OFFLINE", parseBool)
+	set("resolve.autoInstallPeers", "MEW_RESOLVE_AUTO_INSTALL_PEERS", parseBool)
+	set("resolve.strictPeerDependencies", "MEW_RESOLVE_STRICT_PEER_DEPS", parseBool)
 	set("registry", "MEW_REGISTRY", func(s string) (any, error) { return s, nil })
 	set("registry.auth_token_env", "MEW_REGISTRY_AUTH_TOKEN_ENV", func(s string) (any, error) { return s, nil })
 }

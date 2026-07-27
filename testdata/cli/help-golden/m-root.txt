@@ -33,7 +33,7 @@ Available Commands:
   run         Run a package script
   snapshot    Manage install snapshots
   store       Manage the content store
-  update      Update dependencies
+  update      Update dependencies and refresh the lockfile
   version     Print version information
   view        View package metadata from the registry
 

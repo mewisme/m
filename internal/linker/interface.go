@@ -75,6 +75,7 @@ func (s *LinkSummary) TallyFromOps(ops []Op) {
 // Plan is a filesystem link plan (mkdir/copy ops and bin shims).
 // Distinct from plan.Plan, which is the install mutation plan.
 type Plan struct {
+	LayoutMode  string            `json:"layoutMode,omitempty"` // hoisted | isolated
 	NodeModules string            `json:"nodeModules"`
 	ExtractDirs map[string]string `json:"extractDirs,omitempty"`
 	Placements  []Placement       `json:"placements,omitempty"`

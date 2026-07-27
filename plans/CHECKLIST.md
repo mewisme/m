@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current MVP: 0019 — Isolated Virtual Store and Node Modules Layout (next)
+- Current MVP: 0020 — Full Dependency Resolver (next)
 - Last updated: 2026-07-27
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
@@ -11,7 +11,7 @@
 
 Predecessors satisfied for:
 
-1. [0019 - Isolated virtual store and node_modules layout](0019-isolated-linker.md) - requires 0018
+1. [0020 - Full dependency resolver](0020-advanced-resolver.md) - requires 0019
 
 ## MVP completion (65)
 
@@ -35,7 +35,7 @@ Predecessors satisfied for:
 | 0016 | Core MVP 7 — Basic End-to-End Installer | Core / MVP 7 | 0011, 0013, 0014, 0015 | [x] | [0016](0016-basic-installer.md) | [0016-basic-installer](cursor/0016-basic-installer.plan.md) |
 | 0017 | Core MVP 8 — Transactional Install and Instant Rollback | Core / MVP 8 | 0016 | [x] | [0017](0017-transaction-rollback.md) | [0017-transaction-rollback](cursor/0017-transaction-rollback.plan.md) |
 | 0018 | Core MVP 9 — Global Content Store and Smart Filesystem Pl... | Core / MVP 9 | 0014, 0017 | [x] | [0018](0018-global-store-smart-linker.md) | [0018-global-store-smart-linker](cursor/0018-global-store-smart-linker.plan.md) |
-| 0019 | Core MVP 10 — Isolated Virtual Store and Node Modules Layout | Core / MVP 10 | 0018 | [ ] | [0019](0019-isolated-linker.md) | [0019-isolated-linker](cursor/0019-isolated-linker.plan.md) |
+| 0019 | Core MVP 10 — Isolated Virtual Store and Node Modules Layout | Core / MVP 10 | 0018 | [x] | [0019](0019-isolated-linker.md) | [0019-isolated-linker](cursor/0019-isolated-linker.plan.md) |
 | 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [ ] | [0020](0020-advanced-resolver.md) | [0020-advanced-resolver](cursor/0020-advanced-resolver.plan.md) |
 | 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [ ] | [0021](0021-lifecycle-sandbox.md) | [0021-lifecycle-sandbox](cursor/0021-lifecycle-sandbox.plan.md) |
 | 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [ ] | [0022](0022-workspaces-catalogs.md) | [0022-workspaces-catalogs](cursor/0022-workspaces-catalogs.plan.md) |
@@ -680,36 +680,36 @@ Predecessors satisfied for:
 
 ### 0019 - Core MVP 10 — Isolated Virtual Store and Node Modules Layout
 
-- status: planned
+- status: done
 - plan: [0019-isolated-linker.md](0019-isolated-linker.md)
 - cursor: [cursor/0019-isolated-linker.plan.md](cursor/0019-isolated-linker.plan.md)
 
-- [ ] Implement isolated linker creating per-package node_modules trees
-- [ ] Layout packages under node_modules/.pnpm/<id>/node_modules/
-- [ ] Symlink or junction top-level aliases to isolated paths
-- [ ] Prevent access to undeclared dependencies (phantom dep test)
-- [ ] Support hoisted mode as compatibility fallback via config
-- [ ] Integrate with global store from 0018 for file linking
-- [ ] Update m.lock settings block with linker mode
-- [ ] Handle peer dependency symlink targets in isolated layout
-- [ ] Create .bin shims resolving through isolated paths
-- [ ] Add integration tests comparing pnpm fixture layouts
-- [ ] Add Windows junction tests for long paths
-- [ ] Document isolated vs hoisted trade-offs
-- [ ] Ensure transaction rollback works with isolated tree
-- [ ] Validate staged isolated tree before commit
-- [ ] Support scoped packages in virtual store paths
-- [ ] Deterministic ordering of virtual store directory names
-- [ ] Emit layout summary in install output
-- [ ] Acceptance: Isolated install blocks requiring undeclared dependencies
-- [ ] Acceptance: pnpm-simple fixture layout matches expected structure
-- [ ] Acceptance: Hoisted mode still works via --linker=hoisted
-- [ ] Acceptance: Isolated .bin shims execute correctly on Windows
-- [ ] Acceptance: Linker mode persists in m.lock settings
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement isolated linker creating per-package node_modules trees
+- [x] Layout packages under node_modules/.pnpm/<id>/node_modules/
+- [x] Symlink or junction top-level aliases to isolated paths
+- [x] Prevent access to undeclared dependencies (phantom dep test)
+- [x] Support hoisted mode as compatibility fallback via config
+- [x] Integrate with global store from 0018 for file linking
+- [x] Update m.lock settings block with linker mode
+- [x] Handle peer dependency symlink targets in isolated layout
+- [x] Create .bin shims resolving through isolated paths
+- [x] Add integration tests comparing pnpm fixture layouts
+- [x] Add Windows junction tests for long paths
+- [x] Document isolated vs hoisted trade-offs
+- [x] Ensure transaction rollback works with isolated tree
+- [x] Validate staged isolated tree before commit
+- [x] Support scoped packages in virtual store paths
+- [x] Deterministic ordering of virtual store directory names
+- [x] Emit layout summary in install output
+- [x] Acceptance: Isolated install blocks requiring undeclared dependencies
+- [x] Acceptance: pnpm-simple fixture layout matches expected structure
+- [x] Acceptance: Hoisted mode still works via --linker=hoisted
+- [x] Acceptance: Isolated .bin shims execute correctly on Windows
+- [x] Acceptance: Linker mode persists in m.lock settings
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0020 - Core MVP 11 — Full Dependency Resolver
 

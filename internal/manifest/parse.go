@@ -47,6 +47,9 @@ func Parse(data []byte) (*Document, error) {
 	if doc.PeerDependencies, err = decodeStringMap(raw, "peerDependencies"); err != nil {
 		return nil, err
 	}
+	if doc.Overrides, err = decodeRawMap(raw, "overrides"); err != nil {
+		return nil, err
+	}
 	if doc.Scripts, err = decodeStringMap(raw, "scripts"); err != nil {
 		return nil, err
 	}
@@ -103,6 +106,18 @@ func decodeBool(raw map[string]json.RawMessage, key string, dst *bool) error {
 		return apperr.Wrap(apperr.Manifest, "manifest.parse", key, err)
 	}
 	return nil
+}
+
+func decodeRawMap(raw map[string]json.RawMessage, key string) (map[string]json.RawMessage, error) {
+	v, ok := raw[key]
+	if !ok {
+		return nil, nil
+	}
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(v, &m); err != nil {
+		return nil, apperr.Wrap(apperr.Manifest, "manifest.parse", key, err)
+	}
+	return m, nil
 }
 
 func decodeStringMap(raw map[string]json.RawMessage, key string) (map[string]string, error) {

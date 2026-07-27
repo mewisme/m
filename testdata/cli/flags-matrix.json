@@ -36,14 +36,14 @@
     ]
   },
   {
-    "name": "update-stub",
+    "name": "plan-stub",
     "args": [
-      "update"
+      "plan"
     ],
     "exit": 1,
     "stderrContains": [
       "ERR_M_UNIMPLEMENTED",
-      "0016"
+      "0028"
     ]
   },
   {

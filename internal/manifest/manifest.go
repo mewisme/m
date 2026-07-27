@@ -31,10 +31,11 @@ type Dependency struct {
 
 // Manifest is the normalized package.json view used by resolve.
 type Manifest struct {
-	SchemaVersion int          `json:"schemaVersion"`
-	Name          string       `json:"name,omitempty"`
-	Version       string       `json:"version,omitempty"`
-	Dependencies  []Dependency `json:"dependencies"`
+	SchemaVersion int               `json:"schemaVersion"`
+	Name          string            `json:"name,omitempty"`
+	Version       string            `json:"version,omitempty"`
+	Dependencies  []Dependency      `json:"dependencies"`
+	Overrides     map[string]string `json:"overrides,omitempty"` // flattened override path → specifier
 }
 
 // ParseJSON unmarshals a Manifest document and normalizes it.

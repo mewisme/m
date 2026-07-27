@@ -13,7 +13,6 @@ type stubSpec struct {
 }
 
 var stubCommands = []stubSpec{
-	{Use: "update", MVP: "0016", Short: "Update dependencies"},
 	{Use: "run", MVP: "0040", Short: "Run a package script"},
 	{Use: "exec", MVP: "0043", Short: "Execute a local package binary"},
 	{Use: "init", MVP: "0070", Short: "Initialize a project"},
@@ -21,14 +20,13 @@ var stubCommands = []stubSpec{
 	{Use: "pack", MVP: "0027", Short: "Create a package tarball"},
 	{Use: "publish", MVP: "0027", Short: "Publish a package"},
 	{Use: "link", MVP: "0026", Short: "Link a local package"},
-	{Use: "explain", MVP: "0028", Short: "Explain resolution decisions"},
 	{Use: "plan", MVP: "0028", Short: "Preview install mutations"},
 	{Use: "history", MVP: "0028", Short: "Show install history"},
 }
 
 // shippedBuiltins are always reserved (implemented today).
 var shippedBuiltins = []string{
-	"version", "features", "development", "config", "project", "pkg", "cache", "store", "view", "resolve", "fetch", "lock", "install", "i", "add", "remove", "rm", "ci", "snapshot", "recover", "rollback", "completion", "__dispatch", "help",
+	"version", "features", "development", "config", "project", "pkg", "cache", "store", "view", "resolve", "fetch", "lock", "install", "i", "add", "remove", "rm", "ci", "update", "explain", "snapshot", "recover", "rollback", "completion", "__dispatch", "help",
 }
 
 // ReservedNames returns sorted command names that cannot be shadowed by scripts (0042).

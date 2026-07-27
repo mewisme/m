@@ -23,12 +23,14 @@ const (
 
 // Policy is the trust/sandbox descriptor consumed by resolve and install.
 type Policy struct {
-	SchemaVersion     int           `json:"schemaVersion"`
-	ScriptTrust       ScriptTrust   `json:"scriptTrust"`
-	Offline           bool          `json:"offline,omitempty"`
-	Linker            string        `json:"linker,omitempty"`            // auto|hoisted|isolated
-	MinimumReleaseAge time.Duration `json:"minimumReleaseAge,omitempty"` // 0 = off
-	RejectDeprecated  bool          `json:"rejectDeprecated,omitempty"`
+	SchemaVersion          int           `json:"schemaVersion"`
+	ScriptTrust            ScriptTrust   `json:"scriptTrust"`
+	Offline                bool          `json:"offline,omitempty"`
+	Linker                 string        `json:"linker,omitempty"`            // auto|hoisted|isolated
+	MinimumReleaseAge      time.Duration `json:"minimumReleaseAge,omitempty"` // 0 = off
+	RejectDeprecated       bool          `json:"rejectDeprecated,omitempty"`
+	AutoInstallPeers       bool          `json:"autoInstallPeers,omitempty"`
+	StrictPeerDependencies bool          `json:"strictPeerDependencies,omitempty"`
 }
 
 // Normalize fills defaults and validates enums.
@@ -80,9 +82,16 @@ func EncodeJSON(p *Policy) ([]byte, error) {
 
 // DecodeJSON unmarshals and normalizes a policy.
 func DecodeJSON(data []byte) (*Policy, error) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, apperr.Wrap(apperr.Config, "policy.decode", "policy", err)
+	}
 	var p Policy
 	if err := json.Unmarshal(data, &p); err != nil {
 		return nil, apperr.Wrap(apperr.Config, "policy.decode", "policy", err)
+	}
+	if _, ok := raw["strictPeerDependencies"]; !ok {
+		p.StrictPeerDependencies = true
 	}
 	if err := p.Normalize(); err != nil {
 		return nil, err

@@ -1,0 +1,9 @@
+{
+  "layoutMode": "isolated",
+  "virtualStoreDir": ".pnpm",
+  "storeIDs": [
+    "pkg-a@1.0.0",
+    "pkg-b@1.2.0",
+    "pkg-c@1.0.1"
+  ]
+}

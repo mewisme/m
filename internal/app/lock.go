@@ -49,6 +49,28 @@ func WriteLock(ctx context.Context, ac *Context, res *resolver.Resolution) error
 	return mlock.WriteAtomic(LockPath(proj.Root), doc)
 }
 
+// ReadLockSettings reads m.lock settings without full graph conversion.
+func ReadLockSettings(root string) (mlock.Settings, error) {
+	doc, err := readLockDocument(root)
+	if err != nil {
+		return mlock.Settings{}, err
+	}
+	return doc.Settings, nil
+}
+
+func readLockSettings(root string) (*mlock.Document, error) {
+	return readLockDocument(root)
+}
+
+func readLockDocument(root string) (*mlock.Document, error) {
+	path := LockPath(root)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.IO, "lock.read", path, err)
+	}
+	return mlock.Decode(data)
+}
+
 // ReadLockGraph reads and validates m.lock into a canonical graph.
 func ReadLockGraph(ctx context.Context, ac *Context) (*graph.Graph, error) {
 	proj, err := OpenProject(ctx, ac)

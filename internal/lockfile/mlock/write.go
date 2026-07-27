@@ -15,7 +15,14 @@ func FromResolution(res *resolver.Resolution, specifiers map[graph.ImporterID][]
 	if res == nil || res.Graph == nil {
 		return nil, apperr.New(apperr.Lockfile, "mlock.write", "resolution", "nil resolution graph")
 	}
-	return FromGraph(res.Graph, specifiers, settings)
+	doc, err := FromGraph(res.Graph, specifiers, settings)
+	if err != nil {
+		return nil, err
+	}
+	if len(res.Extensions) > 0 {
+		doc.Extensions = res.Extensions
+	}
+	return doc, nil
 }
 
 // WriteAtomic encodes doc and atomically replaces path.
@@ -67,5 +74,7 @@ func SettingsFromEffective(eff *config.Effective) (Settings, error) {
 			s.Linker = linker
 		}
 	}
+	s.Policy.AutoInstallPeers = config.Bool(eff, "resolve.autoInstallPeers", false)
+	s.Policy.StrictPeerDependencies = config.Bool(eff, "resolve.strictPeerDependencies", true)
 	return s, s.Normalize()
 }

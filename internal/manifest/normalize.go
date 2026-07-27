@@ -28,6 +28,13 @@ func ToNormalized(doc *Document) (*Manifest, error) {
 	add(DepDev, doc.DevDependencies)
 	add(DepOptional, doc.OptionalDependencies)
 	add(DepPeer, doc.PeerDependencies)
+	if doc.Overrides != nil {
+		flat, err := FlattenOverrides(doc.Overrides)
+		if err != nil {
+			return nil, err
+		}
+		m.Overrides = flat
+	}
 	if err := m.Normalize(); err != nil {
 		return nil, err
 	}

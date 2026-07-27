@@ -119,3 +119,14 @@ func PlanPackageLink(src, dest string, caps Capabilities) linker.Op {
 	}
 	return linker.Op{Kind: linker.OpCopy, Src: src, Dest: dest}
 }
+
+// PlanDirAlias picks symlink, junction, or copy for a directory alias.
+func PlanDirAlias(src, dest string, caps Capabilities) linker.Op {
+	if caps.Junction {
+		return linker.Op{Kind: linker.OpJunction, Src: src, Dest: dest}
+	}
+	if caps.Symlink {
+		return linker.Op{Kind: linker.OpSymlink, Src: src, Dest: dest}
+	}
+	return linker.Op{Kind: linker.OpCopy, Src: src, Dest: dest}
+}

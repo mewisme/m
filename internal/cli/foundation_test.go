@@ -117,7 +117,7 @@ func TestReservedNamesAndStub(t *testing.T) {
 		Out: ioDiscard{}, Err: &errW, Format: "silent", Color: diagnostics.ColorNever,
 	})
 	_ = rep
-	root.SetArgs([]string{"update"})
+	root.SetArgs([]string{"plan"})
 	err := root.Execute()
 	if err == nil {
 		t.Fatal("expected unimplemented")
@@ -128,7 +128,7 @@ func TestReservedNamesAndStub(t *testing.T) {
 	if apperr.ExitCode(err) != 1 {
 		t.Fatalf("exit=%d", apperr.ExitCode(err))
 	}
-	if !strings.Contains(err.Error(), "0016") {
+	if !strings.Contains(err.Error(), "0028") {
 		t.Fatalf("err=%v", err)
 	}
 }

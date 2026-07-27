@@ -1,11 +1,12 @@
 {
   "lockfileVersion": 1,
-  "checksum": "bb019c2f03dcbb198ddde0633a1ff4daae7bb8b81b2a13d709bfeffc02f92f80",
+  "checksum": "76ce9545f805f44da3279b7663ae497d83cf346851c46897e981d970ef710635",
   "settings": {
     "linker": "auto",
     "policy": {
       "schemaVersion": 1,
-      "scriptTrust": "ask"
+      "scriptTrust": "ask",
+      "strictPeerDependencies": true
     }
   },
   "importers": [

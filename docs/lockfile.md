@@ -71,6 +71,9 @@ an actionable diff.
 `m install --frozen-lockfile` is MVP **0016**; use `m lock validate --frozen`
 today. Library entry point: `app.ValidateFrozenLock`.
 
+When `m.lock` `settings.linker` is set, frozen installs use that linker mode
+(including `isolated` when the experimental gate is enabled).
+
 ## CLI
 
 ```text

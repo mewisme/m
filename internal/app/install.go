@@ -18,6 +18,7 @@ type InstallOptions struct {
 	Frozen      bool
 	DryRun      bool
 	KeepJournal bool
+	Linker      string // hoisted | isolated | empty
 }
 
 // InstallResult summarizes package changes.
