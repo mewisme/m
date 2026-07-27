@@ -1,0 +1,3 @@
+var fs=require('fs'),p=require('path'),f=p.join(__dirname,'.run-count');
+var n=fs.existsSync(f)?parseInt(fs.readFileSync(f,'utf8'),10):0;
+fs.writeFileSync(f,String(n+1));
