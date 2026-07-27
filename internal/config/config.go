@@ -85,6 +85,7 @@ var ownedKeys = map[string]string{
 	"lifecycle.enabled":              "bool",
 	"lifecycle.ignore_scripts":       "bool",
 	"lifecycle.script_trust":         "string",
+	"workspaces.enabled":             "bool",
 }
 
 // OwnedKeys returns the sorted list of owned config keys.
@@ -118,6 +119,7 @@ func defaults() map[string]any {
 		"lifecycle.enabled":              false,
 		"lifecycle.ignore_scripts":       false,
 		"lifecycle.script_trust":         "deny",
+		"workspaces.enabled":             false,
 	}
 }
 
@@ -258,6 +260,7 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) {
 	set("registry", "MEW_REGISTRY", func(s string) (any, error) { return s, nil })
 	set("registry.auth_token_env", "MEW_REGISTRY_AUTH_TOKEN_ENV", func(s string) (any, error) { return s, nil })
 	set("lifecycle.enabled", "MEW_EXPERIMENTAL_LIFECYCLE", parseBool)
+	set("workspaces.enabled", "MEW_EXPERIMENTAL_WORKSPACES", parseBool)
 }
 
 func parseBool(s string) (any, error) {
