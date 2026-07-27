@@ -2,14 +2,14 @@
 
 ## Program status
 
-- Current MVP: **0022** — workspaces, catalogs, and filtering
+- Current MVP: **0023** — Nub and pnpm lockfile bridge
 - Last updated: 2026-07-28
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0022 - Workspaces, catalogs, and filtering](0022-workspaces-catalogs.md)
+**Next:** [0023 - Nub and pnpm Lockfile Bridge](0023-nub-pnpm-lock-bridge.md)
 
 MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/m/actions/runs/30310739645 (21/21 green).
 
@@ -44,7 +44,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 | 0019 | Core MVP 10 — Isolated Virtual Store and Node Modules Layout | Core / MVP 10 | 0018 | [x] | [0019](0019-isolated-linker.md) | [0019-isolated-linker](cursor/0019-isolated-linker.plan.md) |
 | 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [x] | [0020](0020-advanced-resolver.md) | [0020-advanced-resolver](cursor/0020-advanced-resolver.plan.md) |
 | 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [x] | [0021](0021-lifecycle-sandbox.md) | [0021-lifecycle-sandbox](cursor/0021-lifecycle-sandbox.plan.md) |
-| 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [ ] | [0022](0022-workspaces-catalogs.md) | [0022-workspaces-catalogs](cursor/0022-workspaces-catalogs.plan.md) |
+| 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [x] | [0022](0022-workspaces-catalogs.md) | [0022-workspaces-catalogs](cursor/0022-workspaces-catalogs.plan.md) |
 | 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [ ] | [0023](0023-nub-pnpm-lock-bridge.md) | [0023-nub-pnpm-lock-bridge](cursor/0023-nub-pnpm-lock-bridge.plan.md) |
 | 0024 | Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility | Core / MVP 15 | 0023 | [ ] | [0024](0024-npm-locks.md) | [0024-npm-locks](cursor/0024-npm-locks.plan.md) |
 | 0025 | Core MVP 16 — Bun and Yarn Lockfile Compatibility | Core / MVP 16 | 0023, 0024 | [ ] | [0025](0025-bun-yarn-locks.md) | [0025-bun-yarn-locks](cursor/0025-bun-yarn-locks.plan.md) |
@@ -789,36 +789,36 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0022 - Core MVP 13 — Workspaces, Catalogs, and Filtering
 
-- status: planned
+- status: done
 - plan: [0022-workspaces-catalogs.md](0022-workspaces-catalogs.md)
 - cursor: [cursor/0022-workspaces-catalogs.plan.md](cursor/0022-workspaces-catalogs.plan.md)
 
-- [ ] Parse pnpm catalog: and catalog:default in package.json
-- [ ] Resolve catalog references to concrete versions in manifests
-- [ ] Implement --filter pattern matching package names and paths
-- [ ] Support -r recursive install across workspace members
-- [ ] Resolve workspace dependency graph with topological ordering
-- [ ] Install all importers atomically in single transaction
-- [ ] Validate workspace: protocol targets exist in graph
-- [ ] Detect duplicate workspace package names across members
-- [ ] Support root package.json as workspace importer
-- [ ] Implement m ls -r workspace tree listing
-- [ ] Add integration tests on workspace-simple and nested fixtures
-- [ ] Ensure filter install does not break unrelated members
-- [ ] Record per-importer sections in m.lock for all members
-- [ ] Document filter grammar compatibility with pnpm
-- [ ] Fail on catalog reference to undefined catalog entry
-- [ ] Support negation patterns in filters if pnpm-compatible
-- [ ] Emit workspace install summary per importer
-- [ ] Acceptance: m install -r installs all workspace members atomically
-- [ ] Acceptance: catalog: deps resolve to catalog-defined versions
-- [ ] Acceptance: --filter installs only matching packages and deps
-- [ ] Acceptance: Broken workspace: reference fails with clear error
-- [ ] Acceptance: m.lock contains importer section per workspace package
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Parse pnpm catalog: and catalog:default in package.json
+- [x] Resolve catalog references to concrete versions in manifests
+- [x] Implement --filter pattern matching package names and paths
+- [x] Support -r recursive install across workspace members
+- [x] Resolve workspace dependency graph with topological ordering
+- [x] Install all importers atomically in single transaction
+- [x] Validate workspace: protocol targets exist in graph
+- [x] Detect duplicate workspace package names across members
+- [x] Support root package.json as workspace importer
+- [x] Implement m ls -r workspace tree listing
+- [x] Add integration tests on workspace-simple and nested fixtures
+- [x] Ensure filter install does not break unrelated members
+- [x] Record per-importer sections in m.lock for all members
+- [x] Document filter grammar compatibility with pnpm
+- [x] Fail on catalog reference to undefined catalog entry
+- [x] Support negation patterns in filters if pnpm-compatible
+- [ ] Emit workspace install summary per importer — deferred (single summary line for v1)
+- [x] Acceptance: m install -r installs all workspace members atomically
+- [x] Acceptance: catalog: deps resolve to catalog-defined versions
+- [x] Acceptance: --filter installs only matching packages and deps
+- [x] Acceptance: Broken workspace: reference fails with clear error
+- [x] Acceptance: m.lock contains importer section per workspace package
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0023 - Core MVP 14 — Nub and pnpm Lockfile Bridge
 

@@ -464,14 +464,13 @@
       "name": "workspace protocol and catalogs",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "in-progress",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0022",
-      "notes": "workspace:* resolve-only; full install wiring deferred to MVP 0022",
       "tests": [
-        "internal/resolver",
         "fixtures/projects/workspace-protocol",
-        "tests/integration"
+        "fixtures/projects/workspace-catalog",
+        "tests/integration/workspaces_test.go"
       ]
     },
     {
@@ -913,20 +912,28 @@
       "name": "workspace discovery and graph",
       "module": "workspace",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0022",
-      "tests": []
+      "tests": [
+        "fixtures/projects/workspace-simple",
+        "fixtures/projects/workspace-catalog",
+        "fixtures/projects/workspace-filter",
+        "tests/integration/workspaces_test.go"
+      ]
     },
     {
       "id": "workspace.filtered-commands",
       "name": "recursive and filtered commands",
       "module": "workspace",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0022",
-      "tests": []
+      "tests": [
+        "tests/integration/workspaces_test.go",
+        "fixtures/projects/workspace-filter"
+      ]
     },
     {
       "id": "workspace.parallel-scripts",

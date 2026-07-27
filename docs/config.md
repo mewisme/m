@@ -37,12 +37,14 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 | `lifecycle.enabled` | bool | `false` — run lifecycle scripts (or `MEW_EXPERIMENTAL_LIFECYCLE=1`) |
 | `lifecycle.ignore_scripts` | bool | `false` — skip all lifecycle scripts |
 | `lifecycle.script_trust` | string | `deny` (`allow` \| `deny` \| `ask`) |
+| `workspaces.enabled` | bool | `false` — workspace install/filter (or `MEW_EXPERIMENTAL_WORKSPACES=1`) |
 
 Environment:
 
 | Variable | Effect |
 |---|---|
 | `MEW_EXPERIMENTAL_LIFECYCLE` | Maps to `lifecycle.enabled` |
+| `MEW_EXPERIMENTAL_WORKSPACES` | Maps to `workspaces.enabled` |
 | `MEW_EXPERIMENTAL_GLOBAL_STORE` | Maps to `link.use_global_store` |
 | `MEW_EXPERIMENTAL_ISOLATED_LINKER` | Set to `1` to allow `install.linker=isolated` |
 | `MEW_RESOLVE_AUTO_INSTALL_PEERS` | Maps to `resolve.autoInstallPeers` |

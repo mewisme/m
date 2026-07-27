@@ -61,8 +61,11 @@ Stubs on `m` today: `install` (`i`), `add`, `remove` (`rm`), `update`, `ci`,
 `explain`, `plan`, `history`.
 
 Shipped built-ins (also reserved): `version`, `features`, `development`,
-`config`, `project`, `pkg`, `cache`, `view`, `resolve`, `fetch`, `lock`,
-`completion`, `help`, hidden `__dispatch`.
+`config`, `project`, `pkg`, `cache`, `view`, `resolve`, `fetch`, `lock`, `ls`
+(`list`), `completion`, `help`, hidden `__dispatch`.
+
+Global flag: `--filter` — workspace package filter (pnpm-style), passed to
+install-family commands. Requires [`workspaces.md`](workspaces.md) gate.
 
 ## Registry
 
@@ -125,6 +128,16 @@ fallback; no script lookup yet.
 ## Install family
 
 `m install`, `m add`, `m remove`, and `m ci` — see [`install.md`](install.md).
+
+Workspace options (gated — see [`workspaces.md`](workspaces.md)):
+
+```text
+m install -r
+m install --filter <pattern>
+m --filter <pattern> install
+m add <pkg> --filter <pattern>
+m ls [-r] [--depth N]
+```
 
 ## Signals
 

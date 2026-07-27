@@ -17,12 +17,12 @@ func TestAuthTokenFromSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	eff, err := config.Load(context.Background(), config.LoadOptions{
-		CWD:         root,
-		ProjectRoot: root,
-		ProjectPath: cfgPath,
+		CWD:                  root,
+		ProjectRoot:          root,
+		ProjectPath:          cfgPath,
 		RequireProjectConfig: true,
-		Env:         []string{"NPM_TOKEN=invocation-secret"},
-		EnvSnapshot: config.NewEnvSnapshot([]string{"NPM_TOKEN=invocation-secret"}, "linux"),
+		Env:                  []string{"NPM_TOKEN=invocation-secret"},
+		EnvSnapshot:          config.NewEnvSnapshot([]string{"NPM_TOKEN=invocation-secret"}, "linux"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -41,12 +41,12 @@ func TestAuthTokenEmptyEnvNoToken(t *testing.T) {
 		t.Fatal(err)
 	}
 	eff, err := config.Load(context.Background(), config.LoadOptions{
-		CWD:         root,
-		ProjectRoot: root,
-		ProjectPath: cfgPath,
+		CWD:                  root,
+		ProjectRoot:          root,
+		ProjectPath:          cfgPath,
 		RequireProjectConfig: true,
-		Env:         []string{},
-		EnvSnapshot: config.NewEnvSnapshot([]string{}, "linux"),
+		Env:                  []string{},
+		EnvSnapshot:          config.NewEnvSnapshot([]string{}, "linux"),
 	})
 	if err != nil {
 		t.Fatal(err)

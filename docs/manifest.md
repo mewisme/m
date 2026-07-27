@@ -40,7 +40,10 @@ a future file watcher (no watcher in 0011).
 ## Workspaces
 
 Only `package.json` `workspaces` (string array or `{ "packages": [...] }`).
-`pnpm-workspace.yaml` is deferred to MVP **0022**.
+Root `catalog` maps catalog entry names to version ranges (`catalog:` specifiers).
+Optional `pnpm-workspace.yaml` `catalog:` block merges over `package.json` catalog.
+
+See [`workspaces.md`](workspaces.md) for install, filters, and catalogs.
 
 Globs: path segments, `*`, `{a,b}` braces, `!` negation. Members are root-relative
 slash paths, sorted, each requiring its own `package.json`. Cyclic / escaping

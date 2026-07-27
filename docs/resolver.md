@@ -73,7 +73,8 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 - `workspace:^` → `^memberVersion` range satisfied only by that member.
 - Missing target → `ERR_M_RESOLVE` with `workspace target "pkg" not found`.
 - Workspace members register as graph nodes with empty `integrity` / `tarballUrl` and `mew.resolver/local` `{protocol:"workspace", path:"..."}`.
-- Full workspace install wiring — **0022** (resolve-only today).
+- Multi-importer install (`-r`, `--filter`) — see [`workspaces.md`](workspaces.md).
+- `catalog:` specifiers resolve against the root catalog before registry fetch.
 
 ### Local sources (0020 placeholders)
 
