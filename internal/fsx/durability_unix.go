@@ -34,3 +34,7 @@ func replaceExistingFile(src, dst string) error {
 	}
 	return nil
 }
+
+func ignorableWindowsDirSyncErr(err error) bool {
+	return false
+}

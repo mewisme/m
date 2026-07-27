@@ -10,12 +10,29 @@ import (
 )
 
 func syncFileHandle(f *os.File) error {
-	return f.Sync()
+	if err := f.Sync(); err != nil {
+		if ignorableWindowsDirSyncErr(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// ignorableWindowsDirSyncErr reports directory fsync failures Windows may return for
+// directories the process cannot open for metadata sync. PublishFileDurable treats
+// these as best-effort parent sync; callers requiring strict durability must verify
+// platform support separately.
+func ignorableWindowsDirSyncErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "access is denied")
 }
 
 func syncDirHandle(f *os.File) error {
 	if err := f.Sync(); err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "access is denied") {
+		if ignorableWindowsDirSyncErr(err) {
 			return nil
 		}
 		return err

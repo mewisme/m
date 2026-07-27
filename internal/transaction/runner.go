@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,7 +118,24 @@ func (r *Runner) RecordBackup(rel string) error {
 	op.Backup = backupRel
 	op.DestKind = kind
 	op.SymlinkTarget = target
-	if kind == DestKindSymlink || kind == DestKindJunction {
+	if kind == DestKindJunction {
+		sub, print, tag, err := fsx.ReadMountPoint(live)
+		if err != nil {
+			return apperr.Wrap(apperr.Transaction, "transaction.backup", rel, err)
+		}
+		sidecar := backupAbs + reparseSidecarSuffix
+		if err := writeReparseSidecar(sidecar, reparseBackupMeta{
+			Tag:        tag,
+			Substitute: sub,
+			Print:      print,
+		}); err != nil {
+			return err
+		}
+		op.Backup = backupRel + reparseSidecarSuffix
+		op.ReparseTag = tag
+		op.ReparsePrint = print
+		op.SymlinkTarget = sub
+	} else if kind == DestKindSymlink {
 		if err := os.WriteFile(backupAbs+".link", []byte(target), 0o644); err != nil {
 			return apperr.Wrap(apperr.IO, "transaction.backup", rel, err)
 		}
@@ -157,20 +175,20 @@ func (r *Runner) Commit(ctx context.Context, extra []Op) error {
 	}
 	for i := range r.doc.Plan {
 		if err := invokeTestHook("publish", i); err != nil {
-			_, _ = r.Rollback(ctx)
+			_, _ = r.Rollback(ctx, DefaultFinishOpts())
 			return apperr.Wrap(apperr.Transaction, "transaction.commit", r.doc.Plan[i].Path, err)
 		}
 		if err := invokeTestHook("commit", i); err != nil {
-			_, _ = r.Rollback(ctx)
+			_, _ = r.Rollback(ctx, DefaultFinishOpts())
 			return apperr.Wrap(apperr.Transaction, "transaction.commit", r.doc.Plan[i].Path, err)
 		}
 		if err := r.applyPlanOp(ctx, i, true); err != nil {
-			_, _ = r.Rollback(ctx)
+			_, _ = r.Rollback(ctx, DefaultFinishOpts())
 			return err
 		}
 	}
 	if err := invokeTestHook("pre_committed", 0); err != nil {
-		_, _ = r.Rollback(ctx)
+		_, _ = r.Rollback(ctx, DefaultFinishOpts())
 		return apperr.Wrap(apperr.Transaction, "transaction.commit", "", err)
 	}
 	r.doc.State = StateCommitted
@@ -181,7 +199,7 @@ func (r *Runner) Commit(ctx context.Context, extra []Op) error {
 }
 
 // Rollback restores backups and inverses applied forward ops.
-func (r *Runner) Rollback(ctx context.Context) (FinishResult, error) {
+func (r *Runner) Rollback(ctx context.Context, opts FinishOpts) (FinishResult, error) {
 	var fr FinishResult
 	if r.doc == nil {
 		return fr, nil
@@ -221,16 +239,16 @@ func (r *Runner) Rollback(ctx context.Context) (FinishResult, error) {
 	if err := r.saveJournal(); err != nil {
 		return fr, err
 	}
-	fr = r.finishCriticalCleanup()
+	fr = r.finishCriticalCleanup(opts)
 	return fr, nil
 }
 
 // Finish clears the current pointer and optionally removes the txn dir.
-func (r *Runner) Finish(keepJournal bool) FinishResult {
+func (r *Runner) Finish(keepJournal bool, opts FinishOpts) FinishResult {
 	if r.doc == nil {
 		return FinishResult{}
 	}
-	fr := r.finishCleanup(keepJournal)
+	fr := r.finishCleanup(keepJournal, opts)
 	if r.doc.State == StateCommitted {
 		fr.Committed = true
 	}
@@ -238,35 +256,46 @@ func (r *Runner) Finish(keepJournal bool) FinishResult {
 }
 
 // Discard removes an incomplete transaction without restoring backups.
-func (r *Runner) Discard() FinishResult {
+func (r *Runner) Discard(opts FinishOpts) FinishResult {
 	if r.doc == nil {
 		return FinishResult{}
 	}
-	return r.finishCleanup(false)
+	return r.finishCleanup(false, opts)
 }
 
-func (r *Runner) finishCriticalCleanup() FinishResult {
+func (r *Runner) finishCriticalCleanup(opts FinishOpts) FinishResult {
 	var fr FinishResult
-	if err := clearCurrent(r.ProjectRoot); err != nil {
-		fr.CleanupWarnings = append(fr.CleanupWarnings, err)
-	} else {
-		fr.CurrentCleared = true
+	fr.CurrentClearRequested = opts.ClearCurrent
+	fr.LockReleaseRequested = opts.ReleaseProjectLock
+	if opts.ClearCurrent {
+		result, err := clearCurrentVerified(r.ProjectRoot)
+		if err != nil {
+			fr.CleanupWarnings = append(fr.CleanupWarnings, err)
+		} else if result.Verified {
+			fr.CurrentCleared = true
+		}
 	}
-	if err := ReleaseProjectLock(r.ProjectRoot, r.ID); err != nil {
-		fr.CleanupWarnings = append(fr.CleanupWarnings, err)
-	} else {
-		fr.LockReleased = true
+	if opts.ReleaseProjectLock {
+		if err := ReleaseProjectLock(r.ProjectRoot, r.ID); err != nil {
+			fr.CleanupWarnings = append(fr.CleanupWarnings, err)
+			if apperr.CodeOf(err) == apperr.Transaction {
+				fr.LockReleaseResult = fsx.ReleaseNotOwner
+			}
+		} else {
+			fr.LockReleased = true
+			fr.LockReleaseResult = fsx.ReleaseOK
+		}
 	}
 	return fr
 }
 
-func (r *Runner) finishCleanup(keepJournal bool) FinishResult {
+func (r *Runner) finishCleanup(keepJournal bool, opts FinishOpts) FinishResult {
 	if err := invokeTestHook("finish", 0); err != nil {
-		fr := r.finishCriticalCleanup()
+		fr := r.finishCriticalCleanup(opts)
 		appendCleanupWarning(&fr, "finish_hook", apperr.Wrap(apperr.Transaction, "transaction.finish", "", err))
 		return fr
 	}
-	fr := r.finishCriticalCleanup()
+	fr := r.finishCriticalCleanup(opts)
 	if !keepJournal && r.Root != "" {
 		if err := os.RemoveAll(r.Root); err != nil {
 			appendCleanupWarning(&fr, "txn_dir_remove", apperr.Wrap(apperr.IO, "transaction.finish", r.Root, err))
@@ -302,7 +331,7 @@ func LoadIncomplete(projectRoot string) (*Runner, error) {
 			return nil, readErr
 		}
 		if id != "" {
-			_ = clearCurrent(projectRoot)
+			_, _ = clearCurrentVerified(projectRoot)
 			_, _ = tryRemoveStaleLock(projectRoot)
 		}
 		return nil, nil
@@ -321,12 +350,12 @@ func RecoverIncomplete(ctx context.Context, projectRoot string) error {
 	}
 	switch txn.doc.State {
 	case StateStaging, StateValidated:
-		if fr := txn.Discard(); fr.HasCriticalCleanupFailure() {
+		if fr := txn.Discard(StandaloneFinishOpts()); fr.HasCriticalCleanupFailure() {
 			return finishResultError(fr)
 		}
 		return nil
 	case StateCommitting:
-		_, err := txn.Rollback(ctx)
+		_, err := txn.Rollback(ctx, StandaloneFinishOpts())
 		return err
 	default:
 		return nil
@@ -507,7 +536,22 @@ func (r *Runner) restoreBackup(op Op) error {
 		return nil
 	}
 	backup := filepath.Join(r.Root, op.Backup)
-	if op.PriorKind == DestKindSymlink || op.PriorKind == DestKindJunction {
+	if op.PriorKind == DestKindJunction {
+		meta, err := readReparseSidecar(backup)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return os.RemoveAll(live)
+			}
+			return apperr.Wrap(apperr.IO, "transaction.rollback", op.Path, err)
+		}
+		if meta.Tag != fsx.IOReparseTagMountPoint {
+			return apperr.New(apperr.Transaction, "transaction.rollback", op.Path,
+				fmt.Sprintf("unsupported reparse tag 0x%08X", meta.Tag))
+		}
+		_ = os.RemoveAll(live)
+		return createJunction(live, meta.Substitute, meta.Print)
+	}
+	if op.PriorKind == DestKindSymlink {
 		target, err := os.ReadFile(backup)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -540,10 +584,14 @@ func (r *Runner) renameOp(planIndex int, op Op, forward bool) error {
 	if err := os.MkdirAll(filepath.Dir(live), 0o755); err != nil {
 		return apperr.Wrap(apperr.IO, "transaction.rename", live, err)
 	}
-	if err := fsx.PublishRename(src, live); err != nil {
+	if err := fsx.ReplaceFileRecoverable(src, live); err != nil {
 		return err
 	}
-	r.doc.Plan[planIndex].Phase = PhaseNewFilePublished
+	r.doc.Plan[planIndex].Phase = PhasePublished
+	if err := r.saveJournal(); err != nil {
+		return err
+	}
+	r.doc.Plan[planIndex].Phase = PhaseParentSynced
 	return r.saveJournal()
 }
 
@@ -610,21 +658,36 @@ func (r *Runner) writeOp(planIndex int, op Op) error {
 		_ = tmp.Close()
 		return apperr.Wrap(apperr.IO, "transaction.write", live, err)
 	}
+	r.doc.Plan[planIndex].Phase = PhaseWritten
+	if err := r.saveJournal(); err != nil {
+		return err
+	}
 	if err := tmp.Sync(); err != nil {
 		_ = tmp.Close()
 		return apperr.Wrap(apperr.IO, "transaction.write", live, err)
 	}
-	if err := tmp.Close(); err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.write", live, err)
-	}
-	r.doc.Plan[planIndex].Phase = PhaseNewFileWritten
+	r.doc.Plan[planIndex].Phase = PhaseSynced
 	if err := r.saveJournal(); err != nil {
 		return err
 	}
-	if err := fsx.PublishRename(tmpName, live); err != nil {
+	if err := tmp.Close(); err != nil {
+		return apperr.Wrap(apperr.IO, "transaction.write", live, err)
+	}
+	if err := fsx.ReplaceExistingFile(tmpName, live); err != nil {
+		return apperr.Wrap(apperr.IO, "transaction.write", live, err)
+	}
+	r.doc.Plan[planIndex].Phase = PhasePublished
+	if err := r.saveJournal(); err != nil {
 		return err
 	}
-	r.doc.Plan[planIndex].Phase = PhaseNewFilePublished
+	if err := fsx.SyncFile(live); err != nil {
+		return apperr.Wrap(apperr.IO, "transaction.write", live, err)
+	}
+	parent := filepath.Dir(live)
+	if err := fsx.SyncDir(parent); err != nil {
+		return apperr.Wrap(apperr.IO, "transaction.write", parent, err)
+	}
+	r.doc.Plan[planIndex].Phase = PhaseParentSynced
 	return r.saveJournal()
 }
 
@@ -654,13 +717,21 @@ func pathKind(path string) (kind, target string, hadPrior bool, err error) {
 		}
 		return "", "", false, apperr.Wrap(apperr.IO, "transaction.pathkind", path, statErr)
 	}
+	if fsx.IsJunction(path) {
+		sub, _, _, err := fsx.ReadMountPoint(path)
+		if err != nil {
+			return "", "", false, apperr.Wrap(apperr.Transaction, "transaction.pathkind", path, err)
+		}
+		return DestKindJunction, sub, true, nil
+	}
+	if tag := fsx.ReparseTag(path); tag != 0 {
+		return "", "", false, apperr.New(apperr.Transaction, "transaction.pathkind", path,
+			fmt.Sprintf("unsupported reparse tag 0x%08X", tag))
+	}
 	if info.Mode()&os.ModeSymlink != 0 {
 		tgt, readErr := os.Readlink(path)
 		if readErr != nil {
 			return "", "", false, apperr.Wrap(apperr.IO, "transaction.pathkind", path, readErr)
-		}
-		if fsx.IsJunction(path) {
-			return DestKindJunction, tgt, true, nil
 		}
 		return DestKindSymlink, tgt, true, nil
 	}
@@ -697,27 +768,4 @@ func writeCurrent(projectRoot, id string) error {
 
 func readCurrent(projectRoot string) (string, error) {
 	return readCurrentGeneration(projectRoot)
-}
-
-func clearCurrent(projectRoot string) error {
-	dir := TxnRoot(projectRoot)
-	_ = os.Remove(filepath.Join(dir, currentHeadName))
-	err := os.Remove(CurrentPath(projectRoot))
-	if err != nil && !os.IsNotExist(err) {
-		return apperr.Wrap(apperr.IO, "transaction.current", projectRoot, err)
-	}
-	entries, readErr := os.ReadDir(dir)
-	if readErr != nil {
-		if os.IsNotExist(readErr) {
-			return nil
-		}
-		return apperr.Wrap(apperr.IO, "transaction.current", projectRoot, readErr)
-	}
-	for _, ent := range entries {
-		name := ent.Name()
-		if strings.HasPrefix(name, "current.") && name != currentHeadName {
-			_ = os.Remove(filepath.Join(dir, name))
-		}
-	}
-	return nil
 }

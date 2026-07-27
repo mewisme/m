@@ -15,6 +15,59 @@ import (
 	"github.com/mewisme/m/internal/transaction"
 )
 
+func TestTakeoverStaleFileLockABARace(t *testing.T) {
+	root := t.TempDir()
+	lockPath := filepath.Join(root, "legacy.lock")
+	oldOwner := []byte(`{"lockId":"old"}` + "\n")
+	if err := os.WriteFile(lockPath, oldOwner, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	obs := fsx.LockObservation{
+		LockID:    "old",
+		OwnerJSON: append([]byte(nil), oldOwner...),
+	}
+	tomb := fsx.TombstoneRoot(lockPath)
+
+	if err := os.Remove(lockPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lockPath, []byte(`{"lockId":"new"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := fsx.TakeoverStaleFileLock(lockPath, obs, tomb)
+	if err == nil {
+		t.Fatal("expected takeover failure when lock replaced")
+	}
+	if !errors.Is(err, os.ErrExist) {
+		t.Fatalf("err=%v", err)
+	}
+	data, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != `{"lockId":"new"}`+"\n" {
+		t.Fatalf("live lock replaced: %q", data)
+	}
+}
+
+func TestTakeoverStaleFileLockTombstonesOnce(t *testing.T) {
+	root := t.TempDir()
+	lockPath := filepath.Join(root, "legacy.lock")
+	tomb := fsx.TombstoneRoot(lockPath)
+	owner := []byte(`{"lockId":"stale","pid":999999,"processStart":1}` + "\n")
+	if err := os.WriteFile(lockPath, owner, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	obs := fsx.ObservationFromOwner(owner, time.Now(), false)
+	if err := fsx.TakeoverStaleFileLock(lockPath, obs, tomb); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+		t.Fatal("stale legacy file lock should be tombstoned")
+	}
+}
+
 func TestTakeoverStaleDirLockABARace(t *testing.T) {
 	root := t.TempDir()
 	lockDir := filepath.Join(root, "lock")
@@ -118,6 +171,26 @@ func TestTakeoverABAProcWorker(t *testing.T) {
 		lockDir = filepath.Join(root, ".locks", "sha256", "deadbeef")
 	case "index":
 		lockDir = filepath.Join(root, ".locks", "index")
+	case "legacy-file":
+		lockPath := filepath.Join(root, ".locks", "sha256", "deadbeef.lock")
+		staleOwner, err := os.ReadFile(lockPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		obs := fsx.ObservationFromOwner(staleOwner, time.Now(), false)
+		tomb := fsx.TombstoneRoot(filepath.Join(root, ".locks", "sha256", "deadbeef"))
+		err = fsx.TakeoverStaleFileLock(lockPath, obs, tomb)
+		result := filepath.Join(root, "result-"+lockKind)
+		if err == nil {
+			_ = os.WriteFile(result, []byte("unexpected-success"), 0o644)
+			return
+		}
+		if !errors.Is(err, os.ErrExist) {
+			_ = os.WriteFile(result, []byte(err.Error()), 0o644)
+			return
+		}
+		_ = os.WriteFile(result, []byte("aba-blocked"), 0o644)
+		return
 	default:
 		t.Fatalf("unknown kind %q", lockKind)
 	}
@@ -232,6 +305,92 @@ func runTakeoverABAProcTest(t *testing.T, kind string, setup func(root string) (
 	if string(live) != string(newOwner) {
 		t.Fatalf("live lock mutated: %q", live)
 	}
+}
+
+func runTakeoverABAFileProcTest(t *testing.T, kind string, setup func(root string) (lockPath string, staleOwner []byte)) {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("ABA proc test")
+	}
+	root := t.TempDir()
+	lockPath, staleOwner := setup(root)
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lockPath, staleOwner, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	signal := filepath.Join(root, "continue")
+	ready := filepath.Join(root, "worker-ready")
+	_ = os.Remove(signal)
+	_ = os.Remove(ready)
+	exe, err := exec.LookPath(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(exe, "-test.run=^TestTakeoverABAProcWorker$", "-test.count=1")
+	cmd.Env = append(os.Environ(),
+		"MEW_TAKEOVER_ABA_ROOT="+root,
+		"MEW_TAKEOVER_ABA_KIND="+kind,
+		"MEW_LOCK_TAKEOVER_PAUSE=pre-rename",
+		"MEW_LOCK_TAKEOVER_SIGNAL="+signal,
+		"MEW_LOCK_TAKEOVER_READY="+ready,
+	)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(ready); err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if _, err := os.Stat(ready); err != nil {
+		t.Fatal("worker did not reach pre-rename pause")
+	}
+
+	_ = os.Remove(lockPath)
+	newOwner := []byte(`{"schemaVersion":2,"lockId":"live","pid":1,"processStart":2}` + "\n")
+	if err := os.WriteFile(lockPath, newOwner, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(signal, []byte("go"), 0o644)
+
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("worker exit: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "result-"+kind))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "aba-blocked" {
+		t.Fatalf("result=%q", data)
+	}
+	live, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(live) != string(newOwner) {
+		t.Fatalf("live lock mutated: %q", live)
+	}
+}
+
+func TestTakeoverABAProcLegacyFileLock(t *testing.T) {
+	runTakeoverABAFileProcTest(t, "legacy-file", func(root string) (string, []byte) {
+		lockPath := filepath.Join(root, ".locks", "sha256", "deadbeef.lock")
+		doc := store.ImportLockDocument{
+			SchemaVersion: 2,
+			LockID:        "stale",
+			PID:           999999,
+			ProcessStart:  1,
+			PackageKey:    "sha256/deadbeef",
+			CreatedAt:     time.Now().UTC(),
+		}
+		raw, _ := json.Marshal(doc)
+		return lockPath, append(raw, '\n')
+	})
 }
 
 func TestTakeoverABAProcProjectLock(t *testing.T) {

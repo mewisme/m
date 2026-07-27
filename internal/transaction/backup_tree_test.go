@@ -44,7 +44,7 @@ func TestBackupTreeFileSymlinkRoundTrip(t *testing.T) {
 	if err := os.WriteFile(live, []byte("mutated"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := txn.Rollback(ctx); err != nil {
+	if _, err := txn.Rollback(ctx, transaction.StandaloneFinishOpts()); err != nil {
 		t.Fatal(err)
 	}
 	got, err := os.Readlink(live)
@@ -92,7 +92,7 @@ func TestBackupTreeDirSymlinkNoRecurse(t *testing.T) {
 	if err := os.RemoveAll(nm); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := txn.Rollback(ctx); err != nil {
+	if _, err := txn.Rollback(ctx, transaction.StandaloneFinishOpts()); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Readlink(filepath.Join(nm, "foo")); err != nil {
@@ -124,7 +124,7 @@ func TestBackupTreeNestedScopedPackages(t *testing.T) {
 	if err := os.RemoveAll(filepath.Join(root, "node_modules")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := txn.Rollback(ctx); err != nil {
+	if _, err := txn.Rollback(ctx, transaction.StandaloneFinishOpts()); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(scope, "index.js"))

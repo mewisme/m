@@ -127,14 +127,15 @@ func RecoverScanned(ctx context.Context, projectRoot string, opts RecoverScanned
 		}
 	}
 	run := scannedToRunner(projectRoot, auth)
+	finishOpts := RecoveryFinishOpts(opts.SkipTakeover)
 	switch auth.State {
 	case StateStaging, StateValidated:
-		if fr := run.Discard(); fr.HasCriticalCleanupFailure() {
+		if fr := run.Discard(finishOpts); fr.HasCriticalCleanupFailure() {
 			return finishResultError(fr)
 		}
 		return nil
 	case StateCommitting:
-		_, err := run.Rollback(ctx)
+		_, err := run.Rollback(ctx, finishOpts)
 		return err
 	default:
 		return nil
@@ -212,7 +213,7 @@ func RecoverCommittedCleanup(ctx context.Context, projectRoot string) (int, erro
 			return cleaned, err
 		}
 		run := scannedToRunner(projectRoot, &t)
-		fr := run.Finish(false)
+		fr := run.Finish(false, StandaloneFinishOpts())
 		if fr.HasCriticalCleanupFailure() {
 			return cleaned, finishResultError(fr)
 		}

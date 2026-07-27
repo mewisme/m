@@ -54,7 +54,9 @@ const (
 	PhasePriorMovedAside  = "prior_moved_aside" // legacy; prefer old_tree_moved
 	PhaseOldTreeMoved     = "old_tree_moved"
 	PhasePublishStarted   = "publish_started"
-	PhaseNewFileWritten   = "new_file_written"
+	PhaseWritten          = "written"
+	PhaseSynced           = "synced"
+	PhaseNewFileWritten   = "new_file_written" // legacy alias for written
 	PhaseNewFilePublished = "new_file_published"
 	PhaseNewTreePublished = "new_tree_published"
 	PhaseParentSynced     = "parent_synced"
@@ -97,6 +99,8 @@ type Op struct {
 	HadPrior      bool   `json:"hadPrior,omitempty"`
 	PriorKind     string `json:"priorKind,omitempty"`
 	SymlinkTarget string `json:"symlinkTarget,omitempty"`
+	ReparseTag    uint32 `json:"reparseTag,omitempty"`
+	ReparsePrint  string `json:"reparsePrint,omitempty"`
 }
 
 // Encode normalizes and encodes doc to JSON with trailing newline.

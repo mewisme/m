@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/fsx"
 )
 
 // Dir is a minimal content-addressed blob store: <root>/<algo>/<hex>.
@@ -73,25 +74,7 @@ func (d *Dir) Exists(key Key) bool {
 }
 
 func writeAtomic(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".tmp-*")
-	if err != nil {
-		return apperr.Wrap(apperr.IO, "store.put", path, err)
-	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "store.put", path, err)
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "store.put", path, err)
-	}
-	if err := tmp.Close(); err != nil {
-		return apperr.Wrap(apperr.IO, "store.put", path, err)
-	}
-	if err := os.Rename(tmpName, path); err != nil {
+	if err := fsx.PublishFileDurable(path, data, 0o644); err != nil {
 		if _, statErr := os.Stat(path); statErr == nil {
 			return nil // ponytail: concurrent put of same immutable blob is fine
 		}

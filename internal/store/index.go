@@ -69,7 +69,7 @@ func (s *PackageStore) indexUpsert(key PackageKey, integrity string, size int64)
 	if err != nil {
 		return err
 	}
-	defer release()
+	defer s.releaseIndexLockWarn(release)
 
 	idx, err := s.loadIndex()
 	if err != nil {
@@ -95,6 +95,23 @@ func (s *PackageStore) warnIndex(msg string, key PackageKey, err error) {
 	}
 	line := "warning: " + msg + " key=" + key.String() + " error=" + err.Error()
 	s.Reporter.Progress(diagnostics.Event{Phase: line})
+}
+
+func (s *PackageStore) warnMaintenance(msg string, err error) {
+	if s == nil || s.Reporter == nil || err == nil {
+		return
+	}
+	line := "warning: " + msg + " error=" + err.Error()
+	s.Reporter.Progress(diagnostics.Event{Phase: line})
+}
+
+func (s *PackageStore) releaseIndexLockWarn(release func() error) {
+	if release == nil {
+		return
+	}
+	if err := release(); err != nil {
+		s.warnMaintenance("store index lock release failed", err)
+	}
 }
 
 func (s *PackageStore) writeIndex(idx *Index) error {
@@ -187,7 +204,7 @@ func (s *PackageStore) ReconcileIndex() (ReconcileIndexResult, error) {
 	if err != nil {
 		return ReconcileIndexResult{}, err
 	}
-	defer release()
+	defer s.releaseIndexLockWarn(release)
 
 	desired, err := indexFromFilesystem(s)
 	if err != nil {
@@ -247,7 +264,7 @@ func (s *PackageStore) Status() (count int, bytes int64, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	defer release()
+	defer s.releaseIndexLockWarn(release)
 
 	desired, err := indexFromFilesystem(s)
 	if err != nil {

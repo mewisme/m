@@ -7,19 +7,27 @@ import (
 
 // FinishResult reports post-mutation cleanup outcomes.
 type FinishResult struct {
-	Committed           bool
-	LockReleased        bool
-	CurrentCleared      bool
-	LockReleaseResult   fsx.ReleaseResult
-	CleanupWarnings     []error
-	CleanupWarningCodes []string
+	Committed             bool
+	LockReleased          bool
+	CurrentCleared        bool
+	LockReleaseRequested  bool
+	CurrentClearRequested bool
+	LockReleaseResult     fsx.ReleaseResult
+	CleanupWarnings       []error
+	CleanupWarningCodes   []string
 }
 
 func (fr FinishResult) HasCriticalCleanupFailure() bool {
-	if fr.LockReleaseResult == fsx.ReleaseNotOwner {
+	if fr.LockReleaseRequested && fr.LockReleaseResult == fsx.ReleaseNotOwner {
 		return true
 	}
-	return !fr.LockReleased || !fr.CurrentCleared
+	if fr.LockReleaseRequested && !fr.LockReleased {
+		return true
+	}
+	if fr.CurrentClearRequested && !fr.CurrentCleared {
+		return true
+	}
+	return false
 }
 
 func appendCleanupWarning(fr *FinishResult, code string, err error) {

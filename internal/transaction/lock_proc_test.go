@@ -140,8 +140,8 @@ func TestProjectLockOwnerMismatchOnRelease(t *testing.T) {
 	if err := transaction.AcquireProjectLock(ctx, root, "mine"); err != nil {
 		t.Fatal(err)
 	}
-	if err := transaction.ReleaseProjectLock(root, "other"); err != nil {
-		t.Fatal(err)
+	if err := transaction.ReleaseProjectLock(root, "other"); err == nil {
+		t.Fatal("expected not-owner release error")
 	}
 	if _, err := os.Stat(transaction.LockPath(root)); err != nil {
 		t.Fatal("lock removed with wrong txn id")

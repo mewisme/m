@@ -37,7 +37,7 @@ func writeGenerationHead(headPath string, gen uint64, data []byte) error {
 		return apperr.Wrap(apperr.IO, "transaction.head", headPath, err)
 	}
 	raw = append(raw, '\n')
-	return fsx.PublishFile(headPath, raw, 0o644)
+	return fsx.PublishFileDurable(headPath, raw, 0o644)
 }
 
 func readGenerationHead(headPath string) (generationHead, error) {
@@ -216,14 +216,14 @@ func writeCurrentGeneration(projectRoot, id string) error {
 	next := highestGeneration(dir, "current.", "") + 1
 	body := []byte(id + "\n")
 	genPath := currentGenPath(projectRoot, next)
-	if err := fsx.PublishFile(genPath, body, 0o644); err != nil {
+	if err := fsx.PublishFileDurable(genPath, body, 0o644); err != nil {
 		return apperr.Wrap(apperr.IO, "transaction.current", genPath, err)
 	}
 	headPath := filepath.Join(dir, currentHeadName)
 	if err := writeGenerationHead(headPath, next, body); err != nil {
 		return err
 	}
-	return fsx.PublishFile(CurrentPath(projectRoot), body, 0o644)
+	return fsx.PublishFileDurable(CurrentPath(projectRoot), body, 0o644)
 }
 
 func readCurrentGeneration(projectRoot string) (string, error) {

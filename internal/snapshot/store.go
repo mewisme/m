@@ -293,29 +293,8 @@ func (s *Store) writeIndex(idx *indexDoc) error {
 }
 
 func writeAtomic(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".tmp-*")
-	if err != nil {
+	if err := fsx.PublishFileDurable(path, data, 0o644); err != nil {
 		return apperr.Wrap(apperr.IO, "snapshot.write", path, err)
-	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "snapshot.write", path, err)
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "snapshot.write", path, err)
-	}
-	if err := tmp.Close(); err != nil {
-		return apperr.Wrap(apperr.IO, "snapshot.write", path, err)
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		_ = os.Remove(path)
-		if err2 := os.Rename(tmpName, path); err2 != nil {
-			return apperr.Wrap(apperr.IO, "snapshot.write", path, err2)
-		}
 	}
 	return nil
 }

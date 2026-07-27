@@ -135,7 +135,7 @@ func createDirLock(lockDir string, ownerJSON []byte, matchOwner func(ownerJSON [
 		return nil, err
 	}
 	ownerPath := filepath.Join(lockDir, OwnerFileName)
-	if err := PublishFile(ownerPath, ownerJSON, 0o644); err != nil {
+	if err := PublishFileDurable(ownerPath, ownerJSON, 0o644); err != nil {
 		_ = os.RemoveAll(lockDir)
 		return nil, err
 	}
@@ -327,7 +327,14 @@ func tryRemoveStaleDirLock(lockDir string, grace time.Duration, stale func(owner
 	// Legacy file lock at the same path.
 	if !info.IsDir() {
 		if stale != nil && stale(readLegacyOwner(lockDir), info.ModTime()) {
-			_ = os.Remove(lockDir)
+			owner := readLegacyOwner(lockDir)
+			obs := observationFromOwner(owner, info.ModTime(), false)
+			if err := TakeoverStaleFileLock(lockDir, obs, tombstoneRoot); err != nil {
+				if errors.Is(err, os.ErrExist) {
+					return false, nil
+				}
+				return false, err
+			}
 			return true, nil
 		}
 		return false, nil

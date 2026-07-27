@@ -49,7 +49,7 @@ func Update(ctx context.Context, ac *Context, opts UpdateOptions) (InstallResult
 	inst := opts.Install
 	inst.WriteManifest = opts.Latest
 	inst.Update = updateParams
-	return runInstallTxn(ctx, ac, inst, edit)
+	return runInstallTxn(ctx, ac, inst, edit, nil)
 }
 
 func bumpDependencyRanges(ctx context.Context, ac *Context, proj *project.Project, targets []string) error {

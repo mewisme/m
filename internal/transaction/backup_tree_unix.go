@@ -16,6 +16,6 @@ func inodeVisitKey(info os.FileInfo) (string, bool) {
 	return fmt.Sprintf("%d:%d", stat.Dev, stat.Ino), true
 }
 
-func createJunction(link, target string) error {
-	return os.Symlink(target, link)
+func createJunction(link, substitute, print string) error {
+	return os.Symlink(substitute, link)
 }

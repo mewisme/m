@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,13 +33,13 @@ type commitPlanInput struct {
 }
 
 // runInstallTxn resolves, stages, validates, and commits install-family mutations.
-func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit manifestEditFn) (InstallResult, error) {
+func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit manifestEditFn, prepare mutationPrepareFn) (InstallResult, error) {
 	var res InstallResult
 	if ac == nil || ac.Config == nil {
 		return res, apperr.New(apperr.Internal, "app.install", "", "missing app context")
 	}
 	if opts.DryRun {
-		return runInstallDryRun(ctx, ac, opts, edit)
+		return runInstallDryRun(ctx, ac, opts, edit, prepare)
 	}
 
 	root, err := resolveProjectRoot(ac, "")
@@ -49,17 +50,62 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	if err != nil {
 		return res, err
 	}
+	res, err = runInstallInSession(ctx, sess, opts, edit, prepare)
+	if err != nil {
+		abortRes, _ := abortMutation(ctx, sess, sess.Runner(), err)
+		res = mergeInstallResults(res, abortRes)
+		return res, err
+	}
+	finish, finishErr := sess.Finish(ctx, opts.KeepJournal)
+	if finish.Committed {
+		res.Committed = true
+	}
+	if finish.HasCriticalCleanupFailure() {
+		populateCleanupResult(&res, finish)
+		return res, errors.Join(finishErr, installCleanupIncompleteError(res))
+	}
+	for _, w := range finish.CleanupWarnings {
+		if ac != nil && ac.Reporter != nil {
+			ac.Reporter.Debug("transaction cleanup warning", diagnostics.Attr{Key: "error", Value: w.Error()})
+		}
+	}
+	return res, finishErr
+}
+
+func mergeInstallResults(dst, src InstallResult) InstallResult {
+	if src.RolledBack {
+		dst.RolledBack = true
+	}
+	if src.RecoveryRequired {
+		dst.RecoveryRequired = true
+	}
+	if src.CleanupIncomplete {
+		dst.CleanupIncomplete = true
+	}
+	dst.CleanupWarningCodes = append(dst.CleanupWarningCodes, src.CleanupWarningCodes...)
+	dst.CleanupWarnings = append(dst.CleanupWarnings, src.CleanupWarnings...)
+	return dst
+}
+
+// runInstallInSession performs resolve through commit while the session holds the project lock.
+func runInstallInSession(ctx context.Context, sess *MutationSession, opts InstallOptions, edit manifestEditFn, prepare mutationPrepareFn) (InstallResult, error) {
+	var res InstallResult
+	ac := sess.ac
 	txn := sess.Runner()
 
 	proj, err := sess.ReopenProject(ctx)
 	if err != nil {
-		sess.Abort(ctx)
 		return res, err
 	}
 
 	if opts.Frozen && !usesStagedSnapshotInputs(opts) {
 		if err := validateFrozenLockForProject(ctx, ac, proj); err != nil {
-			sess.Abort(ctx)
+			return res, err
+		}
+	}
+
+	if prepare != nil {
+		if err := prepare(ctx, ac, proj, &opts); err != nil {
 			return res, err
 		}
 	}
@@ -68,7 +114,6 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0
 	if edit != nil {
 		if err := edit(proj); err != nil {
-			sess.Abort(ctx)
 			return res, err
 		}
 	}
@@ -79,16 +124,13 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	} else {
 		resolution, err = resolveForInstall(ctx, ac, proj, opts, manifestChanged)
 		if err != nil {
-			sess.Abort(ctx)
 			return res, err
 		}
 	}
 	if err := guardLocalInstall(resolution); err != nil {
-		sess.Abort(ctx)
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_resolve", 0); err != nil {
-		sess.Abort(ctx)
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "resolve", err)
 	}
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
@@ -97,13 +139,11 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 
 	if len(opts.StagedManifest) > 0 {
 		if err := os.WriteFile(filepath.Join(stage, "package.json"), opts.StagedManifest, 0o644); err != nil {
-			_, _ = txn.Rollback(ctx)
 			return res, apperr.Wrap(apperr.IO, "app.install", "package.json", err)
 		}
 		manifestChanged = true
 	} else if manifestChanged {
 		if err := writeStagedManifest(stage, proj); err != nil {
-			_, _ = txn.Rollback(ctx)
 			return res, err
 		}
 	}
@@ -113,17 +153,14 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	stageNM := filepath.Join(stage, "node_modules")
 	linkerMode, err := resolveLinkerMode(ctx, ac, proj, opts)
 	if err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	useStore := config.UseGlobalStore(ac.Config)
 	extracts, _, err := fetchPackages(ctx, ac, resolution.Graph, extractDir, useStore)
 	if err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_fetch", 0); err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "fetch", err)
 	}
 
@@ -140,42 +177,34 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	})
 	linkPlan, err := lnk.Plan(ctx, resolution.Graph)
 	if err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	if err := lnk.Apply(ctx, linkPlan); err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_link", 0); err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "link", err)
 	}
 	emitLinkSummary(ac, linkPlan.LinkSummary)
 	if linkerMode == "isolated" {
 		emitPhase(ac, "link", fmt.Sprintf("linker=isolated packages=%d", len(resolution.Graph.Packages)))
 		if err := writeModulesMetadata(stageNM, resolution.Graph); err != nil {
-			_, _ = txn.Rollback(ctx)
 			return res, err
 		}
 	}
 
 	if len(opts.StagedLock) > 0 {
 		if err := os.WriteFile(filepath.Join(stage, lockFileName), opts.StagedLock, 0o644); err != nil {
-			_, _ = txn.Rollback(ctx)
 			return res, apperr.Wrap(apperr.IO, "app.install", lockFileName, err)
 		}
 	} else if err := writeStagedLock(stage, ac, proj, resolution); err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_lockfile", 0); err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "lockfile", err)
 	}
 	if useStore {
 		if err := writeStagedStoreManifest(stage, resolution.Graph); err != nil {
-			_, _ = txn.Rollback(ctx)
 			return res, err
 		}
 	}
@@ -184,28 +213,23 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	if !opts.SkipSnapshot {
 		snapID, err = stageSnapshot(ctx, stage, proj, resolution)
 		if err != nil {
-			_, _ = txn.Rollback(ctx)
 			return res, err
 		}
 	}
 
 	emitPhase(ac, "validate", "")
 	if err := validateStaged(stage, linkPlan, resolution.Graph, linkerMode); err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	if err := txn.SetState(transaction.StateValidated); err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_validate", 0); err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "validate", err)
 	}
 
 	plan := buildCommitPlan(commitPlanInput{manifestChanged: manifestChanged, useStore: useStore, snapshotID: snapID})
 	if err := txn.SetPlan(plan); err != nil {
-		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 
@@ -221,7 +245,6 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	for _, rel := range backupPaths {
 		if err := txn.RecordBackup(rel); err != nil {
 			emitPhase(ac, "rollback", rel)
-			_, _ = txn.Rollback(ctx)
 			return res, err
 		}
 	}
@@ -238,23 +261,10 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 		}
 	}
 
-	finish := txn.Finish(opts.KeepJournal)
-	if finish.Committed {
-		res.Committed = true
-	}
-	if finish.HasCriticalCleanupFailure() {
-		populateCleanupResult(&res, finish)
-		return res, installCleanupIncompleteError(res)
-	}
-	for _, w := range finish.CleanupWarnings {
-		if ac != nil && ac.Reporter != nil {
-			ac.Reporter.Debug("transaction cleanup warning", diagnostics.Attr{Key: "error", Value: w.Error()})
-		}
-	}
 	return res, nil
 }
 
-func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edit manifestEditFn) (InstallResult, error) {
+func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edit manifestEditFn, prepare mutationPrepareFn) (InstallResult, error) {
 	var res InstallResult
 	proj, err := OpenProject(ctx, ac)
 	if err != nil {
@@ -262,6 +272,11 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 	}
 	if opts.Frozen && !usesStagedSnapshotInputs(opts) {
 		if err := validateFrozenLockForProject(ctx, ac, proj); err != nil {
+			return res, err
+		}
+	}
+	if prepare != nil {
+		if err := prepare(ctx, ac, proj, &opts); err != nil {
 			return res, err
 		}
 	}

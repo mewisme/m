@@ -174,13 +174,14 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph) (map[
 		if err != nil {
 			return nil, nil, err
 		}
-		pkgKey, err := pkgStore.ImportFromTarball(ctx, art.BlobPath, contentid.Identity{
+		result, err := pkgStore.ImportFromTarball(ctx, art.BlobPath, contentid.Identity{
 			Algo: art.Integrity.Algo,
 			Hex:  art.Integrity.Hex,
 		})
 		if err != nil {
 			return nil, nil, err
 		}
+		pkgKey := result.Key
 		if err := pkgStore.VerifyPackage(ctx, pkgKey); err != nil {
 			return nil, nil, err
 		}

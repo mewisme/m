@@ -70,13 +70,38 @@ func (s *MutationSession) Project() *project.Project {
 	return s.proj
 }
 
-// Abort rolls back an in-progress transaction and releases the project lock.
-func (s *MutationSession) Abort(ctx context.Context) {
+// Finish completes the transaction journal and releases the session-owned project lock.
+func (s *MutationSession) Finish(ctx context.Context, keepJournal bool) (transaction.FinishResult, error) {
 	if s == nil || s.runner == nil {
-		return
+		return transaction.FinishResult{}, nil
 	}
-	_, _ = s.runner.Rollback(ctx)
+	if err := ctx.Err(); err != nil {
+		return transaction.FinishResult{}, err
+	}
+	txnID := s.runner.ID
+	fr := s.runner.Finish(keepJournal, transaction.DefaultFinishOpts())
+	if err := releaseSessionLock(s.projectRoot, txnID, &fr); err != nil {
+		if fr.HasCriticalCleanupFailure() {
+			return fr, err
+		}
+	}
 	s.runner = nil
+	if fr.HasCriticalCleanupFailure() {
+		return fr, apperr.New(apperr.Transaction, "app.mutation.finish", "", "transaction cleanup incomplete")
+	}
+	return fr, nil
+}
+
+// Abort rolls back an in-progress transaction and releases the session-owned project lock.
+func (s *MutationSession) Abort(ctx context.Context) (transaction.FinishResult, error) {
+	if s == nil || s.runner == nil {
+		return transaction.FinishResult{}, nil
+	}
+	txnID := s.runner.ID
+	fr, err := s.runner.Rollback(ctx, transaction.DefaultFinishOpts())
+	lockErr := releaseSessionLock(s.projectRoot, txnID, &fr)
+	s.runner = nil
+	return fr, errors.Join(err, lockErr)
 }
 
 func resolveProjectRoot(ac *Context, explicit string) (string, error) {

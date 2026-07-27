@@ -1,7 +1,6 @@
 package mlock
 
 import (
-	"os"
 	"path/filepath"
 
 	"github.com/mewisme/m/internal/apperr"
@@ -26,7 +25,7 @@ func FromResolution(res *resolver.Resolution, specifiers map[graph.ImporterID][]
 	return doc, nil
 }
 
-// WriteAtomic encodes doc and atomically replaces path.
+// WriteAtomic encodes doc and durably replaces path.
 func WriteAtomic(path string, doc *Document) error {
 	data, err := Encode(doc)
 	if err != nil {
@@ -36,27 +35,8 @@ func WriteAtomic(path string, doc *Document) error {
 	if err != nil {
 		return apperr.Wrap(apperr.IO, "mlock.write", path, err)
 	}
-	dir := filepath.Dir(abs)
-	tmp, err := os.CreateTemp(dir, ".m.lock.*.tmp")
-	if err != nil {
+	if err := fsx.PublishFileDurable(abs, data, 0o644); err != nil {
 		return apperr.Wrap(apperr.IO, "mlock.write", abs, err)
-	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "mlock.write", abs, err)
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "mlock.write", abs, err)
-	}
-	if err := tmp.Close(); err != nil {
-		return apperr.Wrap(apperr.IO, "mlock.write", abs, err)
-	}
-	if err := fsx.ReplaceExistingFile(tmpName, abs); err != nil {
-		return err
 	}
 	return nil
 }

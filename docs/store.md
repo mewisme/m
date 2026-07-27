@@ -55,7 +55,12 @@ digests return `ERR_M_INTEGRITY` / `ERR_M_STORE` at the trust boundary.
 9. Verify published tree; upsert `index.json` while still holding the import lock.
    Index write failures are reported via the optional store reporter and do not fail
    import.
-10. Release import lock.
+10. Release import lock. A release failure after a successful publish is reported as a
+   maintenance warning on `ImportResult.CleanupWarnings` (and via the optional store
+   reporter); the published package remains valid.
+
+`ReconcileIndex` and `Status` emit the same class of maintenance warning when index
+lock release fails after the index work completes.
 
 Re-import of the same integrity is a no-op when the existing entry verifies.
 Corrupt entries are quarantined under `.quarantine/<algo>/<hex>/` and

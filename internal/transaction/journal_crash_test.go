@@ -27,7 +27,7 @@ func TestJournalGenerationSurvivesTruncatedHead(t *testing.T) {
 	if loaded == nil || loaded.State != StateValidated {
 		t.Fatalf("expected validated state from fallback generation, got %+v", loaded)
 	}
-	_ = runner.Discard()
+	_ = runner.Discard(StandaloneFinishOpts())
 }
 
 func TestCurrentGenerationSurvivesBadHead(t *testing.T) {
@@ -82,7 +82,7 @@ func TestJournalGenerationMonotonicAndRecoverable(t *testing.T) {
 	if checksumHex(data) != head.Checksum {
 		t.Fatal("head checksum mismatch")
 	}
-	_ = runner.Discard()
+	_ = runner.Discard(StandaloneFinishOpts())
 }
 
 func TestJournalIncompleteHeadFallsBackToPriorGeneration(t *testing.T) {
@@ -121,7 +121,7 @@ func TestJournalIncompleteHeadFallsBackToPriorGeneration(t *testing.T) {
 		t.Fatalf("expected staging from gen1 fallback, got %+v", loaded)
 	}
 	_ = gen2Data
-	_ = runner.Discard()
+	_ = runner.Discard(StandaloneFinishOpts())
 }
 
 func TestJournalPhaseStartedWithoutFilesystemPublish(t *testing.T) {
@@ -159,7 +159,7 @@ func TestJournalPhaseStartedWithoutFilesystemPublish(t *testing.T) {
 	if string(prior) != "prior" {
 		t.Fatalf("live mutated before publish: %q", prior)
 	}
-	if _, err := runner.Rollback(ctx); err != nil {
+	if _, err := runner.Rollback(ctx, StandaloneFinishOpts()); err != nil {
 		t.Fatal(err)
 	}
 	after, err := os.ReadFile(live)
@@ -169,5 +169,5 @@ func TestJournalPhaseStartedWithoutFilesystemPublish(t *testing.T) {
 	if string(after) != "prior" {
 		t.Fatalf("rollback should restore prior from backup, got %q", after)
 	}
-	_ = runner.Finish(false)
+	_ = runner.Finish(false, StandaloneFinishOpts())
 }

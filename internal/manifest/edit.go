@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"unicode"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/fsx"
 )
 
 // SetField sets a top-level JSON string field, preserving surrounding source layout.
@@ -147,31 +147,8 @@ func (d *Document) Write(path string) error {
 	if err != nil {
 		return apperr.Wrap(apperr.IO, "manifest.write", path, err)
 	}
-	dir := filepath.Dir(abs)
-	tmp, err := os.CreateTemp(dir, ".package.json.*.tmp")
-	if err != nil {
+	if err := fsx.PublishFileDurable(abs, d.Source, 0o644); err != nil {
 		return apperr.Wrap(apperr.IO, "manifest.write", abs, err)
-	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-
-	if _, err := tmp.Write(d.Source); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "manifest.write", abs, err)
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "manifest.write", abs, err)
-	}
-	if err := tmp.Close(); err != nil {
-		return apperr.Wrap(apperr.IO, "manifest.write", abs, err)
-	}
-	if err := os.Rename(tmpName, abs); err != nil {
-		// Windows: replace existing
-		_ = os.Remove(abs)
-		if err2 := os.Rename(tmpName, abs); err2 != nil {
-			return apperr.Wrap(apperr.IO, "manifest.write", abs, err2)
-		}
 	}
 	d.Path = abs
 	Invalidate(filepath.Dir(abs))

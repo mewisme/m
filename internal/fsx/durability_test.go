@@ -69,6 +69,87 @@ func TestWriteGenerationExclusiveRejectsDuplicate(t *testing.T) {
 	}
 }
 
+func TestPublishFileDurableReplacesExisting(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "durable.txt")
+	if err := fsx.PublishFileDurable(path, []byte("v1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := fsx.PublishFileDurable(path, []byte("v2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "v2\n" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestPublishFileDurableSyncFailure(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fail-sync.txt")
+	fsx.SetDurabilityTestHook(func(phase, gotPath string) error {
+		if phase == "post_file_sync" && gotPath == path {
+			return apperr.New(apperr.IO, "fsx.publish", path, "injected file sync failure")
+		}
+		return nil
+	})
+	t.Cleanup(func() { fsx.SetDurabilityTestHook(nil) })
+
+	err := fsx.PublishFileDurable(path, []byte("data\n"), 0o644)
+	if err == nil {
+		t.Fatal("expected sync failure")
+	}
+	got, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(got) != "data\n" {
+		t.Fatalf("rename should complete before file sync failure: %q", got)
+	}
+}
+
+func TestPublishFileDurableParentSyncFailure(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fail-parent.txt")
+	fsx.SetDurabilityTestHook(func(phase, gotPath string) error {
+		if phase == "post_dir_sync" {
+			return apperr.New(apperr.IO, "fsx.publish", gotPath, "injected parent sync failure")
+		}
+		return nil
+	})
+	t.Cleanup(func() { fsx.SetDurabilityTestHook(nil) })
+
+	err := fsx.PublishFileDurable(path, []byte("data\n"), 0o644)
+	if err == nil {
+		t.Fatal("expected parent sync failure")
+	}
+	got, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(got) != "data\n" {
+		t.Fatalf("file content should be published before parent sync failure: %q", got)
+	}
+}
+
+func TestPublishNewFileExclusiveRejectsExisting(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "exclusive.txt")
+	if err := fsx.PublishNewFileExclusive(path, []byte("one\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := fsx.PublishNewFileExclusive(path, []byte("two\n"), 0o644)
+	if err == nil {
+		t.Fatal("expected existing-path rejection")
+	}
+	if apperr.CodeOf(err) != apperr.Integrity {
+		t.Fatalf("code=%s", apperr.CodeOf(err))
+	}
+}
+
 func TestPublishDirectorySyncsParent(t *testing.T) {
 	root := t.TempDir()
 	live := filepath.Join(root, "node_modules")

@@ -65,5 +65,5 @@ func TestPublishDirOpRecordsParentSyncedInJournal(t *testing.T) {
 	if !found {
 		t.Fatal("expected parent_synced phase in journal generation")
 	}
-	_ = runner.Finish(false)
+	_ = runner.Finish(false, transaction.StandaloneFinishOpts())
 }

@@ -131,9 +131,9 @@ func ReleaseProjectLock(projectRoot, txnID string) error {
 	case fsx.ReleaseMalformedOwner:
 		return apperr.New(apperr.Transaction, "transaction.lock", lockDir, "lock owner metadata malformed")
 	case fsx.ReleaseNotOwner:
-		return nil
+		return apperr.New(apperr.Transaction, "transaction.lock", lockDir, "lock not owned by this process")
 	default:
-		return nil
+		return apperr.New(apperr.Transaction, "transaction.lock", lockDir, "lock release failed")
 	}
 }
 

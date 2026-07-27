@@ -67,7 +67,7 @@ func TestBeginMutationSessionReopenProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer sess.Abort(ctx)
+	defer func() { _, _ = sess.Abort(ctx) }()
 
 	proj, err := sess.ReopenProject(ctx)
 	if err != nil {
@@ -111,7 +111,7 @@ func TestBeginMutationSessionRecoversBeforeReopen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer sess.Abort(ctx)
+	defer func() { _, _ = sess.Abort(ctx) }()
 
 	txns, err := transaction.ScanIncompleteTxns(root)
 	if err != nil {

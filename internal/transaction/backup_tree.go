@@ -1,9 +1,11 @@
 package transaction
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/fsx"
@@ -30,6 +32,26 @@ func backupTreeEntry(src, dst string, visited map[string]struct{}) error {
 	if err := rejectUnsupportedEntry(src, info); err != nil {
 		return err
 	}
+	if tag := fsx.ReparseTag(src); tag != 0 {
+		switch tag {
+		case fsx.IOReparseTagMountPoint:
+			sub, print, _, err := fsx.ReadMountPoint(src)
+			if err != nil {
+				return apperr.Wrap(apperr.Transaction, "transaction.backup", src, err)
+			}
+			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+				return apperr.Wrap(apperr.IO, "transaction.backup", dst, err)
+			}
+			return writeReparseSidecar(dst+reparseSidecarSuffix, reparseBackupMeta{
+				Tag:        fsx.IOReparseTagMountPoint,
+				Substitute: sub,
+				Print:      print,
+			})
+		default:
+			return apperr.New(apperr.Transaction, "transaction.backup", src,
+				fmt.Sprintf("unsupported reparse tag 0x%08X", tag))
+		}
+	}
 	if info.Mode()&os.ModeSymlink != 0 {
 		target, err := os.Readlink(src)
 		if err != nil {
@@ -37,9 +59,6 @@ func backupTreeEntry(src, dst string, visited map[string]struct{}) error {
 		}
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return apperr.Wrap(apperr.IO, "transaction.backup", dst, err)
-		}
-		if fsx.IsJunction(src) {
-			return createJunction(dst, target)
 		}
 		return os.Symlink(target, dst)
 	}
@@ -80,6 +99,21 @@ func restoreTreeEntry(src, dst string, visited map[string]struct{}) error {
 	if err := rejectUnsupportedEntry(src, info); err != nil {
 		return err
 	}
+	if strings.HasSuffix(src, reparseSidecarSuffix) {
+		meta, err := readReparseSidecar(src)
+		if err != nil {
+			return err
+		}
+		if meta.Tag != fsx.IOReparseTagMountPoint {
+			return apperr.New(apperr.Transaction, "transaction.restore", src,
+				fmt.Sprintf("unsupported reparse tag 0x%08X", meta.Tag))
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return apperr.Wrap(apperr.IO, "transaction.restore", dst, err)
+		}
+		_ = os.RemoveAll(dst)
+		return createJunction(dst, meta.Substitute, meta.Print)
+	}
 	if info.Mode()&os.ModeSymlink != 0 {
 		target, err := os.Readlink(src)
 		if err != nil {
@@ -87,9 +121,6 @@ func restoreTreeEntry(src, dst string, visited map[string]struct{}) error {
 		}
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return apperr.Wrap(apperr.IO, "transaction.restore", dst, err)
-		}
-		if fsx.IsJunction(src) {
-			return createJunction(dst, target)
 		}
 		return os.Symlink(target, dst)
 	}

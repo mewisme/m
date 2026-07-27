@@ -4,47 +4,26 @@ package transaction_test
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"syscall"
 	"testing"
-	"unsafe"
 
+	"github.com/mewisme/m/internal/fsx"
 	"github.com/mewisme/m/internal/transaction"
 )
 
-var (
-	modKernel32            = syscall.NewLazyDLL("kernel32.dll")
-	procCreateSymbolicLink = modKernel32.NewProc("CreateSymbolicLinkW")
-)
-
-const symbolicLinkFlagDirectory = 0x1
-
-func junctionDir(target, link string) error {
-	targetPtr, err := syscall.UTF16PtrFromString(`\\?\` + target)
+func mklinkJunction(target, link string) error {
+	out, err := exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
 	if err != nil {
-		return err
-	}
-	linkPtr, err := syscall.UTF16PtrFromString(link)
-	if err != nil {
-		return err
-	}
-	r, _, e := procCreateSymbolicLink.Call(
-		uintptr(unsafe.Pointer(linkPtr)),
-		uintptr(unsafe.Pointer(targetPtr)),
-		uintptr(symbolicLinkFlagDirectory),
-	)
-	if r == 0 {
-		if e != syscall.Errno(0) {
-			return e
-		}
-		return syscall.EINVAL
+		return fmt.Errorf("%w: %s", err, out)
 	}
 	return nil
 }
 
 func syscallMkfifo(path string, mode uint32) error {
-	return syscall.EINVAL
+	return os.ErrInvalid
 }
 
 func TestBackupTreeJunctionRoundTrip(t *testing.T) {
@@ -54,8 +33,11 @@ func TestBackupTreeJunctionRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	link := filepath.Join(root, "vendor")
-	if err := junctionDir(target, link); err != nil {
+	if err := mklinkJunction(target, link); err != nil {
 		t.Skip("junction not supported:", err)
+	}
+	if tag := fsx.ReparseTag(link); tag != fsx.IOReparseTagMountPoint {
+		t.Fatalf("expected mount point tag 0x%X, got 0x%X", fsx.IOReparseTagMountPoint, tag)
 	}
 
 	txn := transaction.NewRunner(root)
@@ -66,14 +48,31 @@ func TestBackupTreeJunctionRoundTrip(t *testing.T) {
 	if err := txn.RecordBackup("vendor"); err != nil {
 		t.Fatal(err)
 	}
+
+	backupPath := filepath.Join(txn.Root, "backups", "vendor.reparse.json")
+	if _, err := os.Stat(backupPath); err != nil {
+		t.Fatalf("expected reparse sidecar backup: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(txn.Root, "backups", "pkg")); os.IsNotExist(err) {
+		// target not traversed into backup
+	} else if err == nil {
+		t.Fatal("backup must not copy junction target contents")
+	}
+	if _, err := os.Stat(filepath.Join(txn.Root, "backups", "vendor", "pkg")); err == nil {
+		t.Fatal("backup must not traverse junction target")
+	}
+
 	if err := os.RemoveAll(link); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Mkdir(link, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := txn.Rollback(ctx); err != nil {
+	if _, err := txn.Rollback(ctx, transaction.StandaloneFinishOpts()); err != nil {
 		t.Fatal(err)
+	}
+	if tag := fsx.ReparseTag(link); tag != fsx.IOReparseTagMountPoint {
+		t.Fatalf("restored path is not a mount point: tag 0x%X", tag)
 	}
 	if _, err := os.Stat(filepath.Join(link, "pkg")); err != nil {
 		t.Fatalf("junction not restored: %v", err)

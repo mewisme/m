@@ -7,9 +7,9 @@ import (
 	"github.com/mewisme/m/internal/apperr"
 )
 
-// PublishFile replaces path with data using platform-accurate publication semantics.
+// PublishFile replaces path with durable publication semantics.
 func PublishFile(path string, data []byte, perm os.FileMode) error {
-	return PublishNewFile(path, data, perm)
+	return PublishFileDurable(path, data, perm)
 }
 
 // PublishRename moves src to dst with platform-accurate replacement semantics.

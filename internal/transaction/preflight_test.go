@@ -117,7 +117,7 @@ func TestBeginMutationRecoversStaging(t *testing.T) {
 	if len(txns) != 1 || txns[0].ID != run.ID {
 		t.Fatalf("incomplete after begin: %+v", txns)
 	}
-	_ = run.Finish(false)
+	_ = run.Finish(false, transaction.StandaloneFinishOpts())
 }
 
 func TestRecoverScannedIdempotent(t *testing.T) {

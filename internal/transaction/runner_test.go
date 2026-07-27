@@ -80,7 +80,7 @@ func TestRunnerBackupAndRestore(t *testing.T) {
 	if err := os.WriteFile(live, []byte(`{"name":"b"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := txn.Rollback(ctx); err != nil {
+	if _, err := txn.Rollback(ctx, transaction.StandaloneFinishOpts()); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(live)

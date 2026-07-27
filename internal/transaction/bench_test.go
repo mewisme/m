@@ -57,7 +57,7 @@ func BenchmarkTransactionCommit(b *testing.B) {
 			b.Fatal(err)
 		}
 		b.StopTimer()
-		_ = txn.Finish(false)
+		_ = txn.Finish(false, transaction.StandaloneFinishOpts())
 	}
 }
 
@@ -85,11 +85,11 @@ func BenchmarkTransactionRollback(b *testing.B) {
 			b.Fatal(err)
 		}
 		b.StartTimer()
-		if _, err := txn.Rollback(ctx); err != nil {
+		if _, err := txn.Rollback(ctx, transaction.StandaloneFinishOpts()); err != nil {
 			b.Fatal(err)
 		}
 		b.StopTimer()
-		_ = txn.Finish(false)
+		_ = txn.Finish(false, transaction.StandaloneFinishOpts())
 	}
 }
 

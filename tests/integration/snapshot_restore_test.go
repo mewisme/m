@@ -8,6 +8,37 @@ import (
 	"testing"
 )
 
+func TestSnapshotRollbackSelectsPreviousUnderLock(t *testing.T) {
+	projDir, cfgPath, _ := setupRegistryProject(t, `{
+  "name": "snap-rollback-lock",
+  "version": "1.0.0",
+  "dependencies": { "pkg-a": "^1.0.0" }
+}`)
+	if code, out := runM(t, projDir, cfgPath, "install"); code != 0 {
+		t.Fatalf("install exit=%d out=%s", code, out)
+	}
+	lockBefore, err := os.ReadFile(filepath.Join(projDir, "m.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code, out := runM(t, projDir, cfgPath, "add", "pkg-c"); code != 0 {
+		t.Fatalf("add exit=%d out=%s", code, out)
+	}
+	if code, out := runM(t, projDir, cfgPath, "rollback"); code != 0 {
+		t.Fatalf("rollback exit=%d out=%s", code, out)
+	}
+	if hasDirectDep(t, projDir, "pkg-c") {
+		t.Fatal("pkg-c should be removed after rollback")
+	}
+	lockAfter, err := os.ReadFile(filepath.Join(projDir, "m.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(lockAfter) != string(lockBefore) {
+		t.Fatal("lock should match pre-add snapshot after rollback under lock")
+	}
+}
+
 func TestSnapshotRestoreAtomicSuccess(t *testing.T) {
 	projDir, cfgPath, _ := setupRegistryProject(t, `{
   "name": "snap-atomic",

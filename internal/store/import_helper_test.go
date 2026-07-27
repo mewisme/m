@@ -12,5 +12,9 @@ func importIntegrity(ctx context.Context, ps *store.PackageStore, tgz, sri strin
 	if err != nil {
 		return store.PackageKey{}, err
 	}
-	return ps.ImportFromTarball(ctx, tgz, id)
+	result, err := ps.ImportFromTarball(ctx, tgz, id)
+	if err != nil {
+		return store.PackageKey{}, err
+	}
+	return result.Key, nil
 }
