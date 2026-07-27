@@ -2,19 +2,16 @@
 
 ## Program status
 
-- Current MVP: **0021 blocked** — hard-fix pass 6 pushed; awaiting CI green
+- Current MVP: **0021** — hard-fix pass 6 complete; CI green on `7e1a00e`
 - Last updated: 2026-07-27
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) after CI confirms green `crash-integration`, `race-windows`, and full OS matrix.
+**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) — unblocked after pass 6 CI green (`30280840231`).
 
-Stabilization pass 6 (hard-fix durability, phases 10–11) pushed 2026-07-27: local gate green
-(`go test ./...`, lint, vet, vulncheck). CI fix `d26c6e7` addresses darwin sysctl,
-store publish readonly ordering, and `golang.org/x/sys` allowlist. **0021 remains blocked**
-until required GitHub Actions jobs are green.
+Hard-fix pass 6 (phases 10–11) complete 2026-07-27: local gate green, CI run https://github.com/mewisme/m/actions/runs/30280840231 all required jobs **PASS** on `7e1a00e`.
 
 ## MVP completion (65)
 
