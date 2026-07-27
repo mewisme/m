@@ -114,8 +114,10 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath string
 		}
 		return ImportResult{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
 	}
-	if err := makeTreeReadOnly(dest); err != nil {
-		return ImportResult{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
+	if publishReadOnly {
+		if err := makeTreeReadOnly(dest); err != nil {
+			return ImportResult{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
+		}
 	}
 
 	if err := s.VerifyPackage(ctx, key); err != nil {

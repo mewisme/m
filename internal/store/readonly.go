@@ -8,6 +8,15 @@ import (
 	"github.com/mewisme/m/internal/apperr"
 )
 
+// publishReadOnly controls whether ImportFromTarball chmods the published tree.
+// Store tests disable this so t.TempDir cleanup can remove imported packages.
+var publishReadOnly = true
+
+// SetPublishReadOnly toggles post-import read-only chmod (tests only).
+func SetPublishReadOnly(v bool) {
+	publishReadOnly = v
+}
+
 // makeTreeReadOnly sets best-effort read-only permissions on a published tree.
 func makeTreeReadOnly(root string) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
