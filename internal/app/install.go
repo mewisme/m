@@ -127,41 +127,53 @@ func Remove(ctx context.Context, ac *Context, name string, opts InstallOptions) 
 
 // FormatInstallSummary returns a human-readable install summary line.
 func FormatInstallSummary(r InstallResult) string {
+	seen := map[string]bool{}
 	line := fmt.Sprintf("added %d, removed %d, changed %d (%d packages)", r.Added, r.Removed, r.Changed, r.Packages)
 	if r.Committed && (r.TransactionCleanupIncomplete || r.RecoveryRequired) {
 		line += "\nInstallation committed, but transaction cleanup is incomplete. Run m recover to clear stale transaction metadata."
-		for _, w := range filterCleanupWarnings(r, cleanupCodeTxnLockRelease, cleanupCodeTxnCurrentCleanup) {
+		for _, w := range formatCleanupSection(r, criticalTxnCleanupCodes, seen) {
 			line += "\n  " + w
 		}
 	} else if r.Committed && r.CleanupIncomplete {
 		line += "\nInstallation committed with a non-critical cleanup warning."
-		for _, w := range r.CleanupWarnings {
-			if w != "" {
-				line += "\n  " + w
-			}
+		for _, w := range formatCleanupSection(r, nonCriticalTxnCleanupCodes, seen) {
+			line += "\n  " + w
+		}
+		for _, w := range formatUnknownCleanupSection(r, seen) {
+			line += "\n  " + w
 		}
 	} else if r.RolledBack && (r.TransactionCleanupIncomplete || r.RecoveryRequired) {
 		line += "\nRollback completed with cleanup warnings. Run m recover if stale transaction metadata remains."
-		for _, w := range filterCleanupWarnings(r, cleanupCodeTxnLockRelease, cleanupCodeTxnCurrentCleanup) {
+		for _, w := range formatCleanupSection(r, criticalTxnCleanupCodes, seen) {
 			line += "\n  " + w
 		}
 	}
 	if r.StoreCleanupIncomplete || r.StoreMaintenanceRequired {
 		line += "\nStore cleanup is incomplete. Run m store status for details."
-		for _, w := range filterCleanupWarnings(r, cleanupCodeStoreImportLockRelease, cleanupCodeStoreIndexLockRelease) {
+		for _, w := range formatCleanupSection(r, storeCleanupCodes, seen) {
 			line += "\n  " + w
 		}
 	}
 	return line
 }
 
-func filterCleanupWarnings(r InstallResult, codes ...string) []string {
-	allowed := map[string]bool{}
-	for _, c := range codes {
-		allowed[c] = true
+var (
+	criticalTxnCleanupCodes = map[string]bool{
+		cleanupCodeTxnLockRelease:    true,
+		cleanupCodeTxnCurrentCleanup: true,
 	}
+	nonCriticalTxnCleanupCodes = map[string]bool{
+		"finish_hook":    true,
+		"txn_dir_remove": true,
+	}
+	storeCleanupCodes = map[string]bool{
+		cleanupCodeStoreImportLockRelease: true,
+		cleanupCodeStoreIndexLockRelease:  true,
+	}
+)
+
+func formatCleanupSection(r InstallResult, allowed map[string]bool, seen map[string]bool) []string {
 	var out []string
-	seen := map[string]bool{}
 	for i, code := range r.CleanupWarningCodes {
 		if !allowed[code] {
 			continue
@@ -171,23 +183,31 @@ func filterCleanupWarnings(r InstallResult, codes ...string) []string {
 			msg = r.CleanupWarnings[i]
 		}
 		key := code + "\x00" + msg
-		if seen[key] {
+		if seen[key] || msg == "" {
 			continue
 		}
 		seen[key] = true
-		if msg != "" {
-			out = append(out, msg)
-		}
+		out = append(out, msg)
 	}
-	if len(out) > 0 {
-		return out
-	}
-	for _, w := range r.CleanupWarnings {
-		if w == "" || seen[w] {
+	return out
+}
+
+func formatUnknownCleanupSection(r InstallResult, seen map[string]bool) []string {
+	var out []string
+	for i, code := range r.CleanupWarningCodes {
+		if criticalTxnCleanupCodes[code] || nonCriticalTxnCleanupCodes[code] || storeCleanupCodes[code] {
 			continue
 		}
-		seen[w] = true
-		out = append(out, w)
+		msg := ""
+		if i < len(r.CleanupWarnings) {
+			msg = r.CleanupWarnings[i]
+		}
+		key := code + "\x00" + msg
+		if seen[key] || msg == "" {
+			continue
+		}
+		seen[key] = true
+		out = append(out, msg)
 	}
 	return out
 }
