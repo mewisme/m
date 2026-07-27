@@ -9,10 +9,10 @@ integrity.
 
 ```text
 <store>/
-  index.json                      # optional import metadata (status, prune hints)
-  .locks/<algo>/<hex>.lock        # transient cross-process import lock
+  index.json                      # rebuildable import metadata cache (optional)
+  .locks/<algo>/<hex>/            # transient cross-process import lock (owner.json)
   packages/<algo>/<hex>/          # immutable unpacked package tree
-    .mew-tree-manifest.json       # content index (path, kind, hash, mode, symlinkTarget)
+    .mew-tree-manifest.json       # content index v2 (path, kind, hash, mode, symlinkTarget)
     .mew-package-integrity        # npm SRI integrity marker
   .quarantine/<algo>/<hex>/       # quarantined corrupt trees awaiting re-import
   .staging/<id>/                  # transient import staging (removed after publish)
@@ -32,16 +32,20 @@ Override with `store.dir`, `MEW_STORE_DIR`, or `MEW_HOME/store`.
 
 1. Download and verify tarball into blob cache (0014).
 2. Validate package key.
-3. Acquire external import lock at `<store>/.locks/<algo>/<hex>.lock` (`O_EXCL`,
-   process metadata, stale recovery, bounded wait with context cancellation).
+3. Acquire external import lock at `<store>/.locks/<algo>/<hex>/` (directory lock via
+   `owner.json`, schema v2: `lockId`, `processStart`, `pid`, `packageKey`, `createdAt`;
+   stale recovery, bounded wait with context cancellation). Legacy `<hex>.lock` files are
+   removed when stale.
 4. Recheck destination under lock; quarantine corrupt trees only while holding
    the lock.
 5. Extract into `<store>/.staging/<id>/`.
-6. Write `.mew-package-integrity`, generate `.mew-tree-manifest.json` (files,
-   directories, symlinks), verify staged tree bidirectionally.
+6. Write `.mew-package-integrity`, generate `.mew-tree-manifest.json` schema **v2**
+   (files, directories, symlinks), verify staged tree bidirectionally.
 7. Set tree read-only (best-effort per OS).
 8. Atomically rename into `packages/<algo>/<hex>/`.
-9. Verify published tree; upsert `index.json` (best-effort).
+9. Verify published tree; upsert `index.json` while still holding the import lock.
+   Index write failures are reported via the optional store reporter and do not fail
+   import.
 10. Release import lock.
 
 Re-import of the same integrity is a no-op when the existing entry verifies.
@@ -51,17 +55,34 @@ re-imported from the verified tarball on the next install.
 `m store status` and import both run stale `.staging/` cleanup (dirs older than
 one hour).
 
+## Index contract (rebuildable cache)
+
+`index.json` is an **optional, rebuildable cache** of import metadata. Import,
+verify, and prune decisions use the filesystem under `packages/` as source of
+truth. A missing, corrupt, or stale `index.json` does not block imports.
+
+- **Upsert on import:** after a successful publish, Mew upserts the entry while
+  holding the import lock. Failures are warned through the optional store
+  reporter (`Debug` with `key` and `error` attrs) and do not fail the import.
+- **Rebuild:** `ReconcileIndex()` scans `packages/`, reads `.mew-package-integrity`
+  markers, and rewrites `index.json`. Use this to repair missing entries or drop
+  orphan index rows for packages that no longer exist on disk.
+- **Status fallback:** when the index is empty, `m store status` falls back to a
+  filesystem scan under `packages/`.
+
 ## Verification
 
-`VerifyPackage` walks `.mew-tree-manifest.json` on every reuse. Bidirectional
-checks detect:
+`VerifyPackage` walks `.mew-tree-manifest.json` (schema **v2**) on every reuse.
+Manifests with `schemaVersion: 0` or unsupported versions are rejected.
+Bidirectional checks detect:
 
 - modified file content (per-file sha256)
 - symlink target changes
 - permission mode drift
 - extra files or directories not listed in the manifest
 - type swaps (file ↔ symlink ↔ directory)
-- duplicate or escaping manifest paths
+- duplicate or escaping manifest paths (including Windows reserved names)
+- invalid file hashes (sha256 hex) or symlink targets
 
 Legacy trees without `.mew-tree-manifest.json` **fail verification** with an
 actionable error (`re-import tarball to restore content index`). The next
@@ -121,7 +142,7 @@ Install diagnostics emit a `link` phase summary:
 
 - Never mutate a published `packages/<algo>/<hex>/` tree in place.
 - Corrupt entries are quarantined and re-imported on next install (`ERR_M_STORE`).
-- Packages with an active `.locks/<algo>/<hex>.lock` are never pruned.
+- Packages with an active `.locks/<algo>/<hex>/` directory are never pruned.
 - `m store prune --dry-run` previews removals in deterministic key order; without
   `--dry-run`, unreferenced package directories are removed. Tarball blobs in
   `<cache>/blobs` are unaffected.

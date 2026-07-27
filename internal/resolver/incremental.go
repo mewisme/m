@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mewisme/m/internal/config"
 	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/manifest"
 	"github.com/mewisme/m/internal/policy"
@@ -207,32 +208,32 @@ func mergeUnchangedSubgraph(prior, resolved *graph.Graph, closure map[string]str
 	if prior == nil || resolved == nil || len(closure) == 0 {
 		return resolved, nil
 	}
-	names := closureNames(closure)
+	mergeClosure := expandClosureForMerge(prior, resolved, closure)
 	importers := importerIDs(prior)
 
 	b := graph.NewBuilder()
 	for _, im := range resolved.Importers {
 		b.Importer(im.ID, im.Name)
 	}
-	for _, p := range prior.Packages {
-		if _, in := names[p.ID.Name]; in {
+	for _, p := range resolved.Packages {
+		if _, in := mergeClosure[p.ID.Key()]; !in {
 			continue
 		}
 		b.Package(p.ID, p.Integrity, p.TarballURL)
 	}
-	for _, p := range resolved.Packages {
-		if _, in := names[p.ID.Name]; !in {
+	for _, p := range prior.Packages {
+		if _, in := mergeClosure[p.ID.Key()]; in {
 			continue
 		}
 		b.Package(p.ID, p.Integrity, p.TarballURL)
 	}
 	for _, e := range prior.Edges {
-		if preservedEdge(e, names, importers) {
+		if preservedEdge(e, mergeClosure, importers) {
 			b.EdgeEx(e.From, e.Name, e.To, e.Kind, e.Range, e.Optional)
 		}
 	}
 	for _, e := range resolved.Edges {
-		if preservedEdge(e, names, importers) {
+		if preservedEdge(e, mergeClosure, importers) {
 			continue
 		}
 		b.EdgeEx(e.From, e.Name, e.To, e.Kind, e.Range, e.Optional)
@@ -240,44 +241,111 @@ func mergeUnchangedSubgraph(prior, resolved *graph.Graph, closure map[string]str
 	return b.Build()
 }
 
-func closureNames(closure map[string]struct{}) map[string]struct{} {
+// expandClosureForMerge maps prior closure keys to resolved package keys for the same
+// edge identities so version bumps inside the update subtree merge correctly.
+func expandClosureForMerge(prior, resolved *graph.Graph, closure map[string]struct{}) map[string]struct{} {
 	out := make(map[string]struct{}, len(closure))
 	for k := range closure {
-		out[parsePackageKey(k).Name] = struct{}{}
+		out[k] = struct{}{}
+	}
+	importers := importerIDs(prior)
+	queue := make([]string, 0, len(closure))
+	for k := range closure {
+		queue = append(queue, k)
+	}
+	seen := make(map[string]struct{}, len(closure))
+	for len(queue) > 0 {
+		key := queue[0]
+		queue = queue[1:]
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		for _, pe := range prior.Edges {
+			if pe.From != key && pe.To != key {
+				continue
+			}
+			if re, ok := matchingResolvedEdge(pe, resolved); ok {
+				out[re.To] = struct{}{}
+				if _, imp := importers[graph.ImporterID(re.From)]; !imp {
+					out[re.From] = struct{}{}
+					if _, done := seen[re.From]; !done {
+						queue = append(queue, re.From)
+					}
+				}
+			}
+			if _, in := closure[pe.To]; in {
+				out[pe.To] = struct{}{}
+				if _, done := seen[pe.To]; !done {
+					queue = append(queue, pe.To)
+				}
+			}
+			if _, imp := importers[graph.ImporterID(pe.From)]; imp {
+				continue
+			}
+			if _, in := closure[pe.From]; in {
+				out[pe.From] = struct{}{}
+				if _, done := seen[pe.From]; !done {
+					queue = append(queue, pe.From)
+				}
+			}
+		}
 	}
 	return out
 }
 
-func preservedEdge(e graph.Edge, names map[string]struct{}, importers map[graph.ImporterID]struct{}) bool {
-	toName := parsePackageKey(e.To).Name
-	if _, in := names[toName]; in {
+func matchingResolvedEdge(pe graph.Edge, resolved *graph.Graph) (graph.Edge, bool) {
+	fromID := edgeEndpointIdentity(pe.From)
+	for _, re := range resolved.Edges {
+		if re.Name != pe.Name || re.Kind != pe.Kind || re.Range != pe.Range {
+			continue
+		}
+		if edgeEndpointIdentity(re.From) != fromID {
+			continue
+		}
+		return re, true
+	}
+	return graph.Edge{}, false
+}
+
+func edgeEndpointIdentity(endpoint string) string {
+	if endpoint == string(graph.RootImporter) {
+		return endpoint
+	}
+	return parsePackageKey(endpoint).Name
+}
+
+func preservedEdge(e graph.Edge, closure map[string]struct{}, importers map[graph.ImporterID]struct{}) bool {
+	if _, in := closure[e.To]; in {
 		return false
 	}
 	if _, ok := importers[graph.ImporterID(e.From)]; ok {
 		return true
 	}
-	fromName := parsePackageKey(e.From).Name
-	_, fromIn := names[fromName]
-	return !fromIn
+	if _, in := closure[e.From]; in {
+		return false
+	}
+	return true
 }
 
-// ExtractPackageSubgraph returns the package node and incident edges for one resolved name.
-func ExtractPackageSubgraph(g *graph.Graph, pkgName string) (*graph.Graph, error) {
-	return extractPackageSubgraph(g, pkgName)
+// ExtractPackageSubgraph returns the package node and incident edges for one package key.
+func ExtractPackageSubgraph(g *graph.Graph, pkgKey string) (*graph.Graph, error) {
+	return extractPackageSubgraph(g, pkgKey)
 }
 
-func extractPackageSubgraph(g *graph.Graph, pkgName string) (*graph.Graph, error) {
+func extractPackageSubgraph(g *graph.Graph, pkgKey string) (*graph.Graph, error) {
 	if g == nil {
 		return nil, nil
 	}
-	var targetKey string
+	targetKey := pkgKey
+	found := false
 	for _, p := range g.Packages {
-		if p.ID.Name == pkgName {
-			targetKey = p.ID.Key()
+		if p.ID.Key() == pkgKey {
+			found = true
 			break
 		}
 	}
-	if targetKey == "" {
+	if !found {
 		return graph.NewBuilder().Build()
 	}
 	b := graph.NewBuilder()
@@ -347,7 +415,7 @@ func mapsEqual(a, b map[string]string) bool {
 	return true
 }
 
-func prepareHints(opts ResolveOptions, m *manifest.Manifest) graphHints {
+func prepareHints(eff *config.Effective, opts ResolveOptions, m *manifest.Manifest) graphHints {
 	h := graphHints{g: opts.Hints}
 	if opts.Prior != nil {
 		if h.g == nil {
@@ -367,19 +435,18 @@ func prepareHints(opts ResolveOptions, m *manifest.Manifest) graphHints {
 					h.overrideChanged = true
 				}
 			}
+			currentPolicy := PolicyFromEffective(eff)
+			h.policyFP = policyFingerprint(currentPolicy)
 			if pf := opts.PriorFingerprints; pf != nil {
 				if pf.OverridesFingerprint != "" && pf.OverridesFingerprint != hashOverrides(m.Overrides) {
 					h.overrideChanged = true
 				}
-				h.policyFP = policyFingerprint(opts.Policy)
 				if pf.ResolverPolicyFingerprint != "" && pf.ResolverPolicyFingerprint != h.policyFP {
 					h.policyDrift = true
 				}
 				if pf.TargetPlatformFingerprint != "" && pf.TargetPlatformFingerprint != targetPlatformFingerprint(CurrentTarget()) {
 					h.platformDrift = true
 				}
-			} else {
-				h.policyFP = policyFingerprint(opts.Policy)
 			}
 			h.reuseIndex = buildReuseIndex(opts.Prior, ovrHash, h.policyFP)
 		}

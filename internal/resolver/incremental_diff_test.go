@@ -45,16 +45,16 @@ func TestIncrementalGraphDiffGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertSubgraphGolden(t, "incremental-lodash-unchanged.json", prior, res.Graph, "lodash")
+	assertSubgraphGolden(t, "incremental-lodash-unchanged.json", prior, res.Graph, "lodash@4.17.21")
 }
 
-func assertSubgraphGolden(t testing.TB, name string, prior, resolved *graph.Graph, pkgName string) {
+func assertSubgraphGolden(t testing.TB, name string, prior, resolved *graph.Graph, pkgKey string) {
 	t.Helper()
-	priorSub, err := resolver.ExtractPackageSubgraph(prior, pkgName)
+	priorSub, err := resolver.ExtractPackageSubgraph(prior, pkgKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotSub, err := resolver.ExtractPackageSubgraph(resolved, pkgName)
+	gotSub, err := resolver.ExtractPackageSubgraph(resolved, pkgKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func assertSubgraphGolden(t testing.TB, name string, prior, resolved *graph.Grap
 	gotNorm := stripTarballHosts(got)
 	wantNorm := stripTarballHosts(want)
 	if !bytes.Equal(gotNorm, wantNorm) {
-		t.Fatalf("subgraph %s differs from prior\n--- got ---\n%s\n--- prior ---\n%s", pkgName, gotNorm, wantNorm)
+		t.Fatalf("subgraph %s differs from prior\n--- got ---\n%s\n--- prior ---\n%s", pkgKey, gotNorm, wantNorm)
 	}
 	if !bytes.Equal(gotNorm, stripTarballHosts(golden)) {
 		t.Fatalf("golden %s mismatch\n--- got ---\n%s\n--- want ---\n%s", name, gotNorm, stripTarballHosts(golden))

@@ -41,7 +41,7 @@ func selectVersion(
 			decision.Reason = "reuse-key"
 			return &m, decision, nil
 		}
-		if hv := hints.version(name, rng); hv != "" && !hints.incremental {
+		if hv := hints.version(name, rng); hv != "" {
 			if containsStr(eligible, hv) {
 				m := p.Versions[hv]
 				decision.Selected = hv

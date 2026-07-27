@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build linux
 
 package transaction
 
@@ -48,6 +48,5 @@ func processAlive(pid int) bool {
 	if pid <= 0 {
 		return false
 	}
-	err := syscall.Kill(pid, 0)
-	return err == nil
+	return syscall.Kill(pid, 0) == nil
 }

@@ -7,14 +7,17 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/fsx"
 	"github.com/mewisme/m/internal/transaction"
 )
+
+func lockOwnerPath(root string) string {
+	return filepath.Join(transaction.LockPath(root), fsx.OwnerFileName)
+}
 
 func TestLockContentionWorker(t *testing.T) {
 	root := os.Getenv("MEW_LOCK_TEST_ROOT")
@@ -73,18 +76,21 @@ func TestProjectLockContention20Processes(t *testing.T) {
 	if winners != 1 {
 		t.Fatalf("expected exactly one lock winner, got %d", winners)
 	}
-	// Allow holder subprocess to release.
 	time.Sleep(2 * time.Second)
 }
 
 func TestProjectLockStaleProcessIdentity(t *testing.T) {
 	root := t.TempDir()
-	path := transaction.LockPath(root)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	lockDir := transaction.LockPath(root)
+	if err := os.MkdirAll(filepath.Dir(lockDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(lockDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	doc := transaction.LockDocument{
-		SchemaVersion: 2,
+		SchemaVersion: 3,
+		LockID:        "stale-lock",
 		PID:           999999,
 		ProcessStart:  1,
 		TxnID:         "stale",
@@ -95,7 +101,7 @@ func TestProjectLockStaleProcessIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, raw, 0o644); err != nil {
+	if err := os.WriteFile(lockOwnerPath(root), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
@@ -165,13 +171,17 @@ func TestProjectLockContextCancelDuringWait(t *testing.T) {
 
 func TestProjectLockPIDReuseSimulation(t *testing.T) {
 	root := t.TempDir()
-	path := transaction.LockPath(root)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	lockDir := transaction.LockPath(root)
+	if err := os.MkdirAll(filepath.Dir(lockDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(lockDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	pid := os.Getpid()
 	doc := transaction.LockDocument{
-		SchemaVersion: 2,
+		SchemaVersion: 3,
+		LockID:        "reused",
 		PID:           pid,
 		ProcessStart:  1,
 		TxnID:         "reused",
@@ -182,7 +192,7 @@ func TestProjectLockPIDReuseSimulation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, raw, 0o644); err != nil {
+	if err := os.WriteFile(lockOwnerPath(root), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -193,44 +203,39 @@ func TestProjectLockPIDReuseSimulation(t *testing.T) {
 	_ = transaction.ReleaseProjectLock(root, "new")
 }
 
-func TestProjectLockExclusiveCreate(t *testing.T) {
+func TestProjectLockDirExclusiveCreate(t *testing.T) {
 	root := t.TempDir()
-	path := transaction.LockPath(root)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	lockDir := transaction.LockPath(root)
+	if err := os.MkdirAll(filepath.Dir(lockDir), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	var created atomic.Int32
+	var created int32
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		for i := 0; i < 100; i++ {
-			f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
-			if err == nil {
-				created.Add(1)
-				_ = f.Close()
-				return
-			}
-			if !strings.Contains(err.Error(), "exists") {
+			if err := os.Mkdir(lockDir, 0o755); err == nil {
+				created++
 				return
 			}
 			time.Sleep(time.Millisecond)
 		}
 	}()
 	<-done
-	if created.Load() != 1 {
-		t.Fatalf("O_EXCL should allow one creator, got %d", created.Load())
+	if created != 1 {
+		t.Fatalf("Mkdir should allow one creator, got %d", created)
 	}
-	_ = os.Remove(path)
+	_ = os.RemoveAll(lockDir)
 }
 
-func TestLockDocumentV2Fields(t *testing.T) {
+func TestLockDocumentV3Fields(t *testing.T) {
 	root := t.TempDir()
 	ctx := context.Background()
 	txnID := "field-check"
 	if err := transaction.AcquireProjectLock(ctx, root, txnID); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(transaction.LockPath(root))
+	data, err := os.ReadFile(lockOwnerPath(root))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,8 +243,11 @@ func TestLockDocumentV2Fields(t *testing.T) {
 	if err := json.Unmarshal(data, &doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc.SchemaVersion < 2 {
+	if doc.SchemaVersion < 3 {
 		t.Fatalf("schemaVersion=%d", doc.SchemaVersion)
+	}
+	if doc.LockID == "" {
+		t.Fatal("missing lockId")
 	}
 	if doc.TxnID != txnID || doc.PID != os.Getpid() || doc.ProcessStart == 0 {
 		t.Fatalf("unexpected lock doc: %+v", doc)
@@ -248,4 +256,58 @@ func TestLockDocumentV2Fields(t *testing.T) {
 		t.Fatalf("missing metadata: %+v", doc)
 	}
 	_ = transaction.ReleaseProjectLock(root, txnID)
+}
+
+func TestProjectLockMalformedGracePeriod(t *testing.T) {
+	root := t.TempDir()
+	lockDir := transaction.LockPath(root)
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lockOwnerPath(root), []byte("{trunc"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	err := transaction.AcquireProjectLock(ctx, root, "waiter")
+	if err == nil {
+		t.Fatal("expected wait during grace period")
+	}
+}
+
+func TestRecoveryTakeoverReplacesDeadHolder(t *testing.T) {
+	root := t.TempDir()
+	lockDir := transaction.LockPath(root)
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	doc := transaction.LockDocument{
+		SchemaVersion: 3,
+		LockID:        "dead",
+		PID:           999999,
+		ProcessStart:  1,
+		TxnID:         "dead-txn",
+		CreatedAt:     time.Now().UTC().Add(-time.Minute),
+		ProjectRoot:   root,
+	}
+	raw, _ := json.Marshal(doc)
+	if err := os.WriteFile(lockOwnerPath(root), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if err := transaction.TakeoverProjectLock(ctx, root, "recovery-txn"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(lockOwnerPath(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got transaction.LockDocument
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.TxnID != "recovery-txn" || got.PID != os.Getpid() {
+		t.Fatalf("unexpected takeover doc: %+v", got)
+	}
+	_ = transaction.ReleaseProjectLock(root, "recovery-txn")
 }

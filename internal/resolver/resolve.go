@@ -125,7 +125,7 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 		ctx:             ctx,
 		proj:            proj,
 		pol:             pol,
-		hints:           prepareHints(opts, proj.Normalized),
+		hints:           prepareHints(e.Effective, opts, proj.Normalized),
 		target:          CurrentTarget(),
 		overrides:       proj.Normalized.Overrides,
 		identity:        identity,
@@ -159,6 +159,9 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 	}
 	s.finalizePeerProviderContexts()
 	if err := s.validatePeers(pol); err != nil {
+		return nil, err
+	}
+	if err := s.canonicalizePeerInstances(); err != nil {
 		return nil, err
 	}
 

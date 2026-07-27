@@ -11,12 +11,13 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/mewisme/m/internal/apperr"
 )
 
 const (
-	treeManifestSchemaVersion = 1
+	treeManifestSchemaVersion = 2
 	treeManifestFileName      = ".mew-tree-manifest.json"
 )
 
@@ -149,7 +150,10 @@ func readTreeManifest(dir string) (*TreeManifest, error) {
 		return nil, apperr.Wrap(apperr.Store, "store.manifest", dir, err)
 	}
 	if m.SchemaVersion == 0 {
-		m.SchemaVersion = treeManifestSchemaVersion
+		return nil, apperr.New(apperr.Store, "store.manifest", dir, "missing schemaVersion")
+	}
+	if err := validateTreeManifest(&m); err != nil {
+		return nil, err
 	}
 	return &m, nil
 }
@@ -157,6 +161,10 @@ func readTreeManifest(dir string) (*TreeManifest, error) {
 func validateTreeManifest(m *TreeManifest) error {
 	if m == nil {
 		return apperr.New(apperr.Store, "store.verify", "", "nil manifest")
+	}
+	if m.SchemaVersion != treeManifestSchemaVersion {
+		return apperr.New(apperr.Store, "store.verify", "",
+			fmt.Sprintf("unsupported manifest schema version %d", m.SchemaVersion))
 	}
 	seen := make(map[string]struct{}, len(m.Entries))
 	for _, e := range m.Entries {
@@ -169,16 +177,56 @@ func validateTreeManifest(m *TreeManifest) error {
 		seen[e.Path] = struct{}{}
 		switch TreeEntryKind(e.Kind) {
 		case EntryFile:
-			if e.Hash == "" {
-				return apperr.New(apperr.Store, "store.verify", e.Path, "file entry missing hash")
+			if err := validateManifestHash(e.Hash); err != nil {
+				return apperr.Wrap(apperr.Store, "store.verify", e.Path, err)
 			}
 		case EntrySymlink:
-			if e.SymlinkTarget == "" {
-				return apperr.New(apperr.Store, "store.verify", e.Path, "symlink entry missing target")
+			if err := validateSymlinkTarget(e.SymlinkTarget); err != nil {
+				return apperr.Wrap(apperr.Store, "store.verify", e.Path, err)
 			}
 		case EntryDir:
 		default:
 			return apperr.New(apperr.Store, "store.verify", e.Path, fmt.Sprintf("unsupported entry kind %q", e.Kind))
+		}
+	}
+	return nil
+}
+
+func validateManifestHash(hash string) error {
+	if len(hash) != sha256.Size*2 {
+		return fmt.Errorf("invalid file hash length")
+	}
+	for _, c := range hash {
+		if !unicode.IsDigit(c) && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+			return fmt.Errorf("invalid file hash")
+		}
+	}
+	return nil
+}
+
+func validateSymlinkTarget(target string) error {
+	if target == "" {
+		return fmt.Errorf("symlink entry missing target")
+	}
+	if strings.HasPrefix(target, "/") || strings.HasPrefix(target, "\\") {
+		return fmt.Errorf("absolute symlink target")
+	}
+	if filepath.IsAbs(target) {
+		return fmt.Errorf("absolute symlink target")
+	}
+	clean := filepath.ToSlash(filepath.Clean(target))
+	if clean == ".." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "/../") {
+		return fmt.Errorf("escaping symlink target")
+	}
+	if clean != filepath.ToSlash(target) {
+		return fmt.Errorf("non-canonical symlink target")
+	}
+	for _, seg := range strings.Split(clean, "/") {
+		if seg == "" || seg == "." {
+			continue
+		}
+		if isWindowsReservedName(seg) {
+			return fmt.Errorf("windows reserved symlink target")
 		}
 	}
 	return nil
@@ -201,7 +249,35 @@ func validateManifestPath(path string) error {
 	if clean != filepath.ToSlash(path) {
 		return fmt.Errorf("non-canonical manifest path")
 	}
+	for _, seg := range strings.Split(clean, "/") {
+		if seg == "" || seg == "." {
+			continue
+		}
+		if isWindowsReservedName(seg) {
+			return fmt.Errorf("windows reserved manifest path")
+		}
+	}
 	return nil
+}
+
+func isWindowsReservedName(base string) bool {
+	if base == "" {
+		return false
+	}
+	name := strings.ToUpper(strings.TrimSuffix(base, filepath.Ext(base)))
+	switch name {
+	case "CON", "PRN", "AUX", "NUL":
+		return true
+	}
+	if len(name) == 4 {
+		if strings.HasPrefix(name, "COM") && name[3] >= '1' && name[3] <= '9' {
+			return true
+		}
+		if strings.HasPrefix(name, "LPT") && name[3] >= '1' && name[3] <= '9' {
+			return true
+		}
+	}
+	return false
 }
 
 func verifyTreeManifest(dir string, m *TreeManifest) error {

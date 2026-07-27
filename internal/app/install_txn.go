@@ -196,7 +196,9 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	}
 
 	if err := txn.Finish(opts.KeepJournal); err != nil {
-		return res, err
+		if ac != nil && ac.Reporter != nil {
+			ac.Reporter.Debug("transaction cleanup failed", diagnostics.Attr{Key: "error", Value: err.Error()})
+		}
 	}
 	return res, nil
 }

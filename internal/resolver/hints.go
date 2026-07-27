@@ -33,9 +33,6 @@ func (h graphHints) reusedVersion(ctx pinContext) (version string, ok bool) {
 	if !h.incremental || !h.canReuse() || h.reuseIndex == nil {
 		return "", false
 	}
-	if _, in := closureNames(h.updateClosure)[ctx.depName]; in {
-		return "", false
-	}
 	k := reuseKey{
 		importer:     ctx.importer,
 		depName:      ctx.depName,
@@ -52,6 +49,9 @@ func (h graphHints) reusedVersion(ctx pinContext) (version string, ok bool) {
 	if !ok {
 		return "", false
 	}
+	if _, in := h.updateClosure[priorKey]; in {
+		return "", false
+	}
 	id := parsePackageKey(priorKey)
 	sat, err := semver.Satisfies(id.Version, ctx.rangeSpec)
 	if err != nil || !sat {
@@ -64,13 +64,10 @@ func (h graphHints) canPin(name string) bool {
 	if h.g == nil {
 		return false
 	}
-	if !h.incremental {
-		return true
-	}
-	if !h.canReuse() {
+	if h.incremental {
 		return false
 	}
-	if _, in := closureNames(h.updateClosure)[name]; in {
+	if !h.canReuse() {
 		return false
 	}
 	if priorRng, ok := h.priorSpecs[name]; ok {

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/testkit"
 )
 
@@ -31,10 +30,10 @@ func TestValidateManifestPathHostile(t *testing.T) {
 
 func TestValidateTreeManifestDuplicatePaths(t *testing.T) {
 	m := &TreeManifest{
-		SchemaVersion: 1,
+		SchemaVersion: 2,
 		Entries: []TreeEntry{
-			{Path: "a.txt", Kind: string(EntryFile), Hash: "dead", Mode: 0o444},
-			{Path: "a.txt", Kind: string(EntryFile), Hash: "beef", Mode: 0o444},
+			{Path: "a.txt", Kind: string(EntryFile), Hash: strings.Repeat("a", 64), Mode: 0o444},
+			{Path: "a.txt", Kind: string(EntryFile), Hash: strings.Repeat("b", 64), Mode: 0o444},
 		},
 	}
 	if err := validateTreeManifest(m); err == nil {
@@ -57,7 +56,7 @@ func TestVerifyTreeManifestExtraFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := &TreeManifest{
-		SchemaVersion: 1,
+		SchemaVersion: 2,
 		Entries: []TreeEntry{
 			{Path: "package.json", Kind: string(EntryFile), Hash: mustHashBytes(pkgData), Mode: uint32(info.Mode().Perm())},
 		},
@@ -97,7 +96,7 @@ func TestVerifyTreeManifestTypeSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := &TreeManifest{
-		SchemaVersion: 1,
+		SchemaVersion: 2,
 		Entries: []TreeEntry{
 			{Path: "lib", Kind: string(EntryDir), Mode: uint32(libInfo.Mode().Perm())},
 			{Path: "package.json", Kind: string(EntryFile), Hash: mustHashBytes(pkgData), Mode: uint32(pkgInfo.Mode().Perm())},
@@ -142,7 +141,7 @@ func TestVerifyTreeManifestSymlinkTargetChange(t *testing.T) {
 	targetInfo, _ := os.Lstat(targetPath)
 	pkgInfo, _ := os.Lstat(pkgPath)
 	m := &TreeManifest{
-		SchemaVersion: 1,
+		SchemaVersion: 2,
 		Entries: []TreeEntry{
 			{Path: "link", Kind: string(EntrySymlink), Mode: uint32(linkInfo.Mode().Perm()), SymlinkTarget: "target.txt"},
 			{Path: "package.json", Kind: string(EntryFile), Hash: mustHashBytes(pkgData), Mode: uint32(pkgInfo.Mode().Perm())},
@@ -196,21 +195,18 @@ func TestLegacyPackageRequiresReimport(t *testing.T) {
 
 func TestHostileManifestPathInFile(t *testing.T) {
 	dir := t.TempDir()
-	raw := `{"schemaVersion":1,"entries":[{"path":"../escape","kind":"file","hash":"dead","mode":420}]}`
+	raw := `{"schemaVersion":2,"entries":[{"path":"../escape","kind":"file","hash":"` + strings.Repeat("a", 64) + `","mode":420}]}`
 	if err := os.WriteFile(treeManifestPath(dir), []byte(raw), 0o444); err != nil {
 		t.Fatal(err)
 	}
 	m, err := readTreeManifest(dir)
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("expected hostile path rejection on read")
 	}
-	verifyErr := verifyTreeManifest(dir, m)
-	if verifyErr == nil {
-		t.Fatal("expected hostile path rejection")
+	if !strings.Contains(err.Error(), "escaping manifest path") && !strings.Contains(err.Error(), "store.manifest") {
+		t.Fatalf("err=%v", err)
 	}
-	if apperr.CodeOf(verifyErr) != apperr.Store {
-		t.Fatalf("code=%s err=%v", apperr.CodeOf(verifyErr), verifyErr)
-	}
+	_ = m
 }
 
 func TestTreeManifestIncludesDirectories(t *testing.T) {
@@ -262,7 +258,7 @@ func TestVerifyRejectsMalformedManifestJSON(t *testing.T) {
 
 func TestUnsupportedManifestEntryKind(t *testing.T) {
 	m := &TreeManifest{
-		SchemaVersion: 1,
+		SchemaVersion: 2,
 		Entries: []TreeEntry{
 			{Path: "weird", Kind: "socket", Mode: 0o644},
 		},
@@ -272,12 +268,67 @@ func TestUnsupportedManifestEntryKind(t *testing.T) {
 	}
 }
 
-// Ensure json round-trip used by hostile tests stays valid.
-func TestTreeManifestJSONRoundTrip(t *testing.T) {
+func TestRejectSchemaVersionZero(t *testing.T) {
+	dir := t.TempDir()
+	raw := `{"schemaVersion":0,"entries":[]}`
+	if err := os.WriteFile(treeManifestPath(dir), []byte(raw), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	_, err := readTreeManifest(dir)
+	if err == nil {
+		t.Fatal("expected schema version rejection")
+	}
+}
+
+func TestValidateManifestHashRejectsShort(t *testing.T) {
+	m := &TreeManifest{
+		SchemaVersion: 2,
+		Entries: []TreeEntry{
+			{Path: "a.txt", Kind: string(EntryFile), Hash: "dead", Mode: 0o444},
+		},
+	}
+	if err := validateTreeManifest(m); err == nil {
+		t.Fatal("expected short hash rejection")
+	}
+}
+
+func TestValidateManifestPathWindowsReserved(t *testing.T) {
+	for _, path := range []string{"CON", "lib/PRN", "pkg/COM1"} {
+		if err := validateManifestPath(path); err == nil {
+			t.Fatalf("path %q should be rejected", path)
+		}
+	}
+}
+
+func TestValidateSymlinkTargetEscapes(t *testing.T) {
+	for _, target := range []string{"../outside", "/abs", ".."} {
+		if err := validateSymlinkTarget(target); err == nil {
+			t.Fatalf("target %q should be rejected", target)
+		}
+	}
+}
+
+func TestValidateSymlinkTargetWindowsReserved(t *testing.T) {
+	if err := validateSymlinkTarget("CON"); err == nil {
+		t.Fatal("expected reserved target rejection")
+	}
+}
+
+func TestRejectUnsupportedManifestSchema(t *testing.T) {
 	m := &TreeManifest{
 		SchemaVersion: 1,
+		Entries:       []TreeEntry{},
+	}
+	if err := validateTreeManifest(m); err == nil {
+		t.Fatal("expected unsupported schema rejection")
+	}
+}
+
+func TestTreeManifestJSONRoundTrip(t *testing.T) {
+	m := &TreeManifest{
+		SchemaVersion: 2,
 		Entries: []TreeEntry{
-			{Path: "a", Kind: string(EntryFile), Hash: "abc", Mode: 0o444},
+			{Path: "a", Kind: string(EntryFile), Hash: strings.Repeat("c", 64), Mode: 0o444},
 		},
 	}
 	raw, err := json.Marshal(m)

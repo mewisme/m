@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/fsx"
 	"github.com/mewisme/m/internal/store"
 	"github.com/mewisme/m/internal/testkit"
 )
@@ -80,48 +81,41 @@ func runImportProcChild(t *testing.T, role string) {
 		if root == "" || keyHex == "" {
 			t.Fatal("missing child env")
 		}
-		lock := filepath.Join(root, ".locks", "sha256", keyHex+".lock")
-		if err := os.MkdirAll(filepath.Dir(lock), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		doc, err := json.Marshal(map[string]any{
-			"schemaVersion": 1,
-			"pid":           os.Getpid(),
-			"startedAt":     time.Now().UTC(),
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(lock, doc, 0o644); err != nil {
-			t.Fatal(err)
-		}
+		writeImportDirLock(t, root, "sha256", keyHex, os.Getpid())
 		time.Sleep(3 * time.Second)
-		_ = os.Remove(lock)
+		_ = os.RemoveAll(filepath.Join(root, ".locks", "sha256", keyHex))
 	case "cancel-wait":
 		root := os.Getenv("MEW_STORE_ROOT")
 		keyHex := os.Getenv("MEW_STORE_KEY_HEX")
 		if root == "" || keyHex == "" {
 			t.Fatal("missing child env")
 		}
-		lock := filepath.Join(root, ".locks", "sha256", keyHex+".lock")
-		if err := os.MkdirAll(filepath.Dir(lock), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		doc, err := json.Marshal(map[string]any{
-			"schemaVersion": 1,
-			"pid":           os.Getpid(),
-			"startedAt":     time.Now().UTC(),
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(lock, doc, 0o644); err != nil {
-			t.Fatal(err)
-		}
+		writeImportDirLock(t, root, "sha256", keyHex, os.Getpid())
 		time.Sleep(5 * time.Second)
-		_ = os.Remove(lock)
+		_ = os.RemoveAll(filepath.Join(root, ".locks", "sha256", keyHex))
 	default:
 		t.Fatalf("unknown role %q", role)
+	}
+}
+
+func writeImportDirLock(t *testing.T, root, algo, hex string, pid int) {
+	t.Helper()
+	lockDir := filepath.Join(root, ".locks", algo, hex)
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := json.Marshal(map[string]any{
+		"schemaVersion": 2,
+		"lockId":        "test-lock",
+		"pid":           pid,
+		"packageKey":    algo + "/" + hex,
+		"createdAt":     time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(lockDir, fsx.OwnerFileName), doc, 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -134,19 +128,22 @@ func TestImportProcStaleLockRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lock := filepath.Join(root, ".locks", key.Algo, key.Hex+".lock")
-	if err := os.MkdirAll(filepath.Dir(lock), 0o755); err != nil {
+	lockDir := filepath.Join(root, ".locks", key.Algo, key.Hex)
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	doc, err := json.Marshal(map[string]any{
-		"schemaVersion": 1,
+		"schemaVersion": 2,
+		"lockId":        "stale",
 		"pid":           999999999,
-		"startedAt":     time.Now().UTC(),
+		"processStart":  1,
+		"packageKey":    key.String(),
+		"createdAt":     time.Now().UTC(),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(lock, doc, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(lockDir, fsx.OwnerFileName), doc, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ps.ImportFromTarball(context.Background(), tgz, integrity); err != nil {
@@ -205,21 +202,7 @@ func TestImportProcPruneSkipsActiveLock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lock := filepath.Join(root, ".locks", key.Algo, key.Hex+".lock")
-	if err := os.MkdirAll(filepath.Dir(lock), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	doc, err := json.Marshal(map[string]any{
-		"schemaVersion": 1,
-		"pid":           os.Getpid(),
-		"startedAt":     time.Now().UTC(),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(lock, doc, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeImportDirLock(t, root, key.Algo, key.Hex, os.Getpid())
 	candidates, err := store.PruneCandidates(ps, map[string]struct{}{})
 	if err != nil {
 		t.Fatal(err)
@@ -286,11 +269,11 @@ func TestImportProcLockPathLayout(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "store")
 	ps := store.NewPackageStore(root)
 	key := store.PackageKey{Algo: "sha256", Hex: "abc"}
-	lock := filepath.Join(root, ".locks", key.Algo, key.Hex+".lock")
-	if err := os.MkdirAll(filepath.Dir(lock), 0o755); err != nil {
+	lockDir := filepath.Join(root, ".locks", key.Algo, key.Hex)
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(lock, []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(lockDir, fsx.OwnerFileName), []byte("{}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if !store.HasImportLock(ps, key) {
@@ -299,5 +282,4 @@ func TestImportProcLockPathLayout(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "packages", "sha256", "abc", ".import.lock")); !os.IsNotExist(err) {
 		t.Fatalf("in-package lock should not exist: %v", err)
 	}
-	_ = lock // lock path exercised by acquire/release above
 }

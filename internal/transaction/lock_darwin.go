@@ -1,0 +1,46 @@
+//go:build darwin
+
+package transaction
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"syscall"
+)
+
+func processStartTime(pid int) (int64, error) {
+	k, err := syscall.SysctlKinfoProc("kern.proc.pid." + strconv.Itoa(pid))
+	if err != nil {
+		return 0, err
+	}
+	// kp_proc.p_starttime: sec + usec → nanoseconds for stable comparison.
+	return k.Start.Sec*1e9 + int64(k.Start.Usec)*1e3, nil
+}
+
+func currentProcessIdentity() (pid int, start int64, err error) {
+	pid = os.Getpid()
+	start, err = processStartTime(pid)
+	if err != nil {
+		return 0, 0, fmt.Errorf("transaction.lock: process identity unavailable: %w", err)
+	}
+	return pid, start, nil
+}
+
+func processIdentityAlive(pid int, start int64) bool {
+	if pid <= 0 {
+		return false
+	}
+	actual, err := processStartTime(pid)
+	if err != nil {
+		return false
+	}
+	return actual == start
+}
+
+func processAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	return syscall.Kill(pid, 0) == nil
+}

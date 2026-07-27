@@ -24,6 +24,7 @@ type Runner struct {
 	ID          string
 	Root        string
 	doc         *Document
+	journalGen  int
 }
 
 // NewRunner prepares a runner for projectRoot (does not create dirs until Begin).
@@ -111,6 +112,9 @@ func (r *Runner) SetPlan(plan []Op) error {
 		cp[i] = op
 		if cp[i].Progress == "" {
 			cp[i].Progress = ProgressPending
+		}
+		if cp[i].Phase == "" || cp[i].Phase == PhasePending {
+			cp[i].Phase = PhasePriorIdentified
 		}
 	}
 	r.doc.Plan = cp
@@ -255,6 +259,7 @@ func (r *Runner) Rollback(ctx context.Context) error {
 }
 
 // Finish clears the current pointer and optionally removes the txn dir.
+// Post-commit cleanup errors are best-effort and never returned.
 func (r *Runner) Finish(keepJournal bool) error {
 	if r.doc == nil {
 		return nil
@@ -264,7 +269,8 @@ func (r *Runner) Finish(keepJournal bool) error {
 	if keepJournal {
 		return nil
 	}
-	return os.RemoveAll(r.Root)
+	_ = os.RemoveAll(r.Root)
+	return nil
 }
 
 // Discard removes an incomplete transaction without restoring backups.
@@ -308,10 +314,10 @@ func LoadIncomplete(projectRoot string) (*Runner, error) {
 	}
 	if doc.State == StateCommitted || doc.State == StateAborted {
 		_ = clearCurrent(projectRoot)
-		_, _ = tryRemoveStaleLock(LockPath(projectRoot))
+		_, _ = tryRemoveStaleLock(projectRoot)
 		return nil, nil
 	}
-	return &Runner{ProjectRoot: projectRoot, ID: id, Root: root, doc: doc}, nil
+	return &Runner{ProjectRoot: projectRoot, ID: id, Root: root, doc: doc, journalGen: currentJournalGen(root)}, nil
 }
 
 // RecoverIncomplete rolls back or resumes an interrupted transaction (idempotent).
@@ -451,58 +457,23 @@ func (r *Runner) markPlanPhase(path, phase string) {
 }
 
 func (r *Runner) saveJournal() error {
+	if r.doc != nil && r.doc.SchemaVersion < SchemaVersion {
+		r.doc.SchemaVersion = SchemaVersion
+	}
 	data, err := Encode(r.doc)
 	if err != nil {
 		return err
 	}
-	name := JournalName
-	if r.doc != nil {
-		switch r.doc.SchemaVersion {
-		case 1:
-			name = JournalNameV1
-		case 2:
-			name = JournalNameV2
-		}
-	}
-	path := filepath.Join(r.Root, name)
-	tmp, err := os.CreateTemp(r.Root, ".journal.*.tmp")
+	gen, err := saveJournalGeneration(r.Root, r.journalGen, data)
 	if err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.journal", path, err)
+		return err
 	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "transaction.journal", path, err)
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "transaction.journal", path, err)
-	}
-	if err := tmp.Close(); err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.journal", path, err)
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		_ = os.Remove(path)
-		if err2 := os.Rename(tmpName, path); err2 != nil {
-			return apperr.Wrap(apperr.IO, "transaction.journal", path, err2)
-		}
-	}
+	r.journalGen = gen
 	return nil
 }
 
 func loadJournal(root string) (*Document, error) {
-	for _, name := range []string{JournalName, JournalNameV2, JournalNameV1} {
-		data, err := os.ReadFile(filepath.Join(root, name))
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, apperr.Wrap(apperr.IO, "transaction.load", root, err)
-		}
-		return Decode(data)
-	}
-	return nil, nil
+	return loadJournalGeneration(root)
 }
 
 func (r *Runner) applyForward(ctx context.Context, op Op) error {
@@ -755,49 +726,32 @@ func newTxnID() (string, error) {
 }
 
 func writeCurrent(projectRoot, id string) error {
-	dir := TxnRoot(projectRoot)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.current", dir, err)
-	}
-	path := CurrentPath(projectRoot)
-	tmp, err := os.CreateTemp(dir, ".current.*.tmp")
-	if err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.current", path, err)
-	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-	if _, err := tmp.WriteString(id + "\n"); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "transaction.current", path, err)
-	}
-	if err := tmp.Close(); err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.current", path, err)
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		_ = os.Remove(path)
-		if err2 := os.Rename(tmpName, path); err2 != nil {
-			return apperr.Wrap(apperr.IO, "transaction.current", path, err2)
-		}
-	}
-	return nil
+	return writeCurrentGeneration(projectRoot, id)
 }
 
 func readCurrent(projectRoot string) (string, error) {
-	data, err := os.ReadFile(CurrentPath(projectRoot))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", apperr.Wrap(apperr.IO, "transaction.current", projectRoot, err)
-	}
-	id := strings.TrimSpace(string(data))
-	return id, nil
+	return readCurrentGeneration(projectRoot)
 }
 
 func clearCurrent(projectRoot string) error {
+	dir := TxnRoot(projectRoot)
+	_ = os.Remove(filepath.Join(dir, currentHeadName))
 	err := os.Remove(CurrentPath(projectRoot))
 	if err != nil && !os.IsNotExist(err) {
 		return apperr.Wrap(apperr.IO, "transaction.current", projectRoot, err)
+	}
+	entries, readErr := os.ReadDir(dir)
+	if readErr != nil {
+		if os.IsNotExist(readErr) {
+			return nil
+		}
+		return apperr.Wrap(apperr.IO, "transaction.current", projectRoot, readErr)
+	}
+	for _, ent := range entries {
+		name := ent.Name()
+		if strings.HasPrefix(name, "current.") && name != currentHeadName {
+			_ = os.Remove(filepath.Join(dir, name))
+		}
 	}
 	return nil
 }

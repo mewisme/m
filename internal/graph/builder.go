@@ -59,6 +59,21 @@ func (b *Builder) RemapPackageKey(oldKey, newKey string, newID PackageID) {
 	}
 }
 
+// RemovePackage drops a resolved package node by key.
+func (b *Builder) RemovePackage(key string) {
+	for i := range b.packages {
+		if b.packages[i].ID.Key() == key {
+			b.packages = append(b.packages[:i], b.packages[i+1:]...)
+			return
+		}
+	}
+}
+
+// Packages returns a snapshot of accumulated packages.
+func (b *Builder) Packages() []Package {
+	return append([]Package(nil), b.packages...)
+}
+
 // Build validates and returns an immutable graph.
 func (b *Builder) Build() (*Graph, error) {
 	g := &Graph{

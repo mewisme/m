@@ -2,6 +2,8 @@ package transaction
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -9,8 +11,9 @@ import (
 )
 
 const (
-	SchemaVersion = 3
-	JournalName   = "journal.v3.json"
+	SchemaVersion = 4
+	JournalName   = "journal.v4.json"
+	JournalNameV3 = "journal.v3.json"
 	JournalNameV2 = "journal.v2.json"
 	JournalNameV1 = "journal.v1.json"
 )
@@ -71,6 +74,7 @@ type Document struct {
 	ID            string `json:"id"`
 	ProjectRoot   string `json:"projectRoot"`
 	State         string `json:"state"`
+	Checksum      string `json:"checksum,omitempty"`
 	Plan          []Op   `json:"plan,omitempty"`
 	Ops           []Op   `json:"ops"`
 }
@@ -94,6 +98,13 @@ func Encode(doc *Document) ([]byte, error) {
 	if err := Normalize(doc); err != nil {
 		return nil, err
 	}
+	if doc.SchemaVersion >= 4 {
+		checksum, err := semanticChecksum(doc)
+		if err != nil {
+			return nil, err
+		}
+		doc.Checksum = checksum
+	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
@@ -104,13 +115,44 @@ func Encode(doc *Document) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Decode unmarshals and normalizes a journal document (v1–v3).
+func semanticChecksum(doc *Document) (string, error) {
+	cp := *doc
+	cp.Checksum = ""
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(&cp); err != nil {
+		return "", apperr.Wrap(apperr.Transaction, "transaction.checksum", JournalName, err)
+	}
+	sum := sha256.Sum256(buf.Bytes())
+	return hex.EncodeToString(sum[:]), nil
+}
+
+func verifyChecksum(doc *Document) error {
+	if doc.SchemaVersion < 4 || doc.Checksum == "" {
+		return nil
+	}
+	got, err := semanticChecksum(doc)
+	if err != nil {
+		return err
+	}
+	if got != doc.Checksum {
+		return apperr.New(apperr.Integrity, "transaction.decode", JournalName, "checksum mismatch")
+	}
+	return nil
+}
+
+// Decode unmarshals and normalizes a journal document (v1–v4).
 func Decode(data []byte) (*Document, error) {
 	var doc Document
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, apperr.Wrap(apperr.Transaction, "transaction.decode", JournalName, err)
 	}
 	if err := Normalize(&doc); err != nil {
+		return nil, err
+	}
+	if err := verifyChecksum(&doc); err != nil {
 		return nil, err
 	}
 	return &doc, nil
@@ -124,7 +166,7 @@ func Normalize(doc *Document) error {
 	if doc.SchemaVersion == 0 {
 		doc.SchemaVersion = SchemaVersion
 	}
-	if doc.SchemaVersion != 1 && doc.SchemaVersion != 2 && doc.SchemaVersion != SchemaVersion {
+	if doc.SchemaVersion != 1 && doc.SchemaVersion != 2 && doc.SchemaVersion != 3 && doc.SchemaVersion != SchemaVersion {
 		return apperr.New(apperr.Transaction, "transaction.normalize", JournalName,
 			fmt.Sprintf("unsupported schemaVersion %d", doc.SchemaVersion))
 	}

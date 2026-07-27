@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "abc123",
   "projectRoot": "/proj",
   "state": "committed",
+  "checksum": "0aa084331b38a93265de01bf316bc4dcb2523e5152152e0305be2918a1af6be1",
   "plan": [
     {
       "kind": "rename",

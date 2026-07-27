@@ -42,6 +42,31 @@ jobs:
       - name: Race
         run: go test -race ./... -count=1
 
+  race-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Race (transaction, store, resolver)
+        run: go test -race ./internal/transaction/... ./internal/store/... ./internal/resolver/... -count=1
+
+  platform-lock:
+    name: platform-lock (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Cross-process lock and identity tests
+        run: go test ./internal/transaction/... ./internal/store/... -count=1 -run 'Proc|Identity|Takeover|Import'
+
   cross:
     runs-on: ubuntu-latest
     strategy:

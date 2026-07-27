@@ -8,6 +8,7 @@ import (
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/manifest"
 	"github.com/mewisme/m/internal/snapshot"
+	"github.com/mewisme/m/internal/transaction"
 )
 
 // RestoreSnapshot copies snapshot manifest+lock to live and reinstalls frozen from cache.
@@ -22,44 +23,40 @@ func RestoreSnapshot(ctx context.Context, ac *Context, id string) (InstallResult
 	if err != nil {
 		return res, err
 	}
-	manifestPath := filepath.Join(proj.Root, "package.json")
-	lockPath := LockPath(proj.Root)
-	if err := writeBytesAtomic(manifestPath, rec.Manifest); err != nil {
+	txn := transaction.NewRunner(proj.Root)
+	if err := txn.Begin(ctx); err != nil {
+		return res, err
+	}
+	stage := txn.StagePath()
+	if err := os.WriteFile(filepath.Join(stage, "package.json"), rec.Manifest, 0o644); err != nil {
+		_ = txn.Rollback(ctx)
+		return res, apperr.Wrap(apperr.IO, "app.restore", "package.json", err)
+	}
+	if err := os.WriteFile(filepath.Join(stage, lockFileName), rec.Lock, 0o644); err != nil {
+		_ = txn.Rollback(ctx)
+		return res, apperr.Wrap(apperr.IO, "app.restore", lockFileName, err)
+	}
+	plan := []transaction.Op{
+		{Kind: transaction.OpRename, Path: "package.json", Backup: "stage/package.json"},
+		{Kind: transaction.OpRename, Path: lockFileName, Backup: "stage/" + lockFileName},
+	}
+	if err := txn.SetPlan(plan); err != nil {
+		_ = txn.Rollback(ctx)
+		return res, err
+	}
+	for _, rel := range []string{"package.json", lockFileName} {
+		if err := txn.RecordBackup(rel); err != nil {
+			_ = txn.Rollback(ctx)
+			return res, err
+		}
+	}
+	if err := txn.Commit(ctx, nil); err != nil {
+		_ = txn.Rollback(ctx)
 		return res, err
 	}
 	manifest.Invalidate(proj.Root)
-	if err := writeBytesAtomic(lockPath, rec.Lock); err != nil {
-		return res, err
-	}
+	_ = txn.Finish(false)
 	return Install(ctx, ac, InstallOptions{Frozen: true})
-}
-
-func writeBytesAtomic(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".tmp-*")
-	if err != nil {
-		return apperr.Wrap(apperr.IO, "app.restore", path, err)
-	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "app.restore", path, err)
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return apperr.Wrap(apperr.IO, "app.restore", path, err)
-	}
-	if err := tmp.Close(); err != nil {
-		return apperr.Wrap(apperr.IO, "app.restore", path, err)
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		_ = os.Remove(path)
-		if err2 := os.Rename(tmpName, path); err2 != nil {
-			return apperr.Wrap(apperr.IO, "app.restore", path, err2)
-		}
-	}
-	return nil
 }
 
 // Rollback restores the previous snapshot (second-newest).

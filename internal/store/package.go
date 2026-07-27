@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/diagnostics"
 )
 
 // PackageKey identifies an immutable unpacked package under packages/<algo>/<hex>/.
@@ -35,7 +36,8 @@ func PackageKeyFromIntegrity(integrity string) (PackageKey, error) {
 
 // PackageStore holds unpacked packages at <root>/packages/<algo>/<hex>/.
 type PackageStore struct {
-	Root string
+	Root     string
+	Reporter diagnostics.Reporter // optional; index upsert failures are reported here
 }
 
 // NewPackageStore returns a package store rooted at dir.

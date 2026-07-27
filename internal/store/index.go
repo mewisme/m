@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/diagnostics"
 )
 
 const indexSchemaVersion = 1
@@ -24,6 +25,12 @@ type IndexEntry struct {
 type Index struct {
 	SchemaVersion int                   `json:"schemaVersion"`
 	Packages      map[string]IndexEntry `json:"packages"`
+}
+
+// ReconcileIndexResult reports index repair actions.
+type ReconcileIndexResult struct {
+	Added   int
+	Removed int
 }
 
 var indexMu sync.Mutex
@@ -70,6 +77,22 @@ func (s *PackageStore) indexUpsert(key PackageKey, integrity string, size int64)
 	return s.writeIndex(idx)
 }
 
+func (s *PackageStore) indexUpsertOrWarn(key PackageKey, integrity string, size int64) {
+	if err := s.indexUpsert(key, integrity, size); err != nil {
+		s.warnIndex("store index upsert failed", key, err)
+	}
+}
+
+func (s *PackageStore) warnIndex(msg string, key PackageKey, err error) {
+	if s == nil || s.Reporter == nil || err == nil {
+		return
+	}
+	s.Reporter.Debug(msg,
+		diagnostics.Attr{Key: "key", Value: key.String()},
+		diagnostics.Attr{Key: "error", Value: err.Error()},
+	)
+}
+
 func (s *PackageStore) writeIndex(idx *Index) error {
 	if idx == nil {
 		return apperr.New(apperr.Store, "store.index", "", "nil index")
@@ -84,6 +107,71 @@ func (s *PackageStore) writeIndex(idx *Index) error {
 		return apperr.Wrap(apperr.Store, "store.index", path, err)
 	}
 	return writeAtomic(path, raw)
+}
+
+// ReconcileIndex rebuilds index.json from packages/ on disk.
+// The index is a rebuildable cache; import and verify do not depend on it.
+func (s *PackageStore) ReconcileIndex() (ReconcileIndexResult, error) {
+	if s == nil || s.Root == "" {
+		return ReconcileIndexResult{}, apperr.New(apperr.Store, "store.index", "", "nil store")
+	}
+	keys, err := s.ListPackageKeys()
+	if err != nil {
+		return ReconcileIndexResult{}, err
+	}
+
+	indexMu.Lock()
+	defer indexMu.Unlock()
+
+	idx, err := s.loadIndex()
+	if err != nil {
+		return ReconcileIndexResult{}, err
+	}
+
+	desired := make(map[string]IndexEntry, len(keys))
+	for _, key := range keys {
+		entry, err := indexEntryFromPackage(s.PackagePath(key))
+		if err != nil {
+			return ReconcileIndexResult{}, apperr.Wrap(apperr.Store, "store.index", key.String(), err)
+		}
+		desired[key.String()] = entry
+	}
+
+	var result ReconcileIndexResult
+	for k, entry := range desired {
+		if old, ok := idx.Packages[k]; !ok || old.Integrity != entry.Integrity || old.SizeBytes != entry.SizeBytes {
+			result.Added++
+		}
+	}
+	for k := range idx.Packages {
+		if _, ok := desired[k]; !ok {
+			result.Removed++
+		}
+	}
+
+	idx.Packages = desired
+	if err := s.writeIndex(idx); err != nil {
+		return ReconcileIndexResult{}, err
+	}
+	return result, nil
+}
+
+func indexEntryFromPackage(dir string) (IndexEntry, error) {
+	markerPath := filepath.Join(dir, packageMarker)
+	raw, err := os.ReadFile(markerPath)
+	if err != nil {
+		return IndexEntry{}, err
+	}
+	integrity := strings.TrimSpace(string(raw))
+	size, err := dirSize(dir)
+	if err != nil {
+		return IndexEntry{}, err
+	}
+	return IndexEntry{
+		Integrity:  integrity,
+		SizeBytes:  size,
+		ImportedAt: time.Now().UTC(),
+	}, nil
 }
 
 // ReadIndex loads index.json from root.
@@ -131,6 +219,9 @@ func (s *PackageStore) ListPackageKeys() ([]PackageKey, error) {
 	}
 	var keys []PackageKey
 	pkgRoot := filepath.Join(s.Root, "packages")
+	if _, err := os.Stat(pkgRoot); os.IsNotExist(err) {
+		return nil, nil
+	}
 	err := filepath.WalkDir(pkgRoot, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr

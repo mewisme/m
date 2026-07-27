@@ -114,7 +114,7 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integ
 	}
 
 	size, _ := dirSize(dest)
-	_ = s.indexUpsert(key, integrity, size)
+	s.indexUpsertOrWarn(key, integrity, size)
 	return key, nil
 }
 

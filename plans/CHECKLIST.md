@@ -2,16 +2,16 @@
 
 ## Program status
 
-- Current MVP: **0021** — Lifecycle scripts, trust, and sandbox policy
+- Current MVP: **Stabilization pass 3** — MVPs 0016–0020 correctness gates
 - Last updated: 2026-07-27
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md).
+**Next:** Complete stabilization pass 3 (score ≥ 9.0), then [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md).
 
-Stabilization pass 2 (0017–0020 correctness gates) completed 2026-07-27.
+Stabilization pass 2 (0017–0020 correctness gates) completed 2026-07-27. Pass 3 in progress — **0021 blocked** until score ≥ 9.0.
 
 ## MVP completion (65)
 

@@ -14,7 +14,6 @@ import (
 	"github.com/mewisme/m/internal/linker"
 	"github.com/mewisme/m/internal/manifest"
 	"github.com/mewisme/m/internal/plan"
-	"github.com/mewisme/m/internal/policy"
 	"github.com/mewisme/m/internal/project"
 	"github.com/mewisme/m/internal/resolver"
 	"github.com/mewisme/m/internal/store"
@@ -53,7 +52,7 @@ func resolveForUpdate(ctx context.Context, ac *Context, proj *project.Project, u
 	if err != nil {
 		return nil, err
 	}
-	pol, fps, err := readLockPolicyAndFingerprints(proj.Root)
+	fps, err := readLockFingerprints(proj.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -71,30 +70,27 @@ func resolveForUpdate(ctx context.Context, ac *Context, proj *project.Project, u
 		IncrementalUpdate: true,
 		PriorOverrides:    u.PriorOverrides,
 		PriorFingerprints: fps,
-		Policy:            pol,
+		Policy:            resolver.PolicyFromEffective(ac.Config),
 	})
 }
 
-func readLockPolicyAndFingerprints(root string) (*policy.Policy, *resolver.PriorFingerprints, error) {
+func readLockFingerprints(root string) (*resolver.PriorFingerprints, error) {
 	path := LockPath(root)
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			p := policy.Policy{StrictPeerDependencies: true}
-			return &p, nil, nil
+			return nil, nil
 		}
-		return nil, nil, apperr.Wrap(apperr.IO, "app.update", path, err)
+		return nil, apperr.Wrap(apperr.IO, "app.update", path, err)
 	}
 	doc, err := readLockDocument(root)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	p := doc.Settings.Policy
-	fps := &resolver.PriorFingerprints{
+	return &resolver.PriorFingerprints{
 		OverridesFingerprint:      doc.Settings.OverridesFingerprint,
 		ResolverPolicyFingerprint: doc.Settings.ResolverPolicyFingerprint,
 		TargetPlatformFingerprint: doc.Settings.TargetPlatformFingerprint,
-	}
-	return &p, fps, nil
+	}, nil
 }
 
 func readLockHints(ctx context.Context, ac *Context, proj *project.Project) (*graph.Graph, error) {
