@@ -7,14 +7,16 @@ import (
 	"os"
 	"strconv"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func processStartTime(pid int) (int64, error) {
-	k, err := syscall.SysctlKinfoProc("kern.proc.pid." + strconv.Itoa(pid))
+	k, err := unix.SysctlKinfoProc("kern.proc.pid." + strconv.Itoa(pid))
 	if err != nil {
 		return 0, err
 	}
-	return k.Start.Sec*1e9 + int64(k.Start.Usec)*1e3, nil
+	return int64(k.Proc.P_starttime.Sec)*1e9 + int64(k.Proc.P_starttime.Usec)*1e3, nil
 }
 
 func currentProcessIdentity() (pid int, start int64, err error) {

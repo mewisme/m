@@ -4,27 +4,25 @@ import (
 	"context"
 
 	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/lockfile/mlock"
 	"github.com/mewisme/m/internal/snapshot"
 )
 
 // RestoreSnapshot restores manifest, lock, and node_modules in one transaction.
 func RestoreSnapshot(ctx context.Context, ac *Context, id string) (InstallResult, error) {
 	var res InstallResult
-	proj, err := OpenProject(ctx, ac)
+	if ac == nil || ac.Config == nil {
+		return res, apperr.New(apperr.Internal, "app.restore", "", "missing app context")
+	}
+	root, err := resolveProjectRoot(ac, "")
 	if err != nil {
 		return res, err
 	}
-	store := snapshot.NewStore(proj.Root)
+	store := snapshot.NewStore(root)
 	rec, err := store.Load(id)
 	if err != nil {
 		return res, err
 	}
-	lockDoc, err := mlock.Decode(rec.Lock)
-	if err != nil {
-		return res, err
-	}
-	g, err := mlock.ToGraph(lockDoc)
+	g, manifestBytes, err := snapshot.ValidateRestorePair(*rec)
 	if err != nil {
 		return res, err
 	}
@@ -32,7 +30,7 @@ func RestoreSnapshot(ctx context.Context, ac *Context, id string) (InstallResult
 		Frozen:           true,
 		WriteManifest:    true,
 		PreResolvedGraph: g,
-		StagedManifest:   rec.Manifest,
+		StagedManifest:   manifestBytes,
 		StagedLock:       rec.Lock,
 		SkipSnapshot:     true,
 	}, nil)
@@ -41,11 +39,14 @@ func RestoreSnapshot(ctx context.Context, ac *Context, id string) (InstallResult
 // Rollback restores the previous snapshot (second-newest).
 func Rollback(ctx context.Context, ac *Context) (InstallResult, error) {
 	var res InstallResult
-	proj, err := OpenProject(ctx, ac)
+	if ac == nil || ac.Config == nil {
+		return res, apperr.New(apperr.Internal, "app.rollback", "", "missing app context")
+	}
+	root, err := resolveProjectRoot(ac, "")
 	if err != nil {
 		return res, err
 	}
-	list, err := snapshot.NewStore(proj.Root).List()
+	list, err := snapshot.NewStore(root).List()
 	if err != nil {
 		return res, err
 	}

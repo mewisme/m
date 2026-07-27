@@ -17,7 +17,7 @@ func TestTreeManifestDetectsFileTamper(t *testing.T) {
 	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "pkg-cli-1.0.0.tgz")
 	integrity := "sha256-6ffb2697417ee0f02ad400c8d92c46cfb5889cf84603cd1f797146fde316b5d0"
 	ctx := context.Background()
-	key, err := ps.ImportFromTarball(ctx, tgz, integrity)
+	key, err := importIntegrity(ctx, ps, tgz, integrity)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestTreeManifestDetectsModeDrift(t *testing.T) {
 	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "lodash-4.17.21.tgz")
 	integrity := "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
 	ctx := context.Background()
-	key, err := ps.ImportFromTarball(ctx, tgz, integrity)
+	key, err := importIntegrity(ctx, ps, tgz, integrity)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestImportRepairsCorruption(t *testing.T) {
 	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "pkg-cli-1.0.0.tgz")
 	integrity := "sha256-6ffb2697417ee0f02ad400c8d92c46cfb5889cf84603cd1f797146fde316b5d0"
 	ctx := context.Background()
-	key, err := ps.ImportFromTarball(ctx, tgz, integrity)
+	key, err := importIntegrity(ctx, ps, tgz, integrity)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestImportRepairsCorruption(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(pkgDir, "package.json"), []byte("{}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ps.ImportFromTarball(ctx, tgz, integrity); err != nil {
+	if _, err := importIntegrity(ctx, ps, tgz, integrity); err != nil {
 		t.Fatal(err)
 	}
 	if err := ps.VerifyPackage(ctx, key); err != nil {
@@ -115,7 +115,7 @@ func TestPruneSkipsImportLock(t *testing.T) {
 	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "lodash-4.17.21.tgz")
 	integrity := "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
 	ctx := context.Background()
-	key, err := ps.ImportFromTarball(ctx, tgz, integrity)
+	key, err := importIntegrity(ctx, ps, tgz, integrity)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestConcurrentImportDedup(t *testing.T) {
 	errCh := make(chan error, 4)
 	for i := 0; i < 4; i++ {
 		go func() {
-			_, err := ps.ImportFromTarball(ctx, tgz, integrity)
+			_, err := importIntegrity(ctx, ps, tgz, integrity)
 			errCh <- err
 		}()
 	}

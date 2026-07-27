@@ -150,6 +150,10 @@ journal ops, backups with prior-kind metadata, and idempotent `m recover`.
 
 Mid-fetch resume is not supported — only rollback/recover after staging validation.
 
+**Windows durability:** directory `fsync` via `SyncDir` treats `ERROR_ACCESS_DENIED`
+as a no-op (NTFS does not support directory flush the same way as Unix). File
+publishes still call `Sync` on open write handles.
+
 Rich `m history` UX — **0028**.
 
 Full `node_modules` snapshot copies — restore relinks from cache.

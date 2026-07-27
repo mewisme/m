@@ -28,6 +28,15 @@ Default store roots follow [`naming.md`](naming.md):
 
 Override with `store.dir`, `MEW_STORE_DIR`, or `MEW_HOME/store`.
 
+**CI URLs:** jobs are defined in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) but require a push/PR to record green run URLs. No Actions URLs recorded in this session.
+
+## Content identity (`internal/contentid`)
+
+npm tarball `dist.integrity` strings (SRI: `algo-base64` or `algo-hex`) are parsed by
+`contentid.ParseSRI` into normalized lowercase hex digests. Store layout keys use
+`contentid.Identity.KeyPath()` (`<algo>/<hex>`). Unsupported algorithms or malformed
+digests return `ERR_M_INTEGRITY` / `ERR_M_STORE` at the trust boundary.
+
 ## Import and publication
 
 1. Download and verify tarball into blob cache (0014).

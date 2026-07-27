@@ -58,7 +58,7 @@ func TestReconcileIndexMissingEntry(t *testing.T) {
 	ps := NewPackageStore(root)
 	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "lodash-4.17.21.tgz")
 	integrity := "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
-	key, err := ps.ImportFromTarball(context.Background(), tgz, integrity)
+	key, err := importIntegrity(context.Background(), ps, tgz, integrity)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestStatusPartialIndexReconciles(t *testing.T) {
 	ps := NewPackageStore(root)
 	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "lodash-4.17.21.tgz")
 	integrity := "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
-	key, err := ps.ImportFromTarball(context.Background(), tgz, integrity)
+	key, err := importIntegrity(context.Background(), ps, tgz, integrity)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +199,7 @@ func TestStatusFilesystemFallback(t *testing.T) {
 	ps := NewPackageStore(root)
 	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "lodash-4.17.21.tgz")
 	integrity := "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
-	if _, err := ps.ImportFromTarball(context.Background(), tgz, integrity); err != nil {
+	if _, err := importIntegrity(context.Background(), ps, tgz, integrity); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Remove(indexPathForTest(root)); err != nil && !os.IsNotExist(err) {
@@ -211,5 +211,89 @@ func TestStatusFilesystemFallback(t *testing.T) {
 	}
 	if count != 1 || bytes <= 0 {
 		t.Fatalf("count=%d bytes=%d", count, bytes)
+	}
+}
+
+func TestReconcileIndexCorruptJSONRebuilds(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "store")
+	ps := NewPackageStore(root)
+	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "lodash-4.17.21.tgz")
+	integrity := "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
+	key, err := importIntegrity(context.Background(), ps, tgz, integrity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := indexPathForTest(root)
+	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := ps.ReconcileIndex()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Added != 1 {
+		t.Fatalf("added=%d", result.Added)
+	}
+	matches, err := filepath.Glob(path + ".corrupt.*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("quarantine files=%v", matches)
+	}
+	idx, err := ReadIndex(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := idx.Packages[key.String()]; !ok {
+		t.Fatal("missing rebuilt entry")
+	}
+}
+
+func TestStatusWrongKeySetSameCountRepairs(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "store")
+	ps := NewPackageStore(root)
+	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "lodash-4.17.21.tgz")
+	integrity := "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
+	key, err := importIntegrity(context.Background(), ps, tgz, integrity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, err := indexEntryFromPackage(ps.PackagePath(key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx := &Index{
+		SchemaVersion: indexSchemaVersion,
+		Packages: map[string]IndexEntry{
+			"sha256/deadbeef": {Integrity: "sha256-deadbeef", SizeBytes: entry.SizeBytes},
+		},
+	}
+	raw, err := json.MarshalIndent(idx, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw = append(raw, '\n')
+	if err := os.WriteFile(indexPathForTest(root), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	count, _, err := ps.Status()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("count=%d", count)
+	}
+	got, err := ReadIndex(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := got.Packages[key.String()]; !ok {
+		t.Fatal("expected index repaired to filesystem keys")
+	}
+	if _, ok := got.Packages["sha256/deadbeef"]; ok {
+		t.Fatal("orphan index key should be removed")
 	}
 }

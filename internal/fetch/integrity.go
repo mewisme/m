@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/contentid"
 )
 
 // ponytail: integrity parsing supports std SRI base64 and fixture hex digests; upgrade = strict SRI-only.
@@ -29,21 +30,13 @@ type ParsedIntegrity struct {
 // ParseIntegrity parses an npm dist.integrity SRI string (algo-base64 or algo-hex).
 func ParseIntegrity(s string) (ParsedIntegrity, error) {
 	s = strings.TrimSpace(s)
-	if s == "" {
-		return ParsedIntegrity{}, apperr.New(apperr.Integrity, "fetch.integrity", "", "empty integrity")
-	}
-	algo, digest, ok := strings.Cut(s, "-")
-	if !ok {
-		return ParsedIntegrity{}, apperr.New(apperr.Integrity, "fetch.integrity", redactURL(s), "missing algorithm prefix")
-	}
-	algo = strings.ToLower(algo)
-	raw, err := decodeDigest(algo, digest)
+	id, err := contentid.ParseSRI(s)
 	if err != nil {
-		return ParsedIntegrity{}, apperr.Wrap(apperr.Integrity, "fetch.integrity", redactURL(s), err)
+		return ParsedIntegrity{}, err
 	}
 	return ParsedIntegrity{
-		Algo:     algo,
-		Hex:      hex.EncodeToString(raw),
+		Algo:     id.Algo,
+		Hex:      id.Hex,
 		Original: s,
 	}, nil
 }
@@ -53,6 +46,9 @@ func ParseShasum(hexDigest string) (ParsedIntegrity, error) {
 	hexDigest = strings.TrimSpace(strings.ToLower(hexDigest))
 	if hexDigest == "" {
 		return ParsedIntegrity{}, apperr.New(apperr.Integrity, "fetch.shasum", "", "empty shasum")
+	}
+	if err := contentid.ValidateKey("sha1", hexDigest); err != nil {
+		return ParsedIntegrity{}, apperr.New(apperr.Integrity, "fetch.shasum", hexDigest, "invalid sha1 hex")
 	}
 	raw, err := hex.DecodeString(hexDigest)
 	if err != nil || len(raw) != sha1.Size {
@@ -113,6 +109,11 @@ func (p ParsedIntegrity) BlobPath() string {
 	return p.Algo + "/" + p.Hex
 }
 
+// Identity returns the normalized store key identity.
+func (p ParsedIntegrity) Identity() contentid.Identity {
+	return contentid.Identity{Algo: p.Algo, Hex: p.Hex}
+}
+
 // RedactURL removes query strings from URLs in error subjects.
 func RedactURL(raw string) string {
 	if raw == "" {
@@ -134,67 +135,6 @@ func RedactURL(raw string) string {
 }
 
 func redactURL(s string) string { return RedactURL(s) }
-
-func decodeDigest(algo, digest string) ([]byte, error) {
-	switch algo {
-	case "sha512", "sha256", "sha1":
-	default:
-		return nil, fmt.Errorf("unsupported algorithm %q", algo)
-	}
-	if isHexDigest(digest) {
-		raw, err := hex.DecodeString(strings.ToLower(digest))
-		if err != nil {
-			return nil, err
-		}
-		if err := checkDigestLen(algo, raw); err != nil {
-			return nil, err
-		}
-		return raw, nil
-	}
-	raw, err := base64.StdEncoding.DecodeString(digest)
-	if err != nil {
-		raw, err = base64.RawStdEncoding.DecodeString(digest)
-		if err != nil {
-			return nil, fmt.Errorf("invalid base64 digest")
-		}
-	}
-	if err := checkDigestLen(algo, raw); err != nil {
-		return nil, err
-	}
-	return raw, nil
-}
-
-func isHexDigest(s string) bool {
-	if len(s)%2 != 0 {
-		return false
-	}
-	for _, c := range s {
-		switch {
-		case c >= '0' && c <= '9':
-		case c >= 'a' && c <= 'f':
-		case c >= 'A' && c <= 'F':
-		default:
-			return false
-		}
-	}
-	return true
-}
-
-func checkDigestLen(algo string, raw []byte) error {
-	want := 0
-	switch algo {
-	case "sha512":
-		want = sha512.Size
-	case "sha256":
-		want = sha256.Size
-	case "sha1":
-		want = sha1.Size
-	}
-	if len(raw) != want {
-		return fmt.Errorf("digest length %d want %d for %s", len(raw), want, algo)
-	}
-	return nil
-}
 
 func newHasher(algo string) (hash.Hash, error) {
 	switch algo {

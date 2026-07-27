@@ -312,7 +312,7 @@ func expandClosureForMerge(prior, resolved *graph.Graph, closure map[string]stru
 				continue
 			}
 			parentKey := mappedParentKey(pe.From, keyMap, importers)
-			if re, ok := matchingResolvedEdge(pe, resolved, parentKey); ok {
+			if re, ok := matchingResolvedEdge(pe, resolved, parentKey, closure); ok {
 				out[re.To] = struct{}{}
 				keyMap[pe.To] = re.To
 				if _, imp := resolvedImporters[graph.ImporterID(re.From)]; !imp {
@@ -369,7 +369,7 @@ func buildPriorResolvedKeyMap(
 				continue
 			}
 			parentKey := mappedParentKey(pe.From, mapping, importers)
-			if re, ok := matchingResolvedEdge(pe, resolved, parentKey); ok {
+			if re, ok := matchingResolvedEdge(pe, resolved, parentKey, closure); ok {
 				if priorTo, exists := mapping[pe.To]; exists && priorTo != re.To {
 					continue
 				}
@@ -390,20 +390,35 @@ func mappedParentKey(from string, keyMap map[string]string, importers map[graph.
 	return edgeParentKey(from)
 }
 
-func matchingResolvedEdge(pe graph.Edge, resolved *graph.Graph, parentKey string) (graph.Edge, bool) {
+func matchingResolvedEdge(pe graph.Edge, resolved *graph.Graph, parentKey string, updateClosure map[string]struct{}) (graph.Edge, bool) {
 	if parentKey == "" {
 		parentKey = edgeParentKey(pe.From)
 	}
+	allowRangeChange := edgeTouchesClosure(pe, updateClosure)
 	for _, re := range resolved.Edges {
 		if edgeParentKey(re.From) != parentKey {
 			continue
 		}
-		if re.Name != pe.Name || re.Kind != pe.Kind || re.Range != pe.Range || re.Optional != pe.Optional {
+		if re.Name != pe.Name || re.Kind != pe.Kind || re.Optional != pe.Optional {
+			continue
+		}
+		if !allowRangeChange && re.Range != pe.Range {
 			continue
 		}
 		return re, true
 	}
 	return graph.Edge{}, false
+}
+
+func edgeTouchesClosure(e graph.Edge, closure map[string]struct{}) bool {
+	if len(closure) == 0 {
+		return false
+	}
+	if _, ok := closure[e.From]; ok {
+		return true
+	}
+	_, ok := closure[e.To]
+	return ok
 }
 
 func edgeParentKey(endpoint string) string {

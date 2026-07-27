@@ -75,10 +75,14 @@ func newSnapshotRestoreCmd() *cobra.Command {
 				return apperr.New(apperr.Internal, "snapshot.restore", "", "missing app context")
 			}
 			result, err := app.RestoreSnapshot(cmd.Context(), ac, args[0])
+			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {
+				if outErr != nil {
+					return outErr
+				}
 				return err
 			}
-			return writeInstallResult(cmd, result, asJSON, false)
+			return outErr
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
@@ -126,10 +130,14 @@ func newRollbackCmd() *cobra.Command {
 				return apperr.New(apperr.Internal, "rollback", "", "missing app context")
 			}
 			result, err := app.Rollback(cmd.Context(), ac)
+			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {
+				if outErr != nil {
+					return outErr
+				}
 				return err
 			}
-			return writeInstallResult(cmd, result, asJSON, false)
+			return outErr
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")

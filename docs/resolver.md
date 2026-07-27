@@ -89,7 +89,7 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 - **Lock fingerprints** (`overridesFingerprint`, `resolverPolicyFingerprint`,
   `targetPlatformFingerprint`) compared against current effective policy via
   `PolicyFromEffective` — drift or a missing prior fingerprint disables unsafe
-  incremental reuse.
+  incremental reuse. Regression: `internal/resolver/policy_drift_test.go`.
 - Parent merge during incremental update preserves full package identity keys
   (not name-only).
 - Pin reuse requires full packument metadata recovery; Mew does not synthesize dependency trees from name/version/integrity alone during incremental update.

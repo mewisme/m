@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/contentid"
 	"github.com/mewisme/m/internal/diagnostics"
 )
 
@@ -24,14 +25,19 @@ func (k PackageKey) Integrity() string {
 	return k.Algo + "-" + k.Hex
 }
 
-// PackageKeyFromIntegrity parses an npm integrity string (algo-hex).
+// PackageKeyFromIdentity builds a store key from normalized content identity.
+func PackageKeyFromIdentity(id contentid.Identity) (PackageKey, error) {
+	key := PackageKey{Algo: id.Algo, Hex: id.Hex}
+	return key, validateKey(key)
+}
+
+// PackageKeyFromIntegrity parses an npm integrity string via contentid.ParseSRI.
 func PackageKeyFromIntegrity(integrity string) (PackageKey, error) {
-	integrity = strings.TrimSpace(integrity)
-	algo, hex, ok := strings.Cut(integrity, "-")
-	if !ok || algo == "" || hex == "" {
-		return PackageKey{}, apperr.New(apperr.Store, "store.integrity", integrity, "invalid integrity")
+	id, err := contentid.ParseSRI(integrity)
+	if err != nil {
+		return PackageKey{}, apperr.Wrap(apperr.Store, "store.integrity", integrity, err)
 	}
-	return PackageKey{Algo: strings.ToLower(algo), Hex: strings.ToLower(hex)}, validateKey(PackageKey{Algo: strings.ToLower(algo), Hex: strings.ToLower(hex)})
+	return PackageKeyFromIdentity(id)
 }
 
 // PackageStore holds unpacked packages at <root>/packages/<algo>/<hex>/.
@@ -59,8 +65,8 @@ func (s *PackageStore) stagingDir(id string) string {
 }
 
 func validateKey(key PackageKey) error {
-	if key.Algo == "" || key.Hex == "" {
-		return apperr.New(apperr.Store, "store.package", key.String(), "invalid key")
+	if err := contentid.ValidateKey(key.Algo, key.Hex); err != nil {
+		return err
 	}
 	if strings.Contains(key.Algo, "..") || strings.Contains(key.Hex, "..") {
 		return apperr.New(apperr.Store, "store.package", key.String(), "invalid key")

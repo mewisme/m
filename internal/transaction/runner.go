@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,7 +122,7 @@ func (r *Runner) RecordBackup(rel string) error {
 			return apperr.Wrap(apperr.IO, "transaction.backup", rel, err)
 		}
 		op.Backup = backupRel + ".link"
-	} else if err := copyPath(live, backupAbs); err != nil {
+	} else if err := backupTree(live, backupAbs); err != nil {
 		return err
 	}
 	r.doc.Ops = append(r.doc.Ops, op)
@@ -264,13 +263,13 @@ func (r *Runner) finishCriticalCleanup() FinishResult {
 func (r *Runner) finishCleanup(keepJournal bool) FinishResult {
 	if err := invokeTestHook("finish", 0); err != nil {
 		fr := r.finishCriticalCleanup()
-		fr.CleanupWarnings = append(fr.CleanupWarnings, err)
+		appendCleanupWarning(&fr, "finish_hook", apperr.Wrap(apperr.Transaction, "transaction.finish", "", err))
 		return fr
 	}
 	fr := r.finishCriticalCleanup()
 	if !keepJournal && r.Root != "" {
 		if err := os.RemoveAll(r.Root); err != nil {
-			fr.CleanupWarnings = append(fr.CleanupWarnings, err)
+			appendCleanupWarning(&fr, "txn_dir_remove", apperr.Wrap(apperr.IO, "transaction.finish", r.Root, err))
 		}
 	}
 	return fr
@@ -523,7 +522,7 @@ func (r *Runner) restoreBackup(op Op) error {
 		return os.RemoveAll(live)
 	}
 	_ = os.RemoveAll(live)
-	return copyPath(backup, live)
+	return restoreTree(backup, live)
 }
 
 func (r *Runner) renameOp(planIndex int, op Op, forward bool) error {
@@ -550,7 +549,9 @@ func (r *Runner) renameOp(planIndex int, op Op, forward bool) error {
 
 func (r *Runner) publishDirOp(planIndex int, stageDir, liveDir string) error {
 	backup := liveDir + ".mew-old"
-	_ = os.RemoveAll(backup)
+	if err := os.RemoveAll(backup); err != nil {
+		return apperr.Wrap(apperr.IO, "transaction.publish", backup, err)
+	}
 	if _, err := os.Stat(liveDir); err == nil {
 		if err := os.Rename(liveDir, backup); err != nil {
 			return apperr.Wrap(apperr.IO, "transaction.publish", liveDir, err)
@@ -562,7 +563,9 @@ func (r *Runner) publishDirOp(planIndex int, stageDir, liveDir string) error {
 	}
 	if err := os.Rename(stageDir, liveDir); err != nil {
 		if _, statErr := os.Stat(backup); statErr == nil {
-			_ = os.Rename(backup, liveDir)
+			if restoreErr := os.Rename(backup, liveDir); restoreErr != nil {
+				return apperr.Wrap(apperr.IO, "transaction.publish", liveDir, restoreErr)
+			}
 		}
 		return apperr.Wrap(apperr.IO, "transaction.publish", stageDir, err)
 	}
@@ -570,8 +573,17 @@ func (r *Runner) publishDirOp(planIndex int, stageDir, liveDir string) error {
 	if err := r.saveJournal(); err != nil {
 		return err
 	}
-	_ = os.RemoveAll(backup)
+	parent := filepath.Dir(liveDir)
+	if err := fsx.SyncDir(parent); err != nil {
+		return err
+	}
 	r.doc.Plan[planIndex].Phase = PhaseParentSynced
+	if err := r.saveJournal(); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(backup); err != nil {
+		return apperr.Wrap(apperr.IO, "transaction.publish", backup, err)
+	}
 	return r.saveJournal()
 }
 
@@ -647,6 +659,9 @@ func pathKind(path string) (kind, target string, hadPrior bool, err error) {
 		if readErr != nil {
 			return "", "", false, apperr.Wrap(apperr.IO, "transaction.pathkind", path, readErr)
 		}
+		if fsx.IsJunction(path) {
+			return DestKindJunction, tgt, true, nil
+		}
 		return DestKindSymlink, tgt, true, nil
 	}
 	if info.IsDir() {
@@ -661,50 +676,6 @@ func sanitizeBackupName(rel string) string {
 		return "backup"
 	}
 	return s
-}
-
-func copyPath(src, dst string) error {
-	info, err := os.Stat(src)
-	if err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.copy", src, err)
-	}
-	if info.IsDir() {
-		return copyDir(src, dst)
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.copy", dst, err)
-	}
-	in, err := os.Open(src)
-	if err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.copy", src, err)
-	}
-	defer func() { _ = in.Close() }()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode()&0o777)
-	if err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.copy", dst, err)
-	}
-	defer func() { _ = out.Close() }()
-	if _, err := io.Copy(out, in); err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.copy", dst, err)
-	}
-	return nil
-}
-
-func copyDir(src, dst string) error {
-	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(dst, rel)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0o755)
-		}
-		return copyPath(path, target)
-	})
 }
 
 func isDir(path string) bool {

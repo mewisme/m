@@ -12,6 +12,7 @@ import (
 	"github.com/mewisme/m/internal/project"
 	"github.com/mewisme/m/internal/registry"
 	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/m/internal/transaction"
 )
 
 // InstallOptions controls m install / ci / update.
@@ -42,11 +43,15 @@ type UpdateResolveOptions struct {
 
 // InstallResult summarizes package changes.
 type InstallResult struct {
-	Added    int        `json:"added"`
-	Removed  int        `json:"removed"`
-	Changed  int        `json:"changed"`
-	Packages int        `json:"packages"`
-	Plan     *plan.Plan `json:"plan,omitempty"`
+	Added               int        `json:"added"`
+	Removed             int        `json:"removed"`
+	Changed             int        `json:"changed"`
+	Packages            int        `json:"packages"`
+	Plan                *plan.Plan `json:"plan,omitempty"`
+	Committed           bool       `json:"committed,omitempty"`
+	CleanupIncomplete   bool       `json:"cleanupIncomplete,omitempty"`
+	CleanupWarningCodes []string   `json:"cleanupWarningCodes,omitempty"`
+	CleanupWarnings     []string   `json:"cleanupWarnings,omitempty"`
 }
 
 // AddOptions controls m add.
@@ -127,7 +132,33 @@ func Remove(ctx context.Context, ac *Context, name string, opts InstallOptions) 
 
 // FormatInstallSummary returns a human-readable install summary line.
 func FormatInstallSummary(r InstallResult) string {
-	return fmt.Sprintf("added %d, removed %d, changed %d (%d packages)", r.Added, r.Removed, r.Changed, r.Packages)
+	line := fmt.Sprintf("added %d, removed %d, changed %d (%d packages)", r.Added, r.Removed, r.Changed, r.Packages)
+	if r.CleanupIncomplete {
+		line += "\nInstallation committed, but transaction cleanup is incomplete. Run m recover to clear stale transaction metadata."
+		for _, w := range r.CleanupWarnings {
+			line += "\n  " + w
+		}
+	}
+	return line
+}
+
+func populateCleanupResult(res *InstallResult, finish transaction.FinishResult) {
+	if !finish.HasCriticalCleanupFailure() {
+		return
+	}
+	res.Committed = finish.Committed
+	res.CleanupIncomplete = true
+	res.CleanupWarningCodes = append(res.CleanupWarningCodes, finish.CleanupWarningCodes...)
+	for _, w := range finish.CleanupWarnings {
+		if w != nil {
+			res.CleanupWarnings = append(res.CleanupWarnings, w.Error())
+		}
+	}
+}
+
+func installCleanupIncompleteError(res InstallResult) error {
+	msg := "Installation committed, but transaction cleanup is incomplete. Run m recover to clear stale transaction metadata."
+	return apperr.New(apperr.Transaction, "app.install.cleanup", "", msg)
 }
 
 // ponytail: fetch/link helpers remain here; commit path is install_txn.go

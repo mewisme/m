@@ -37,12 +37,29 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	if ac == nil || ac.Config == nil {
 		return res, apperr.New(apperr.Internal, "app.install", "", "missing app context")
 	}
-	proj, err := OpenProject(ctx, ac)
+	if opts.DryRun {
+		return runInstallDryRun(ctx, ac, opts, edit)
+	}
+
+	root, err := resolveProjectRoot(ac, "")
 	if err != nil {
 		return res, err
 	}
-	if opts.Frozen {
-		if err := ValidateFrozenLock(ctx, ac); err != nil {
+	sess, err := BeginMutationSession(ctx, ac, root)
+	if err != nil {
+		return res, err
+	}
+	txn := sess.Runner()
+
+	proj, err := sess.ReopenProject(ctx)
+	if err != nil {
+		sess.Abort(ctx)
+		return res, err
+	}
+
+	if opts.Frozen && !usesStagedSnapshotInputs(opts) {
+		if err := validateFrozenLockForProject(ctx, ac, proj); err != nil {
+			sess.Abort(ctx)
 			return res, err
 		}
 	}
@@ -51,6 +68,7 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0
 	if edit != nil {
 		if err := edit(proj); err != nil {
+			sess.Abort(ctx)
 			return res, err
 		}
 	}
@@ -61,31 +79,20 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	} else {
 		resolution, err = resolveForInstall(ctx, ac, proj, opts, manifestChanged)
 		if err != nil {
+			sess.Abort(ctx)
 			return res, err
 		}
 	}
 	if err := guardLocalInstall(resolution); err != nil {
+		sess.Abort(ctx)
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_resolve", 0); err != nil {
+		sess.Abort(ctx)
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "resolve", err)
 	}
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
 
-	if opts.DryRun {
-		if p, err := BuildMutationPlan(resolution.Graph); err == nil {
-			res.Plan = p
-		}
-		return res, nil
-	}
-
-	if err := transaction.RecoverScanned(ctx, proj.Root, transaction.RecoverScannedOpts{}); err != nil {
-		return res, err
-	}
-	txn := transaction.NewRunner(proj.Root)
-	if err := txn.Begin(ctx); err != nil {
-		return res, err
-	}
 	stage := txn.StagePath()
 
 	if len(opts.StagedManifest) > 0 {
@@ -232,20 +239,55 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	}
 
 	finish := txn.Finish(opts.KeepJournal)
-	if finish.HasCriticalCleanupFailure() && ac != nil && ac.Reporter != nil {
-		msg := "transaction cleanup incomplete after commit"
-		if !finish.LockReleased {
-			msg += "; project lock not released"
-		}
-		if !finish.CurrentCleared {
-			msg += "; transaction pointer not cleared"
-		}
-		ac.Reporter.Debug(msg, diagnostics.Attr{Key: "txn", Value: txn.ID})
+	if finish.Committed {
+		res.Committed = true
+	}
+	if finish.HasCriticalCleanupFailure() {
+		populateCleanupResult(&res, finish)
+		return res, installCleanupIncompleteError(res)
 	}
 	for _, w := range finish.CleanupWarnings {
 		if ac != nil && ac.Reporter != nil {
 			ac.Reporter.Debug("transaction cleanup warning", diagnostics.Attr{Key: "error", Value: w.Error()})
 		}
+	}
+	return res, nil
+}
+
+func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edit manifestEditFn) (InstallResult, error) {
+	var res InstallResult
+	proj, err := OpenProject(ctx, ac)
+	if err != nil {
+		return res, err
+	}
+	if opts.Frozen && !usesStagedSnapshotInputs(opts) {
+		if err := validateFrozenLockForProject(ctx, ac, proj); err != nil {
+			return res, err
+		}
+	}
+	emitPhase(ac, "resolve", "")
+	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0
+	if edit != nil {
+		if err := edit(proj); err != nil {
+			return res, err
+		}
+	}
+	priorKeys, _ := priorPackageKeys(ctx, ac, proj)
+	var resolution *resolver.Resolution
+	if opts.PreResolvedGraph != nil {
+		resolution = &resolver.Resolution{Graph: opts.PreResolvedGraph}
+	} else {
+		resolution, err = resolveForInstall(ctx, ac, proj, opts, manifestChanged)
+		if err != nil {
+			return res, err
+		}
+	}
+	if err := guardLocalInstall(resolution); err != nil {
+		return res, err
+	}
+	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
+	if p, err := BuildMutationPlan(resolution.Graph); err == nil {
+		res.Plan = p
 	}
 	return res, nil
 }

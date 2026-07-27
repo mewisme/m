@@ -141,7 +141,7 @@ func saveJournalGeneration(root string, gen int, data []byte) (int, error) {
 		next = uint64(gen) + 1
 	}
 	path := journalGenPath(root, next)
-	if err := fsx.PublishFile(path, data, 0o644); err != nil {
+	if err := fsx.WriteGenerationExclusive(path, data, 0o644); err != nil {
 		return 0, apperr.Wrap(apperr.IO, "transaction.journal", path, err)
 	}
 	headPath := filepath.Join(root, journalHeadName)

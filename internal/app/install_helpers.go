@@ -9,6 +9,7 @@ import (
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/archive"
 	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/m/internal/contentid"
 	"github.com/mewisme/m/internal/fetch"
 	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/linker"
@@ -173,7 +174,10 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph) (map[
 		if err != nil {
 			return nil, nil, err
 		}
-		pkgKey, err := pkgStore.ImportFromTarball(ctx, art.BlobPath, pkg.Integrity)
+		pkgKey, err := pkgStore.ImportFromTarball(ctx, art.BlobPath, contentid.Identity{
+			Algo: art.Integrity.Algo,
+			Hex:  art.Integrity.Hex,
+		})
 		if err != nil {
 			return nil, nil, err
 		}

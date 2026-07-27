@@ -31,10 +31,14 @@ func newInstallCmd() *cobra.Command {
 			}
 			opts := app.InstallOptions{Prod: prod, Frozen: frozen, DryRun: dryRun, KeepJournal: keepJournal, Linker: linkerMode}
 			result, err := app.Install(cmd.Context(), ac, opts)
+			outErr := writeInstallResult(cmd, result, asJSON, dryRun)
 			if err != nil {
+				if outErr != nil {
+					return outErr
+				}
 				return err
 			}
-			return writeInstallResult(cmd, result, asJSON, dryRun)
+			return outErr
 		},
 	}
 	cmd.Flags().BoolVar(&prod, "prod", false, "omit devDependencies")
@@ -67,10 +71,14 @@ func newAddCmd() *cobra.Command {
 				SaveExact: saveExact,
 				Install:   app.InstallOptions{Linker: linkerMode},
 			})
+			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {
+				if outErr != nil {
+					return outErr
+				}
 				return err
 			}
-			return writeInstallResult(cmd, result, asJSON, false)
+			return outErr
 		},
 	}
 	cmd.Flags().BoolVarP(&dev, "save-dev", "D", false, "save to devDependencies")
@@ -96,10 +104,14 @@ func newRemoveCmd() *cobra.Command {
 				return apperr.New(apperr.Internal, "remove", "", "missing app context")
 			}
 			result, err := app.Remove(cmd.Context(), ac, args[0], app.InstallOptions{Linker: linkerMode})
+			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {
+				if outErr != nil {
+					return outErr
+				}
 				return err
 			}
-			return writeInstallResult(cmd, result, asJSON, false)
+			return outErr
 		},
 	}
 	cmd.Flags().StringVar(&linkerMode, "linker", "", "node linker mode: hoisted or isolated")
@@ -127,10 +139,14 @@ func newCiCmd() *cobra.Command {
 				Frozen: true,
 				Linker: linkerMode,
 			})
+			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {
+				if outErr != nil {
+					return outErr
+				}
 				return err
 			}
-			return writeInstallResult(cmd, result, asJSON, false)
+			return outErr
 		},
 	}
 	cmd.Flags().BoolVar(&prod, "prod", false, "omit devDependencies")
@@ -144,7 +160,14 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
-		return enc.Encode(result)
+		if err := enc.Encode(result); err != nil {
+			return err
+		}
+		if result.CleanupIncomplete {
+			_, err := fmt.Fprintln(cmd.OutOrStdout(), "Installation committed, but transaction cleanup is incomplete. Run m recover to clear stale transaction metadata.")
+			return err
+		}
+		return nil
 	}
 	prefix := ""
 	if dryRun {

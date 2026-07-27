@@ -99,7 +99,7 @@ func runIndexProcChild(t *testing.T, role string) {
 		t.Fatal("missing child env")
 	}
 	ps := store.NewPackageStore(root)
-	if _, err := ps.ImportFromTarball(context.Background(), tgz, integrity); err != nil {
+	if _, err := importIntegrity(context.Background(), ps, tgz, integrity); err != nil {
 		t.Fatal(err)
 	}
 }

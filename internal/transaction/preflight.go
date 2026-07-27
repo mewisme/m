@@ -141,13 +141,84 @@ func RecoverScanned(ctx context.Context, projectRoot string, opts RecoverScanned
 	}
 }
 
-func finishResultError(fr FinishResult) error {
-	for _, err := range fr.CleanupWarnings {
-		if err != nil {
-			return err
+// ScanCommittedStale finds committed transaction journals that still hold current or lock metadata.
+func ScanCommittedStale(projectRoot string) ([]ScannedTxn, error) {
+	dir := TxnRoot(projectRoot)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
 		}
+		return nil, apperr.Wrap(apperr.IO, "transaction.scan", dir, err)
 	}
-	return apperr.New(apperr.Transaction, "transaction.cleanup", "", "critical cleanup incomplete")
+	currentID, _ := readCurrent(projectRoot)
+	var out []ScannedTxn
+	for _, ent := range entries {
+		if !ent.IsDir() {
+			continue
+		}
+		name := ent.Name()
+		if name == lockDirName || strings.HasPrefix(name, "current") {
+			continue
+		}
+		root := filepath.Join(dir, name)
+		doc, loadErr := loadJournalGeneration(root)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		if doc == nil || doc.State != StateCommitted {
+			continue
+		}
+		stale := currentID == name || lockHeldForTxn(projectRoot, name)
+		if !stale {
+			continue
+		}
+		out = append(out, ScannedTxn{
+			ID:         name,
+			Root:       root,
+			State:      doc.State,
+			JournalGen: currentJournalGen(root),
+			doc:        doc,
+		})
+	}
+	return out, nil
+}
+
+func lockHeldForTxn(projectRoot, txnID string) bool {
+	lockDir := LockPath(projectRoot)
+	data, err := os.ReadFile(filepath.Join(lockDir, lockOwnerFile))
+	if err != nil {
+		return false
+	}
+	doc, err := parseLockDocument(data)
+	if err != nil {
+		return false
+	}
+	return doc.TxnID == txnID
+}
+
+// RecoverCommittedCleanup clears stale metadata left after a committed install when post-commit cleanup failed.
+func RecoverCommittedCleanup(ctx context.Context, projectRoot string) (int, error) {
+	stale, err := ScanCommittedStale(projectRoot)
+	if err != nil {
+		return 0, err
+	}
+	var cleaned int
+	for _, t := range stale {
+		if err := ctx.Err(); err != nil {
+			return cleaned, err
+		}
+		if err := TakeoverProjectLock(ctx, projectRoot, t.ID); err != nil {
+			return cleaned, err
+		}
+		run := scannedToRunner(projectRoot, &t)
+		fr := run.Finish(false)
+		if fr.HasCriticalCleanupFailure() {
+			return cleaned, finishResultError(fr)
+		}
+		cleaned++
+	}
+	return cleaned, nil
 }
 
 func scannedToRunner(projectRoot string, t *ScannedTxn) *Runner {

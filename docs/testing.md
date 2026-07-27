@@ -97,6 +97,22 @@ ranges (`internal/semver`).
 make fuzz-smoke
 ```
 
+## Stabilization pass 5 suites (hard-fix integration)
+
+| Area | Package / path | What it proves |
+|---|---|---|
+| Mutation ordering | `tests/integration/mutation_ordering_test.go` | Concurrent `m add`; incomplete-txn recovery before resolve; lock-wait cancellation |
+| Crash matrix (ordering hooks) | `tests/integration/txn_crash_test.go`, `snapshot_crash_test.go`, `update_crash_test.go` | `MEW_TXN_CRASH_AT` through backup/publish/commit/finish/recovery/rollback boundaries |
+| npm SRI / content keys | `internal/contentid/contentid_test.go`, `internal/store/import_helper_test.go`, `internal/store/helpers_test.go` | npm `dist.integrity` base64 and hex → normalized `algo/hex` store keys |
+| Isolated layout + rollback | `tests/integration/isolated_test.go`, `install_test.go` (`TestInstallFailurePreservesOldTree`) | Virtual store topology; failed install leaves prior tree intact |
+| ABA proc takeover | `internal/fsx/lockdir_aba_proc_test.go` | Cross-process stale lock takeover blocked when live lock reappears (project/import/index) |
+
+Run integration suites without `-short` (proc/crash tests skip under `-short`):
+
+```powershell
+go test ./tests/integration/... -count=1
+```
+
 ## Stabilization pass 3 suites (0016–0020 hard correctness)
 
 | Area | Package / path | What it proves |
@@ -159,8 +175,8 @@ when present).
 | `go test ./...` | yes (hermetic; linux/macOS/windows matrix) | yes |
 | `go test -race ./...` | yes (ubuntu) | yes |
 | `race-windows` job | `transaction`, `store`, `fsx` on windows-latest | yes |
-| `crash-integration` job | `go test ./tests/integration/... -run Crash` (no `-short`) | yes |
-| `platform-lock` job | cross-process lock + ABA proc tests on all OS | yes |
+| `crash-integration` job | `go test ./tests/integration/... -run Crash -count=1` (no `-short`) | yes |
+| `platform-lock` job | cross-process lock + ABA proc tests on all OS (darwin uses `x/sys/unix` flock) | yes |
 | `golangci-lint run` | yes (Ubuntu) | yes |
 | Fixture registry | local only | local only |
 | Public npm | never | never |

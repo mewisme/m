@@ -8,56 +8,47 @@ import (
 )
 
 // PublishFile replaces path with data using platform-accurate publication semantics.
-//
-// Unix (Linux, macOS): write a temp file in the destination directory, fsync, then rename
-// over path. The prior generation remains readable until rename succeeds.
-//
-// Windows: same temp+rename choreography; os.Rename replaces an existing file without a
-// prior delete so a crash after write but before rename leaves the old file intact.
-// Generation-scanned heads (journal.head, current.head) recover from numbered siblings.
 func PublishFile(path string, data []byte, perm os.FileMode) error {
-	return WriteAtomic(path, data, perm)
+	return PublishNewFile(path, data, perm)
 }
 
 // PublishRename moves src to dst with platform-accurate replacement semantics.
-//
-// Files: rename into place without deleting dst first (Windows-safe).
-// Directories: rename choreography via a .mew-old aside buffer (see publishDir).
 func PublishRename(src, dst string) error {
 	if isPublishDir(src) || isPublishDir(dst) {
-		return publishDir(src, dst)
+		return PublishDirectory(src, dst)
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return apperr.Wrap(apperr.IO, "fsx.publish", dst, err)
-	}
-	if err := os.Rename(src, dst); err != nil {
-		_ = os.Remove(dst)
-		if err2 := os.Rename(src, dst); err2 != nil {
-			return apperr.Wrap(apperr.IO, "fsx.publish", dst, err2)
-		}
-	}
-	return nil
+	return ReplaceExistingFile(src, dst)
 }
 
-func isPublishDir(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.IsDir()
-}
-
-func publishDir(stageDir, liveDir string) error {
-	backup := liveDir + ".mew-old"
-	_ = os.RemoveAll(backup)
-	if _, err := os.Stat(liveDir); err == nil {
-		if err := os.Rename(liveDir, backup); err != nil {
-			return apperr.Wrap(apperr.IO, "fsx.publish", liveDir, err)
-		}
+// WriteGenerationExclusive creates path with O_EXCL; rejects duplicate generations.
+func WriteGenerationExclusive(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return apperr.Wrap(apperr.IO, "fsx.generation", path, err)
 	}
-	if err := os.Rename(stageDir, liveDir); err != nil {
-		if _, statErr := os.Stat(backup); statErr == nil {
-			_ = os.Rename(backup, liveDir)
-		}
-		return apperr.Wrap(apperr.IO, "fsx.publish", stageDir, err)
+	if perm == 0 {
+		perm = 0o644
 	}
-	_ = os.RemoveAll(backup)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+	if err != nil {
+		if os.IsExist(err) {
+			return apperr.New(apperr.Integrity, "fsx.generation", path, "duplicate generation")
+		}
+		return apperr.Wrap(apperr.IO, "fsx.generation", path, err)
+	}
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		_ = os.Remove(path)
+		return apperr.Wrap(apperr.IO, "fsx.generation", path, err)
+	}
+	if err := syncFileHandle(f); err != nil {
+		_ = f.Close()
+		_ = os.Remove(path)
+		return apperr.Wrap(apperr.IO, "fsx.generation", path, err)
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(path)
+		return apperr.Wrap(apperr.IO, "fsx.generation", path, err)
+	}
 	return nil
 }

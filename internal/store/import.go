@@ -10,22 +10,20 @@ import (
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/archive"
+	"github.com/mewisme/m/internal/contentid"
 )
 
 // ImportFromTarball extracts tarballPath into the global store keyed by integrity.
 // Idempotent: existing verified packages are not re-extracted.
-func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integrity string) (PackageKey, error) {
+func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath string, id contentid.Identity) (PackageKey, error) {
 	if err := ctx.Err(); err != nil {
 		return PackageKey{}, err
 	}
 	if s == nil || s.Root == "" {
 		return PackageKey{}, apperr.New(apperr.Store, "store.import", "", "nil store")
 	}
-	key, err := PackageKeyFromIntegrity(integrity)
+	key, err := PackageKeyFromIdentity(id)
 	if err != nil {
-		return PackageKey{}, err
-	}
-	if err := validateKey(key); err != nil {
 		return PackageKey{}, err
 	}
 
@@ -114,7 +112,7 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integ
 	}
 
 	size, _ := dirSize(dest)
-	s.indexUpsertOrWarn(key, integrity, size)
+	s.indexUpsertOrWarn(key, key.Integrity(), size)
 	return key, nil
 }
 

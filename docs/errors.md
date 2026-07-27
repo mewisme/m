@@ -39,6 +39,7 @@ Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DE
 | Symlink/junction in guarded path | `ERR_M_TRANSACTION` | Ancestor guard on `.mew` / `node_modules` / snapshots |
 | Post-commit prune failure | `ERR_M_IO` | Install already committed; retry prune or `m snapshot list` |
 | StoreID collision during isolated layout | `ERR_M_INTEGRITY` | Collision-resistant digest still collided (extremely rare) |
+| Windows directory sync denied | (none — no-op) | `fsx.SyncDir` ignores access-denied on directory handles; file sync still runs |
 
 Unknown codes map to exit **1**.
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/m/internal/fsx"
 	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/resolver"
 )
@@ -54,11 +55,8 @@ func WriteAtomic(path string, doc *Document) error {
 	if err := tmp.Close(); err != nil {
 		return apperr.Wrap(apperr.IO, "mlock.write", abs, err)
 	}
-	if err := os.Rename(tmpName, abs); err != nil {
-		_ = os.Remove(abs)
-		if err2 := os.Rename(tmpName, abs); err2 != nil {
-			return apperr.Wrap(apperr.IO, "mlock.write", abs, err2)
-		}
+	if err := fsx.ReplaceExistingFile(tmpName, abs); err != nil {
+		return err
 	}
 	return nil
 }

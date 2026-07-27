@@ -5,6 +5,7 @@ go 1.26.5
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/spf13/cobra v1.10.2
+	golang.org/x/sys v0.47.0
 )
 
 require (

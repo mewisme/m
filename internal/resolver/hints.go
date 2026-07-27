@@ -29,6 +29,17 @@ func (h graphHints) canReuse() bool {
 	return true
 }
 
+// priorGraphReuseSafe reports whether prior graph nodes may be merged or pinned.
+func priorGraphReuseSafe(h graphHints) bool {
+	if !h.canReuse() {
+		return false
+	}
+	if h.incremental && !validPolicyFingerprint(h.policyFP) {
+		return false
+	}
+	return true
+}
+
 func (h graphHints) reusedVersion(ctx pinContext) (version string, ok bool) {
 	if !h.incremental || !h.canReuse() || h.reuseIndex == nil {
 		return "", false

@@ -169,7 +169,7 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 	if err != nil {
 		return nil, apperr.Wrap(apperr.Resolve, "resolver.build", proj.Root, err)
 	}
-	if s.hints.incremental && opts.Prior != nil {
+	if s.hints.incremental && opts.Prior != nil && priorGraphReuseSafe(s.hints) {
 		g, err = mergeUnchangedSubgraph(opts.Prior, g, s.hints.updateClosure)
 		if err != nil {
 			return nil, apperr.Wrap(apperr.Resolve, "resolver.merge", proj.Root, err)

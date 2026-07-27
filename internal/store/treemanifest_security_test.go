@@ -283,7 +283,7 @@ func TestLegacyPackageRequiresReimport(t *testing.T) {
 	} else if !strings.Contains(err.Error(), "re-import tarball") {
 		t.Fatalf("err=%v", err)
 	}
-	if _, err := ps.ImportFromTarball(ctx, tgz, integrity); err != nil {
+	if _, err := importIntegrity(ctx, ps, tgz, integrity); err != nil {
 		t.Fatal(err)
 	}
 	if err := ps.VerifyPackage(ctx, key); err != nil {

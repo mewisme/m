@@ -295,15 +295,7 @@ func tryRemoveStaleLock(projectRoot string) (bool, error) {
 	if !stale(data, dirMod) {
 		return false, nil
 	}
-	lockID := ""
-	if doc, err := parseLockDocument(data); err == nil {
-		lockID = doc.LockID
-	}
-	obs := fsx.LockObservation{
-		LockID:    lockID,
-		OwnerJSON: append([]byte(nil), data...),
-		DirMod:    dirMod,
-	}
+	obs := fsx.ObservationFromOwner(data, dirMod, false)
 	if err := fsx.ForceRemoveStaleDirLock(lockDir, obs, tombstoneRoot); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return false, nil

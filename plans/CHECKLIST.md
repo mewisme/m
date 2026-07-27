@@ -2,16 +2,16 @@
 
 ## Program status
 
-- Current MVP: **Stabilization pass 3** — MVPs 0016–0020 correctness gates
+- Current MVP: **0021 blocked** — stabilization pass 5 complete locally; awaiting CI green
 - Last updated: 2026-07-27
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** Complete stabilization pass 3 (score ≥ 9.0), then [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md).
+**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) after CI confirms green `crash-integration`, `race-windows`, and full OS matrix.
 
-Stabilization pass 2 (0017–0020 correctness gates) completed 2026-07-27. Pass 3 phases 1–15 complete — **0021 blocked** until CI green on new crash/race jobs and score ≥ 9.0 confirmed in Actions.
+Stabilization pass 5 (hard-fix integration, phases 11–13) completed locally 2026-07-27: `go test ./...` green on Windows, lint/vet/vulncheck pass. **0021 remains blocked** until GitHub Actions URLs are green (requires push).
 
 ## MVP completion (65)
 
@@ -750,7 +750,7 @@ Stabilization pass 2 (0017–0020 correctness gates) completed 2026-07-27. Pass 
 
 ### 0021 - Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy
 
-- status: planned
+- status: planned (blocked on stabilization CI gate)
 - plan: [0021-lifecycle-sandbox.md](0021-lifecycle-sandbox.md)
 - cursor: [cursor/0021-lifecycle-sandbox.plan.md](cursor/0021-lifecycle-sandbox.plan.md)
 

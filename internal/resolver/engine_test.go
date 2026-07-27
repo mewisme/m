@@ -46,6 +46,14 @@ func testEngine(t testing.TB) (*resolver.Engine, string) {
 	return eng, srv.URL
 }
 
+func priorFingerprints(eng *resolver.Engine) *resolver.PriorFingerprints {
+	pol := resolver.PolicyFromEffective(eng.Effective)
+	return &resolver.PriorFingerprints{
+		ResolverPolicyFingerprint: resolver.PolicyFingerprint(pol),
+		TargetPlatformFingerprint: resolver.TargetPlatformFingerprint(resolver.CurrentTarget()),
+	}
+}
+
 func writeProject(t testing.TB, pkgJSON string) string {
 	t.Helper()
 	dir := t.TempDir()

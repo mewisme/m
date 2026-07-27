@@ -40,6 +40,7 @@ func TestIncrementalGraphDiffGolden(t *testing.T) {
 		Hints:             prior,
 		UpdateTargets:     []string{"pkg-a"},
 		IncrementalUpdate: true,
+		PriorFingerprints: priorFingerprints(eng),
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -9,6 +9,7 @@ import (
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/lockfile/mlock"
+	"github.com/mewisme/m/internal/project"
 	"github.com/mewisme/m/internal/resolver"
 )
 
@@ -95,6 +96,14 @@ func ValidateFrozenLock(ctx context.Context, ac *Context) error {
 	if err != nil {
 		return err
 	}
+	return validateFrozenLockForProject(ctx, ac, proj)
+}
+
+func validateFrozenLockForProject(ctx context.Context, ac *Context, proj *project.Project) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	_ = ac
 	path := LockPath(proj.Root)
 	data, err := os.ReadFile(path)
 	if err != nil {

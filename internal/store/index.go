@@ -116,37 +116,51 @@ func (s *PackageStore) writeIndex(idx *Index) error {
 	return writeAtomic(path, raw)
 }
 
-// ReconcileIndex rebuilds index.json from packages/ on disk.
-// The index is a rebuildable cache; import and verify do not depend on it.
-func (s *PackageStore) ReconcileIndex() (ReconcileIndexResult, error) {
-	if s == nil || s.Root == "" {
-		return ReconcileIndexResult{}, apperr.New(apperr.Store, "store.index", "", "nil store")
+func quarantineCorruptIndex(path string) error {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
 	}
+	ts := time.Now().UTC().Format("20060102T150405.000000000Z")
+	quarantine := path + ".corrupt." + ts
+	return os.Rename(path, quarantine)
+}
+
+func indexFromFilesystem(s *PackageStore) (map[string]IndexEntry, error) {
 	keys, err := s.ListPackageKeys()
 	if err != nil {
-		return ReconcileIndexResult{}, err
+		return nil, err
 	}
-
-	release, err := acquireIndexLock(context.Background(), s.Root)
-	if err != nil {
-		return ReconcileIndexResult{}, err
-	}
-	defer release()
-
-	idx, err := s.loadIndex()
-	if err != nil {
-		return ReconcileIndexResult{}, err
-	}
-
 	desired := make(map[string]IndexEntry, len(keys))
 	for _, key := range keys {
 		entry, err := indexEntryFromPackage(s.PackagePath(key))
 		if err != nil {
-			return ReconcileIndexResult{}, apperr.Wrap(apperr.Store, "store.index", key.String(), err)
+			return nil, apperr.Wrap(apperr.Store, "store.index", key.String(), err)
 		}
 		desired[key.String()] = entry
 	}
+	return desired, nil
+}
 
+func indexMatches(idx *Index, desired map[string]IndexEntry) bool {
+	if idx == nil || len(idx.Packages) != len(desired) {
+		return false
+	}
+	for k, want := range desired {
+		got, ok := idx.Packages[k]
+		if !ok || got.Integrity != want.Integrity || got.SizeBytes != want.SizeBytes {
+			return false
+		}
+	}
+	return true
+}
+
+func reconcileIndexLocked(idx *Index, desired map[string]IndexEntry) (ReconcileIndexResult, Index, error) {
+	if idx == nil {
+		idx = &Index{SchemaVersion: indexSchemaVersion, Packages: map[string]IndexEntry{}}
+	}
 	var result ReconcileIndexResult
 	for k, entry := range desired {
 		if old, ok := idx.Packages[k]; !ok || old.Integrity != entry.Integrity || old.SizeBytes != entry.SizeBytes {
@@ -158,9 +172,42 @@ func (s *PackageStore) ReconcileIndex() (ReconcileIndexResult, error) {
 			result.Removed++
 		}
 	}
+	out := Index{SchemaVersion: indexSchemaVersion, Packages: desired}
+	return result, out, nil
+}
 
-	idx.Packages = desired
-	if err := s.writeIndex(idx); err != nil {
+// ReconcileIndex rebuilds index.json from packages/ on disk.
+// The index is a rebuildable cache; import and verify do not depend on it.
+func (s *PackageStore) ReconcileIndex() (ReconcileIndexResult, error) {
+	if s == nil || s.Root == "" {
+		return ReconcileIndexResult{}, apperr.New(apperr.Store, "store.index", "", "nil store")
+	}
+
+	release, err := acquireIndexLock(context.Background(), s.Root)
+	if err != nil {
+		return ReconcileIndexResult{}, err
+	}
+	defer release()
+
+	desired, err := indexFromFilesystem(s)
+	if err != nil {
+		return ReconcileIndexResult{}, err
+	}
+
+	path := s.indexPath()
+	idx, loadErr := s.loadIndex()
+	if loadErr != nil {
+		if qerr := quarantineCorruptIndex(path); qerr != nil {
+			return ReconcileIndexResult{}, apperr.Wrap(apperr.Store, "store.index", path, qerr)
+		}
+		idx = &Index{SchemaVersion: indexSchemaVersion, Packages: map[string]IndexEntry{}}
+	}
+
+	result, out, err := reconcileIndexLocked(idx, desired)
+	if err != nil {
+		return ReconcileIndexResult{}, err
+	}
+	if err := s.writeIndex(&out); err != nil {
 		return ReconcileIndexResult{}, err
 	}
 	return result, nil
@@ -189,48 +236,44 @@ func ReadIndex(root string) (*Index, error) {
 	return NewPackageStore(root).loadIndex()
 }
 
-// Status reports package count and total bytes from index + filesystem scan fallback.
+// Status reports package count and total bytes from authoritative filesystem scan.
 func (s *PackageStore) Status() (count int, bytes int64, err error) {
 	if s == nil || s.Root == "" {
 		return 0, 0, apperr.New(apperr.Store, "store.status", "", "nil store")
 	}
 	_, _ = s.CleanupStaleStaging(time.Hour)
 
-	keys, err := s.ListPackageKeys()
+	release, err := acquireIndexLock(context.Background(), s.Root)
 	if err != nil {
 		return 0, 0, err
 	}
-	fsCount := len(keys)
+	defer release()
 
-	idx, err := s.loadIndex()
+	desired, err := indexFromFilesystem(s)
 	if err != nil {
 		return 0, 0, err
 	}
-	if len(idx.Packages) != fsCount {
-		if _, err := s.ReconcileIndex(); err != nil {
+
+	path := s.indexPath()
+	idx, loadErr := s.loadIndex()
+	if loadErr != nil || !indexMatches(idx, desired) {
+		if loadErr != nil {
+			if qerr := quarantineCorruptIndex(path); qerr != nil {
+				return 0, 0, apperr.Wrap(apperr.Store, "store.status", path, qerr)
+			}
+		}
+		_, out, err := reconcileIndexLocked(idx, desired)
+		if err != nil {
 			return 0, 0, err
 		}
-		idx, err = s.loadIndex()
-		if err != nil {
+		if err := s.writeIndex(&out); err != nil {
 			return 0, 0, err
 		}
 	}
 
-	if len(idx.Packages) > 0 {
-		for _, e := range idx.Packages {
-			count++
-			bytes += e.SizeBytes
-		}
-		return count, bytes, nil
-	}
-
-	for _, key := range keys {
-		entry, err := indexEntryFromPackage(s.PackagePath(key))
-		if err != nil {
-			return 0, 0, apperr.Wrap(apperr.Store, "store.status", key.String(), err)
-		}
+	for _, e := range desired {
 		count++
-		bytes += entry.SizeBytes
+		bytes += e.SizeBytes
 	}
 	return count, bytes, nil
 }

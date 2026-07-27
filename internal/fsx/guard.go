@@ -76,7 +76,7 @@ func GuardAncestors(base, target string) error {
 			}
 			return apperr.Wrap(apperr.IO, "fs.guard", cur, err)
 		}
-		if IsSymlinkOrJunction(fi) {
+		if IsSymlinkOrJunction(fi) && cur != target {
 			return apperr.New(apperr.Transaction, "fs.guard", cur, "symlink or junction in guarded path")
 		}
 	}

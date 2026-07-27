@@ -32,11 +32,16 @@ const (
 
 // LockObservation captures lock metadata at stale-detection time for ABA-safe takeover.
 type LockObservation struct {
-	LockID       string
-	PackageKey   string
-	OwnerJSON    []byte
-	DirMod       time.Time
-	OwnerMissing bool
+	LockID        string
+	PackageKey    string
+	TxnID         string
+	PID           int
+	ProcessStart  int64
+	SchemaVersion int
+	ProjectRoot   string
+	OwnerJSON     []byte
+	DirMod        time.Time
+	OwnerMissing  bool
 }
 
 // DirLockOptions tunes directory lock acquisition.
@@ -193,6 +198,27 @@ func ownerMatchResult(data []byte, matchOwnerFn func([]byte) bool) ownerMatchOut
 
 // TakeoverStaleDirLock renames a stale lock directory into tombstoneRoot without deleting a recreated lock.
 func TakeoverStaleDirLock(lockDir string, observed LockObservation, tombstoneRoot string) error {
+	release, err := AcquireTakeoverGuard(context.Background(), lockDir)
+	if err != nil {
+		return err
+	}
+	defer release()
+
+	current, err := ObserveDirLock(lockDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if observed.LockID != "" || len(observed.OwnerJSON) > 0 || !observed.OwnerMissing {
+				return os.ErrExist
+			}
+			return nil
+		}
+		return err
+	}
+	if !ObservationMatches(observed, current) {
+		return os.ErrExist
+	}
+	observed = current
+
 	if observed.OwnerMissing {
 		return tombstoneLockDir(lockDir, observed, tombstoneRoot)
 	}
@@ -244,6 +270,17 @@ func tombstoneLockDir(lockDir string, observed LockObservation, tombstoneRoot st
 		name = "missing"
 	}
 	tombPath := filepath.Join(staleDir, fmt.Sprintf("%s-%d", name, time.Now().UnixNano()))
+	waitTakeoverPause("pre-rename")
+	current, err := ObserveDirLock(lockDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if !ObservationMatches(observed, current) {
+		return os.ErrExist
+	}
 	if err := os.Rename(lockDir, tombPath); err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -331,12 +368,7 @@ func tryRemoveStaleDirLock(lockDir string, grace time.Duration, stale func(owner
 		return false, nil
 	}
 	if stale != nil && stale(data, dirMod) {
-		lockID, _ := parseLockID(data)
-		obs := LockObservation{
-			LockID:    lockID,
-			OwnerJSON: append([]byte(nil), data...),
-			DirMod:    dirMod,
-		}
+		obs := observationFromOwner(data, dirMod, false)
 		if err := ForceRemoveStaleDirLock(lockDir, obs, tombstoneRoot); err != nil {
 			if errors.Is(err, os.ErrExist) {
 				return false, nil

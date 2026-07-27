@@ -263,3 +263,21 @@ func TestPrepareHintsIgnoresResolveOptionsPolicyForDrift(t *testing.T) {
 		t.Fatal("drift should compare effective config to lock fingerprint, not opts.Policy")
 	}
 }
+
+func TestPriorGraphReuseSafeBlocksDrift(t *testing.T) {
+	cases := []graphHints{
+		{overrideChanged: true},
+		{policyDrift: true},
+		{platformDrift: true},
+		{incremental: true, policyFP: ""},
+		{incremental: true, policyFP: "not-hex"},
+	}
+	for i, h := range cases {
+		if priorGraphReuseSafe(h) {
+			t.Fatalf("case %d: expected unsafe", i)
+		}
+	}
+	if !priorGraphReuseSafe(graphHints{incremental: true, policyFP: PolicyFingerprint(&policy.Policy{})}) {
+		t.Fatal("expected safe when fingerprints valid and no drift flags")
+	}
+}
