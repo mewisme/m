@@ -175,10 +175,11 @@ func TestMutationSessionReloadEffectiveConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := config.String(baseEff, "install.linker", ""); got != "auto" {
-		t.Fatalf("base linker=%q", got)
-	}
-	ac := &Context{CWD: root, Config: baseEff}
+	loadSpec := config.LoadSpecFromOptions(config.LoadOptions{
+		CWD:         root,
+		ProjectRoot: root,
+	})
+	ac := &Context{CWD: root, Config: baseEff, ConfigLoadSpec: loadSpec}
 	ctx := context.Background()
 	sess, err := BeginMutationSession(ctx, ac, root)
 	if err != nil {
@@ -206,6 +207,116 @@ func TestMutationSessionReloadEffectiveConfig(t *testing.T) {
 	if got := config.String(ac.Config, "install.linker", ""); got != "auto" {
 		t.Fatalf("shared context should keep pre-reload default: %q", got)
 	}
+	if ac.ConfigLoadSpec.ProjectRoot != root {
+		t.Fatalf("shared ConfigLoadSpec mutated: %+v", ac.ConfigLoadSpec)
+	}
+}
+
+func TestMutationSessionReloadPreservesExplicitConfigPath(t *testing.T) {
+	testkit.CleanEnv(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"explicit-cfg","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	custom := filepath.Join(root, "custom.jsonc")
+	if err := os.WriteFile(custom, []byte(`{"install.linker":"hoisted"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	ac, err := New(ctx, Options{CWD: root, ConfigPath: custom})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ac.ConfigLoadSpec.ProjectPath != custom {
+		t.Fatalf("stored path=%q want %q", ac.ConfigLoadSpec.ProjectPath, custom)
+	}
+	sess, err := BeginMutationSession(ctx, ac, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = sess.Abort(ctx) }()
+
+	if err := os.WriteFile(custom, []byte(`{"install.linker":"isolated"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.ReloadEffectiveConfig(ctx); err != nil {
+		t.Fatal(err)
+	}
+	sac, err := sess.AppContext()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := config.String(sac.Config, "install.linker", ""); got != "isolated" {
+		t.Fatalf("reloaded linker=%q", got)
+	}
+	opts := ac.ConfigLoadSpec.Clone().WithProjectRoot(root).LoadOptions()
+	if opts.ProjectPath != custom {
+		t.Fatalf("reload path=%q", opts.ProjectPath)
+	}
+}
+
+func TestMutationSessionReloadUsesEnvSnapshot(t *testing.T) {
+	testkit.CleanEnv(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"env-snap","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MEW_OFFLINE", "true")
+	ctx := context.Background()
+	ac, err := New(ctx, Options{CWD: root, Env: []string{"MEW_OFFLINE=true"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := BeginMutationSession(ctx, ac, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = sess.Abort(ctx) }()
+
+	t.Setenv("MEW_OFFLINE", "false")
+	if err := sess.ReloadEffectiveConfig(ctx); err != nil {
+		t.Fatal(err)
+	}
+	sac, err := sess.AppContext()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := config.Get(sac.Config, "offline"); v.Raw != true {
+		t.Fatalf("offline=%v", v.Raw)
+	}
+}
+
+func TestMutationSessionReloadMissingExplicitConfig(t *testing.T) {
+	testkit.CleanEnv(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"missing-cfg","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	custom := filepath.Join(root, "custom.jsonc")
+	if err := os.WriteFile(custom, []byte(`{"install.linker":"hoisted"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	ac, err := New(ctx, Options{CWD: root, ConfigPath: custom})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := BeginMutationSession(ctx, ac, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = sess.Abort(ctx) }()
+
+	if err := os.Remove(custom); err != nil {
+		t.Fatal(err)
+	}
+	err = sess.ReloadEffectiveConfig(ctx)
+	if err == nil {
+		t.Fatal("expected config error")
+	}
+	if apperr.CodeOf(err) != apperr.Config {
+		t.Fatalf("code=%s", apperr.CodeOf(err))
+	}
 }
 
 func TestMutationSessionScopedRegistryReload(t *testing.T) {
@@ -227,7 +338,12 @@ func TestMutationSessionScopedRegistryReload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ac := &Context{CWD: root, Config: baseEff}
+	loadSpec := config.LoadSpecFromOptions(config.LoadOptions{
+		CWD:         root,
+		ProjectRoot: root,
+		CLI:         map[string]any{"registry": srv.URL},
+	})
+	ac := &Context{CWD: root, Config: baseEff, ConfigLoadSpec: loadSpec}
 	ctx := context.Background()
 	sess, err := BeginMutationSession(ctx, ac, root)
 	if err != nil {

@@ -151,17 +151,25 @@ on Windows) by restoring from backups and replaying rollback phases.
 ## Cleanup visibility
 
 `Finish` / `Discard` / `Rollback` return `FinishResult` with `LockReleased`,
-`CurrentCleared`, and non-critical `CleanupWarnings`. `FinishResult.CleanupError()`
-joins all cleanup warning errors and reports critical cleanup failures when
-`HasCriticalCleanupFailure()` is true but no warning errors were recorded.
+`CurrentCleared`, and `CleanupWarnings` (each tagged with a cleanup code).
 
-Critical cleanup (lock release or verified `current` pointer clear) is joined into
-the returned error chain via `apperr.JoinCleanup` on abort and into `Finish` /
-`Abort` session errors. Non-critical warnings (`txn_dir_remove`, `finish_hook`)
-remain in `CleanupWarnings` only unless they escalate to critical failure.
+Severity is classified centrally via `CleanupCodeSeverity`:
 
-The installer emits debug warnings when critical cleanup fails after a successful
-commit. `m recover` may report the same when post-recovery cleanup is incomplete.
+| Severity | Codes | Error chain |
+|---|---|---|
+| Critical | `transaction_lock_release`, `transaction_current_cleanup` | `FinishResult.CriticalCleanupError()` → `apperr.JoinCleanup` on abort/finish |
+| Warning | `txn_dir_remove`, `finish_hook`, store lock release codes | `FinishResult.WarningErrors()` → result fields + debug only |
+
+`FinishResult.CleanupError()` is an alias for `CriticalCleanupError()` only.
+`HasCriticalCleanupFailure()` is true for structural lock/current failures or any
+critical cleanup code.
+
+On successful install finish, warning-only cleanup sets `CleanupIncomplete` on the
+result but not `RecoveryRequired` or `TransactionCleanupIncomplete`. Critical
+cleanup after commit returns a non-zero exit with recover guidance.
+
+The installer emits debug warnings for non-critical housekeeping failures.
+`m recover` may report critical cleanup when post-recovery metadata is incomplete.
 
 ## Crash injection (tests)
 

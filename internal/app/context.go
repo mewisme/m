@@ -12,13 +12,14 @@ import (
 
 // Context is the process-level application state for one CLI invocation.
 type Context struct {
-	CWD       string
-	Config    *config.Effective
-	Reporter  diagnostics.Reporter
-	Version   string
-	Commit    string
-	BuildDate string
-	Ctx       context.Context
+	CWD            string
+	Config         *config.Effective
+	ConfigLoadSpec config.LoadSpec
+	Reporter       diagnostics.Reporter
+	Version        string
+	Commit         string
+	BuildDate      string
+	Ctx            context.Context
 }
 
 // Options controls Context construction from CLI globals.
@@ -63,10 +64,15 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 		cliOverlay["prefer-offline"] = true
 	}
 
+	env := opts.Env
+	if env == nil {
+		env = os.Environ()
+	}
+
 	loadOpts := config.LoadOptions{
 		CWD:         cwd,
 		ProjectRoot: cwd,
-		Env:         opts.Env,
+		Env:         env,
 		CLI:         cliOverlay,
 	}
 	if opts.ConfigPath != "" {
@@ -77,12 +83,15 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 		rel, err := filepath.Rel(cwd, cfgAbs)
 		if err == nil && !strings.HasPrefix(rel, "..") {
 			loadOpts.ProjectPath = cfgAbs
+			loadOpts.RequireProjectConfig = true
 		} else {
 			loadOpts.GlobalPath = cfgAbs
+			loadOpts.RequireGlobalConfig = true
 		}
 	}
 
-	eff, err := config.Load(ctx, loadOpts)
+	spec := config.LoadSpecFromOptions(loadOpts)
+	eff, err := config.Load(ctx, spec.LoadOptions())
 	if err != nil {
 		return nil, err
 	}
@@ -93,13 +102,14 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 	}
 
 	return &Context{
-		CWD:       cwd,
-		Config:    eff,
-		Reporter:  rep,
-		Version:   opts.Version,
-		Commit:    opts.Commit,
-		BuildDate: opts.BuildDate,
-		Ctx:       ctx,
+		CWD:            cwd,
+		Config:         eff,
+		ConfigLoadSpec: spec,
+		Reporter:       rep,
+		Version:        opts.Version,
+		Commit:         opts.Commit,
+		BuildDate:      opts.BuildDate,
+		Ctx:            ctx,
 	}, nil
 }
 

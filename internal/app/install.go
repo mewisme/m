@@ -87,6 +87,20 @@ func Add(ctx context.Context, ac *Context, spec string, opts AddOptions) (Instal
 	return runInstallTxn(ctx, ac, inst, nil, prepareAddDependency)
 }
 
+// AddInSession declares a dependency using an existing mutation session (caller holds the lock).
+func AddInSession(ctx context.Context, sess *MutationSession, spec string, opts AddOptions) (InstallResult, error) {
+	name, _ := parsePackageSpec(spec)
+	if name == "" {
+		return InstallResult{}, apperr.New(apperr.Usage, "app.add", spec, "invalid package name")
+	}
+	inst := opts.Install
+	inst.WriteManifest = true
+	inst.AddSpec = spec
+	inst.AddDev = opts.Dev
+	inst.AddSaveExact = opts.SaveExact
+	return runInstallInSession(ctx, sess, inst, nil, prepareAddDependency)
+}
+
 // Remove deletes a dependency in memory and reinstalls (manifest written at commit).
 func Remove(ctx context.Context, ac *Context, name string, opts InstallOptions) (InstallResult, error) {
 	fields := []string{"dependencies", "devDependencies", "optionalDependencies", "peerDependencies"}
@@ -243,11 +257,41 @@ func populateCleanupResult(res *InstallResult, finish transaction.FinishResult) 
 	res.CleanupIncomplete = true
 	res.TransactionCleanupIncomplete = true
 	res.RecoveryRequired = true
-	res.CleanupWarningCodes = append(res.CleanupWarningCodes, finish.CleanupWarningCodes...)
-	for _, w := range finish.CleanupWarnings {
-		if w != nil {
-			res.CleanupWarnings = append(res.CleanupWarnings, w.Error())
+	for i, w := range finish.CleanupWarnings {
+		if w == nil {
+			continue
 		}
+		code := ""
+		if i < len(finish.CleanupWarningCodes) {
+			code = finish.CleanupWarningCodes[i]
+		}
+		if transaction.CleanupCodeSeverity(code) != transaction.CleanupCritical {
+			continue
+		}
+		res.CleanupWarningCodes = append(res.CleanupWarningCodes, code)
+		res.CleanupWarnings = append(res.CleanupWarnings, w.Error())
+	}
+}
+
+func populateWarningCleanup(res *InstallResult, finish transaction.FinishResult) {
+	warnings := finish.WarningErrors()
+	if len(warnings) == 0 {
+		return
+	}
+	res.CleanupIncomplete = true
+	for i, w := range finish.CleanupWarnings {
+		if w == nil {
+			continue
+		}
+		code := ""
+		if i < len(finish.CleanupWarningCodes) {
+			code = finish.CleanupWarningCodes[i]
+		}
+		if transaction.CleanupCodeSeverity(code) != transaction.CleanupWarning {
+			continue
+		}
+		res.CleanupWarningCodes = append(res.CleanupWarningCodes, code)
+		res.CleanupWarnings = append(res.CleanupWarnings, w.Error())
 	}
 }
 

@@ -84,5 +84,6 @@ func restoreSnapshotInSession(ctx context.Context, sess *MutationSession, id str
 		populateCleanupResult(&res, finish)
 		return res, finishErr
 	}
+	populateWarningCleanup(&res, finish)
 	return res, finishErr
 }

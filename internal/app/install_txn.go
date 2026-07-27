@@ -64,7 +64,8 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 		populateCleanupResult(&res, finish)
 		return res, errors.Join(finishErr, installCleanupIncompleteError(res))
 	}
-	for _, w := range finish.CleanupWarnings {
+	populateWarningCleanup(&res, finish)
+	for _, w := range finish.WarningErrors() {
 		if ac != nil && ac.Reporter != nil {
 			ac.Reporter.Debug("transaction cleanup warning", diagnostics.Attr{Key: "error", Value: w.Error()})
 		}

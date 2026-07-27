@@ -2,18 +2,18 @@
 
 ## Program status
 
-- Current MVP: **0021** — stabilization pass 8 in progress (`stabilization-pass-8`)
+- Current MVP: **0021** — blocked until stabilization pass 9 CI green (`stabilization-pass-9`)
 - Last updated: 2026-07-28
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) — unblocked after pass 8 CI green on final `stabilization-pass-8` SHA.
+**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) — unblocked after pass 9 CI green on final `stabilization-pass-9` SHA.
 
-Stabilization pass 8 (`stabilization-pass-8` from `867a8ba`): production `ReopenProject` → `AppContext` ordering, `FinishResult.CleanupError()` wired through abort/finish, config-wait proc test. MVP 0021 gate: all required CI jobs green on final commit.
+Stabilization pass 9 (`stabilization-pass-9` from `fae9b48`): `ConfigLoadSpec` preserves load inputs across mutation reload; `CriticalCleanupError`/`WarningErrors` split; custom-config lock-wait proc test. MVP 0021 gate: all required CI jobs green on final commit.
 
-Hard-fix pass 7 complete 2026-07-27: CI run https://github.com/mewisme/m/actions/runs/30286046231 all required jobs **PASS** on `c7c4b1b` (merged `867a8ba`).
+Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ## MVP completion (65)
 

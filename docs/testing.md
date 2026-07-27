@@ -97,13 +97,22 @@ ranges (`internal/semver`).
 make fuzz-smoke
 ```
 
+## Stabilization pass 9 suites (config load spec + cleanup severity)
+
+| Area | Package / path | What it proves |
+|---|---|---|
+| Config load spec | `internal/config/load_spec_test.go`, `internal/app/mutation_session_test.go` | `ConfigLoadSpec` clone/immutability; explicit `--config` path/env/CLI preservation; missing/malformed explicit config on reload |
+| Config reload during lock wait | `tests/integration/mutation_config_wait_test.go` | `app.New` before config rewrite; custom `custom.jsonc` (not default `m.jsonc`); malformed config during lock wait |
+| Cleanup severity | `internal/transaction/finish_result_test.go`, `internal/app/finish_cleanup_test.go` | `CriticalCleanupError` vs `WarningErrors`; warning-only committed finish; critical recovery semantics |
+| CLI cleanup output | `internal/cli/install_cmd_test.go` | Warning-only vs critical JSON fields |
+
 ## Stabilization pass 8 suites (config ordering + cleanup chain)
 
 | Area | Package / path | What it proves |
 |---|---|---|
-| Config reload during lock wait | `tests/integration/mutation_config_wait_test.go` | Cross-process: holder blocks on lock; parent rewrites `m.jsonc` `@scope` mapping; `m add` waits and uses reloaded registry |
+| Config reload during lock wait | `tests/integration/mutation_config_wait_test.go` | Cross-process lock-wait ordering (superseded by pass 9 custom-config sync) |
 | AppContext ordering API | `internal/app/mutation_session_test.go` | `AppContext` errors before `ReopenProject`; linker/registry reload on shared-context isolation |
-| Cleanup error chain | `internal/transaction/finish_result_test.go`, `internal/app/abort_test.go`, `internal/cli/install_cmd_test.go` | `CleanupError()`, `errors.Is` for current/lock failures, CLI JSON cleanup fields |
+| Cleanup error chain | `internal/transaction/finish_result_test.go`, `internal/app/abort_test.go`, `internal/cli/install_cmd_test.go` | Critical cleanup in error chain; CLI JSON cleanup fields |
 
 ## Stabilization pass 6 suites (hard-fix durability)
 

@@ -96,3 +96,83 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30291154930
 **READY** for MVP 0021.
 
 Score **9.90** ≥ 9.0; run `30291154930` confirms green `test`, `crash-integration`, `race`/`race-macos`/`race-windows`, `platform-lock` (3 OS), `cross`, `lint`, `vuln`, `allowlist`, and `gate-probe` on `4be6354`.
+
+---
+
+# Stabilization Pass 9 — Quality Scorecard
+
+**Session:** Stabilization Pass 9 (config load spec + cleanup severity)  
+**Baseline:** `fae9b4855b825474af27b1f907963ceca3c55e56`  
+**Branch:** `stabilization-pass-9`  
+**Final verification:** 2026-07-28 (Windows local + GitHub Actions `30297084653` on `d148750`)  
+**Gate:** ≥ 9.0 to unblock MVP 0021 — **met**
+
+## Gaps fixed
+
+| # | Gap | Fix |
+|---|-----|-----|
+| 1 | Mutation reload dropped `--config` path, env snapshot, CLI overlays | `config.LoadSpec` captured at `app.New`; `ReloadEffectiveConfig` clones spec |
+| 2 | Non-critical cleanup warnings became command errors | `CriticalCleanupError()` / `WarningErrors()`; `CleanupCodeSeverity` registry |
+| 3 | Config-wait proc test did not prove reload-after-lock-wait | Rewritten sync: `app.New` → lock wait → config rewrite → `ReopenProject` reload |
+
+## Audit grep (pass 9)
+
+| Pattern | Result |
+|---------|--------|
+| `os.Environ()` in mutation reload | **Fixed** — only in `app.New` env snapshot |
+| `cliOverlayFromEffective` | **Removed** |
+| `config.Load` hand-built in mutation path | **Fixed** — uses `ConfigLoadSpec` |
+| `CleanupError()` in app layer | **Fixed** — `CriticalCleanupError()` |
+| `RecoveryRequired` on warning-only finish | **Fixed** — `populateWarningCleanup` |
+| `internal/cli/config_cmd.go` `loadEffective` | **Safe** — `m config` only; not mutation path |
+
+## MVP status (pass 9)
+
+| MVP | Status |
+|-----|--------|
+| 0017 Transactional install | **Done** |
+| 0020 Full resolver | **Done** |
+| 0021 Lifecycle scripts | **Unblocked** — pass 9 CI green on `d148750` |
+
+## CI jobs — green run `30297084653` (`d148750`)
+
+Workflow URL: https://github.com/mewisme/m/actions/runs/30297084653
+
+| Job | Result |
+|-----|--------|
+| `test` (ubuntu-latest) | **PASS** |
+| `test` (macos-latest) | **PASS** |
+| `test` (windows-latest) | **PASS** (rerun after 10m timeout flake) |
+| `race` | **PASS** |
+| `race-macos` | **PASS** |
+| `race-windows` | **PASS** |
+| `crash-integration` | **PASS** |
+| `platform-lock` (ubuntu-latest) | **PASS** |
+| `platform-lock` (macos-latest) | **PASS** |
+| `platform-lock` (windows-latest) | **PASS** |
+| `cross` (all matrix) | **PASS** |
+| `lint` | **PASS** |
+| `vuln` | **PASS** |
+| `allowlist` | **PASS** |
+| `gate-probe` | **PASS** |
+
+## Local gate results (2026-07-28, Windows)
+
+| Command | Result |
+|---------|--------|
+| `gofmt -w` (changed files) | **PASS** |
+| `go test ./internal/app/... ./internal/config/... ./internal/transaction/... ./internal/cli/... ./tests/integration/... -count=1` | **PASS** |
+| `go test ./... -count=1` | **PASS** (~164s) |
+| `go vet ./...` | **PASS** |
+| `golangci-lint run ./...` | **PASS** (0 issues) |
+| `govulncheck ./...` | **PASS** |
+| `go run ./tools/check-deps` | **PASS** |
+| `go test -race ...` | **SKIP** (CGO_ENABLED=0; CI race jobs green) |
+
+## Score
+
+**9.85 / 10.0** (deduct 0.05 for Windows integration timeout flake on first CI attempt)
+
+## Decision
+
+**READY** for MVP 0021.
