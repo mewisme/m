@@ -1,0 +1,5 @@
+{
+  "name": "workspace-filter",
+  "private": true,
+  "workspaces": ["packages/*"]
+}

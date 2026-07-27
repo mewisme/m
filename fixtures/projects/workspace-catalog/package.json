@@ -1,0 +1,8 @@
+{
+  "name": "workspace-catalog",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "catalog": {
+    "lodash": "4.17.21"
+  }
+}
