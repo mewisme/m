@@ -140,6 +140,28 @@ func TestIsLockWaitCancellation(t *testing.T) {
 	}
 }
 
+func TestAppContextBeforeReopenReturnsError(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"no-reopen"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ac := &Context{CWD: root, Config: &config.Effective{}}
+	ctx := context.Background()
+	sess, err := BeginMutationSession(ctx, ac, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = sess.Abort(ctx) }()
+
+	_, err = sess.AppContext()
+	if err == nil {
+		t.Fatal("expected error before ReopenProject")
+	}
+	if apperr.CodeOf(err) != apperr.Internal {
+		t.Fatalf("code=%s", apperr.CodeOf(err))
+	}
+}
+
 func TestMutationSessionReloadEffectiveConfig(t *testing.T) {
 	testkit.CleanEnv(t)
 	root := t.TempDir()
@@ -171,7 +193,10 @@ func TestMutationSessionReloadEffectiveConfig(t *testing.T) {
 	if _, err := sess.ReopenProject(ctx); err != nil {
 		t.Fatal(err)
 	}
-	sac := sess.AppContext()
+	sac, err := sess.AppContext()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if sac == nil || sac.Config == nil {
 		t.Fatal("missing session app context")
 	}
@@ -218,7 +243,11 @@ func TestMutationSessionScopedRegistryReload(t *testing.T) {
 		t.Fatal(err)
 	}
 	proj := &project.Project{Root: root, Identity: project.IdentityMew}
-	got := registry.ResolveBaseForPackage(sess.AppContext().Config, root, proj.Identity, "@scope/pkg")
+	sac, err := sess.AppContext()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := registry.ResolveBaseForPackage(sac.Config, root, proj.Identity, "@scope/pkg")
 	if got != scopeURL {
 		t.Fatalf("scoped registry=%q want %q", got, scopeURL)
 	}

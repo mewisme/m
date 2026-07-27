@@ -42,9 +42,15 @@ reading live `package.json` or `m.lock`. The session owns the project lock until
 `Finish` or `Abort`:
 
 1. Acquire project lock and recover incomplete journals (`BeginMutation`)
-2. `ReopenProject` — first live manifest/lock read after ownership is held
-3. Run resolve/fetch/link/validate through `runInstallInSession`
-4. `Finish` — commit journal, verified `current` cleanup, release lock
+2. `ReopenProject` — first live manifest/lock/config read after ownership is held
+3. `AppContext` — session copy with reloaded effective config (required after step 2)
+4. Run resolve/fetch/link/validate through `runInstallInSession`
+5. `Finish` — commit journal, verified `current` cleanup, release lock
+
+**Ordering contract:** `AppContext()` returns an error until `ReopenProject` (or
+`ReloadEffectiveConfig`) has run. Production paths must never call `AppContext`
+before `ReopenProject`; the shared `Context` from `BeginMutationSession` input is
+never mutated.
 
 `Abort` rolls back and releases the lock. Snapshot restore and `m rollback` use the
 same session boundary so restore cannot race an in-flight install.
@@ -145,10 +151,17 @@ on Windows) by restoring from backups and replaying rollback phases.
 ## Cleanup visibility
 
 `Finish` / `Discard` / `Rollback` return `FinishResult` with `LockReleased`,
-`CurrentCleared`, and non-critical `CleanupWarnings`. The installer emits debug
-warnings when critical cleanup (lock release or verified `current` pointer clear)
-fails after a successful commit. `m recover` may report the same when post-recovery
-cleanup is incomplete.
+`CurrentCleared`, and non-critical `CleanupWarnings`. `FinishResult.CleanupError()`
+joins all cleanup warning errors and reports critical cleanup failures when
+`HasCriticalCleanupFailure()` is true but no warning errors were recorded.
+
+Critical cleanup (lock release or verified `current` pointer clear) is joined into
+the returned error chain via `apperr.JoinCleanup` on abort and into `Finish` /
+`Abort` session errors. Non-critical warnings (`txn_dir_remove`, `finish_hook`)
+remain in `CleanupWarnings` only unless they escalate to critical failure.
+
+The installer emits debug warnings when critical cleanup fails after a successful
+commit. `m recover` may report the same when post-recovery cleanup is incomplete.
 
 ## Crash injection (tests)
 

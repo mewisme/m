@@ -2,16 +2,18 @@
 
 ## Program status
 
-- Current MVP: **0021** — hard-fix pass 6 complete; CI green on `7e1a00e`
-- Last updated: 2026-07-27
+- Current MVP: **0021** — stabilization pass 8 in progress (`stabilization-pass-8`)
+- Last updated: 2026-07-28
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) — unblocked after pass 6 CI green (`30280840231`).
+**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) — unblocked after pass 8 CI green on final `stabilization-pass-8` SHA.
 
-Hard-fix pass 6 (phases 10–11) complete 2026-07-27: local gate green, CI run https://github.com/mewisme/m/actions/runs/30280840231 all required jobs **PASS** on `7e1a00e`.
+Stabilization pass 8 (`stabilization-pass-8` from `867a8ba`): production `ReopenProject` → `AppContext` ordering, `FinishResult.CleanupError()` wired through abort/finish, config-wait proc test. MVP 0021 gate: all required CI jobs green on final commit.
+
+Hard-fix pass 7 complete 2026-07-27: CI run https://github.com/mewisme/m/actions/runs/30286046231 all required jobs **PASS** on `c7c4b1b` (merged `867a8ba`).
 
 ## MVP completion (65)
 
@@ -750,9 +752,13 @@ Hard-fix pass 6 (phases 10–11) complete 2026-07-27: local gate green, CI run h
 
 ### 0021 - Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy
 
-- status: planned (blocked on stabilization CI gate)
+- status: planned (blocked on stabilization pass 8 CI gate)
 - plan: [0021-lifecycle-sandbox.md](0021-lifecycle-sandbox.md)
 - cursor: [cursor/0021-lifecycle-sandbox.plan.md](cursor/0021-lifecycle-sandbox.plan.md)
+
+Stabilization pass 8 fixes stale effective config in `runInstallInSession` and
+aggregates `FinishResult` cleanup failures into abort/finish error chains. Gate:
+pass 8 branch CI green before starting 0021 implementation.
 
 - [ ] Implement lifecycle script discovery from package.json scripts field
 - [ ] Run preinstall/install/postinstall/prepare in npm order
