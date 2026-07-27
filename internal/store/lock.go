@@ -57,6 +57,16 @@ var importLockReleaseTestHook func(lockDir string) error
 // indexLockReleaseTestHook is set by tests to simulate post-success release failure.
 var indexLockReleaseTestHook func(lockDir string) error
 
+// SetImportLockReleaseTestHook installs a test hook for import lock release (test-only).
+func SetImportLockReleaseTestHook(fn func(lockDir string) error) {
+	importLockReleaseTestHook = fn
+}
+
+// SetIndexLockReleaseTestHook installs a test hook for index lock release (test-only).
+func SetIndexLockReleaseTestHook(fn func(lockDir string) error) {
+	indexLockReleaseTestHook = fn
+}
+
 func releaseStoreDirLock(op, lockDir string, match func([]byte) bool) error {
 	result, err := fsx.ReleaseDirLock(lockDir, match)
 	if err != nil {

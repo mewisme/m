@@ -108,12 +108,50 @@ func readLockHints(ctx context.Context, ac *Context, proj *project.Project) (*gr
 	return ReadLockGraph(ctx, ac)
 }
 
-func fetchPackages(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string, useGlobalStore bool) (map[string]string, *linker.LinkSummary, error) {
+func fetchPackages(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string, useGlobalStore bool) (FetchOutcome, error) {
 	if useGlobalStore {
 		return fetchAndImportGraph(ctx, ac, g)
 	}
 	extracts, err := fetchGraphLegacy(ctx, ac, g, extractRoot)
-	return extracts, nil, err
+	return FetchOutcome{Extracts: extracts}, err
+}
+
+// FetchOutcome carries fetch/import results and store cleanup warnings.
+type FetchOutcome struct {
+	Extracts                 map[string]string
+	LinkSummary              *linker.LinkSummary
+	CleanupWarningCodes      []string
+	CleanupWarnings          []string
+	StoreCleanupIncomplete   bool
+	StoreMaintenanceRequired bool
+}
+
+func mergeFetchImportResult(out *FetchOutcome, result store.ImportResult) {
+	if out == nil {
+		return
+	}
+	for i, code := range result.CleanupWarningCodes {
+		msg := ""
+		if i < len(result.CleanupWarnings) {
+			msg = result.CleanupWarnings[i]
+		}
+		if cleanupPairContains(out.CleanupWarningCodes, out.CleanupWarnings, code, msg) {
+			continue
+		}
+		out.CleanupWarningCodes = append(out.CleanupWarningCodes, code)
+		out.CleanupWarnings = append(out.CleanupWarnings, msg)
+	}
+	for i := len(result.CleanupWarningCodes); i < len(result.CleanupWarnings); i++ {
+		msg := result.CleanupWarnings[i]
+		if cleanupPairContains(out.CleanupWarningCodes, out.CleanupWarnings, "", msg) {
+			continue
+		}
+		out.CleanupWarnings = append(out.CleanupWarnings, msg)
+	}
+	if len(result.CleanupWarningCodes) > 0 || len(result.CleanupWarnings) > 0 {
+		out.StoreCleanupIncomplete = true
+		out.StoreMaintenanceRequired = true
+	}
 }
 
 func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string) (map[string]string, error) {
@@ -150,20 +188,24 @@ func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractR
 	return extracts, nil
 }
 
-func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph) (map[string]string, *linker.LinkSummary, error) {
+func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph) (FetchOutcome, error) {
+	var out FetchOutcome
 	dl, err := newDownloader(ac)
 	if err != nil {
-		return nil, nil, err
+		return out, err
 	}
 	storeRoot, err := config.StoreRoot(ac.Config)
 	if err != nil {
-		return nil, nil, err
+		return out, err
 	}
 	pkgStore := store.NewPackageStore(storeRoot)
-	extracts := make(map[string]string, len(g.Packages))
+	if ac != nil {
+		pkgStore.Reporter = ac.Reporter
+	}
+	out.Extracts = make(map[string]string, len(g.Packages))
 	for _, pkg := range g.Packages {
 		if err := ctx.Err(); err != nil {
-			return nil, nil, err
+			return out, err
 		}
 		key := pkg.ID.Key()
 		art, err := dl.Download(ctx, fetch.DownloadRequest{
@@ -172,22 +214,24 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph) (map[
 			AuthToken: config.AuthToken(ac.Config, os.Environ()),
 		})
 		if err != nil {
-			return nil, nil, err
+			return out, err
 		}
 		result, err := pkgStore.ImportFromTarball(ctx, art.BlobPath, contentid.Identity{
 			Algo: art.Integrity.Algo,
 			Hex:  art.Integrity.Hex,
 		})
+		mergeFetchImportResult(&out, result)
 		if err != nil {
-			return nil, nil, err
+			return out, err
 		}
 		pkgKey := result.Key
 		if err := pkgStore.VerifyPackage(ctx, pkgKey); err != nil {
-			return nil, nil, err
+			return out, err
 		}
-		extracts[key] = pkgStore.PackagePath(pkgKey)
+		out.Extracts[key] = pkgStore.PackagePath(pkgKey)
 	}
-	return extracts, &linker.LinkSummary{}, nil
+	out.LinkSummary = &linker.LinkSummary{}
+	return out, nil
 }
 
 func sanitizeKeyDir(key string) string {

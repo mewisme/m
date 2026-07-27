@@ -97,8 +97,9 @@ The journal is persisted after every state, progress, and phase transition.
 Backup ops record **prior kind** (`none`, `file`, `dir`, `symlink`, `junction`) so
 recovery restores `node_modules` trees, files, or symlinks from `backups/` only —
 never via symmetric inverse rename for directories. Windows **junction** backups store
-a `.reparse.json` sidecar (reparse tag, substitute, print name) so rollback can
-recreate the mount point without copying the target tree.
+metadata under `backups-meta/` (schema v1: reparse tag, substitute, print name, relPath)
+so rollback can recreate the mount point without copying the target tree. Regular files
+such as `foo.reparse.json` stay in the mirrored `backups/` tree as ordinary files.
 
 `journal.v2.json` and `journal.v1.json` remain readable for recovery of older
 interrupted transactions.

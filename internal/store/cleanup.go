@@ -8,6 +8,12 @@ import (
 	"github.com/mewisme/m/internal/apperr"
 )
 
+// Stable cleanup warning codes surfaced through ImportResult and install results.
+const (
+	CleanupCodeImportLockRelease = "store_import_lock_release"
+	CleanupCodeIndexLockRelease  = "store_index_lock_release"
+)
+
 // CleanupStaleStaging removes orphaned directories under <store>/.staging/.
 func (s *PackageStore) CleanupStaleStaging(maxAge time.Duration) (int, error) {
 	if s == nil || s.Root == "" {

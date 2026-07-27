@@ -30,6 +30,11 @@ func (fr FinishResult) HasCriticalCleanupFailure() bool {
 	return false
 }
 
+const (
+	CleanupCodeTxnLockRelease    = "transaction_lock_release"
+	CleanupCodeTxnCurrentCleanup = "transaction_current_cleanup"
+)
+
 func appendCleanupWarning(fr *FinishResult, code string, err error) {
 	if err == nil {
 		return

@@ -52,9 +52,9 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	}
 	res, err = runInstallInSession(ctx, sess, opts, edit, prepare)
 	if err != nil {
-		abortRes, _ := abortMutation(ctx, sess, sess.Runner(), err)
+		abortRes, abortErr := abortMutation(ctx, sess, sess.Runner(), err)
 		res = mergeInstallResults(res, abortRes)
-		return res, err
+		return res, abortErr
 	}
 	finish, finishErr := sess.Finish(ctx, opts.KeepJournal)
 	if finish.Committed {
@@ -69,6 +69,9 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 			ac.Reporter.Debug("transaction cleanup warning", diagnostics.Attr{Key: "error", Value: w.Error()})
 		}
 	}
+	if res.StoreMaintenanceRequired && !res.TransactionCleanupIncomplete && !res.RecoveryRequired {
+		return res, errors.Join(finishErr, storeMaintenanceIncompleteError(res))
+	}
 	return res, finishErr
 }
 
@@ -82,15 +85,52 @@ func mergeInstallResults(dst, src InstallResult) InstallResult {
 	if src.CleanupIncomplete {
 		dst.CleanupIncomplete = true
 	}
-	dst.CleanupWarningCodes = append(dst.CleanupWarningCodes, src.CleanupWarningCodes...)
-	dst.CleanupWarnings = append(dst.CleanupWarnings, src.CleanupWarnings...)
+	if src.TransactionCleanupIncomplete {
+		dst.TransactionCleanupIncomplete = true
+	}
+	if src.StoreCleanupIncomplete {
+		dst.StoreCleanupIncomplete = true
+	}
+	if src.StoreMaintenanceRequired {
+		dst.StoreMaintenanceRequired = true
+	}
+	dst.CleanupWarningCodes, dst.CleanupWarnings = dedupeCleanupPairs(
+		append(dst.CleanupWarningCodes, src.CleanupWarningCodes...),
+		append(dst.CleanupWarnings, src.CleanupWarnings...),
+	)
 	return dst
+}
+
+func dedupeCleanupPairs(codes, warnings []string) (outCodes, outWarns []string) {
+	seen := map[string]bool{}
+	for i, code := range codes {
+		msg := ""
+		if i < len(warnings) {
+			msg = warnings[i]
+		}
+		key := code + "\x00" + msg
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		outCodes = append(outCodes, code)
+		outWarns = append(outWarns, msg)
+	}
+	for i := len(codes); i < len(warnings); i++ {
+		msg := warnings[i]
+		if msg == "" || seen["\x00"+msg] {
+			continue
+		}
+		seen["\x00"+msg] = true
+		outWarns = append(outWarns, msg)
+	}
+	return outCodes, outWarns
 }
 
 // runInstallInSession performs resolve through commit while the session holds the project lock.
 func runInstallInSession(ctx context.Context, sess *MutationSession, opts InstallOptions, edit manifestEditFn, prepare mutationPrepareFn) (InstallResult, error) {
 	var res InstallResult
-	ac := sess.ac
+	ac := sess.AppContext()
 	txn := sess.Runner()
 
 	proj, err := sess.ReopenProject(ctx)
@@ -156,10 +196,12 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		return res, err
 	}
 	useStore := config.UseGlobalStore(ac.Config)
-	extracts, _, err := fetchPackages(ctx, ac, resolution.Graph, extractDir, useStore)
+	fetchOut, err := fetchPackages(ctx, ac, resolution.Graph, extractDir, useStore)
+	applyFetchOutcome(&res, fetchOut)
 	if err != nil {
 		return res, err
 	}
+	extracts := fetchOut.Extracts
 	if err := transaction.InvokeTestHook("post_fetch", 0); err != nil {
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "fetch", err)
 	}

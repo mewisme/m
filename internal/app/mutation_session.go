@@ -3,9 +3,11 @@ package app
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/config"
 	"github.com/mewisme/m/internal/project"
 	"github.com/mewisme/m/internal/transaction"
 )
@@ -16,6 +18,8 @@ type MutationSession struct {
 	projectRoot string
 	runner      *transaction.Runner
 	proj        *project.Project
+	effective   *config.Effective
+	sessionAC   *Context
 }
 
 // BeginMutationSession acquires the project lock, recovers incomplete transactions, and
@@ -46,6 +50,56 @@ func (s *MutationSession) Runner() *transaction.Runner {
 	return s.runner
 }
 
+// ReloadEffectiveConfig reloads project config after mutation ownership is held.
+func (s *MutationSession) ReloadEffectiveConfig(ctx context.Context) error {
+	if s == nil {
+		return apperr.New(apperr.Internal, "app.mutation", "", "nil session")
+	}
+	if s.ac == nil || s.ac.Config == nil {
+		return apperr.New(apperr.Internal, "app.mutation", "", "missing app context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	eff, err := config.Load(ctx, config.LoadOptions{
+		CWD:         s.ac.CWD,
+		ProjectRoot: s.projectRoot,
+		Env:         os.Environ(),
+		CLI:         cliOverlayFromEffective(s.ac.Config),
+	})
+	if err != nil {
+		return err
+	}
+	s.effective = eff
+	s.sessionAC = nil
+	return nil
+}
+
+// AppContext returns a shallow copy of the session app context with reloaded config.
+// Never mutates the shared context passed to BeginMutationSession.
+func (s *MutationSession) AppContext() *Context {
+	if s == nil || s.ac == nil {
+		return nil
+	}
+	cfg := s.effective
+	if cfg == nil {
+		cfg = s.ac.Config
+	}
+	if s.sessionAC != nil && s.sessionAC.Config == cfg {
+		return s.sessionAC
+	}
+	s.sessionAC = &Context{
+		CWD:       s.ac.CWD,
+		Config:    cfg,
+		Reporter:  s.ac.Reporter,
+		Version:   s.ac.Version,
+		Commit:    s.ac.Commit,
+		BuildDate: s.ac.BuildDate,
+		Ctx:       s.ac.Ctx,
+	}
+	return s.sessionAC
+}
+
 // ReopenProject reads live package.json, lock hints, and config after ownership is held.
 func (s *MutationSession) ReopenProject(ctx context.Context) (*project.Project, error) {
 	if s == nil {
@@ -59,6 +113,9 @@ func (s *MutationSession) ReopenProject(ctx context.Context) (*project.Project, 
 		return nil, err
 	}
 	s.proj = proj
+	if err := s.ReloadEffectiveConfig(ctx); err != nil {
+		return nil, err
+	}
 	return proj, nil
 }
 
@@ -93,15 +150,29 @@ func (s *MutationSession) Finish(ctx context.Context, keepJournal bool) (transac
 }
 
 // Abort rolls back an in-progress transaction and releases the session-owned project lock.
+// Repeated calls are no-ops once the runner has been cleared.
 func (s *MutationSession) Abort(ctx context.Context) (transaction.FinishResult, error) {
 	if s == nil || s.runner == nil {
 		return transaction.FinishResult{}, nil
 	}
-	txnID := s.runner.ID
-	fr, err := s.runner.Rollback(ctx, transaction.DefaultFinishOpts())
-	lockErr := releaseSessionLock(s.projectRoot, txnID, &fr)
-	s.runner = nil
-	return fr, errors.Join(err, lockErr)
+	fr, cleanupErr, _ := rollbackSession(ctx, s, s.runner)
+	return fr, cleanupErr
+}
+
+func cliOverlayFromEffective(eff *config.Effective) map[string]any {
+	if eff == nil || eff.Values == nil {
+		return nil
+	}
+	out := make(map[string]any)
+	for k, v := range eff.Values {
+		if v.Source == config.SourceCLI {
+			out[k] = v.Raw
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func resolveProjectRoot(ac *Context, explicit string) (string, error) {

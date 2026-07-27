@@ -163,8 +163,12 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 		if err := enc.Encode(result); err != nil {
 			return err
 		}
-		if result.CleanupIncomplete {
+		if result.CleanupIncomplete || result.TransactionCleanupIncomplete {
 			_, err := fmt.Fprintln(cmd.OutOrStdout(), "Installation committed, but transaction cleanup is incomplete. Run m recover to clear stale transaction metadata.")
+			return err
+		}
+		if result.StoreMaintenanceRequired && !result.TransactionCleanupIncomplete {
+			_, err := fmt.Fprintln(cmd.OutOrStdout(), "Installation committed, but store cleanup is incomplete. Run m store status for details.")
 			return err
 		}
 		return nil

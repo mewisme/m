@@ -45,17 +45,20 @@ type UpdateResolveOptions struct {
 
 // InstallResult summarizes package changes.
 type InstallResult struct {
-	Added               int        `json:"added"`
-	Removed             int        `json:"removed"`
-	Changed             int        `json:"changed"`
-	Packages            int        `json:"packages"`
-	Plan                *plan.Plan `json:"plan,omitempty"`
-	Committed           bool       `json:"committed,omitempty"`
-	RolledBack          bool       `json:"rolledBack,omitempty"`
-	RecoveryRequired    bool       `json:"recoveryRequired,omitempty"`
-	CleanupIncomplete   bool       `json:"cleanupIncomplete,omitempty"`
-	CleanupWarningCodes []string   `json:"cleanupWarningCodes,omitempty"`
-	CleanupWarnings     []string   `json:"cleanupWarnings,omitempty"`
+	Added                        int        `json:"added"`
+	Removed                      int        `json:"removed"`
+	Changed                      int        `json:"changed"`
+	Packages                     int        `json:"packages"`
+	Plan                         *plan.Plan `json:"plan,omitempty"`
+	Committed                    bool       `json:"committed,omitempty"`
+	RolledBack                   bool       `json:"rolledBack,omitempty"`
+	RecoveryRequired             bool       `json:"recoveryRequired,omitempty"`
+	CleanupIncomplete            bool       `json:"cleanupIncomplete,omitempty"`
+	TransactionCleanupIncomplete bool       `json:"transactionCleanupIncomplete,omitempty"`
+	StoreCleanupIncomplete       bool       `json:"storeCleanupIncomplete,omitempty"`
+	StoreMaintenanceRequired     bool       `json:"storeMaintenanceRequired,omitempty"`
+	CleanupWarningCodes          []string   `json:"cleanupWarningCodes,omitempty"`
+	CleanupWarnings              []string   `json:"cleanupWarnings,omitempty"`
 }
 
 // AddOptions controls m add.
@@ -111,16 +114,125 @@ func Remove(ctx context.Context, ac *Context, name string, opts InstallOptions) 
 // FormatInstallSummary returns a human-readable install summary line.
 func FormatInstallSummary(r InstallResult) string {
 	line := fmt.Sprintf("added %d, removed %d, changed %d (%d packages)", r.Added, r.Removed, r.Changed, r.Packages)
-	if r.CleanupIncomplete {
+	if r.Committed && (r.TransactionCleanupIncomplete || r.CleanupIncomplete) {
 		line += "\nInstallation committed, but transaction cleanup is incomplete. Run m recover to clear stale transaction metadata."
-		for _, w := range r.CleanupWarnings {
+		for _, w := range filterCleanupWarnings(r, cleanupCodeTxnLockRelease, cleanupCodeTxnCurrentCleanup) {
+			line += "\n  " + w
+		}
+	} else if r.RolledBack && (r.TransactionCleanupIncomplete || r.RecoveryRequired) {
+		line += "\nRollback completed with cleanup warnings. Run m recover if stale transaction metadata remains."
+		for _, w := range filterCleanupWarnings(r, cleanupCodeTxnLockRelease, cleanupCodeTxnCurrentCleanup) {
 			line += "\n  " + w
 		}
 	}
-	if r.RolledBack && r.RecoveryRequired {
-		line += "\nRollback completed with cleanup warnings. Run m recover if stale transaction metadata remains."
+	if r.StoreCleanupIncomplete || r.StoreMaintenanceRequired {
+		line += "\nStore cleanup is incomplete. Run m store status for details."
+		for _, w := range filterCleanupWarnings(r, cleanupCodeStoreImportLockRelease, cleanupCodeStoreIndexLockRelease) {
+			line += "\n  " + w
+		}
 	}
 	return line
+}
+
+func filterCleanupWarnings(r InstallResult, codes ...string) []string {
+	allowed := map[string]bool{}
+	for _, c := range codes {
+		allowed[c] = true
+	}
+	var out []string
+	seen := map[string]bool{}
+	for i, code := range r.CleanupWarningCodes {
+		if !allowed[code] {
+			continue
+		}
+		msg := ""
+		if i < len(r.CleanupWarnings) {
+			msg = r.CleanupWarnings[i]
+		}
+		key := code + "\x00" + msg
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		if msg != "" {
+			out = append(out, msg)
+		}
+	}
+	if len(out) > 0 {
+		return out
+	}
+	for _, w := range r.CleanupWarnings {
+		if w == "" || seen[w] {
+			continue
+		}
+		seen[w] = true
+		out = append(out, w)
+	}
+	return out
+}
+
+func applyFetchOutcome(res *InstallResult, out FetchOutcome) {
+	if res == nil {
+		return
+	}
+	mergeStoreCleanupIntoResult(res, out.CleanupWarningCodes, out.CleanupWarnings)
+	if out.StoreCleanupIncomplete {
+		res.StoreCleanupIncomplete = true
+	}
+	if out.StoreMaintenanceRequired {
+		res.StoreMaintenanceRequired = true
+	}
+}
+
+func mergeStoreCleanupIntoResult(res *InstallResult, codes, warnings []string) {
+	for i, code := range codes {
+		msg := ""
+		if i < len(warnings) {
+			msg = warnings[i]
+		}
+		if cleanupPairContains(res.CleanupWarningCodes, res.CleanupWarnings, code, msg) {
+			continue
+		}
+		res.CleanupWarningCodes = append(res.CleanupWarningCodes, code)
+		res.CleanupWarnings = append(res.CleanupWarnings, msg)
+	}
+	for i := len(codes); i < len(warnings); i++ {
+		msg := warnings[i]
+		if cleanupPairContains(res.CleanupWarningCodes, res.CleanupWarnings, "", msg) {
+			continue
+		}
+		res.CleanupWarnings = append(res.CleanupWarnings, msg)
+	}
+	if len(codes) > 0 || len(warnings) > 0 {
+		res.StoreCleanupIncomplete = true
+		res.StoreMaintenanceRequired = true
+	}
+}
+
+func cleanupPairContains(codes, warnings []string, code, msg string) bool {
+	for i, c := range codes {
+		w := ""
+		if i < len(warnings) {
+			w = warnings[i]
+		}
+		if c == code && w == msg {
+			return true
+		}
+	}
+	if code == "" {
+		for _, w := range warnings {
+			if w == msg {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func storeMaintenanceIncompleteError(res InstallResult) error {
+	_ = res
+	return apperr.New(apperr.Store, "app.install.store_cleanup", "",
+		"Installation committed, but store cleanup is incomplete. Run m store status for details.")
 }
 
 func populateCleanupResult(res *InstallResult, finish transaction.FinishResult) {
@@ -129,6 +241,7 @@ func populateCleanupResult(res *InstallResult, finish transaction.FinishResult) 
 	}
 	res.Committed = finish.Committed
 	res.CleanupIncomplete = true
+	res.TransactionCleanupIncomplete = true
 	res.RecoveryRequired = true
 	res.CleanupWarningCodes = append(res.CleanupWarningCodes, finish.CleanupWarningCodes...)
 	for _, w := range finish.CleanupWarnings {

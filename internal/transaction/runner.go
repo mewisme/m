@@ -123,15 +123,11 @@ func (r *Runner) RecordBackup(rel string) error {
 		if err != nil {
 			return apperr.Wrap(apperr.Transaction, "transaction.backup", rel, err)
 		}
-		sidecar := backupAbs + reparseSidecarSuffix
-		if err := writeReparseSidecar(sidecar, reparseBackupMeta{
-			Tag:        tag,
-			Substitute: sub,
-			Print:      print,
-		}); err != nil {
+		metaRoot := filepath.Join(r.Root, backupsMetaDir)
+		if err := writeReparseMeta(metaRoot, rel, sub, print); err != nil {
 			return err
 		}
-		op.Backup = backupRel + reparseSidecarSuffix
+		op.Backup = reparseMetaBackupRel(rel)
 		op.ReparseTag = tag
 		op.ReparsePrint = print
 		op.SymlinkTarget = sub
@@ -140,7 +136,7 @@ func (r *Runner) RecordBackup(rel string) error {
 			return apperr.Wrap(apperr.IO, "transaction.backup", rel, err)
 		}
 		op.Backup = backupRel + ".link"
-	} else if err := backupTree(live, backupAbs); err != nil {
+	} else if err := backupTree(live, backupAbs, filepath.Join(r.Root, backupsMetaDir), rel); err != nil {
 		return err
 	}
 	r.doc.Ops = append(r.doc.Ops, op)
@@ -175,20 +171,16 @@ func (r *Runner) Commit(ctx context.Context, extra []Op) error {
 	}
 	for i := range r.doc.Plan {
 		if err := invokeTestHook("publish", i); err != nil {
-			_, _ = r.Rollback(ctx, DefaultFinishOpts())
 			return apperr.Wrap(apperr.Transaction, "transaction.commit", r.doc.Plan[i].Path, err)
 		}
 		if err := invokeTestHook("commit", i); err != nil {
-			_, _ = r.Rollback(ctx, DefaultFinishOpts())
 			return apperr.Wrap(apperr.Transaction, "transaction.commit", r.doc.Plan[i].Path, err)
 		}
 		if err := r.applyPlanOp(ctx, i, true); err != nil {
-			_, _ = r.Rollback(ctx, DefaultFinishOpts())
 			return err
 		}
 	}
 	if err := invokeTestHook("pre_committed", 0); err != nil {
-		_, _ = r.Rollback(ctx, DefaultFinishOpts())
 		return apperr.Wrap(apperr.Transaction, "transaction.commit", "", err)
 	}
 	r.doc.State = StateCommitted
@@ -270,14 +262,14 @@ func (r *Runner) finishCriticalCleanup(opts FinishOpts) FinishResult {
 	if opts.ClearCurrent {
 		result, err := clearCurrentVerified(r.ProjectRoot)
 		if err != nil {
-			fr.CleanupWarnings = append(fr.CleanupWarnings, err)
+			appendCleanupWarning(&fr, CleanupCodeTxnCurrentCleanup, err)
 		} else if result.Verified {
 			fr.CurrentCleared = true
 		}
 	}
 	if opts.ReleaseProjectLock {
 		if err := ReleaseProjectLock(r.ProjectRoot, r.ID); err != nil {
-			fr.CleanupWarnings = append(fr.CleanupWarnings, err)
+			appendCleanupWarning(&fr, CleanupCodeTxnLockRelease, err)
 			if apperr.CodeOf(err) == apperr.Transaction {
 				fr.LockReleaseResult = fsx.ReleaseNotOwner
 			}
@@ -537,18 +529,16 @@ func (r *Runner) restoreBackup(op Op) error {
 	}
 	backup := filepath.Join(r.Root, op.Backup)
 	if op.PriorKind == DestKindJunction {
-		meta, err := readReparseSidecar(backup)
+		meta, err := readReparseMeta(backup, r.ProjectRoot)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return os.RemoveAll(live)
 			}
 			return apperr.Wrap(apperr.IO, "transaction.rollback", op.Path, err)
 		}
-		if meta.Tag != fsx.IOReparseTagMountPoint {
-			return apperr.New(apperr.Transaction, "transaction.rollback", op.Path,
-				fmt.Sprintf("unsupported reparse tag 0x%08X", meta.Tag))
+		if err := os.RemoveAll(live); err != nil {
+			return apperr.Wrap(apperr.IO, "transaction.rollback", live, err)
 		}
-		_ = os.RemoveAll(live)
 		return createJunction(live, meta.Substitute, meta.Print)
 	}
 	if op.PriorKind == DestKindSymlink {
@@ -565,8 +555,10 @@ func (r *Runner) restoreBackup(op Op) error {
 	if _, err := os.Stat(backup); os.IsNotExist(err) {
 		return os.RemoveAll(live)
 	}
-	_ = os.RemoveAll(live)
-	return restoreTree(backup, live)
+	if err := os.RemoveAll(live); err != nil {
+		return apperr.Wrap(apperr.IO, "transaction.rollback", live, err)
+	}
+	return restoreTree(backup, live, filepath.Join(r.Root, backupsMetaDir), r.ProjectRoot, op.Path)
 }
 
 func (r *Runner) renameOp(planIndex int, op Op, forward bool) error {

@@ -54,6 +54,9 @@ func TestRunnerCommitRollbackPreservesLive(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected commit failure")
 	}
+	if _, err := txn.Rollback(ctx, transaction.DefaultFinishOpts()); err != nil {
+		t.Fatal(err)
+	}
 	data, err := os.ReadFile(live)
 	if err != nil {
 		t.Fatal(err)

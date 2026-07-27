@@ -64,29 +64,35 @@ func (s *PackageStore) loadIndex() (*Index, error) {
 	return &idx, nil
 }
 
-func (s *PackageStore) indexUpsert(key PackageKey, integrity string, size int64) error {
+func (s *PackageStore) indexUpsert(key PackageKey, integrity string, size int64) (codes []string, warnings []string, err error) {
 	release, err := acquireIndexLock(context.Background(), s.Root)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	defer s.releaseIndexLockWarn(release)
+	defer func() {
+		c, w := s.releaseIndexLockWarn(release)
+		codes = append(codes, c...)
+		warnings = append(warnings, w...)
+	}()
 
 	idx, err := s.loadIndex()
 	if err != nil {
-		return err
+		return codes, warnings, err
 	}
 	idx.Packages[key.String()] = IndexEntry{
 		Integrity:  integrity,
 		SizeBytes:  size,
 		ImportedAt: time.Now().UTC(),
 	}
-	return s.writeIndex(idx)
+	return codes, warnings, s.writeIndex(idx)
 }
 
-func (s *PackageStore) indexUpsertOrWarn(key PackageKey, integrity string, size int64) {
-	if err := s.indexUpsert(key, integrity, size); err != nil {
+func (s *PackageStore) indexUpsertOrWarn(key PackageKey, integrity string, size int64) (codes []string, warnings []string) {
+	codes, warnings, err := s.indexUpsert(key, integrity, size)
+	if err != nil {
 		s.warnIndex("store index upsert failed", key, err)
 	}
+	return codes, warnings
 }
 
 func (s *PackageStore) warnIndex(msg string, key PackageKey, err error) {
@@ -105,13 +111,15 @@ func (s *PackageStore) warnMaintenance(msg string, err error) {
 	s.Reporter.Progress(diagnostics.Event{Phase: line})
 }
 
-func (s *PackageStore) releaseIndexLockWarn(release func() error) {
+func (s *PackageStore) releaseIndexLockWarn(release func() error) (codes []string, warnings []string) {
 	if release == nil {
-		return
+		return nil, nil
 	}
 	if err := release(); err != nil {
 		s.warnMaintenance("store index lock release failed", err)
+		return []string{CleanupCodeIndexLockRelease}, []string{err.Error()}
 	}
+	return nil, nil
 }
 
 func (s *PackageStore) writeIndex(idx *Index) error {
