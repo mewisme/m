@@ -128,13 +128,22 @@ func TestAdvancedResolverOptionalPlatformFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if resolver.CurrentTarget().OS == "darwin" {
+		found := false
+		for _, p := range res.Graph.Packages {
+			if p.ID.Name == "opt-darwin" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("darwin-only optional should be installed on darwin")
+		}
+		return
+	}
 	for _, p := range res.Graph.Packages {
 		if p.ID.Name == "opt-darwin" {
 			t.Fatalf("darwin-only optional should be skipped on this host: %#v", p)
 		}
-	}
-	if resolver.CurrentTarget().OS == "darwin" {
-		t.Skip("host is darwin; platform skip not expected")
 	}
 	skipped := false
 	for _, d := range res.Decisions {
