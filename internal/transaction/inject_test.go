@@ -58,6 +58,9 @@ func TestInjectCommitMidPlanRollback(t *testing.T) {
 	if err := txn.Commit(ctx, nil); err == nil {
 		t.Fatal("expected commit failure")
 	}
+	if _, err := txn.Rollback(ctx, transaction.DefaultFinishOpts()); err != nil {
+		t.Fatal(err)
+	}
 	data, err := os.ReadFile(liveLock)
 	if err != nil {
 		t.Fatal(err)

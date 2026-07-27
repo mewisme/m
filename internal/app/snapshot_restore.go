@@ -72,9 +72,9 @@ func restoreSnapshotInSession(ctx context.Context, sess *MutationSession, id str
 		SkipSnapshot:     true,
 	}, nil, nil)
 	if err != nil {
-		abortRes, _ := abortMutation(ctx, sess, sess.Runner(), err)
+		abortRes, abortErr := abortMutation(ctx, sess, sess.Runner(), err)
 		res = mergeInstallResults(res, abortRes)
-		return res, err
+		return res, abortErr
 	}
 	finish, finishErr := sess.Finish(ctx, false)
 	if finish.Committed {

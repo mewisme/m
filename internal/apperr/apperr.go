@@ -116,7 +116,12 @@ func Wrap(code Code, op, subject string, err error) *Error {
 }
 
 // CodeOf extracts the first apperr.Code in the chain, or Internal if none.
+// OperationFailure resolves through Primary before falling back to Internal.
 func CodeOf(err error) Code {
+	var of *OperationFailure
+	if errors.As(err, &of) && of != nil && of.Primary != nil {
+		err = of.Primary
+	}
 	var ae *Error
 	if errors.As(err, &ae) && ae != nil && ae.Code != "" {
 		return ae.Code
