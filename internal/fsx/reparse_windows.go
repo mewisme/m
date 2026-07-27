@@ -76,7 +76,9 @@ func CreateMountPoint(link, substitute, print string) error {
 	buf := encodeMountPointReparse(substitute, print)
 	pathPtr, err := windows.UTF16PtrFromString(link)
 	if err != nil {
-		_ = os.RemoveAll(link)
+		if rmErr := os.RemoveAll(link); rmErr != nil {
+			return fmt.Errorf("%w (cleanup: %v)", err, rmErr)
+		}
 		return err
 	}
 	handle, err := windows.CreateFile(
@@ -89,7 +91,9 @@ func CreateMountPoint(link, substitute, print string) error {
 		0,
 	)
 	if err != nil {
-		_ = os.RemoveAll(link)
+		if rmErr := os.RemoveAll(link); rmErr != nil {
+			return fmt.Errorf("%w (cleanup: %v)", err, rmErr)
+		}
 		return err
 	}
 	defer func() { _ = windows.CloseHandle(handle) }()
@@ -104,7 +108,9 @@ func CreateMountPoint(link, substitute, print string) error {
 		&returned,
 		nil,
 	); err != nil {
-		_ = os.RemoveAll(link)
+		if rmErr := os.RemoveAll(link); rmErr != nil {
+			return fmt.Errorf("%w (cleanup: %v)", err, rmErr)
+		}
 		return err
 	}
 	return nil
