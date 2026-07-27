@@ -94,14 +94,23 @@ func populateAbortCleanup(res *InstallResult, fr transaction.FinishResult) {
 		res.CleanupIncomplete = true
 		res.TransactionCleanupIncomplete = true
 		res.RecoveryRequired = true
-	} else if len(fr.CleanupWarnings) > 0 {
-		res.CleanupIncomplete = true
-		res.TransactionCleanupIncomplete = true
 	}
-	res.CleanupWarningCodes = append(res.CleanupWarningCodes, fr.CleanupWarningCodes...)
-	for _, w := range fr.CleanupWarnings {
-		if w != nil {
-			res.CleanupWarnings = append(res.CleanupWarnings, w.Error())
+	for i, w := range fr.CleanupWarnings {
+		if w == nil {
+			continue
+		}
+		code := ""
+		if i < len(fr.CleanupWarningCodes) {
+			code = fr.CleanupWarningCodes[i]
+		}
+		res.CleanupWarningCodes = append(res.CleanupWarningCodes, code)
+		res.CleanupWarnings = append(res.CleanupWarnings, w.Error())
+		if transaction.CleanupCodeSeverity(code) == transaction.CleanupCritical {
+			res.CleanupIncomplete = true
+			res.TransactionCleanupIncomplete = true
+			res.RecoveryRequired = true
+		} else {
+			res.CleanupIncomplete = true
 		}
 	}
 }
