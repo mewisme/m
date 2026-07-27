@@ -54,8 +54,10 @@ go run ./cmd/mx --help
 ## Verify
 
 ```powershell
+gofmt -w <changed-go-files>
 go test ./... -count=1
 go vet ./...
+golangci-lint run ./...
 go build -o bin/m.exe ./cmd/m
 go build -o bin/mx.exe ./cmd/mx
 ```

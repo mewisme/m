@@ -20,10 +20,13 @@ go test ./path/to/package -run TestName -count=1
 ```sh
 go test ./... -count=1
 go vet ./...
+golangci-lint run ./...
 go test -race ./... -count=1
-staticcheck ./...       # when installed
-golangci-lint run       # when configured
 ```
+
+Install pinned tools: `./tools/install.ps1` or `./tools/install.sh`. Pin and config: `tools/versions.env`, `.golangci.yml`.
+
+**errcheck:** `defer func() { _ = f.Close() }()` for `Close`/`RemoveAll`; reporter `fmt.Print*` is excluded in `.golangci.yml`.
 
 ## Cross-build
 

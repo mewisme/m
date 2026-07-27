@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/mewisme/m/internal/apperr"
 )
 
 // String returns a string config value, or def if missing/empty.
@@ -108,6 +110,60 @@ func RegistryMetadataCacheDir(eff *Effective) string {
 // BlobCacheDir is <cache>/blobs for verified tarball bytes.
 func BlobCacheDir(eff *Effective) string {
 	return filepath.Join(CacheRoot(eff), "blobs")
+}
+
+// StoreRoot resolves the global content store (store.dir → MEW_STORE_DIR → platform default).
+// The path is absolute, must not contain .., and is created when missing.
+func StoreRoot(eff *Effective) (string, error) {
+	if d := String(eff, "store.dir", ""); d != "" {
+		return validateStorePath(d, "store.dir")
+	}
+	if d := os.Getenv("MEW_STORE_DIR"); d != "" {
+		return validateStorePath(d, "MEW_STORE_DIR")
+	}
+	if home := os.Getenv("MEW_HOME"); home != "" {
+		return validateStorePath(filepath.Join(home, "store"), "MEW_HOME")
+	}
+	if runtime.GOOS == "windows" {
+		base := os.Getenv("LocalAppData")
+		if base == "" {
+			base = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local")
+		}
+		return validateStorePath(filepath.Join(base, "mew", "store"), "default")
+	}
+	if runtime.GOOS == "darwin" {
+		return validateStorePath(filepath.Join(userHome(), "Library", "Application Support", "github.com", "mewisme", "m", "store"), "default")
+	}
+	xdg := os.Getenv("XDG_DATA_HOME")
+	if xdg == "" {
+		xdg = filepath.Join(userHome(), ".local", "share")
+	}
+	return validateStorePath(filepath.Join(xdg, "github.com", "mewisme", "m", "store"), "default")
+}
+
+func validateStorePath(p, subject string) (string, error) {
+	if p == "" {
+		return "", apperr.New(apperr.Config, "config.store", subject, "empty path")
+	}
+	if strings.Contains(p, "..") {
+		return "", apperr.New(apperr.Config, "config.store", subject, "path must not contain ..")
+	}
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", apperr.Wrap(apperr.Config, "config.store", subject, err)
+	}
+	if err := os.MkdirAll(abs, 0o755); err != nil {
+		return "", apperr.Wrap(apperr.Config, "config.store", subject, err)
+	}
+	return abs, nil
+}
+
+// UseGlobalStore reports whether the experimental global store + smart linker path is enabled.
+func UseGlobalStore(eff *Effective) bool {
+	if os.Getenv("MEW_EXPERIMENTAL_GLOBAL_STORE") == "1" {
+		return true
+	}
+	return Bool(eff, "link.use_global_store", false)
 }
 
 // ScopeRegistries returns @scope → registry URL from registries.* keys.

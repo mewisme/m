@@ -160,10 +160,9 @@ func RecoverPanic(rep diagnostics.Reporter, fn func()) (exit int) {
 // ExecuteWithContext runs root with an explicit context (tests).
 func ExecuteWithContext(root *cobra.Command, ctx context.Context) int {
 	g := ownerFlags(root)
-	rep := g.newReporter()
 	root.SetContext(ctx)
 	err := root.ExecuteContext(ctx)
-	rep = g.newReporter()
+	rep := g.newReporter()
 	if err == nil {
 		return 0
 	}

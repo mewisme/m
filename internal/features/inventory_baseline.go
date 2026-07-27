@@ -109,11 +109,11 @@ func baselineFeatures() []Feature {
 		// Linker and reliability
 		rowWithTests("linker.hoisted", "hoisted node_modules", "linker", shipped, shipped, parity, "0016", []string{"internal/linker/hoisted", "tests/integration"}),
 		row("linker.isolated", "isolated virtual store", "linker", shipped, planned, parity, "0019"),
-		row("linker.global-store", "global content-addressed store", "linker", shipped, planned, parity, "0018"),
-		row("linker.platform-links", "hardlink / symlink / junction behavior", "linker", shipped, planned, parity, "0018"),
-		row("linker.reflink-planner", "reflink and automatic filesystem planning", "linker", omit, planned, ext, "0018"),
-		row("linker.transactional-install", "transactional install and recovery", "linker", shipped, planned, ext, "0017"),
-		row("linker.rollback-history", "instant rollback and history", "linker", omit, planned, ext, "0017"),
+		row("linker.global-store", "global content-addressed store", "linker", shipped, shipped, parity, "0018"),
+		rowWithTests("linker.platform-links", "hardlink / symlink / junction behavior", "linker", shipped, shipped, parity, "0018", []string{"internal/linker/planner", "tests/integration"}),
+		rowWithTests("linker.reflink-planner", "reflink and automatic filesystem planning", "linker", omit, shipped, ext, "0018", []string{"internal/linker/planner"}),
+		rowWithTests("linker.transactional-install", "transactional install and recovery", "linker", shipped, shipped, ext, "0017", []string{"internal/transaction", "tests/integration"}),
+		rowWithTests("linker.rollback-history", "instant rollback and history", "linker", omit, shipped, ext, "0017", []string{"internal/snapshot", "tests/integration"}),
 		row("linker.time-travel", "dependency time travel", "linker", omit, planned, ext, "0028"),
 		row("linker.capsules", "portable capsules", "linker", omit, planned, ext, "0029"),
 

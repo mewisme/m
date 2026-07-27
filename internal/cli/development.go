@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/mewisme/m/internal/app"
 )
 
 func newDevelopmentCmd() *cobra.Command {
@@ -23,7 +25,7 @@ func newDevelopmentCmd() *cobra.Command {
 }
 
 func newDoctorCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Check local development prerequisites (stub)",
 		Long:  "Reports Go version and pinned tool expectations. Full diagnostics are documented in docs/development-doctor.md.",
@@ -32,6 +34,28 @@ func newDoctorCmd() *cobra.Command {
 				return fmt.Errorf("unexpected arguments: %v", args)
 			}
 			return runDoctor(cmd)
+		},
+	}
+	cmd.AddCommand(newDoctorFilesystemCmd())
+	return cmd
+}
+
+func newDoctorFilesystemCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "filesystem",
+		Short: "Probe filesystem link capabilities for store and node_modules",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ac := app.FromContext(cmd.Context())
+			if ac == nil {
+				return fmt.Errorf("missing app context")
+			}
+			rep, err := app.DoctorFilesystem(cmd.Context(), ac)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprint(cmd.OutOrStdout(), app.FormatFilesystemProbe(rep))
+			return err
 		},
 	}
 }
@@ -69,7 +93,7 @@ func loadVersionsEnv() map[string]string {
 	if err != nil {
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	out := make(map[string]string)
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {

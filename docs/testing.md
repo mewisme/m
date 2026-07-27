@@ -117,6 +117,7 @@ when present).
 | Suite | Normal PR CI | Scheduled / 0080 |
 |---|---|---|
 | `go test ./...` | yes (hermetic) | yes |
+| `golangci-lint run` | yes (Ubuntu) | yes |
 | Fixture registry | local only | local only |
 | Public npm | never | never |
 | Large ecosystem corpus | no | yes |

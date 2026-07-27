@@ -130,7 +130,7 @@ func newViewCmd() *cobra.Command {
 			}
 			name, version := splitNameVersion(args[0])
 			var root string
-			var id project.Identity = project.IdentityMew
+			id := project.IdentityMew
 			if p, err := app.OpenProject(cmd.Context(), ac); err == nil {
 				root = p.Root
 				id = p.Identity

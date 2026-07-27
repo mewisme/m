@@ -45,9 +45,6 @@ func newResolveCmd() *cobra.Command {
 				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetEscapeHTML(false)
 				enc.SetIndent("", "  ")
-				if !trace {
-					// Still include decisions in JSON; --trace only affects human output.
-				}
 				return enc.Encode(res)
 			}
 			g := res.Graph

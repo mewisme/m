@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "packages": {
+    "sha256/758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63": {
+      "integrity": "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63",
+      "sizeBytes": 1024,
+      "importedAt": "2026-01-01T00:00:00Z"
+    }
+  }
+}

@@ -61,16 +61,18 @@ type LoadOptions struct {
 }
 
 var ownedKeys = map[string]string{
-	"registry":                "string",
-	"install.linker":          "string",
-	"offline":                 "bool",
-	"prefer-offline":          "bool",
-	"cache.dir":               "string",
-	"store.dir":               "string",
-	"network.timeout_ms":      "int",
-	"network.proxy":           "string",
-	"network.ca_file":         "string",
-	"registry.auth_token_env": "string",
+	"registry":                       "string",
+	"install.linker":                 "string",
+	"offline":                        "bool",
+	"prefer-offline":                 "bool",
+	"cache.dir":                      "string",
+	"store.dir":                      "string",
+	"link.use_global_store":          "bool",
+	"network.timeout_ms":             "int",
+	"network.proxy":                  "string",
+	"network.ca_file":                "string",
+	"registry.auth_token_env":        "string",
+	"transaction.snapshot_retention": "int",
 }
 
 // OwnedKeys returns the sorted list of owned config keys.
@@ -85,16 +87,18 @@ func OwnedKeys() []string {
 
 func defaults() map[string]any {
 	return map[string]any{
-		"registry":                "https://registry.npmjs.org",
-		"install.linker":          "auto",
-		"offline":                 false,
-		"prefer-offline":          false,
-		"cache.dir":               "",
-		"store.dir":               "",
-		"network.timeout_ms":      60000,
-		"network.proxy":           "",
-		"network.ca_file":         "",
-		"registry.auth_token_env": "",
+		"registry":                       "https://registry.npmjs.org",
+		"install.linker":                 "auto",
+		"offline":                        false,
+		"prefer-offline":                 false,
+		"cache.dir":                      "",
+		"store.dir":                      "",
+		"link.use_global_store":          false,
+		"network.timeout_ms":             60000,
+		"network.proxy":                  "",
+		"network.ca_file":                "",
+		"registry.auth_token_env":        "",
+		"transaction.snapshot_retention": 10,
 	}
 }
 
@@ -344,7 +348,7 @@ func looksLikeSecret(s string) bool {
 	}
 	// Env var names are typically UPPER_SNAKE.
 	for _, r := range s {
-		if !(unicode.IsUpper(r) || unicode.IsDigit(r) || r == '_') {
+		if !unicode.IsUpper(r) && !unicode.IsDigit(r) && r != '_' {
 			return true
 		}
 	}
@@ -605,7 +609,7 @@ func stripJSONC(b []byte) []byte {
 			}
 			if b[i+1] == '*' {
 				i += 2
-				for i+1 < len(b) && !(b[i] == '*' && b[i+1] == '/') {
+				for i+1 < len(b) && (b[i] != '*' || b[i+1] != '/') {
 					i++
 				}
 				i++ // skip '/'

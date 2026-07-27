@@ -159,7 +159,7 @@ func TestCorruptHashFixtureRejectedByDownloader(t *testing.T) {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write(raw)
+		_, _ = w.Write(raw)
 	}))
 	defer srv.Close()
 	st := store.NewDir(filepath.Join(t.TempDir(), "blobs"))

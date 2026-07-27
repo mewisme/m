@@ -45,6 +45,7 @@ live `node_modules`.
 
 ## Journaling
 
-`internal/transaction` (and later `internal/journal`) must journal enough
-information to recover from interruption. Persistent journal formats are
-versioned when introduced.
+`internal/transaction` journals install-family mutations under
+`<project>/.mew/txn/<id>/journal.v1.json` with inverse backup metadata.
+See [`transaction.md`](../transaction.md) for format, recovery, and snapshot
+retention.

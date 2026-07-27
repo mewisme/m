@@ -7,5 +7,14 @@ linters:
     - ineffassign
     - staticcheck
     - unused
+  settings:
+    errcheck:
+      # Reporter/CLI output: a broken pipe is not recoverable here.
+      exclude-functions:
+        - fmt.Print
+        - fmt.Printf
+        - fmt.Println
+        - fmt.Fprintf
+        - fmt.Fprintln
 run:
   timeout: 5m

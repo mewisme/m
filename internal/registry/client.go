@@ -238,7 +238,7 @@ func (c *Client) fetchPackument(ctx context.Context, registryBase, name, etag st
 			continue
 		}
 		func() {
-			defer res.Body.Close()
+			defer func() { _ = res.Body.Close() }()
 			switch res.StatusCode {
 			case http.StatusOK:
 				b, rerr := io.ReadAll(res.Body)

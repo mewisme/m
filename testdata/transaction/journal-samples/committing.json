@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "deadbeef",
+  "projectRoot": "/proj",
+  "state": "committing",
+  "ops": [
+    {
+      "kind": "backup",
+      "path": "m.lock",
+      "backup": "backups/m.lock"
+    }
+  ]
+}

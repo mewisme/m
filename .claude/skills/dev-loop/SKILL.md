@@ -8,7 +8,7 @@ description: Run the shortest reliable edit-build-test loop for Mew while preser
 1. Identify the smallest owned package and focused test.
 2. Run the focused test with `-count=1`.
 3. Exercise the changed command against a temporary fixture.
-4. Format changed Go files.
+4. `gofmt -w` changed Go files; `go vet ./affected/...`; `golangci-lint run ./...`.
 5. Expand to dependent packages, then `go test ./...` before push.
 6. Use the race detector for concurrent resolver, fetch, store, transaction, runner, or watcher code.
 

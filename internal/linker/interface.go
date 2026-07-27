@@ -11,8 +11,12 @@ import (
 type OpKind string
 
 const (
-	OpMkdir OpKind = "mkdir"
-	OpCopy  OpKind = "copy"
+	OpMkdir    OpKind = "mkdir"
+	OpCopy     OpKind = "copy"
+	OpHardlink OpKind = "hardlink"
+	OpReflink  OpKind = "reflink"
+	OpSymlink  OpKind = "symlink"
+	OpJunction OpKind = "junction"
 )
 
 // Op is one mkdir or recursive directory copy step.
@@ -35,6 +39,39 @@ type BinSource struct {
 	PackageDir string `json:"packageDir"`
 }
 
+// LinkSummary tallies filesystem strategies used in a plan.
+type LinkSummary struct {
+	Mkdir    int `json:"mkdir,omitempty"`
+	Copy     int `json:"copy,omitempty"`
+	Hardlink int `json:"hardlink,omitempty"`
+	Reflink  int `json:"reflink,omitempty"`
+	Symlink  int `json:"symlink,omitempty"`
+	Junction int `json:"junction,omitempty"`
+}
+
+// TallyFromOps counts op kinds into s (mutates s).
+func (s *LinkSummary) TallyFromOps(ops []Op) {
+	if s == nil {
+		return
+	}
+	for _, op := range ops {
+		switch op.Kind {
+		case OpMkdir:
+			s.Mkdir++
+		case OpCopy:
+			s.Copy++
+		case OpHardlink:
+			s.Hardlink++
+		case OpReflink:
+			s.Reflink++
+		case OpSymlink:
+			s.Symlink++
+		case OpJunction:
+			s.Junction++
+		}
+	}
+}
+
 // Plan is a filesystem link plan (mkdir/copy ops and bin shims).
 // Distinct from plan.Plan, which is the install mutation plan.
 type Plan struct {
@@ -43,6 +80,7 @@ type Plan struct {
 	Placements  []Placement       `json:"placements,omitempty"`
 	Ops         []Op              `json:"ops,omitempty"`
 	Bins        []BinSource       `json:"bins,omitempty"`
+	LinkSummary LinkSummary       `json:"linkSummary,omitempty"`
 }
 
 // Linker plans link operations and applies them under a transaction stage.

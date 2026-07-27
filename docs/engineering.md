@@ -25,6 +25,24 @@ CI installs Go 1.26.x. Local development must not rely on newer language feature
 
 ARM64 is covered by the **cross-compile** matrix, not by hosted ARM runners for full tests (cost). Windows behavior for package-manager paths must still be validated on Windows CI jobs, not inferred from Unix-only green builds.
 
+### Lint (`golangci-lint`)
+
+Config: [`.golangci.yml`](../.golangci.yml). Pin: [`tools/versions.env`](../tools/versions.env). Install locally with [`tools/install.ps1`](../tools/install.ps1) or `make lint`.
+
+```powershell
+golangci-lint run ./...
+# or
+make lint
+```
+
+Enabled linters: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`.
+
+**errcheck policy**
+
+- Check or explicitly discard resource cleanup: `defer func() { _ = f.Close() }()` (files, HTTP bodies, temp `RemoveAll`).
+- Reporter/CLI `fmt.Print*` is listed in `errcheck.exclude-functions` (broken pipe is not recoverable).
+- Do not use bare `defer f.Close()` or blanket `//nolint:errcheck`.
+
 ## Tool pins
 
 Versions live in [`tools/versions.env`](../tools/versions.env). Do not float `latest` in CI. Bump pins in a dedicated PR with a short note in the PR body.

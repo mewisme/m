@@ -25,7 +25,7 @@ func CleanEnv(t testing.TB) CleanEnvInfo {
 	t.Helper()
 	home := t.TempDir()
 	cache := filepath.Join(home, ".cache", "mew")
-	store := filepath.Join(home, ".local", "share", "mew", "store")
+	store := filepath.Join(home, ".local", "share", "github.com", "mewisme", "m", "store")
 	config := filepath.Join(home, ".config", "mew")
 	for _, d := range []string{cache, store, config} {
 		if err := os.MkdirAll(d, 0o755); err != nil {

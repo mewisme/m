@@ -212,10 +212,11 @@ gofmt -w <changed-go-files>
 go test ./path/to/touched/package -count=1
 go test ./... -count=1
 go vet ./...
-go test -race ./... -count=1       # concurrency-sensitive changes
-staticcheck ./...                   # when installed/configured
-golangci-lint run                   # when configured
+golangci-lint run ./...              # pinned in tools/versions.env; see .golangci.yml
+go test -race ./... -count=1         # concurrency-sensitive changes
 ```
+
+`golangci-lint` enables `errcheck`, `govet`, `ineffassign`, `staticcheck`, and `unused`. For `errcheck`: use `defer func() { _ = f.Close() }()` on resources; reporter `fmt.Print*` calls are excluded in `.golangci.yml`.
 
 Also run the actual behavior in a temporary fixture. Package-manager changes require at least one clean-home test and one incumbent-lockfile test. Runtime changes require a Node-version matrix covering the supported floor and current stable. Windows behavior must be verified on Windows, not inferred from Wine or a Linux container.
 

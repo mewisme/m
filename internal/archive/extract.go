@@ -50,7 +50,7 @@ func Extract(ctx context.Context, tgzPath, destDir string, opts Options) error {
 	if err != nil {
 		return apperr.Wrap(apperr.IO, "archive.extract", tgzPath, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	st, err := f.Stat()
 	if err != nil {
 		return apperr.Wrap(apperr.IO, "archive.extract", tgzPath, err)
@@ -61,7 +61,7 @@ func Extract(ctx context.Context, tgzPath, destDir string, opts Options) error {
 	if err != nil {
 		return apperr.Wrap(apperr.Integrity, "archive.extract", tgzPath, err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 
 	tr := tar.NewReader(gz)
 	var (
@@ -104,7 +104,7 @@ func Extract(ctx context.Context, tgzPath, destDir string, opts Options) error {
 		}
 
 		switch hdr.Typeflag {
-		case tar.TypeDir, tar.TypeReg, tar.TypeRegA:
+		case tar.TypeDir, tar.TypeReg:
 			mode := fileMode(hdr)
 			if hdr.Typeflag == tar.TypeDir {
 				mode = dirMode(hdr)

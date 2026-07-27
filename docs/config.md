@@ -31,6 +31,7 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 | `prefer-offline` | bool | `false` |
 | `cache.dir` | string | platform cache (empty = derive) |
 | `store.dir` | string | platform store (empty = derive) |
+| `link.use_global_store` | bool | `false` — experimental global store + smart linker (or `MEW_EXPERIMENTAL_GLOBAL_STORE=1`) |
 | `network.timeout_ms` | int | `60000` |
 | `network.proxy` | string | empty — http/https proxy URL (else env) |
 | `network.ca_file` | string | empty — optional PEM CA bundle |

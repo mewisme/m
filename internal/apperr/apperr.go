@@ -24,6 +24,8 @@ const (
 	Manifest      Code = "ERR_M_MANIFEST"
 	NotFound      Code = "ERR_M_NOT_FOUND"
 	Resolve       Code = "ERR_M_RESOLVE"
+	Transaction   Code = "ERR_M_TRANSACTION"
+	Store         Code = "ERR_M_STORE"
 )
 
 // registry maps every published code to a process exit status.
@@ -42,6 +44,8 @@ var registry = map[Code]int{
 	Manifest:      1,
 	NotFound:      1,
 	Resolve:       1,
+	Transaction:   1,
+	Store:         1,
 }
 
 // AllCodes returns registered codes in a stable order for docs and tests.
@@ -49,7 +53,7 @@ func AllCodes() []Code {
 	return []Code{
 		OK, Usage, Cancelled, Internal, InternalPanic,
 		IO, Config, Network, Integrity, Lockfile, Unimplemented,
-		Manifest, NotFound, Resolve,
+		Manifest, NotFound, Resolve, Transaction, Store,
 	}
 }
 

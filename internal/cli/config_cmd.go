@@ -149,7 +149,7 @@ func loadFileOverlay(path string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 	tmp := filepath.Join(dir, "m.jsonc")
 	if err := os.WriteFile(tmp, b, 0o644); err != nil {
 		return nil, err

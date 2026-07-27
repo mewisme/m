@@ -26,9 +26,12 @@ Available Commands:
   plan        Preview install mutations
   project     Inspect the current project
   publish     Publish a package
+  recover     Recover from an interrupted install transaction
   remove      Remove a dependency
   resolve     Resolve dependencies without installing
+  rollback    Restore the previous install snapshot
   run         Run a package script
+  snapshot    Manage install snapshots
   store       Manage the content store
   update      Update dependencies
   version     Print version information

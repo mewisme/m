@@ -12,10 +12,11 @@ import (
 
 func newInstallCmd() *cobra.Command {
 	var (
-		prod   bool
-		frozen bool
-		dryRun bool
-		asJSON bool
+		prod        bool
+		frozen      bool
+		dryRun      bool
+		keepJournal bool
+		asJSON      bool
 	)
 	cmd := &cobra.Command{
 		Use:     "install",
@@ -27,7 +28,7 @@ func newInstallCmd() *cobra.Command {
 			if ac == nil {
 				return apperr.New(apperr.Internal, "install", "", "missing app context")
 			}
-			opts := app.InstallOptions{Prod: prod, Frozen: frozen, DryRun: dryRun}
+			opts := app.InstallOptions{Prod: prod, Frozen: frozen, DryRun: dryRun, KeepJournal: keepJournal}
 			result, err := app.Install(cmd.Context(), ac, opts)
 			if err != nil {
 				return err
@@ -38,6 +39,7 @@ func newInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&prod, "prod", false, "omit devDependencies")
 	cmd.Flags().BoolVar(&frozen, "frozen-lockfile", false, "fail if package.json and m.lock drift")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "resolve and print plan without mutating disk")
+	cmd.Flags().BoolVar(&keepJournal, "journal", false, "keep transaction journal after success")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
 	return cmd
 }

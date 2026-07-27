@@ -1,0 +1,37 @@
+---
+description: Go format, vet, golangci-lint, and errcheck before push.
+globs:
+  - "**/*.go"
+  - ".golangci.yml"
+  - "tools/versions.env"
+alwaysApply: false
+---
+<!-- GO-QUALITY_START -->
+# Go quality gates
+
+Run before push (smallest scope first, then repo-wide):
+
+```powershell
+gofmt -w <changed-go-files>
+go test ./path/to/touched/package -count=1
+go vet ./...
+golangci-lint run ./...
+go test ./... -count=1
+```
+
+Install the pinned linter once per machine:
+
+```powershell
+./tools/install.ps1
+```
+
+Version pin: [`tools/versions.env`](tools/versions.env). Config: [`.golangci.yml`](.golangci.yml).
+
+## errcheck
+
+- **Resource cleanup:** use explicit discard in defer — `defer func() { _ = f.Close() }()` (same for `resp.Body.Close`, `os.RemoveAll` in temp dirs).
+- **Reporter output:** `fmt.Print*` is excluded in `.golangci.yml` (`errcheck.exclude-functions`); do not add `//nolint:errcheck` for CLI writes.
+- **Everything else:** handle the error or assign to `_` deliberately; do not leave bare `defer f.Close()`.
+
+CI runs `make lint` / `golangci-lint run` on Ubuntu. Match that locally before pushing Go changes.
+<!-- GO-QUALITY_END -->

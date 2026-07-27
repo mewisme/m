@@ -22,6 +22,7 @@ Run the relevant sequence:
 gofmt -w <changed-go-files>
 go test ./affected/... -count=1
 go vet ./affected/...
+golangci-lint run ./...
 go test -race ./affected/... -count=1   # concurrency-sensitive work
 bash scripts/check-agent-guidance.sh    # guidance changes
 ```

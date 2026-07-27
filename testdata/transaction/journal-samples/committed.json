@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "abc123",
+  "projectRoot": "/proj",
+  "state": "committed",
+  "ops": [
+    {
+      "kind": "backup",
+      "path": "m.lock",
+      "backup": "backups/m.lock"
+    },
+    {
+      "kind": "rename",
+      "path": "node_modules",
+      "backup": "stage/node_modules"
+    }
+  ]
+}

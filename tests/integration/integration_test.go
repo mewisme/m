@@ -53,7 +53,7 @@ func TestFixtureRegistrySmoke(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		t.Fatalf("packument status %d", resp.StatusCode)
 	}
@@ -62,7 +62,7 @@ func TestFixtureRegistrySmoke(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	data, err := io.ReadAll(resp2.Body)
 	if err != nil {
 		t.Fatal(err)

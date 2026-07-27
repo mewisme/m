@@ -35,6 +35,7 @@ Run the real behavior, not only compilation. Typical Go gates are:
 gofmt -w <changed-go-files>
 go test ./affected/... -count=1
 go vet ./affected/...
+golangci-lint run ./...
 go test -race ./affected/... -count=1   # when concurrency is involved
 ```
 

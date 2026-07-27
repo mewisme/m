@@ -152,7 +152,7 @@ func (d *Downloader) downloadOnce(ctx context.Context, req DownloadRequest, expe
 	if err != nil {
 		return nil, apperr.Wrap(apperr.Network, "fetch.download", redactURL(req.URL), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, apperr.New(apperr.Network, "fetch.download", redactURL(req.URL),
 			fmt.Sprintf("HTTP %d", resp.StatusCode))

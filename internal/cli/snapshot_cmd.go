@@ -1,0 +1,137 @@
+package cli
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"github.com/mewisme/m/internal/app"
+	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/snapshot"
+)
+
+func newSnapshotCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "snapshot",
+		Short: "Manage install snapshots",
+	}
+	cmd.AddCommand(newSnapshotListCmd())
+	cmd.AddCommand(newSnapshotRestoreCmd())
+	return cmd
+}
+
+func newSnapshotListCmd() *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List install snapshots",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ac := app.FromContext(cmd.Context())
+			if ac == nil {
+				return apperr.New(apperr.Internal, "snapshot.list", "", "missing app context")
+			}
+			proj, err := app.OpenProject(cmd.Context(), ac)
+			if err != nil {
+				return err
+			}
+			list, err := snapshot.NewStore(proj.Root).List()
+			if err != nil {
+				return err
+			}
+			if asJSON {
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetEscapeHTML(false)
+				enc.SetIndent("", "  ")
+				return enc.Encode(list)
+			}
+			if len(list) == 0 {
+				_, err := fmt.Fprintln(cmd.OutOrStdout(), "no snapshots")
+				return err
+			}
+			for _, s := range list {
+				_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s  %s  %s\n", s.ID, s.CreatedAt.Format("2006-01-02T15:04:05Z"), s.GraphDigest)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "print snapshots as JSON")
+	return cmd
+}
+
+func newSnapshotRestoreCmd() *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:   "restore <id>",
+		Short: "Restore a snapshot",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ac := app.FromContext(cmd.Context())
+			if ac == nil {
+				return apperr.New(apperr.Internal, "snapshot.restore", "", "missing app context")
+			}
+			result, err := app.RestoreSnapshot(cmd.Context(), ac, args[0])
+			if err != nil {
+				return err
+			}
+			return writeInstallResult(cmd, result, asJSON, false)
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
+	return cmd
+}
+
+func newRecoverCmd() *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:   "recover",
+		Short: "Recover from an interrupted install transaction",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ac := app.FromContext(cmd.Context())
+			if ac == nil {
+				return apperr.New(apperr.Internal, "recover", "", "missing app context")
+			}
+			result, err := app.Recover(cmd.Context(), ac)
+			if err != nil {
+				return err
+			}
+			if asJSON {
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetEscapeHTML(false)
+				enc.SetIndent("", "  ")
+				return enc.Encode(result)
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "recover: %s\n", result.Action)
+			return err
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
+	return cmd
+}
+
+func newRollbackCmd() *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:   "rollback",
+		Short: "Restore the previous install snapshot",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ac := app.FromContext(cmd.Context())
+			if ac == nil {
+				return apperr.New(apperr.Internal, "rollback", "", "missing app context")
+			}
+			result, err := app.Rollback(cmd.Context(), ac)
+			if err != nil {
+				return err
+			}
+			return writeInstallResult(cmd, result, asJSON, false)
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
+	return cmd
+}

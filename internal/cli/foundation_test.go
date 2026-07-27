@@ -69,9 +69,6 @@ func TestVersionJSONAndBuildDate(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, k := range []string{"binary", "version", "commit", "buildDate"} {
-		if doc[k] == "" && k != "commit" {
-			// commit and buildDate may be empty in other builds; here they are set
-		}
 		if _, ok := doc[k]; !ok {
 			t.Fatalf("missing key %q in %v", k, doc)
 		}

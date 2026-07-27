@@ -38,6 +38,20 @@ type workItem struct {
 	path  []string // package names on the path from root (for cycles)
 }
 
+// ResolveProject expands an already-open project (used when manifest edits are in memory only).
+func (e *Engine) ResolveProject(ctx context.Context, proj *project.Project, opts ResolveOptions) (*Resolution, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if e == nil || e.Client == nil {
+		return nil, apperr.New(apperr.Internal, "resolver.resolve", "", "nil engine or client")
+	}
+	if proj == nil {
+		return nil, apperr.New(apperr.Internal, "resolver.resolve", "", "nil project")
+	}
+	return e.resolveProject(ctx, proj, opts)
+}
+
 // Resolve expands the project at root into a complete Resolution.
 func (e *Engine) Resolve(ctx context.Context, root string, opts ResolveOptions) (*Resolution, error) {
 	if err := ctx.Err(); err != nil {

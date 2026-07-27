@@ -33,5 +33,5 @@ func TestSpanLifecycle(t *testing.T) {
 
 func TestNoopSpanFromEmpty(t *testing.T) {
 	trace.SpanFrom(context.Background()).Attr("k", "v")
-	trace.SpanFrom(nil).End()
+	trace.SpanFrom(context.TODO()).End()
 }

@@ -9,12 +9,15 @@ import (
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/linker"
+	"github.com/mewisme/m/internal/linker/planner"
 )
 
 // Linker plans and applies a conservative copy-based hoisted layout.
 type Linker struct {
-	NodeModules string
-	ExtractDirs map[string]string
+	NodeModules  string
+	ExtractDirs  map[string]string
+	Capabilities planner.Capabilities
+	UseSmartLink bool
 }
 
 // Plan computes placements and copy ops for g.
@@ -53,10 +56,12 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 		if !ok || src == "" {
 			return nil, apperr.New(apperr.Internal, "linker.hoisted.plan", p.Key, "missing extract dir")
 		}
-		ops = append(ops,
-			linker.Op{Kind: linker.OpMkdir, Dest: p.DestDir},
-			linker.Op{Kind: linker.OpCopy, Src: src, Dest: p.DestDir},
-		)
+		ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: p.DestDir})
+		if l.UseSmartLink {
+			ops = append(ops, planner.PlanPackageLink(src, p.DestDir, l.Capabilities))
+		} else {
+			ops = append(ops, linker.Op{Kind: linker.OpCopy, Src: src, Dest: p.DestDir})
+		}
 		cmds, err := linker.BinCommandsFromDir(src)
 		if err != nil {
 			return nil, err

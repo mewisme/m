@@ -40,7 +40,6 @@ func Expand(root string, patterns []string) ([]string, error) {
 		}
 	}
 	seen := map[string]struct{}{}
-	var members []string
 	for _, pat := range includes {
 		matched, err := matchGlob(abs, pat)
 		if err != nil {
@@ -62,7 +61,6 @@ func Expand(root string, patterns []string) ([]string, error) {
 				continue
 			}
 			seen[rel] = struct{}{}
-			members = append(members, rel)
 		}
 	}
 	for _, pat := range excludes {
@@ -198,9 +196,7 @@ func expandBraces(pat string) []string {
 	parts := strings.Split(inner, ",")
 	var out []string
 	for _, part := range parts {
-		for _, expanded := range expandBraces(prefix + part + suffix) {
-			out = append(out, expanded)
-		}
+		out = append(out, expandBraces(prefix+part+suffix)...)
 	}
 	return out
 }

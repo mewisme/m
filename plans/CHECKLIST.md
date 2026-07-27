@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current MVP: 0017 — Transactional Install and Instant Rollback (next)
+- Current MVP: 0019 — Isolated Virtual Store and Node Modules Layout (next)
 - Last updated: 2026-07-27
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
@@ -11,7 +11,7 @@
 
 Predecessors satisfied for:
 
-1. [0017 - Transactional install and rollback](0017-transaction-rollback.md) - foundation 0001–0016 complete
+1. [0019 - Isolated virtual store and node_modules layout](0019-isolated-linker.md) - requires 0018
 
 ## MVP completion (65)
 
@@ -33,8 +33,8 @@ Predecessors satisfied for:
 | 0014 | Core MVP 5 — Tarball Fetch, Integrity, and Safe Extraction | Core / MVP 5 | 0012, 0013 | [x] | [0014](0014-fetch-integrity-extraction.md) | [0014-fetch-integrity-extraction](cursor/0014-fetch-integrity-extraction.plan.md) |
 | 0015 | Core MVP 6 — Native `m.lock` Format | Core / MVP 6 | 0007, 0013 | [x] | [0015](0015-m-lock.md) | [0015-m-lock](cursor/0015-m-lock.plan.md) |
 | 0016 | Core MVP 7 — Basic End-to-End Installer | Core / MVP 7 | 0011, 0013, 0014, 0015 | [x] | [0016](0016-basic-installer.md) | [0016-basic-installer](cursor/0016-basic-installer.plan.md) |
-| 0017 | Core MVP 8 — Transactional Install and Instant Rollback | Core / MVP 8 | 0016 | [ ] | [0017](0017-transaction-rollback.md) | [0017-transaction-rollback](cursor/0017-transaction-rollback.plan.md) |
-| 0018 | Core MVP 9 — Global Content Store and Smart Filesystem Pl... | Core / MVP 9 | 0014, 0017 | [ ] | [0018](0018-global-store-smart-linker.md) | [0018-global-store-smart-linker](cursor/0018-global-store-smart-linker.plan.md) |
+| 0017 | Core MVP 8 — Transactional Install and Instant Rollback | Core / MVP 8 | 0016 | [x] | [0017](0017-transaction-rollback.md) | [0017-transaction-rollback](cursor/0017-transaction-rollback.plan.md) |
+| 0018 | Core MVP 9 — Global Content Store and Smart Filesystem Pl... | Core / MVP 9 | 0014, 0017 | [x] | [0018](0018-global-store-smart-linker.md) | [0018-global-store-smart-linker](cursor/0018-global-store-smart-linker.plan.md) |
 | 0019 | Core MVP 10 — Isolated Virtual Store and Node Modules Layout | Core / MVP 10 | 0018 | [ ] | [0019](0019-isolated-linker.md) | [0019-isolated-linker](cursor/0019-isolated-linker.plan.md) |
 | 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [ ] | [0020](0020-advanced-resolver.md) | [0020-advanced-resolver](cursor/0020-advanced-resolver.plan.md) |
 | 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [ ] | [0021](0021-lifecycle-sandbox.md) | [0021-lifecycle-sandbox](cursor/0021-lifecycle-sandbox.plan.md) |
@@ -613,69 +613,70 @@ Predecessors satisfied for:
 
 ### 0017 - Core MVP 8 — Transactional Install and Instant Rollback
 
-- status: planned
+- status: done
 - plan: [0017-transaction-rollback.md](0017-transaction-rollback.md)
 - cursor: [cursor/0017-transaction-rollback.plan.md](cursor/0017-transaction-rollback.plan.md)
 
-- [ ] Define transaction phases: inspect, resolve, plan, fetch, stage, validate, commit
-- [ ] Journal every filesystem mutation with inverse operations
-- [ ] Keep original manifest, lockfile, and node_modules until commit succeeds
-- [ ] Implement rollback applying journal in reverse on any failure
-- [ ] Implement crash recovery: detect incomplete journal and offer recover
-- [ ] Create snapshot on successful commit with monotonic ID
-- [ ] Implement m snapshot list and m snapshot restore
-- [ ] Validate staged tree before commit: integrity, bins, expected packages
-- [ ] Integrate transaction boundary with install/add/remove from 0016
-- [ ] Ensure partial fetch does not mutate committed state
-- [ ] Add failure injection: kill process mid-commit, disk full, permission denied
-- [ ] Add tests proving old node_modules works after failed install
-- [ ] Document journal format and retention policy
-- [ ] Limit journal size with rotation policy
-- [ ] Never delete committed state without successful staging validation
-- [ ] Emit transaction progress events to diagnostics reporter
-- [ ] Support dry-run generating plan without journal writes
-- [ ] Acceptance: Failed install leaves prior node_modules intact and usable
-- [ ] Acceptance: Interrupted commit can be recovered or cleanly rolled back
-- [ ] Acceptance: Snapshot restore returns project to prior dependency state
-- [ ] Acceptance: Journal records sufficient ops for full rollback
-- [ ] Acceptance: Commit is atomic: no half-updated lockfile visible
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Define transaction phases: inspect, resolve, plan, fetch, stage, validate, commit
+- [x] Journal every filesystem mutation with inverse operations
+- [x] Keep original manifest, lockfile, and node_modules until commit succeeds
+- [x] Implement rollback applying journal in reverse on any failure
+- [x] Implement crash recovery: detect incomplete journal and offer recover
+- [x] Create snapshot on successful commit with monotonic ID
+- [x] Implement m snapshot list and m snapshot restore
+- [x] Validate staged tree before commit: integrity, bins, expected packages
+- [x] Integrate transaction boundary with install/add/remove from 0016
+- [x] Ensure partial fetch does not mutate committed state
+- [x] Add failure injection: kill process mid-commit, disk full, permission denied
+- [x] Add tests proving old node_modules works after failed install
+- [x] Document journal format and retention policy
+- [x] Limit journal size with rotation policy
+- [x] Never delete committed state without successful staging validation
+- [x] Emit transaction progress events to diagnostics reporter
+- [x] Support dry-run generating plan without journal writes
+- [x] Acceptance: Failed install leaves prior node_modules intact and usable
+- [x] Acceptance: Interrupted commit can be recovered or cleanly rolled back
+- [x] Acceptance: Snapshot restore returns project to prior dependency state
+- [x] Acceptance: Journal records sufficient ops for full rollback
+- [x] Acceptance: Commit is atomic: no half-updated lockfile visible
+- [ ] Rich `m history` timeline UX — deferred to **0028**
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0018 - Core MVP 9 — Global Content Store and Smart Filesystem Planner
 
-- status: planned
+- status: done
 - plan: [0018-global-store-smart-linker.md](0018-global-store-smart-linker.md)
 - cursor: [cursor/0018-global-store-smart-linker.plan.md](cursor/0018-global-store-smart-linker.plan.md)
 
-- [ ] Implement content-addressed global store keyed by integrity hash
-- [ ] Import verified tarballs into store without duplication
-- [ ] Probe filesystem for hardlink, reflink, symlink, junction support
-- [ ] Implement link planner choosing safest fastest strategy per path
-- [ ] Fall back to copy when hardlink/reflink unavailable or cross-device
-- [ ] Use Windows junctions/symlinks per platform policy
-- [ ] Integrate store with hoisted linker from 0016
-- [ ] Track store reference counts from project link manifests
-- [ ] Implement m store path and m store prune commands
-- [ ] Prune unreferenced blobs with dry-run preview
-- [ ] Add cross-platform tests: Linux, macOS, Windows linking
-- [ ] Add tests for cross-filesystem copy fallback
-- [ ] Document store layout and garbage collection rules
-- [ ] Never mutate store blobs in place after import
-- [ ] Verify integrity on store read before linking
-- [ ] Support MEW_STORE_DIR override with validation
-- [ ] Emit link strategy summary in install diagnostics
-- [ ] Acceptance: Identical package imported twice shares one store blob
-- [ ] Acceptance: Link planner selects copy on cross-device install
-- [ ] Acceptance: Store prune removes only unreferenced blobs
-- [ ] Acceptance: Corrupt store entry is detected and re-fetched
-- [ ] Acceptance: m store path reports configured location
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement content-addressed global store keyed by integrity hash
+- [x] Import verified tarballs into store without duplication
+- [x] Probe filesystem for hardlink, reflink, symlink, junction support
+- [x] Implement link planner choosing safest fastest strategy per path
+- [x] Fall back to copy when hardlink/reflink unavailable or cross-device
+- [x] Use Windows junctions/symlinks per platform policy
+- [x] Integrate store with hoisted linker from 0016
+- [x] Track store reference counts from project link manifests
+- [x] Implement m store path and m store prune commands
+- [x] Prune unreferenced blobs with dry-run preview
+- [x] Add cross-platform tests: Linux, macOS, Windows linking
+- [x] Add tests for cross-filesystem copy fallback
+- [x] Document store layout and garbage collection rules
+- [x] Never mutate store blobs in place after import
+- [x] Verify integrity on store read before linking
+- [x] Support MEW_STORE_DIR override with validation
+- [x] Emit link strategy summary in install diagnostics
+- [x] Acceptance: Identical package imported twice shares one store blob
+- [x] Acceptance: Link planner selects copy on cross-device install
+- [x] Acceptance: Store prune removes only unreferenced blobs
+- [x] Acceptance: Corrupt store entry is detected and re-fetched
+- [x] Acceptance: m store path reports configured location
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0019 - Core MVP 10 — Isolated Virtual Store and Node Modules Layout
 

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "cafebabe",
+  "projectRoot": "/proj",
+  "state": "aborted",
+  "ops": [
+    {
+      "kind": "backup",
+      "path": "package.json",
+      "backup": "backups/package.json"
+    }
+  ]
+}

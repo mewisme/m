@@ -6,20 +6,24 @@ install path (MVP **0016**).
 ## Pipeline
 
 ```text
-resolve → fetch → link (hoisted copy) → write m.lock → publish node_modules
+resolve → fetch (blob cache) → [optional: import to global store] → link (hoisted copy or smart link) → validate → commit (journal) → snapshot
 ```
 
-Work happens under `<project>/.mew-stage/` until publish. On failure after
-fetch begins, the live `node_modules` tree is left unchanged.
+Work happens under `<project>/.mew/txn/<id>/stage/` until commit. On failure,
+live `package.json`, `m.lock`, and `node_modules` are restored from journal
+backups.
 
 ## Commands
 
 | Command | Flags | Notes |
 |---|---|---|
-| `m install` / `i` | `--prod`, `--frozen-lockfile`, `--dry-run`, `--json` | Full install |
-| `m add <pkg>` | `-D`, `-E`, `--json` | Manifest + lock + install |
+| `m install` / `i` | `--prod`, `--frozen-lockfile`, `--dry-run`, `--journal`, `--json` | Full install |
+| `m add <pkg>` | `-D`, `-E`, `--json` | Manifest + lock + install (atomic commit) |
 | `m remove <pkg>` / `rm` | `--json` | Remove dep + reinstall |
 | `m ci` | `--prod`, `--json` | `install --frozen-lockfile` |
+| `m snapshot` | `list`, `restore <id>` | Snapshot history |
+| `m recover` | — | Recover interrupted transaction |
+| `m rollback` | — | Restore previous snapshot |
 
 ## Layout
 
@@ -31,7 +35,6 @@ fetch begins, the live `node_modules` tree is left unchanged.
 - Lifecycle scripts (`preinstall`, `postinstall`) — **0021**
 - Global content store / smart linking — **0018**
 - Isolated virtual store — **0019**
-- Full transactional journal — **0017** (rename-swap publish only today)
 - `m update` — still stubbed
 
-See also: [`lockfile.md`](lockfile.md), [`cli.md`](cli.md).
+See also: [`lockfile.md`](lockfile.md), [`transaction.md`](transaction.md), [`cli.md`](cli.md).

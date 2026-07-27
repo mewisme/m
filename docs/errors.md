@@ -21,6 +21,8 @@ Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DE
 | `ERR_M_MANIFEST` | 1 | package.json parse / validate (MVP 0011) |
 | `ERR_M_NOT_FOUND` | 1 | Project root or package.json missing (MVP 0011) |
 | `ERR_M_RESOLVE` | 1 | Dependency resolution failure: unsatisfiable range, cycle, missing packument, or limit exceeded (MVP 0013) |
+| `ERR_M_TRANSACTION` | 1 | Transaction journal, commit, rollback, or recovery failure (MVP 0017) |
+| `ERR_M_STORE` | 1 | Global content store import, verify, or prune failure (MVP 0018) |
 
 Unknown codes map to exit **1**.
 
