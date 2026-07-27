@@ -28,18 +28,19 @@ type Op struct {
 }
 
 // PlacementID uniquely identifies one physical install instance in a hoisted layout.
-// Components: parentPlacement | importer | depName | packageKey | hoistLevel.
+// Components: parentPlacement | importer | depName | packageKey | hoistLevel | peerContext.
 type PlacementID struct {
-	Parent     string `json:"parent,omitempty"`
-	Importer   string `json:"importer"`
-	DepName    string `json:"depName"`
-	PackageKey string `json:"packageKey"`
-	HoistLevel int    `json:"hoistLevel"`
+	Parent      string `json:"parent,omitempty"`
+	Importer    string `json:"importer"`
+	DepName     string `json:"depName"`
+	PackageKey  string `json:"packageKey"`
+	HoistLevel  int    `json:"hoistLevel"`
+	PeerContext string `json:"peerContext,omitempty"`
 }
 
 // String returns a stable serialization for sorting and cycle detection.
 func (id PlacementID) String() string {
-	return id.Parent + "|" + id.Importer + "|" + id.DepName + "|" + id.PackageKey + "|" + itoa(id.HoistLevel)
+	return id.Parent + "|" + id.Importer + "|" + id.DepName + "|" + id.PackageKey + "|" + itoa(id.HoistLevel) + "|" + id.PeerContext
 }
 
 // Compare returns -1, 0, or 1 for deterministic placement ordering.

@@ -35,11 +35,17 @@ func Recover(ctx context.Context, ac *Context) (RecoverResult, error) {
 	}
 	switch doc.State {
 	case transaction.StateStaging, transaction.StateValidated:
+		if err := transaction.AcquireProjectLock(ctx, proj.Root, txn.ID); err != nil {
+			return out, err
+		}
 		if err := txn.Discard(); err != nil {
 			return out, err
 		}
 		out.Action = "discarded"
 	case transaction.StateCommitting:
+		if err := transaction.AcquireProjectLock(ctx, proj.Root, txn.ID); err != nil {
+			return out, err
+		}
 		if err := txn.Rollback(ctx); err != nil {
 			return out, err
 		}

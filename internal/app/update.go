@@ -27,6 +27,13 @@ func Update(ctx context.Context, ac *Context, opts UpdateOptions) (InstallResult
 			return err
 		}
 		updateParams.PriorOverrides = cloneOverrides(norm.Overrides)
+		if doc, err := readLockDocument(proj.Root); err == nil {
+			updateParams.PriorFingerprints = &resolver.PriorFingerprints{
+				OverridesFingerprint:      doc.Settings.OverridesFingerprint,
+				ResolverPolicyFingerprint: doc.Settings.ResolverPolicyFingerprint,
+				TargetPlatformFingerprint: doc.Settings.TargetPlatformFingerprint,
+			}
+		}
 		if opts.Latest {
 			if err := bumpDependencyRanges(ctx, ac, proj, opts.Targets); err != nil {
 				return err

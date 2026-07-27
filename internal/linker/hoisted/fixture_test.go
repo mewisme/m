@@ -25,6 +25,7 @@ type linkerFixture struct {
 	} `json:"packages"`
 	Edges []struct {
 		From string `json:"from"`
+		Name string `json:"name,omitempty"`
 		To   string `json:"to"`
 		Kind string `json:"kind"`
 	} `json:"edges"`
@@ -41,6 +42,7 @@ func TestHoistedLinkerFixtures(t *testing.T) {
 		"nested-bins",
 		"cyclic-graph",
 		"peer-context-instances",
+		"alias-target",
 	}
 	for _, name := range fixtures {
 		t.Run(name, func(t *testing.T) {
@@ -124,7 +126,11 @@ func graphFromFixture(fx *linkerFixture) (*graph.Graph, error) {
 		b = b.Package(id, "", "")
 	}
 	for _, e := range fx.Edges {
-		b = b.Edge(e.From, e.To, graph.DepKind(e.Kind), "")
+		name := e.Name
+		if name == "" {
+			name = graph.TargetNameFromKey(e.To)
+		}
+		b = b.EdgeEx(e.From, name, e.To, graph.DepKind(e.Kind), "", false)
 	}
 	return b.Build()
 }

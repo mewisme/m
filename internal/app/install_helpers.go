@@ -53,7 +53,7 @@ func resolveForUpdate(ctx context.Context, ac *Context, proj *project.Project, u
 	if err != nil {
 		return nil, err
 	}
-	pol, err := readLockPolicy(proj.Root)
+	pol, fps, err := readLockPolicyAndFingerprints(proj.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -70,25 +70,31 @@ func resolveForUpdate(ctx context.Context, ac *Context, proj *project.Project, u
 		UpdateTargets:     u.Targets,
 		IncrementalUpdate: true,
 		PriorOverrides:    u.PriorOverrides,
+		PriorFingerprints: fps,
 		Policy:            pol,
 	})
 }
 
-func readLockPolicy(root string) (*policy.Policy, error) {
+func readLockPolicyAndFingerprints(root string) (*policy.Policy, *resolver.PriorFingerprints, error) {
 	path := LockPath(root)
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			p := policy.Policy{StrictPeerDependencies: true}
-			return &p, nil
+			return &p, nil, nil
 		}
-		return nil, apperr.Wrap(apperr.IO, "app.update", path, err)
+		return nil, nil, apperr.Wrap(apperr.IO, "app.update", path, err)
 	}
 	doc, err := readLockDocument(root)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	p := doc.Settings.Policy
-	return &p, nil
+	fps := &resolver.PriorFingerprints{
+		OverridesFingerprint:      doc.Settings.OverridesFingerprint,
+		ResolverPolicyFingerprint: doc.Settings.ResolverPolicyFingerprint,
+		TargetPlatformFingerprint: doc.Settings.TargetPlatformFingerprint,
+	}
+	return &p, fps, nil
 }
 
 func readLockHints(ctx context.Context, ac *Context, proj *project.Project) (*graph.Graph, error) {

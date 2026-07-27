@@ -36,25 +36,21 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integ
 		if err := s.VerifyPackage(ctx, key); err == nil {
 			return key, nil
 		}
-		_ = quarantinePackage(dest)
-	} else if err != nil && !os.IsNotExist(err) {
-		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
 	}
 
-	release, err := acquireImportLock(dest)
+	release, err := acquireImportLock(ctx, s.Root, key)
 	if err != nil {
 		return PackageKey{}, err
 	}
-	defer func() {
-		release()
-		clearImportSlot(dest)
-	}()
+	defer release()
 
 	if st, err := os.Stat(dest); err == nil && st.IsDir() {
 		if err := s.VerifyPackage(ctx, key); err == nil {
 			return key, nil
 		}
 		_ = quarantinePackage(dest)
+	} else if err != nil && !os.IsNotExist(err) {
+		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
 	}
 
 	if err := os.MkdirAll(filepath.Join(s.Root, "packages"), 0o755); err != nil {
@@ -104,7 +100,6 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integ
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
 	}
-	clearImportSlot(dest)
 	if err := os.Rename(stage, dest); err != nil {
 		if st, statErr := os.Stat(dest); statErr == nil && st.IsDir() {
 			if verifyErr := s.VerifyPackage(ctx, key); verifyErr == nil {
@@ -112,6 +107,10 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath, integ
 			}
 		}
 		return PackageKey{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
+	}
+
+	if err := s.VerifyPackage(ctx, key); err != nil {
+		return PackageKey{}, err
 	}
 
 	size, _ := dirSize(dest)

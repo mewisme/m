@@ -97,6 +97,34 @@ ranges (`internal/semver`).
 make fuzz-smoke
 ```
 
+## Stabilization pass 2 suites (0017–0020)
+
+| Area | Package / path | What it proves |
+|---|---|---|
+| Project lock contention | `internal/transaction/lock_proc_test.go` | 20-process exclusive lock, stale recovery, ctx cancel |
+| Crash recovery | `internal/transaction/inject_test.go`, `tests/integration/txn_inject_test.go`, `tests/integration/txn_crash_test.go` | Kill-boundary recovery, idempotent `m recover` |
+| Store import locks | `internal/store/import_proc_test.go` | External `.locks/<algo>/<hex>.lock`, GC safety |
+| Tree manifest security | `internal/store/treemanifest_security_test.go` | Bidirectional verify, hostile manifests, legacy re-import |
+| Graph aliases | `internal/graph/alias_test.go`, `fixtures/resolver/aliases/` | `Edge.Name` round-trip |
+| Peer nearest + instances | `internal/resolver/peers_nearest_test.go`, `peers_instances_test.go` | Nearest provider, dual peer-context nodes |
+| Incremental update | `internal/resolver/incremental_diff_test.go` | Edge-keyed closure, fingerprint drift |
+| Path guards | `internal/fsx`, `internal/transaction/paths_test.go` | Ancestor symlink/junction rejection |
+| Registry cancel | `internal/registry/bounded_test.go` | `Packument` / `Packuments` ctx cancellation |
+| Isolated linker | `internal/linker/isolated/fixture_test.go`, `tests/integration/isolated_test.go` | StoreID, phantom `require()` |
+
+Cross-process tests use file-based coordination and bounded timeouts; they may be
+slower on shared CI runners.
+
+Race checks (when CGO enabled):
+
+```powershell
+$env:CGO_ENABLED = "1"
+go test -race ./internal/transaction/... ./internal/store/... ./internal/resolver/... -count=1
+```
+
+On Windows without CGO, race builds are skipped; concurrency is covered by
+cross-process lock/import tests instead.
+
 ## Failure injection
 
 - `FaultyRoundTripper` — network cut after N requests

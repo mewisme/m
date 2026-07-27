@@ -89,8 +89,7 @@ func PruneCandidates(s *PackageStore, refs map[string]struct{}) ([]PackageKey, e
 		if _, ok := refs[key.Integrity()]; ok {
 			continue
 		}
-		pkgDir := s.PackagePath(key)
-		if HasImportLock(pkgDir) {
+		if HasImportLock(s, key) {
 			continue
 		}
 		candidates = append(candidates, key)

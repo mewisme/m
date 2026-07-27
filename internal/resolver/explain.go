@@ -11,6 +11,13 @@ import (
 	"github.com/mewisme/m/internal/semver"
 )
 
+// PeerSearchStep records one environment searched during peer provider lookup.
+type PeerSearchStep struct {
+	Environment string               `json:"environment"`
+	Candidates  []string             `json:"candidates,omitempty"`
+	Rejected    []CandidateRejection `json:"rejected,omitempty"`
+}
+
 // CandidateRejection records a version considered but rejected for a peer range.
 type CandidateRejection struct {
 	Version string `json:"version,omitempty"`
@@ -48,22 +55,65 @@ func PeerConflictFromError(err error) (PeerConflict, bool) {
 
 // BuildPeerConflictTree builds a human/machine conflict tree for a peer failure.
 func BuildPeerConflictTree(conf PeerConflict, prior *graph.Graph) ConflictTree {
-	candidates, rejected := peerCandidateAnalysis(prior, conf.Peer, conf.Range)
-	tree := ConflictTree{
-		Peer: conf.Peer,
-		Root: ConflictNode{
-			Constraint:        conf.Peer + "@" + conf.Range,
-			RequiringPackage:  conf.Package,
-			Importer:          conf.Importer,
-			SearchPath:        append([]string(nil), conf.SearchPath...),
-			Candidates:        candidates,
-			Rejected:          rejected,
-			AutoInstallPolicy: conf.AutoInstallPolicy,
-			Optional:          conf.Optional,
-			Remediation:       peerRemediation(conf),
-		},
+	root := ConflictNode{
+		Constraint:        conf.Peer + "@" + conf.Range,
+		RequiringPackage:  conf.Package,
+		Importer:          conf.Importer,
+		SearchPath:        append([]string(nil), conf.SearchPath...),
+		AutoInstallPolicy: conf.AutoInstallPolicy,
+		Optional:          conf.Optional,
+		Remediation:       peerRemediation(conf),
 	}
-	return tree
+	if conf.Incompatible && conf.FoundVersion != "" {
+		root.Rejected = []CandidateRejection{{Version: conf.FoundVersion, Reason: "range mismatch (nearest provider)"}}
+	}
+	root.Children = conflictChildrenFromSteps(conf)
+	if len(root.Children) == 0 {
+		candidates, rejected := peerCandidateAnalysis(prior, conf.Peer, conf.Range)
+		root.Candidates = candidates
+		root.Rejected = rejected
+	}
+	return ConflictTree{Peer: conf.Peer, Root: root}
+}
+
+func conflictChildrenFromSteps(conf PeerConflict) []ConflictNode {
+	if len(conf.SearchSteps) == 0 {
+		return nil
+	}
+	children := make([]ConflictNode, 0, len(conf.SearchPath))
+	for i, env := range conf.SearchPath {
+		ancestry := ConflictNode{
+			Constraint: "ancestry: " + env,
+			Importer:   env,
+		}
+		if i < len(conf.SearchSteps) {
+			step := conf.SearchSteps[i]
+			envNode := ConflictNode{
+				Constraint:        "environment: " + step.Environment,
+				Importer:          step.Environment,
+				Candidates:        append([]string(nil), step.Candidates...),
+				Rejected:          append([]CandidateRejection(nil), step.Rejected...),
+				Optional:          conf.Optional,
+				AutoInstallPolicy: conf.AutoInstallPolicy,
+			}
+			if conf.StrictPeers {
+				envNode.Constraint += " (strict peers)"
+			}
+			ancestry.Children = []ConflictNode{envNode}
+		}
+		children = append(children, ancestry)
+	}
+	for _, step := range conf.SearchSteps[len(conf.SearchPath):] {
+		children = append(children, ConflictNode{
+			Constraint:        "environment: " + step.Environment,
+			Importer:          step.Environment,
+			Candidates:        append([]string(nil), step.Candidates...),
+			Rejected:          append([]CandidateRejection(nil), step.Rejected...),
+			Optional:          conf.Optional,
+			AutoInstallPolicy: conf.AutoInstallPolicy,
+		})
+	}
+	return children
 }
 
 func peerRemediation(conf PeerConflict) string {

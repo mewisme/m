@@ -12,13 +12,12 @@ import (
 )
 
 // reuseKey identifies a prior resolution edge for incremental pin reuse.
-// importer + edge + prior package key + peer-provider context + override hash + policy fingerprint.
+// importer + edge name + kind + range + peer context + override hash + policy fingerprint.
 type reuseKey struct {
 	importer     string
 	depName      string
 	kind         graph.DepKind
 	rangeSpec    string
-	priorParent  string
 	peerContext  string
 	overrideHash string
 	policyFP     string
@@ -34,8 +33,6 @@ func (k reuseKey) String() string {
 	b.WriteByte(0)
 	b.WriteString(k.rangeSpec)
 	b.WriteByte(0)
-	b.WriteString(k.priorParent)
-	b.WriteByte(0)
 	b.WriteString(k.peerContext)
 	b.WriteByte(0)
 	b.WriteString(k.overrideHash)
@@ -44,61 +41,49 @@ func (k reuseKey) String() string {
 	return b.String()
 }
 
-// BuildUpdateClosure returns package names that must be re-resolved for an update run.
+type pinContext struct {
+	importer    string
+	depName     string
+	kind        graph.DepKind
+	rangeSpec   string
+	peerContext string
+}
+
+// BuildUpdateClosure returns package instance keys that must be re-resolved for an update run.
 func BuildUpdateClosure(targets []string, prior *graph.Graph, m *manifest.Manifest) map[string]struct{} {
 	return buildUpdateClosure(targets, prior, m)
 }
 
-// buildUpdateClosure returns package names that must be re-resolved (not pinned from prior).
-// Seeds are UpdateTargets, or all direct manifest dependencies when targets is empty.
-// The closure includes each seed and packages reachable from prior lock edges below them.
+// buildUpdateClosure returns package instance keys that must be re-resolved (not pinned from prior).
+// Seeds are UpdateTargets (by exposed edge name), or all direct manifest dependencies when targets is empty.
+// The closure includes each seeded package key and descendants reachable via prior graph edges.
 func buildUpdateClosure(targets []string, prior *graph.Graph, m *manifest.Manifest) map[string]struct{} {
 	closure := map[string]struct{}{}
 	if prior == nil || m == nil {
 		return closure
 	}
-	seeds := map[string]struct{}{}
+
+	targetSet := map[string]struct{}{}
 	if len(targets) == 0 {
 		for _, d := range m.Dependencies {
 			if d.Kind == manifest.DepPeer {
 				continue
 			}
-			seeds[d.Name] = struct{}{}
+			targetSet[d.Name] = struct{}{}
 		}
 	} else {
 		for _, t := range targets {
-			seeds[t] = struct{}{}
+			targetSet[t] = struct{}{}
 		}
 	}
-	for name := range seeds {
-		closure[name] = struct{}{}
-	}
 
-	importers := importerIDs(prior)
-	adj := make(map[string][]string, len(prior.Edges))
-	for _, e := range prior.Edges {
-		adj[e.From] = append(adj[e.From], e.To)
-	}
-
+	queue := make([]string, 0)
 	seen := map[string]struct{}{}
-	var queue []string
-	for _, p := range prior.Packages {
-		if _, ok := seeds[p.ID.Name]; !ok {
-			continue
-		}
-		key := p.ID.Key()
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		queue = append(queue, key)
-	}
 	for _, e := range prior.Edges {
-		if _, ok := importers[graph.ImporterID(e.From)]; !ok {
+		if e.From != string(graph.RootImporter) {
 			continue
 		}
-		id := parsePackageKey(e.To)
-		if _, ok := seeds[id.Name]; !ok {
+		if _, ok := targetSet[e.Name]; !ok {
 			continue
 		}
 		if _, ok := seen[e.To]; ok {
@@ -106,50 +91,61 @@ func buildUpdateClosure(targets []string, prior *graph.Graph, m *manifest.Manife
 		}
 		seen[e.To] = struct{}{}
 		queue = append(queue, e.To)
+		closure[e.To] = struct{}{}
 	}
 
 	for len(queue) > 0 {
 		key := queue[0]
 		queue = queue[1:]
-		id := parsePackageKey(key)
-		closure[id.Name] = struct{}{}
-		for _, to := range adj[key] {
-			if _, ok := seen[to]; ok {
+		for _, e := range prior.Edges {
+			if e.From != key {
 				continue
 			}
-			seen[to] = struct{}{}
-			queue = append(queue, to)
+			if _, ok := closure[e.To]; ok {
+				continue
+			}
+			closure[e.To] = struct{}{}
+			queue = append(queue, e.To)
 		}
 	}
 	return closure
+}
+
+func peerContextForEnv(envKeys []string) string {
+	if len(envKeys) == 0 {
+		return ""
+	}
+	parts := make([]string, len(envKeys))
+	for i, k := range envKeys {
+		id := parsePackageKey(k)
+		if s := id.PeerProviderContext.String(); s != "" {
+			parts[i] = s
+			continue
+		}
+		parts[i] = k
+	}
+	return strings.Join(parts, ",")
 }
 
 func buildReuseIndex(prior *graph.Graph, overrideHash, policyFP string) map[string]string {
 	if prior == nil {
 		return nil
 	}
-	importers := importerIDs(prior)
 	pkgByKey := map[string]graph.Package{}
 	for _, p := range prior.Packages {
 		pkgByKey[p.ID.Key()] = p
 	}
 	out := make(map[string]string, len(prior.Edges))
 	for _, e := range prior.Edges {
-		toID := parsePackageKey(e.To)
 		peerCtx := ""
 		if pkg, ok := pkgByKey[e.To]; ok {
 			peerCtx = pkg.ID.PeerProviderContext.String()
 		}
-		priorParent := e.From
-		if _, ok := importers[graph.ImporterID(e.From)]; ok {
-			priorParent = e.From
-		}
 		k := reuseKey{
 			importer:     e.From,
-			depName:      toID.Name,
+			depName:      e.Name,
 			kind:         e.Kind,
 			rangeSpec:    e.Range,
-			priorParent:  priorParent,
 			peerContext:  peerCtx,
 			overrideHash: overrideHash,
 			policyFP:     policyFP,
@@ -158,6 +154,15 @@ func buildReuseIndex(prior *graph.Graph, overrideHash, policyFP string) map[stri
 	}
 	return out
 }
+
+// OverridesFingerprint hashes an overrides map for lockfile settings.
+func OverridesFingerprint(m map[string]string) string { return hashOverrides(m) }
+
+// PolicyFingerprint hashes resolver policy for lockfile settings.
+func PolicyFingerprint(pol *policy.Policy) string { return policyFingerprint(pol) }
+
+// TargetPlatformFingerprint hashes the install target platform for lockfile settings.
+func TargetPlatformFingerprint(t Target) string { return targetPlatformFingerprint(t) }
 
 func hashOverrides(m map[string]string) string {
 	if len(m) == 0 {
@@ -191,61 +196,69 @@ func policyFingerprint(pol *policy.Policy) string {
 	return hex.EncodeToString(sum[:8])
 }
 
+func targetPlatformFingerprint(t Target) string {
+	sum := sha256.Sum256([]byte(t.OS + "\x00" + t.CPU + "\x00" + t.Libc))
+	return hex.EncodeToString(sum[:8])
+}
+
 // mergeUnchangedSubgraph copies packages and edges outside the update closure from prior
 // so targeted updates keep unrelated subgraph byte-stable.
 func mergeUnchangedSubgraph(prior, resolved *graph.Graph, closure map[string]struct{}) (*graph.Graph, error) {
 	if prior == nil || resolved == nil || len(closure) == 0 {
 		return resolved, nil
 	}
+	names := closureNames(closure)
 	importers := importerIDs(prior)
-	preservedKeys := map[string]struct{}{}
-	for _, p := range prior.Packages {
-		if _, inClosure := closure[p.ID.Name]; inClosure {
-			continue
-		}
-		preservedKeys[p.ID.Key()] = struct{}{}
-	}
 
 	b := graph.NewBuilder()
 	for _, im := range resolved.Importers {
 		b.Importer(im.ID, im.Name)
 	}
 	for _, p := range prior.Packages {
-		if _, ok := preservedKeys[p.ID.Key()]; ok {
-			b.Package(p.ID, p.Integrity, p.TarballURL)
+		if _, in := names[p.ID.Name]; in {
+			continue
 		}
+		b.Package(p.ID, p.Integrity, p.TarballURL)
 	}
 	for _, p := range resolved.Packages {
-		if _, inClosure := closure[p.ID.Name]; !inClosure {
+		if _, in := names[p.ID.Name]; !in {
 			continue
 		}
 		b.Package(p.ID, p.Integrity, p.TarballURL)
 	}
 	for _, e := range prior.Edges {
-		if preservedEdge(e, closure, importers) {
-			b.EdgeEx(e.From, e.To, e.Kind, e.Range, e.Optional)
+		if preservedEdge(e, names, importers) {
+			b.EdgeEx(e.From, e.Name, e.To, e.Kind, e.Range, e.Optional)
 		}
 	}
 	for _, e := range resolved.Edges {
-		if preservedEdge(e, closure, importers) {
+		if preservedEdge(e, names, importers) {
 			continue
 		}
-		b.EdgeEx(e.From, e.To, e.Kind, e.Range, e.Optional)
+		b.EdgeEx(e.From, e.Name, e.To, e.Kind, e.Range, e.Optional)
 	}
 	return b.Build()
 }
 
-func preservedEdge(e graph.Edge, closure map[string]struct{}, importers map[graph.ImporterID]struct{}) bool {
+func closureNames(closure map[string]struct{}) map[string]struct{} {
+	out := make(map[string]struct{}, len(closure))
+	for k := range closure {
+		out[parsePackageKey(k).Name] = struct{}{}
+	}
+	return out
+}
+
+func preservedEdge(e graph.Edge, names map[string]struct{}, importers map[graph.ImporterID]struct{}) bool {
 	toName := parsePackageKey(e.To).Name
-	if _, inClosure := closure[toName]; inClosure {
+	if _, in := names[toName]; in {
 		return false
 	}
 	if _, ok := importers[graph.ImporterID(e.From)]; ok {
 		return true
 	}
 	fromName := parsePackageKey(e.From).Name
-	_, fromInClosure := closure[fromName]
-	return !fromInClosure
+	_, fromIn := names[fromName]
+	return !fromIn
 }
 
 // ExtractPackageSubgraph returns the package node and incident edges for one resolved name.
@@ -279,7 +292,7 @@ func extractPackageSubgraph(g *graph.Graph, pkgName string) (*graph.Graph, error
 	}
 	for _, e := range g.Edges {
 		if e.To == targetKey || e.From == targetKey {
-			b.EdgeEx(e.From, e.To, e.Kind, e.Range, e.Optional)
+			b.EdgeEx(e.From, e.Name, e.To, e.Kind, e.Range, e.Optional)
 		}
 	}
 	return b.Build()
@@ -306,8 +319,7 @@ func rootImporterSpecifiers(g *graph.Graph) map[string]string {
 		if e.From != string(graph.RootImporter) {
 			continue
 		}
-		id := parsePackageKey(e.To)
-		out[id.Name] = e.Range
+		out[e.Name] = e.Range
 	}
 	return out
 }
@@ -355,7 +367,20 @@ func prepareHints(opts ResolveOptions, m *manifest.Manifest) graphHints {
 					h.overrideChanged = true
 				}
 			}
-			h.policyFP = policyFingerprint(opts.Policy)
+			if pf := opts.PriorFingerprints; pf != nil {
+				if pf.OverridesFingerprint != "" && pf.OverridesFingerprint != hashOverrides(m.Overrides) {
+					h.overrideChanged = true
+				}
+				h.policyFP = policyFingerprint(opts.Policy)
+				if pf.ResolverPolicyFingerprint != "" && pf.ResolverPolicyFingerprint != h.policyFP {
+					h.policyDrift = true
+				}
+				if pf.TargetPlatformFingerprint != "" && pf.TargetPlatformFingerprint != targetPlatformFingerprint(CurrentTarget()) {
+					h.platformDrift = true
+				}
+			} else {
+				h.policyFP = policyFingerprint(opts.Policy)
+			}
 			h.reuseIndex = buildReuseIndex(opts.Prior, ovrHash, h.policyFP)
 		}
 	}

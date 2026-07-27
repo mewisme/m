@@ -83,6 +83,46 @@ func TestStoreIDDeterministicPeerDigest(t *testing.T) {
 	}
 }
 
+func TestStoreIDTruncatedPrefixHasDigest(t *testing.T) {
+	longName := strings.Repeat("a", 130)
+	id := graph.PackageID{Name: longName, Version: "1.0.0"}
+	got := isolated.StoreID(id)
+	if len(got) > 120 {
+		t.Fatalf("len=%d", len(got))
+	}
+	parts := strings.Split(got, "@")
+	if len(parts) < 2 {
+		t.Fatalf("expected digest suffix in %q", got)
+	}
+	digest := parts[len(parts)-1]
+	if len(digest) != 16 {
+		t.Fatalf("digest len=%d want 16 hex chars", len(digest))
+	}
+}
+
+func TestStoreIDCollisionDetection(t *testing.T) {
+	// Two distinct long names that share the same 120-char prefix must not collide after digest.
+	a := graph.PackageID{Name: "@" + strings.Repeat("a", 80) + "/pkg", Version: "1.0.0"}
+	b := graph.PackageID{Name: "@" + strings.Repeat("a", 80) + "/pkg2", Version: "1.0.0"}
+	sa := isolated.StoreID(a)
+	sb := isolated.StoreID(b)
+	if sa == sb {
+		t.Fatalf("collision: %q == %q", sa, sb)
+	}
+	err := isolated.CheckStoreIDCollisions([]graph.Package{{ID: a}, {ID: b}})
+	if err != nil {
+		t.Fatalf("unexpected collision error: %v", err)
+	}
+}
+
+func TestStoreIDReservedWindowsName(t *testing.T) {
+	id := graph.PackageID{Name: "CON", Version: "1.0.0"}
+	got := isolated.StoreID(id)
+	if strings.Contains(got, ":") || strings.Contains(got, `\`) {
+		t.Fatalf("unsafe chars in %q", got)
+	}
+}
+
 func TestStoreIDForbiddenCharsStripped(t *testing.T) {
 	id := graph.PackageID{Name: `weird<>:"/\|?*pkg`, Version: "1.0.0"}
 	got := isolated.StoreID(id)

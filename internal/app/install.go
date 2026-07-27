@@ -26,8 +26,9 @@ type InstallOptions struct {
 
 // UpdateResolveOptions selects incremental update resolve parameters.
 type UpdateResolveOptions struct {
-	Targets        []string
-	PriorOverrides map[string]string
+	Targets           []string
+	PriorOverrides    map[string]string
+	PriorFingerprints *resolver.PriorFingerprints
 }
 
 // InstallResult summarizes package changes.

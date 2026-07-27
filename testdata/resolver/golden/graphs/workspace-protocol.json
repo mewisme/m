@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "importers": [
     {
       "id": ".",
@@ -23,12 +23,14 @@
   "edges": [
     {
       "from": ".",
+      "name": "lib",
       "to": "lib@2.4.0",
       "kind": "prod",
       "range": "workspace:*"
     },
     {
       "from": "packages/app",
+      "name": "lib",
       "to": "lib@2.4.0",
       "kind": "prod",
       "range": "workspace:^"

@@ -117,9 +117,7 @@ func (s *resolveState) processWorkspace(item workItem) error {
 		return err
 	}
 
-	id := graph.PackageID{Name: member.Name, Version: version}
-	id.Normalize()
-	key := id.Key()
+	id, key := s.packageKeyForInstance(item, version, nil)
 
 	decision := ResolutionDecision{
 		Package:   item.name,
@@ -132,21 +130,21 @@ func (s *resolveState) processWorkspace(item workItem) error {
 	if item.spec != "" {
 		edgeRange = item.spec
 	}
-	s.b.EdgeEx(item.from, key, item.kind, edgeRange, false)
+	s.b.EdgeEx(item.from, item.display, key, item.kind, edgeRange, false)
 	s.recordProvides(item.from, item.display, key)
 
 	if _, ok := s.seenPkg[key]; ok {
 		return nil
 	}
-	if _, ok := s.resolving[key]; ok {
+	if _, ok := s.resolving[basePackageKey(member.Name, version)]; ok {
 		return nil
 	}
 	if len(s.seenPkg) >= maxPackages {
 		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
 			fmt.Sprintf("resolution package count exceeded %d", maxPackages))
 	}
-	s.resolving[key] = struct{}{}
-	defer delete(s.resolving, key)
+	s.resolving[basePackageKey(member.Name, version)] = struct{}{}
+	defer delete(s.resolving, basePackageKey(member.Name, version))
 
 	s.seenPkg[key] = struct{}{}
 	s.b.Package(id, "", "")

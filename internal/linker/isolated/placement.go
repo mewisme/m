@@ -66,7 +66,16 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 		placements = append(placements, linker.Placement{Key: pl.Key, DestDir: pl.ContentDir})
 
 		if rootDeps[pl.Key] {
-			aliasDest := filepath.Join(append([]string{nmRoot}, installSegments(packageNameFromKey(pl.Key))...)...)
+			edgeName := packageNameFromKey(pl.Key)
+			for _, e := range g.Edges {
+				if e.From == string(graph.RootImporter) && e.To == pl.Key {
+					if e.Name != "" {
+						edgeName = e.Name
+					}
+					break
+				}
+			}
+			aliasDest := filepath.Join(append([]string{nmRoot}, installSegments(edgeName)...)...)
 			cmds, err := linker.BinCommandsFromDir(src)
 			if err != nil {
 				return nil, err

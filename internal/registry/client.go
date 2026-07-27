@@ -41,9 +41,9 @@ type Client struct {
 }
 
 type flightCall struct {
-	wg  sync.WaitGroup
-	val *Packument
-	err error
+	done chan struct{}
+	val  *Packument
+	err  error
 }
 
 // NewClient constructs a Client. BaseURL is the default registry when not overridden per call.
@@ -113,16 +113,19 @@ func (c *Client) Packument(ctx context.Context, registryBase, name string) (*Pac
 	c.flightMu.Lock()
 	if call, ok := c.flight[key]; ok {
 		c.flightMu.Unlock()
-		call.wg.Wait()
-		return call.val, call.err
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-call.done:
+			return call.val, call.err
+		}
 	}
-	call := &flightCall{}
-	call.wg.Add(1)
+	call := &flightCall{done: make(chan struct{})}
 	c.flight[key] = call
 	c.flightMu.Unlock()
 
 	call.val, call.err = c.packumentLocked(ctx, registryBase, origin, name)
-	call.wg.Done()
+	close(call.done)
 
 	c.flightMu.Lock()
 	delete(c.flight, key)
@@ -149,6 +152,9 @@ func (c *Client) Packuments(ctx context.Context, registryBase string, names []st
 		go func() {
 			defer wg.Done()
 			for name := range work {
+				if ctx.Err() != nil {
+					return
+				}
 				p, err := c.Packument(ctx, registryBase, name)
 				mu.Lock()
 				if err != nil {
@@ -163,10 +169,19 @@ func (c *Client) Packuments(ctx context.Context, registryBase string, names []st
 		}()
 	}
 	for _, name := range names {
-		work <- name
+		select {
+		case <-ctx.Done():
+			close(work)
+			wg.Wait()
+			return out, ctx.Err()
+		case work <- name:
+		}
 	}
 	close(work)
 	wg.Wait()
+	if ctx.Err() != nil {
+		return out, ctx.Err()
+	}
 	if firstErr != nil {
 		return out, firstErr
 	}

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "importers": [
     {
       "id": ".",
@@ -25,12 +25,14 @@
   "edges": [
     {
       "from": ".",
+      "name": "shared",
       "to": "shared@1.0.0",
       "kind": "prod",
       "range": "^1.0.0"
     },
     {
       "from": "packages/a",
+      "name": "shared",
       "to": "shared@1.0.0",
       "kind": "prod",
       "range": "^1.0.0"

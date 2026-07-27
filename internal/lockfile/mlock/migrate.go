@@ -9,6 +9,7 @@ import (
 )
 
 const lockfileV1 = 1
+const lockfileV2 = 2
 
 // v1PeerRef is the deprecated range-based peer identity from lockfile v1.
 type v1PeerRef struct {
@@ -33,6 +34,10 @@ func Migrate(doc *Document) error {
 	}
 	switch doc.LockfileVersion {
 	case LockfileVersion:
+		return nil
+	case lockfileV2:
+		migrateEdgesV2ToV3(doc)
+		doc.LockfileVersion = LockfileVersion
 		return nil
 	case lockfileV1:
 		return rejectV1PeerRangeLock(doc)
@@ -68,4 +73,10 @@ func hasV1PeerRangeIdentity(packages []graph.Package) bool {
 		}
 	}
 	return false
+}
+
+func migrateEdgesV2ToV3(doc *Document) {
+	for i := range doc.Edges {
+		graph.NormalizeEdge(&doc.Edges[i])
+	}
 }

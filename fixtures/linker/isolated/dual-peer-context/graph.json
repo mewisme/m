@@ -1,0 +1,26 @@
+{
+  "packages": [
+    {"name": "react", "version": "18.0.0"},
+    {"name": "react", "version": "17.0.0"},
+    {"name": "react-dom", "version": "18.0.0", "peerProviders": [
+      {"name": "react", "version": "18.0.0", "key": "react@18.0.0"}
+    ]},
+    {"name": "react-dom", "version": "18.0.0", "peerProviders": [
+      {"name": "react", "version": "17.0.0", "key": "react@17.0.0"}
+    ]},
+    {"name": "pkg-a", "version": "1.0.0"},
+    {"name": "pkg-b", "version": "1.0.0"}
+  ],
+  "edges": [
+    {"from": ".", "to": "pkg-a@1.0.0", "kind": "prod"},
+    {"from": ".", "to": "pkg-b@1.0.0", "kind": "prod"},
+    {"from": "pkg-a@1.0.0", "to": "react-dom@18.0.0#react@18.0.0", "kind": "prod"},
+    {"from": "pkg-b@1.0.0", "to": "react-dom@18.0.0#react@17.0.0", "kind": "prod"},
+    {"from": "react-dom@18.0.0#react@18.0.0", "to": "react@18.0.0", "kind": "peer"},
+    {"from": "react-dom@18.0.0#react@17.0.0", "to": "react@17.0.0", "kind": "peer"}
+  ],
+  "expectDistinctStoreIDs": [
+    "react-dom@18.0.0#react@18.0.0",
+    "react-dom@18.0.0#react@17.0.0"
+  ]
+}

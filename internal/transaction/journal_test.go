@@ -16,7 +16,7 @@ func TestJournalRoundTripGolden(t *testing.T) {
 		ProjectRoot:   "/proj",
 		State:         transaction.StateCommitted,
 		Plan: []transaction.Op{
-			{Kind: transaction.OpRename, Path: "node_modules", Backup: "stage/node_modules", Progress: transaction.ProgressApplied},
+			{Kind: transaction.OpRename, Path: "node_modules", Backup: "stage/node_modules", Progress: transaction.ProgressApplied, Phase: transaction.PhaseApplied},
 		},
 		Ops: []transaction.Op{
 			{Kind: transaction.OpBackup, Path: "m.lock", Backup: "backups/m.lock", Progress: transaction.ProgressApplied,

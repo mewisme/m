@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/fsx"
 	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/store"
 )
@@ -30,6 +31,9 @@ func writeStagedStoreManifest(stageDir string, g *graph.Graph) error {
 func writeStoreManifestAt(path string, g *graph.Graph) error {
 	if g == nil {
 		return nil
+	}
+	if err := guardStoreManifestPath(path); err != nil {
+		return err
 	}
 	keys := make([]string, 0, len(g.Packages))
 	seen := map[string]struct{}{}
@@ -67,6 +71,9 @@ func writeStoreManifestAt(path string, g *graph.Graph) error {
 // ReadStoreManifest loads .mew/store-manifest.json when present.
 func ReadStoreManifest(projectRoot string) (*StoreManifest, error) {
 	path := storeManifestPath(projectRoot)
+	if err := guardStoreManifestPath(path); err != nil {
+		return nil, err
+	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -87,4 +94,18 @@ func ReadStoreManifest(projectRoot string) (*StoreManifest, error) {
 // CollectReferencedIntegrities scans manifest files and active txn journals under roots.
 func CollectReferencedIntegrities(roots []string) (map[string]struct{}, error) {
 	return store.CollectReferencedIntegrities(roots)
+}
+
+func guardStoreManifestPath(path string) error {
+	dir := filepath.Dir(path)
+	projectRoot := filepath.Dir(dir)
+	absRoot, err := filepath.Abs(projectRoot)
+	if err != nil {
+		return apperr.Wrap(apperr.IO, "app.store-manifest", projectRoot, err)
+	}
+	target, err := filepath.Abs(path)
+	if err != nil {
+		return apperr.Wrap(apperr.IO, "app.store-manifest", path, err)
+	}
+	return fsx.GuardAncestors(absRoot, target)
 }

@@ -14,13 +14,17 @@ import (
 
 // PeerConflict describes an unsatisfied peer dependency.
 type PeerConflict struct {
-	Package           string   `json:"package"`
-	Peer              string   `json:"peer"`
-	Range             string   `json:"range"`
-	Importer          string   `json:"importer,omitempty"`
-	SearchPath        []string `json:"searchPath,omitempty"`
-	Optional          bool     `json:"optional,omitempty"`
-	AutoInstallPolicy bool     `json:"autoInstallPolicy,omitempty"`
+	Package           string           `json:"package"`
+	Peer              string           `json:"peer"`
+	Range             string           `json:"range"`
+	Importer          string           `json:"importer,omitempty"`
+	SearchPath        []string         `json:"searchPath,omitempty"`
+	SearchSteps       []PeerSearchStep `json:"searchSteps,omitempty"`
+	Optional          bool             `json:"optional,omitempty"`
+	AutoInstallPolicy bool             `json:"autoInstallPolicy,omitempty"`
+	StrictPeers       bool             `json:"strictPeers,omitempty"`
+	Incompatible      bool             `json:"incompatible,omitempty"`
+	FoundVersion      string           `json:"foundVersion,omitempty"`
 }
 
 type peerConflictErr struct {
@@ -32,23 +36,106 @@ func (e *peerConflictErr) Error() string {
 }
 
 func (c PeerConflict) Error() string {
+	if c.Incompatible {
+		return fmt.Sprintf("incompatible peer %s@%q (found %s) required by %s", c.Peer, c.Range, c.FoundVersion, c.Package)
+	}
 	return fmt.Sprintf("missing peer %s@%q required by %s", c.Peer, c.Range, c.Package)
 }
 
-func peerConflictError(pkg, peer, rng, importer string, searchPath []string, optional, autoInstall bool) error {
+func peerConflictError(pkg, peer, rng, importer string, searchPath []string, steps []PeerSearchStep, optional, autoInstall, strict bool) error {
 	conflict := PeerConflict{
 		Package:           pkg,
 		Peer:              peer,
 		Range:             rng,
 		Importer:          importer,
 		SearchPath:        append([]string(nil), searchPath...),
+		SearchSteps:       append([]PeerSearchStep(nil), steps...),
 		Optional:          optional,
 		AutoInstallPolicy: autoInstall,
+		StrictPeers:       strict,
 	}
 	return apperr.Wrap(apperr.Resolve, "resolver.peer", pkg, &peerConflictErr{conflict})
 }
 
+func (s *resolveState) peerConflict(pkg, peer, rng, importer string, envKeys []string, optional, autoInstall, strict bool) error {
+	searchPath := s.peerSearchPath(importer, envKeys)
+	steps := s.peerSearchSteps(peer, rng, importer, envKeys)
+	return peerConflictError(pkg, peer, rng, importer, searchPath, steps, optional, autoInstall, strict)
+}
+
+func (s *resolveState) peerSearchSteps(peerName, rng, from string, envKeys []string) []PeerSearchStep {
+	contexts := make([]string, 0, 2+len(envKeys))
+	contexts = append(contexts, from)
+	for i := len(envKeys) - 1; i >= 0; i-- {
+		contexts = append(contexts, envKeys[i])
+	}
+	if from != string(graph.RootImporter) && s.wsMemberPaths != nil {
+		if _, ok := s.wsMemberPaths[from]; ok {
+			contexts = append(contexts, string(graph.RootImporter))
+		}
+	}
+	steps := make([]PeerSearchStep, 0, len(contexts))
+	for _, ctx := range contexts {
+		step := PeerSearchStep{Environment: ctx}
+		deps, ok := s.provides[ctx]
+		if !ok {
+			step.Candidates = []string{"(no providers in context)"}
+			steps = append(steps, step)
+			continue
+		}
+		dep, ok := deps[peerName]
+		if !ok {
+			step.Candidates = []string{"(peer not provided)"}
+			steps = append(steps, step)
+			continue
+		}
+		ok, err := semver.Satisfies(dep.version, rng)
+		if err != nil {
+			step.Rejected = append(step.Rejected, CandidateRejection{Version: dep.version, Reason: "invalid version"})
+		} else if !ok {
+			step.Rejected = append(step.Rejected, CandidateRejection{Version: dep.version, Reason: "range mismatch"})
+		} else {
+			step.Candidates = []string{dep.version}
+		}
+		steps = append(steps, step)
+	}
+	return steps
+}
+
+func peerIncompatibleError(pkg, peer, rng, foundVersion, importer string, searchPath []string, steps []PeerSearchStep) error {
+	conflict := PeerConflict{
+		Package:      pkg,
+		Peer:         peer,
+		Range:        rng,
+		Importer:     importer,
+		SearchPath:   append([]string(nil), searchPath...),
+		SearchSteps:  append([]PeerSearchStep(nil), steps...),
+		Incompatible: true,
+		FoundVersion: foundVersion,
+		StrictPeers:  true,
+	}
+	return apperr.Wrap(apperr.Resolve, "resolver.peer", pkg, &peerConflictErr{conflict})
+}
+
+func (s *resolveState) peerIncompatible(pkg, peer, rng, foundVersion, importer string, envKeys []string) error {
+	searchPath := s.peerSearchPath(importer, envKeys)
+	steps := s.peerSearchSteps(peer, rng, importer, envKeys)
+	return peerIncompatibleError(pkg, peer, rng, foundVersion, importer, searchPath, steps)
+}
+
+type peerLookupStatus int
+
+const (
+	peerAbsent peerLookupStatus = iota
+	peerSatisfied
+	peerIncompatibleNearest
+)
+
 func (s *resolveState) peerSearchPath(from string, envKeys []string) []string {
+	return s.peerSearchContexts(from, envKeys)
+}
+
+func (s *resolveState) peerSearchContexts(from string, envKeys []string) []string {
 	path := make([]string, 0, 2+len(envKeys))
 	path = append(path, from)
 	for i := len(envKeys) - 1; i >= 0; i-- {
@@ -89,20 +176,8 @@ func (s *resolveState) recordProvides(from, depName, key string) {
 	s.provides[from][depName] = providedDep{key: key, version: id.Version}
 }
 
-func (s *resolveState) findPeerProvider(peerName, rng, from string, envKeys []string) (graph.PeerProvider, bool) {
-	contexts := make([]string, 0, 2+len(envKeys))
-	contexts = append(contexts, from)
-	for i := len(envKeys) - 1; i >= 0; i-- {
-		contexts = append(contexts, envKeys[i])
-	}
-	if from != string(graph.RootImporter) && s.wsMemberPaths != nil {
-		if _, ok := s.wsMemberPaths[from]; ok {
-			contexts = append(contexts, string(graph.RootImporter))
-		}
-	}
-	var best graph.PeerProvider
-	found := false
-	for _, ctx := range contexts {
+func (s *resolveState) lookupPeerProvider(peerName, rng, from string, envKeys []string) (graph.PeerProvider, peerLookupStatus) {
+	for _, ctx := range s.peerSearchContexts(from, envKeys) {
 		deps, ok := s.provides[ctx]
 		if !ok {
 			continue
@@ -112,16 +187,22 @@ func (s *resolveState) findPeerProvider(peerName, rng, from string, envKeys []st
 			continue
 		}
 		ok, err := semver.Satisfies(dep.version, rng)
-		if err != nil || !ok {
+		if err != nil {
 			continue
 		}
-		candidate := graph.PeerProvider{Name: peerName, Version: dep.version, Key: dep.key}
-		if !found || versionGT(candidate.Version, best.Version) {
-			best = candidate
-			found = true
+		if ok {
+			return graph.PeerProvider{Name: peerName, Version: dep.version, Key: dep.key}, peerSatisfied
+		}
+		if s.pol.StrictPeerDependencies {
+			return graph.PeerProvider{Name: peerName, Version: dep.version, Key: dep.key}, peerIncompatibleNearest
 		}
 	}
-	return best, found
+	return graph.PeerProvider{}, peerAbsent
+}
+
+func (s *resolveState) findPeerProvider(peerName, rng, from string, envKeys []string) (graph.PeerProvider, bool) {
+	prov, st := s.lookupPeerProvider(peerName, rng, from, envKeys)
+	return prov, st == peerSatisfied
 }
 
 func (s *resolveState) ensurePeersResolved(pkgName string, meta *registry.VersionMeta, item workItem) error {
@@ -132,8 +213,12 @@ func (s *resolveState) ensurePeersResolved(pkgName string, meta *registry.Versio
 		if peerOptional(meta, peer.name) {
 			continue
 		}
-		if _, ok := s.findPeerProvider(peer.name, peer.rng, item.from, item.envKeys); ok {
+		prov, st := s.lookupPeerProvider(peer.name, peer.rng, item.from, item.envKeys)
+		switch st {
+		case peerSatisfied:
 			continue
+		case peerIncompatibleNearest:
+			return s.peerIncompatible(pkgName, peer.name, peer.rng, prov.Version, item.from, item.envKeys)
 		}
 		if s.peerPending(peer.name, item) {
 			continue
@@ -149,15 +234,15 @@ func (s *resolveState) ensurePeersResolved(pkgName string, meta *registry.Versio
 			continue
 		}
 		if s.pol.StrictPeerDependencies {
-			return peerConflictError(pkgName, peer.name, peer.rng, item.from, s.peerSearchPath(item.from, item.envKeys), false, s.pol.AutoInstallPeers)
+			return s.peerConflict(pkgName, peer.name, peer.rng, item.from, item.envKeys, false, s.pol.AutoInstallPeers, true)
 		}
 	}
 	return nil
 }
 
 func (s *resolveState) finalizePeerProviderContexts() {
-	keys := make([]string, 0, len(s.pkgPeers))
-	for k := range s.pkgPeers {
+	keys := make([]string, 0, len(s.seenPkg))
+	for k := range s.seenPkg {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -179,10 +264,8 @@ func (s *resolveState) finalizePeerProviderContexts() {
 			}
 		}
 		ppc.Sort()
-		if len(ppc) == 0 {
-			continue
-		}
 		base := parsePackageKey(key)
+		base.PeerProviderContext = stripProvisionalProviders(base.PeerProviderContext)
 		id := graph.PackageID{Name: base.Name, Version: base.Version, PeerProviderContext: ppc}
 		id.Normalize()
 		newKey := id.Key()
@@ -208,6 +291,15 @@ func (s *resolveState) finalizePeerProviderContexts() {
 		}
 		delete(s.seenPkg, key)
 		s.seenPkg[newKey] = struct{}{}
+		for ik, graphKey := range s.pkgInstances {
+			if graphKey == key {
+				s.pkgInstances[ik] = newKey
+			}
+		}
+		if loc, ok := s.localSources[key]; ok {
+			delete(s.localSources, key)
+			s.localSources[newKey] = loc
+		}
 		for ctx, deps := range s.provides {
 			for name, dep := range deps {
 				if dep.key == key {
@@ -250,14 +342,23 @@ func (s *resolveState) validatePeers(pol *policy.Policy) error {
 			if opt != nil && opt[peerName] {
 				continue
 			}
-			if _, ok := s.findPeerProvider(peerName, peerRange, from, env); ok {
+			prov, st := s.lookupPeerProvider(peerName, peerRange, from, env)
+			switch st {
+			case peerSatisfied:
 				continue
+			case peerIncompatibleNearest:
+				if pol.AutoInstallPeers {
+					continue
+				}
+				if pol.StrictPeerDependencies {
+					return s.peerIncompatible(id.Name, peerName, peerRange, prov.Version, from, env)
+				}
 			}
 			if pol.AutoInstallPeers {
 				continue
 			}
 			if pol.StrictPeerDependencies {
-				return peerConflictError(id.Name, peerName, peerRange, from, s.peerSearchPath(from, env), false, pol.AutoInstallPeers)
+				return s.peerConflict(id.Name, peerName, peerRange, from, env, false, pol.AutoInstallPeers, true)
 			}
 		}
 	}
@@ -342,12 +443,4 @@ func splitNameVersion(base string) (name, version string) {
 		return base, ""
 	}
 	return base[:at], base[at+1:]
-}
-
-func versionGT(a, b string) bool {
-	cmp, err := semver.Compare(a, b)
-	if err != nil {
-		return a > b
-	}
-	return cmp > 0
 }

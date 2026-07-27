@@ -16,9 +16,16 @@ func (g *Graph) Validate() error {
 	if g.SchemaVersion == 0 {
 		g.SchemaVersion = SchemaVersion
 	}
+	if g.SchemaVersion < SchemaVersion {
+		g.Migrate()
+	}
 	if g.SchemaVersion != SchemaVersion {
 		return apperr.New(apperr.Lockfile, "graph.validate", "graph",
 			fmt.Sprintf("unsupported schemaVersion %d", g.SchemaVersion))
+	}
+
+	for i := range g.Edges {
+		NormalizeEdge(&g.Edges[i])
 	}
 
 	for i := range g.Packages {
@@ -35,6 +42,9 @@ func (g *Graph) Validate() error {
 		a, b := g.Edges[i], g.Edges[j]
 		if a.From != b.From {
 			return a.From < b.From
+		}
+		if a.Name != b.Name {
+			return a.Name < b.Name
 		}
 		if a.To != b.To {
 			return a.To < b.To
@@ -75,6 +85,9 @@ func (g *Graph) Validate() error {
 	}
 
 	for _, e := range g.Edges {
+		if e.Name == "" {
+			return apperr.New(apperr.Lockfile, "graph.validate", "graph", "edge missing name")
+		}
 		if e.To == "" {
 			return apperr.New(apperr.Lockfile, "graph.validate", "graph", "edge missing to")
 		}

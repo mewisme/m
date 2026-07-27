@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "importers": [
     {
       "id": ".",
@@ -35,13 +35,15 @@
   "edges": [
     {
       "from": ".",
-      "to": "react-dom@18.2.0",
+      "name": "react",
+      "to": "react@18.2.0#react-dom@18.2.0",
       "kind": "prod",
       "range": "^18.0.0"
     },
     {
       "from": ".",
-      "to": "react@18.2.0#react-dom@18.2.0",
+      "name": "react-dom",
+      "to": "react-dom@18.2.0",
       "kind": "prod",
       "range": "^18.0.0"
     }

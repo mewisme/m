@@ -190,7 +190,9 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	}
 
 	if err := pruneSnapshots(ac, proj); err != nil {
-		return res, err
+		if ac != nil && ac.Reporter != nil {
+			ac.Reporter.Debug("snapshot prune failed", diagnostics.Attr{Key: "error", Value: err.Error()})
+		}
 	}
 
 	if err := txn.Finish(opts.KeepJournal); err != nil {
@@ -291,7 +293,7 @@ func writeStagedManifest(stage string, proj *project.Project) error {
 }
 
 func writeStagedLock(stage string, ac *Context, proj *project.Project, res *resolver.Resolution) error {
-	settings, err := mlock.SettingsFromEffective(ac.Config)
+	settings, err := mlock.SettingsWithFingerprints(ac.Config, proj.Normalized.Overrides)
 	if err != nil {
 		return err
 	}
@@ -328,7 +330,8 @@ func validateStagedHoisted(nm string, linkPlan *linker.Plan, g *graph.Graph) err
 	}
 	for from, tos := range children {
 		for _, toKey := range tos {
-			if err := validateReachableDep(nm, from, toKey, placed, byKey); err != nil {
+			depName := edgeNameFor(g, from, toKey)
+			if err := validateReachableDep(nm, from, toKey, depName, placed, byKey); err != nil {
 				return err
 			}
 		}
@@ -337,7 +340,6 @@ func validateStagedHoisted(nm string, linkPlan *linker.Plan, g *graph.Graph) err
 }
 
 func validateStagedIsolated(nm string, linkPlan *linker.Plan, g *graph.Graph) error {
-	children := childEdgesForValidate(g)
 	byKey := packagesByKey(g)
 
 	for _, pl := range linkPlan.Placements {
@@ -349,21 +351,24 @@ func validateStagedIsolated(nm string, linkPlan *linker.Plan, g *graph.Graph) er
 		if e.From != string(graph.RootImporter) {
 			continue
 		}
-		name := packageNameFromKey(e.To)
+		name := e.Name
+		if name == "" {
+			name = packageNameFromKey(e.To)
+		}
 		alias := filepath.Join(append([]string{nm}, installSegments(name)...)...)
 		if _, err := os.Stat(filepath.Join(alias, "package.json")); err != nil {
 			return apperr.Wrap(apperr.Integrity, "app.validate", e.To, err)
 		}
 	}
-	for from, tos := range children {
-		if from == string(graph.RootImporter) {
+	for _, e := range g.Edges {
+		if e.From == string(graph.RootImporter) {
 			continue
 		}
-		if err := validateIsolatedDeps(nm, from, tos, placedDestSet(linkPlan.Placements)); err != nil {
+		if err := validateIsolatedDep(nm, e, placedDestSet(linkPlan.Placements)); err != nil {
 			return err
 		}
 	}
-	return validateIsolatedBoundaries(nm, g, children)
+	return validateIsolatedBoundaries(nm, g)
 }
 
 func validatePlacementPackage(nm string, pl linker.Placement, byKey map[string]graph.Package) error {
@@ -391,7 +396,7 @@ func validatePlacementPackage(nm string, pl linker.Placement, byKey map[string]g
 	return nil
 }
 
-func validateReachableDep(nm, from, toKey string, placed map[string][]linker.Placement, byKey map[string]graph.Package) error {
+func validateReachableDep(nm, from, toKey, depName string, placed map[string][]linker.Placement, byKey map[string]graph.Package) error {
 	_ = byKey
 	targets, ok := placed[toKey]
 	if !ok || len(targets) == 0 {
@@ -404,7 +409,6 @@ func validateReachableDep(nm, from, toKey string, placed map[string][]linker.Pla
 	if !ok || len(parents) == 0 {
 		return apperr.New(apperr.Integrity, "app.validate.reachable", from, "missing parent placement")
 	}
-	depName := packageNameFromKey(toKey)
 	for _, parent := range parents {
 		nestedNM := filepath.Join(parent.DestDir, "node_modules")
 		candidate := filepath.Join(append([]string{nestedNM}, installSegments(depName)...)...)
@@ -443,17 +447,18 @@ func binNodeModulesForValidate(pkgInstallDir string) string {
 	}
 }
 
-func validateIsolatedDeps(nm, from string, tos []string, placed map[string]struct{}) error {
-	privateNM := filepath.Join(nm, ".pnpm", isolated.StoreIDFromKey(from), "node_modules")
-	for _, toKey := range tos {
-		depName := packageNameFromKey(toKey)
-		link := filepath.Join(append([]string{privateNM}, installSegments(depName)...)...)
-		if _, ok := placed[toKey]; !ok {
-			return apperr.New(apperr.Integrity, "app.validate.isolated", toKey, "missing placement")
-		}
-		if _, err := os.Stat(filepath.Join(link, "package.json")); err != nil {
-			return apperr.Wrap(apperr.Integrity, "app.validate.isolated", toKey, err)
-		}
+func validateIsolatedDep(nm string, e graph.Edge, placed map[string]struct{}) error {
+	privateNM := filepath.Join(nm, ".pnpm", isolated.StoreIDFromKey(e.From), "node_modules")
+	depName := e.Name
+	if depName == "" {
+		depName = packageNameFromKey(e.To)
+	}
+	link := filepath.Join(append([]string{privateNM}, installSegments(depName)...)...)
+	if _, ok := placed[e.To]; !ok {
+		return apperr.New(apperr.Integrity, "app.validate.isolated", e.To, "missing placement")
+	}
+	if _, err := os.Stat(filepath.Join(link, "package.json")); err != nil {
+		return apperr.Wrap(apperr.Integrity, "app.validate.isolated", e.To, err)
 	}
 	return nil
 }
@@ -518,8 +523,8 @@ func readPackageIdentity(pkgPath string) (name, version string, err error) {
 	return doc.Name, doc.Version, nil
 }
 
-func validateIsolatedBoundaries(nm string, g *graph.Graph, children map[string][]string) error {
-	for from, tos := range children {
+func validateIsolatedBoundaries(nm string, g *graph.Graph) error {
+	for from := range childEdgesForValidate(g) {
 		if from == string(graph.RootImporter) {
 			continue
 		}
@@ -532,8 +537,15 @@ func validateIsolatedBoundaries(nm string, g *graph.Graph, children map[string][
 				allowed[selfName[:i]] = true
 			}
 		}
-		for _, to := range tos {
-			allowed[packageNameFromKey(to)] = true
+		for _, e := range g.Edges {
+			if e.From != from {
+				continue
+			}
+			name := e.Name
+			if name == "" {
+				name = packageNameFromKey(e.To)
+			}
+			allowed[name] = true
 		}
 		entries, err := os.ReadDir(privateNM)
 		if err != nil {
@@ -553,6 +565,20 @@ func validateIsolatedBoundaries(nm string, g *graph.Graph, children map[string][
 		}
 	}
 	return nil
+}
+
+func edgeNameFor(g *graph.Graph, from, toKey string) string {
+	if g != nil {
+		for _, e := range g.Edges {
+			if e.From == from && e.To == toKey {
+				if e.Name != "" {
+					return e.Name
+				}
+				break
+			}
+		}
+	}
+	return packageNameFromKey(toKey)
 }
 
 func packageNameFromKey(key string) string {

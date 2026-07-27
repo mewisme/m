@@ -119,7 +119,10 @@ func TestPruneSkipsImportLock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lock := filepath.Join(ps.PackagePath(key), ".import.lock")
+	lock := filepath.Join(root, ".locks", key.Algo, key.Hex+".lock")
+	if err := os.MkdirAll(filepath.Dir(lock), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(lock, []byte("1"), 0o644); err != nil {
 		t.Fatal(err)
 	}

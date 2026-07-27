@@ -3,6 +3,7 @@ package registry_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -166,6 +167,76 @@ func TestPackumentInFlightDedup(t *testing.T) {
 	wg.Wait()
 	if hits.Load() != 1 {
 		t.Fatalf("expected 1 fetch, got %d", hits.Load())
+	}
+}
+
+func TestPackumentCancelDuringInFlightWait(t *testing.T) {
+	started := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		time.Sleep(2 * time.Second)
+		_ = json.NewEncoder(w).Encode(registry.Packument{
+			Name:     "pkg",
+			DistTags: map[string]string{"latest": "1.0.0"},
+			Versions: map[string]registry.VersionMeta{
+				"1.0.0": {
+					Version: "1.0.0",
+					Dist:    registry.Dist{Tarball: "pkg-1.0.0.tgz", Integrity: "sha512-abc"},
+				},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	client := registry.NewClient(registry.Options{
+		BaseURL:    srv.URL,
+		HTTPClient: srv.Client(),
+		MaxRetries: 0,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	var leader sync.WaitGroup
+	leader.Add(1)
+	go func() {
+		defer leader.Done()
+		_, _ = client.Packument(context.Background(), srv.URL, "pkg")
+	}()
+	<-started
+	cancel()
+	_, err := client.Packument(ctx, srv.URL, "pkg")
+	if err == nil {
+		t.Fatal("expected cancel while waiting on in-flight packument")
+	}
+	if err != context.Canceled {
+		t.Fatalf("err=%v", err)
+	}
+	leader.Wait()
+}
+
+func TestPackumentsCancelBeforeEnqueue(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(500 * time.Millisecond)
+		_ = json.NewEncoder(w).Encode(registry.Packument{Name: r.URL.Path})
+	}))
+	t.Cleanup(srv.Close)
+
+	client := registry.NewClient(registry.Options{
+		BaseURL:    srv.URL,
+		HTTPClient: srv.Client(),
+		MaxRetries: 0,
+		MaxWorkers: 1,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	names := make([]string, 0, 32)
+	for i := 0; i < 32; i++ {
+		names = append(names, fmt.Sprintf("pkg-%d", i))
+	}
+	_, err := client.Packuments(ctx, srv.URL, names)
+	if err == nil {
+		t.Fatal("expected cancel")
+	}
+	if err != context.Canceled {
+		t.Fatalf("err=%v", err)
 	}
 }
 

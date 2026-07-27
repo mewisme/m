@@ -1,0 +1,14 @@
+{
+  "packages": [
+    {"name": "bar", "version": "1.0.0", "key": "bar@1.0.0"},
+    {"name": "pkg-b", "version": "1.0.0", "key": "pkg-b@1.0.0"}
+  ],
+  "edges": [
+    {"from": ".", "name": "foo", "to": "bar@1.0.0", "kind": "prod"},
+    {"from": "bar@1.0.0", "to": "pkg-b@1.0.0", "kind": "prod"}
+  ],
+  "expect": {
+    "bar@1.0.0": "node_modules/.pnpm/bar@1.0.0/node_modules/bar",
+    "pkg-b@1.0.0": "node_modules/.pnpm/pkg-b@1.0.0/node_modules/pkg-b"
+  }
+}

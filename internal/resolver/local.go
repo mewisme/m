@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/lockfile"
 	"github.com/mewisme/m/internal/manifest"
 )
@@ -33,14 +32,12 @@ func (s *resolveState) processLocal(item workItem) error {
 		return err
 	}
 
-	name, version, err := readLocalPackage(targetDir, item.name, item.protocol)
+	_, version, err := readLocalPackage(targetDir, item.name, item.protocol)
 	if err != nil {
 		return apperr.Wrap(apperr.Resolve, "resolver.local", item.name, err)
 	}
 
-	id := graph.PackageID{Name: name, Version: version}
-	id.Normalize()
-	key := id.Key()
+	id, key := s.packageKeyForInstance(item, version, nil)
 
 	decision := ResolutionDecision{
 		Package:   item.name,
@@ -54,21 +51,21 @@ func (s *resolveState) processLocal(item workItem) error {
 	if edgeRange == "" {
 		edgeRange = protocol + ":" + item.rng
 	}
-	s.b.EdgeEx(item.from, key, item.kind, edgeRange, false)
+	s.b.EdgeEx(item.from, item.display, key, item.kind, edgeRange, false)
 	s.recordProvides(item.from, item.display, key)
 
 	if _, ok := s.seenPkg[key]; ok {
 		return nil
 	}
-	if _, ok := s.resolving[key]; ok {
+	if _, ok := s.resolving[basePackageKey(item.name, version)]; ok {
 		return nil
 	}
 	if len(s.seenPkg) >= maxPackages {
 		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
 			fmt.Sprintf("resolution package count exceeded %d", maxPackages))
 	}
-	s.resolving[key] = struct{}{}
-	defer delete(s.resolving, key)
+	s.resolving[basePackageKey(item.name, version)] = struct{}{}
+	defer delete(s.resolving, basePackageKey(item.name, version))
 
 	s.seenPkg[key] = struct{}{}
 	s.b.Package(id, "", "")

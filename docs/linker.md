@@ -14,10 +14,12 @@ not conflict.
 Each physical install is tracked by a `PlacementID`:
 
 ```text
-parentPlacement | importer | depName | packageKey | hoistLevel
+parentPlacement | importer | edgeName | packageKey | hoistLevel | peerContextDigest
 ```
 
-The linker may place the same `packageKey` at multiple `destDir` paths when
+`edgeName` is the exposed dependency name from `graph.Edge.Name` (the
+`package.json` key or alias label), which may differ from the resolved package
+name. The linker may place the same `packageKey` at multiple `destDir` paths when
 peer-provider environments diverge or version conflicts force nesting. Placement
 lists are sorted deterministically by `PlacementID`.
 
@@ -40,7 +42,7 @@ edges are reachable, and bin targets exist.
 ```text
 node_modules/
   .pnpm/<storeID>/node_modules/<pkg>/   # package content
-  <pkg>/  -> .pnpm/<storeID>/node_modules/<pkg>/   # top-level alias
+  <edgeName>/  -> .pnpm/<storeID>/node_modules/<pkg>/   # top-level alias
   .mew/modules.v1.json                  # layout metadata
 ```
 
@@ -48,18 +50,23 @@ Each package instance only sees its declared dependencies in its private
 `node_modules` folder, which blocks **phantom dependencies** (requiring a
 transitive package that is not declared).
 
-### StoreID v2
+### StoreID
 
-Virtual-store directory names use a readable `name@version` prefix and, when
-peer providers are present, a short SHA-256 digest of the **resolved provider
-keys** (not declared ranges):
+Virtual-store directory names use a readable `name@version` prefix. When the
+identity would exceed 120 characters or peer providers are present, a
+collision-resistant digest is always appended:
 
 ```text
-lodash@4.17.21
-@scope+pkg@1.0.0@<peerDigest>
+sanitize(prefix)@sha256(fullIdentity)[:16]
 ```
 
-Store IDs are capped at 120 characters and use Windows-safe characters only.
+Peer-provider keys are included in the full identity hash. Collision during layout
+planning returns `ERR_M_INTEGRITY`.
+
+### Private and peer links
+
+- Private dependency links use `edge.Name` for directory segments.
+- Peer links target the peer-context-specific provider instance.
 
 ### Enable isolated mode
 
@@ -77,19 +84,20 @@ uses the lock linker setting when present.
 ## Fixtures
 
 Hoisted placement graphs live under `fixtures/linker/hoisted/` (multi-version,
-scoped conflicts, nested bins, cycles, peer-context instances). Integration
-tests cover isolated layout, phantom-dependency blocking via real Node
-`require()`, and `.bin` shims.
+scoped conflicts, nested bins, cycles, peer-context instances, alias+target).
+Isolated fixtures live under `fixtures/linker/isolated/`. Integration tests cover
+isolated layout, phantom-dependency blocking via real Node `require()`, and
+`.bin` shims.
 
 ## Trade-offs
 
 | Mode | Pros | Cons |
 |---|---|---|
 | Hoisted | npm-like, fewer links | Phantom deps possible |
-| Isolated | Strict dependency boundaries | More paths, experimental |
+| Isolated | Strict dependency boundaries | More paths, experimental gate |
 
 ## Deferred
 
 - `m why` dependency explanations (**0028**)
-- Peer auto-install (**0020**)
 - `public-hoist-pattern` selective hoisting (later MVP)
+- Isolated layout crash-during-publication integration test (deferred)

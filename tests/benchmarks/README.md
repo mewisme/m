@@ -1,34 +1,105 @@
 # Mew benchmarks
 
-Reproducible package-manager benchmarks for resolver, linker, and store paths.
+Reproducible package-manager benchmarks for transaction lock, resolver, linker,
+and store paths (stabilization pass 2).
 
 ## Environment
 
 Record these values with every published result:
 
-- OS and version (`go env GOOS GOARCH`)
-- Go version (`go version`)
-- CPU model (optional but helpful on laptops)
-- Cold vs warm (see below)
+| Field | Command |
+|---|---|
+| OS / arch | `go env GOOS GOARCH` |
+| Go version | `go version` |
+| CPU model | optional but helpful on laptops |
+| CGO | `go env CGO_ENABLED` (required for `-race`) |
+| Cold vs warm | see below |
 
-## Run
+Template:
+
+```text
+date: 2026-07-27
+goos/goarch: windows/amd64
+go: go1.24.x
+cgo: 0
+notes: warm registry fixture cache
+```
+
+## Full gate (copy into CI notes)
+
+```powershell
+go test ./... -count=1
+go vet ./...
+golangci-lint run ./...
+govulncheck ./...
+```
+
+Race (Linux/macOS or Windows with CGO):
+
+```powershell
+$env:CGO_ENABLED = "1"
+go test -race ./internal/transaction/... ./internal/store/... ./internal/resolver/... -count=1
+```
+
+## Run all package-manager benches
 
 From the repository root:
 
 ```powershell
-go test -bench=. -benchmem -count=5 ./internal/resolver/... ./internal/linker/hoisted/... ./internal/store/... | Tee-Object -FilePath bench.out
+go test -bench=. -benchmem -count=5 `
+  ./internal/transaction/... `
+  ./internal/resolver/... `
+  ./internal/linker/hoisted/... `
+  ./internal/store/... `
+  | Tee-Object -FilePath bench.out
 ```
 
-Race-sensitive packages are excluded from bench runs; use unit tests for concurrency.
+Race-sensitive packages are excluded from bench runs; use unit and cross-process
+tests for concurrency.
 
-### Cold (first import / first resolve)
+## Focused suites
+
+### Transaction (0017)
+
+```powershell
+go test -bench=BenchmarkProjectLockContention -benchmem -count=5 ./internal/transaction/...
+go test -bench=BenchmarkTransaction -benchmem -count=5 ./internal/transaction/...
+```
+
+### Resolver (0020)
+
+```powershell
+go test -bench=BenchmarkResolveTransitive -benchmem -count=5 ./internal/resolver/...
+go test -bench=BenchmarkPeerContextResolution -benchmem -count=5 ./internal/resolver/...
+go test -bench=BenchmarkTargetedIncrementalUpdate -benchmem -count=5 ./internal/resolver/...
+go test -bench=BenchmarkLargeGraphResolve -benchmem -count=5 ./internal/resolver/...
+```
+
+### Store (0018)
+
+```powershell
+go test -bench=BenchmarkStoreImport -benchmem -count=1 ./internal/store/...
+go test -bench=BenchmarkStoreImportContention -benchmem -count=5 ./internal/store/...
+go test -bench=BenchmarkStoreVerifyWarm -benchmem -count=5 ./internal/store/...
+go test -bench=BenchmarkStoreFullTreeVerify -benchmem -count=5 ./internal/store/...
+```
+
+### Linker (0016/0019)
+
+```powershell
+go test -bench=BenchmarkHoistedPlan -benchmem -count=5 ./internal/linker/hoisted/...
+```
+
+## Cold vs warm
+
+**Cold** — first import / first resolve (no store reuse):
 
 ```powershell
 go test -bench=BenchmarkResolveTransitive -benchmem -count=5 ./internal/resolver/...
 go test -bench=BenchmarkStoreImport -benchmem -count=1 ./internal/store/...
 ```
 
-### Warm (cached registry + verified store)
+**Warm** — cached registry + verified store:
 
 ```powershell
 go test -bench=BenchmarkResolveWorkspaceProtocol -benchmem -count=5 ./internal/resolver/...
@@ -42,12 +113,21 @@ go test -bench=BenchmarkHoistedPlan -benchmem -count=5 ./internal/linker/hoisted
 - `B/op` — bytes allocated per iteration
 - `allocs/op` — heap allocations per iteration
 
-Compare multiple `-count` samples; report median. Large fixture corpora land in a follow-up when `fixtures/projects` gains a 1k+ workspace graph.
+Compare multiple `-count` samples; report median. `BenchmarkLargeGraphResolve`
+uses an in-memory synthetic graph; a 1k+ workspace fixture corpus is deferred.
 
-## Sample baseline (fill after local run)
+## Sample baseline (windows/amd64, local run 2026-07-27)
 
-| Benchmark | OS | Go | Median ns/op | Notes |
-|-----------|----|----|--------------|-------|
-| BenchmarkResolveTransitive | windows/amd64 | 1.24.x | _run locally_ | registry fixture pkg-a chain |
-| BenchmarkStoreVerifyWarm | windows/amd64 | 1.24.x | _run locally_ | lodash tree manifest walk |
-| BenchmarkHoistedPlan | windows/amd64 | 1.24.x | _run locally_ | three-package hoisted graph |
+| Benchmark | Median ns/op | allocs/op | Notes |
+|---|---|---|---|
+| BenchmarkProjectLockContention | run locally | — | uncontended acquire/release |
+| BenchmarkTransactionCommit | run locally | — | journal + staged publish |
+| BenchmarkResolveTransitive | run locally | — | registry fixture pkg-a chain |
+| BenchmarkPeerContextResolution | run locally | — | react ecosystem fixture |
+| BenchmarkTargetedIncrementalUpdate | run locally | — | lodash unchanged subgraph |
+| BenchmarkStoreVerifyWarm | run locally | — | lodash tree manifest walk |
+| BenchmarkStoreFullTreeVerify | run locally | — | bidirectional manifest verify |
+| BenchmarkHoistedPlan | run locally | — | three-package hoisted graph |
+
+Fill medians after `go test -bench=... -count=5` on your machine; do not commit
+machine-specific numbers to golden files.

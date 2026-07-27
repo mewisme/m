@@ -261,10 +261,10 @@ func TestAdvancedResolverIncrementalUpdateFixture(t *testing.T) {
 		Package(graph.PackageID{Name: "pkg-b", Version: "1.0.0"}, "sha256-b", "http://example/pkg-b.tgz").
 		Package(graph.PackageID{Name: "pkg-c", Version: "1.0.0"}, "sha256-c", "http://example/pkg-c.tgz").
 		Package(graph.PackageID{Name: "lodash", Version: "4.17.21"}, "sha256-l", "http://example/lodash.tgz").
-		EdgeEx(string(graph.RootImporter), "pkg-a@1.0.0", graph.DepProd, "^1.0.0", false).
-		EdgeEx(string(graph.RootImporter), "lodash@4.17.21", graph.DepProd, "^4.17.0", false).
-		EdgeEx("pkg-a@1.0.0", "pkg-b@1.0.0", graph.DepProd, "^1.0.0", false).
-		EdgeEx("pkg-b@1.0.0", "pkg-c@1.0.0", graph.DepProd, "^1.0.0", false).
+		EdgeEx(string(graph.RootImporter), "pkg-a", "pkg-a@1.0.0", graph.DepProd, "^1.0.0", false).
+		EdgeEx(string(graph.RootImporter), "lodash", "lodash@4.17.21", graph.DepProd, "^4.17.0", false).
+		EdgeEx("pkg-a@1.0.0", "pkg-b", "pkg-b@1.0.0", graph.DepProd, "^1.0.0", false).
+		EdgeEx("pkg-b@1.0.0", "pkg-c", "pkg-c@1.0.0", graph.DepProd, "^1.0.0", false).
 		Build()
 	if err != nil {
 		t.Fatal(err)

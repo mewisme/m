@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/fsx"
 	"github.com/mewisme/m/internal/manifest"
 )
 
@@ -56,6 +57,9 @@ func Expand(root string, patterns []string) ([]string, error) {
 			}
 			if _, err := os.Stat(filepath.Join(m, "package.json")); err != nil {
 				continue
+			}
+			if err := fsx.GuardAncestors(abs, m); err != nil {
+				return nil, apperr.Wrap(apperr.IO, "workspace.expand", rel, err)
 			}
 			if _, ok := seen[rel]; ok {
 				continue

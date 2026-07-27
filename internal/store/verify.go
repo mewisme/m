@@ -50,21 +50,19 @@ func verifyPackageDir(dir string, key PackageKey) error {
 		return apperr.Wrap(apperr.Store, "store.verify", marker, err)
 	}
 	manifestPath := treeManifestPath(dir)
-	if _, err := os.Stat(manifestPath); err == nil {
+	_, manifestErr := os.Stat(manifestPath)
+	if manifestErr == nil {
 		m, err := readTreeManifest(dir)
 		if err != nil {
 			return apperr.Wrap(apperr.Store, "store.verify", key.String(), err)
 		}
 		return verifyTreeManifest(dir, m)
 	}
-	if os.IsNotExist(err) {
-		// ponytail: legacy imports without tree manifest pass on marker + package.json
-		if _, markerErr := os.Stat(marker); markerErr == nil {
-			return nil
-		}
-		return apperr.Wrap(apperr.Store, "store.verify", manifestPath, err)
+	if os.IsNotExist(manifestErr) {
+		return apperr.New(apperr.Store, "store.verify", key.String(),
+			"missing tree manifest; re-import tarball to restore content index")
 	}
-	return apperr.Wrap(apperr.Store, "store.verify", manifestPath, err)
+	return apperr.Wrap(apperr.Store, "store.verify", manifestPath, manifestErr)
 }
 
 // writePackageMarker records integrity after successful publish.

@@ -1,7 +1,7 @@
 package graph
 
 // SchemaVersion is the version field on serialized Graph documents.
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 // CacheSchemaVersion versions internal resolve/cache blobs.
 // It is independent of public lockfile formats (m.lock / adapters).
@@ -19,8 +19,9 @@ const (
 
 // Edge is a directed dependency from an importer or package to a package key.
 type Edge struct {
-	From     string  `json:"from"` // importer id or package key
-	To       string  `json:"to"`   // package key
+	From     string  `json:"from"`           // importer id or package key
+	Name     string  `json:"name,omitempty"` // exposed dependency name (package.json key / alias)
+	To       string  `json:"to"`             // package key
 	Kind     DepKind `json:"kind"`
 	Range    string  `json:"range,omitempty"`
 	Optional bool    `json:"optional,omitempty"`

@@ -130,14 +130,95 @@ func TestPartialNodeModulesRepair(t *testing.T) {
 
 func TestProjectLockStale(t *testing.T) {
 	root := t.TempDir()
-	if err := transaction.AcquireProjectLock(root, "a"); err != nil {
+	ctx := context.Background()
+	if err := transaction.AcquireProjectLock(ctx, root, "a"); err != nil {
 		t.Fatal(err)
 	}
-	if err := transaction.ReleaseProjectLock(root); err != nil {
+	if err := transaction.ReleaseProjectLock(root, "a"); err != nil {
 		t.Fatal(err)
 	}
-	if err := transaction.AcquireProjectLock(root, "b"); err != nil {
+	if err := transaction.AcquireProjectLock(ctx, root, "b"); err != nil {
 		t.Fatal(err)
 	}
-	_ = transaction.ReleaseProjectLock(root)
+	_ = transaction.ReleaseProjectLock(root, "b")
+}
+
+func TestInjectRollbackWithoutStagedArtifact(t *testing.T) {
+	root := t.TempDir()
+	liveLock := filepath.Join(root, "m.lock")
+	if err := os.WriteFile(liveLock, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	txn := transaction.NewRunner(root)
+	ctx := context.Background()
+	if err := txn.Begin(ctx); err != nil {
+		t.Fatal(err)
+	}
+	stage := txn.StagePath()
+	if err := os.WriteFile(filepath.Join(stage, "m.lock"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	plan := []transaction.Op{{Kind: transaction.OpRename, Path: "m.lock", Backup: "stage/m.lock"}}
+	if err := txn.SetPlan(plan); err != nil {
+		t.Fatal(err)
+	}
+	if err := txn.RecordBackup("m.lock"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(stage, "m.lock")); err != nil {
+		t.Fatal(err)
+	}
+	if err := txn.SetState(transaction.StateCommitting); err != nil {
+		t.Fatal(err)
+	}
+	if err := txn.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(liveLock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "old" {
+		t.Fatalf("backup-authoritative restore failed: %q", data)
+	}
+}
+
+func TestInjectCommittedMarkerOnlyAfterPlan(t *testing.T) {
+	root := t.TempDir()
+	liveLock := filepath.Join(root, "m.lock")
+	if err := os.WriteFile(liveLock, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	txn := transaction.NewRunner(root)
+	ctx := context.Background()
+	if err := txn.Begin(ctx); err != nil {
+		t.Fatal(err)
+	}
+	stage := txn.StagePath()
+	if err := os.WriteFile(filepath.Join(stage, "m.lock"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := txn.SetPlan([]transaction.Op{{Kind: transaction.OpRename, Path: "m.lock", Backup: "stage/m.lock"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := txn.RecordBackup("m.lock"); err != nil {
+		t.Fatal(err)
+	}
+	transaction.SetTestHook(func(phase string, opIndex int) error {
+		if phase == "pre_committed" {
+			doc := txn.Document()
+			if doc.State == transaction.StateCommitted {
+				return os.ErrInvalid
+			}
+		}
+		return nil
+	})
+	t.Cleanup(func() { transaction.SetTestHook(nil) })
+	if err := txn.Commit(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	doc := txn.Document()
+	if doc.State != transaction.StateCommitted {
+		t.Fatalf("state=%s", doc.State)
+	}
 }

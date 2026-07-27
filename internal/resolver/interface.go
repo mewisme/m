@@ -9,6 +9,13 @@ import (
 	"github.com/mewisme/m/internal/policy"
 )
 
+// PriorFingerprints captures lockfile settings fingerprints for incremental update comparison.
+type PriorFingerprints struct {
+	OverridesFingerprint      string
+	ResolverPolicyFingerprint string
+	TargetPlatformFingerprint string
+}
+
 // ResolveOptions controls a resolve run.
 type ResolveOptions struct {
 	Policy *policy.Policy
@@ -25,6 +32,8 @@ type ResolveOptions struct {
 	// PriorOverrides is the overrides map from when Prior was written.
 	// When nil, overrides are treated as unchanged for pin reuse.
 	PriorOverrides map[string]string
+	// PriorFingerprints is the settings fingerprint snapshot from when Prior was written.
+	PriorFingerprints *PriorFingerprints
 	// IncrementalUpdate enables update-closure pin reuse (m update). Install passes
 	// Prior+Hints without this flag for legacy hint selection.
 	IncrementalUpdate bool

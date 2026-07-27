@@ -57,17 +57,18 @@ type resolveState struct {
 	identity    project.Identity
 	omitRootDev bool
 
-	b          *graph.Builder
-	decisions  []ResolutionDecision
-	seenPkg    map[string]struct{}
-	resolving  map[string]struct{}
-	queuedEdge map[string]struct{}
-	pkgPeers   map[string]map[string]string
-	pkgPeerOpt map[string]map[string]bool
-	pkgEnv     map[string][]string
-	pkgFrom    map[string]string
-	provides   map[string]map[string]providedDep
-	queue      []workItem
+	b            *graph.Builder
+	decisions    []ResolutionDecision
+	seenPkg      map[string]struct{}
+	resolving    map[string]struct{}
+	queuedEdge   map[string]struct{}
+	pkgPeers     map[string]map[string]string
+	pkgPeerOpt   map[string]map[string]bool
+	pkgEnv       map[string][]string
+	pkgFrom      map[string]string
+	provides     map[string]map[string]providedDep
+	pkgInstances map[string]string // instanceKey -> current graph package key
+	queue        []workItem
 
 	wsIndex         *workspace.Index
 	wsByName        map[string]workspaceMember
@@ -138,6 +139,7 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 		pkgEnv:          map[string][]string{},
 		pkgFrom:         map[string]string{},
 		provides:        map[string]map[string]providedDep{},
+		pkgInstances:    map[string]string{},
 		localSources:    map[string]LocalSource{},
 		seededImporters: map[graph.ImporterID]bool{graph.RootImporter: true},
 	}
@@ -311,7 +313,13 @@ func (s *resolveState) processRegistry(item workItem) error {
 		return apperr.Wrap(apperr.Resolve, "resolver.packument", item.name, err)
 	}
 
-	meta, decision, err := selectVersion(pack, item.name, item.rng, s.pol, &s.hints)
+	meta, decision, err := selectVersion(pack, item.name, item.rng, s.pol, &s.hints, pinContext{
+		importer:    item.from,
+		depName:     item.display,
+		kind:        item.kind,
+		rangeSpec:   item.rng,
+		peerContext: peerContextForEnv(item.envKeys),
+	})
 	if err != nil {
 		return err
 	}
@@ -326,9 +334,7 @@ func (s *resolveState) processRegistry(item workItem) error {
 		return err
 	}
 
-	id := graph.PackageID{Name: item.name, Version: meta.Version}
-	id.Normalize()
-	key := id.Key()
+	id, key := s.packageKeyForInstance(item, meta.Version, meta)
 	decision.Selected = meta.Version
 	if item.overrideFrom != "" {
 		decision.OverrideFrom = item.overrideFrom
@@ -340,21 +346,21 @@ func (s *resolveState) processRegistry(item workItem) error {
 		tarball = meta.Dist.Tarball
 	}
 
-	s.b.EdgeEx(item.from, key, item.kind, item.rng, false)
+	s.b.EdgeEx(item.from, item.display, key, item.kind, item.rng, false)
 	s.recordProvides(item.from, item.display, key)
 
 	if _, ok := s.seenPkg[key]; ok {
 		return nil
 	}
-	if _, ok := s.resolving[key]; ok {
+	if _, ok := s.resolving[basePackageKey(item.name, meta.Version)]; ok {
 		return nil
 	}
 	if len(s.seenPkg) >= maxPackages {
 		return apperr.New(apperr.Resolve, "resolver.limit", item.name,
 			fmt.Sprintf("resolution package count exceeded %d", maxPackages))
 	}
-	s.resolving[key] = struct{}{}
-	defer delete(s.resolving, key)
+	s.resolving[basePackageKey(item.name, meta.Version)] = struct{}{}
+	defer delete(s.resolving, basePackageKey(item.name, meta.Version))
 
 	s.seenPkg[key] = struct{}{}
 	s.b.Package(id, meta.Dist.Integrity, tarball)

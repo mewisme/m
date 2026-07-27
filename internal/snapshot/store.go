@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/fsx"
 	"github.com/mewisme/m/internal/graph"
 )
 
@@ -36,12 +37,13 @@ type indexDoc struct {
 
 // Store persists snapshots under <project>/.mew/snapshots/.
 type Store struct {
-	Root string
+	Root        string
+	projectRoot string
 }
 
 // NewStore returns a snapshot store for projectRoot.
 func NewStore(projectRoot string) *Store {
-	return &Store{Root: filepath.Join(projectRoot, ".mew", "snapshots")}
+	return &Store{Root: filepath.Join(projectRoot, ".mew", "snapshots"), projectRoot: projectRoot}
 }
 
 // GraphDigest returns a stable sha256 digest of canonical graph JSON.
@@ -58,6 +60,9 @@ func GraphDigest(g *graph.Graph) (string, error) {
 func (s *Store) StageCreate(stageRoot, id string, manifest, lock []byte, graphDigest string) error {
 	if s == nil || stageRoot == "" {
 		return apperr.New(apperr.Internal, "snapshot.stage", id, "nil store or stage root")
+	}
+	if err := s.guardPaths(filepath.Join(".mew", "snapshots", id)); err != nil {
+		return err
 	}
 	if id == "" {
 		return apperr.New(apperr.Internal, "snapshot.stage", "", "empty id")
@@ -121,6 +126,9 @@ func (s *Store) Create(id string, manifest, lock []byte, graphDigest string) err
 	if s == nil || s.Root == "" {
 		return apperr.New(apperr.Internal, "snapshot.create", "", "nil store")
 	}
+	if err := s.guardPaths(filepath.Join(".mew", "snapshots", id)); err != nil {
+		return err
+	}
 	if id == "" {
 		return apperr.New(apperr.Internal, "snapshot.create", "", "empty id")
 	}
@@ -174,6 +182,9 @@ func (s *Store) List() ([]Snapshot, error) {
 func (s *Store) Load(id string) (*Record, error) {
 	if s == nil || s.Root == "" {
 		return nil, apperr.New(apperr.Internal, "snapshot.load", id, "nil store")
+	}
+	if err := s.guardPaths(filepath.Join(".mew", "snapshots", id)); err != nil {
+		return nil, err
 	}
 	dir := filepath.Join(s.Root, id)
 	metaBytes, err := os.ReadFile(filepath.Join(dir, metaFileName))
@@ -307,4 +318,19 @@ func writeAtomic(path string, data []byte) error {
 		}
 	}
 	return nil
+}
+
+func (s *Store) guardPaths(rel string) error {
+	if s == nil || s.projectRoot == "" {
+		return nil
+	}
+	absRoot, err := filepath.Abs(s.projectRoot)
+	if err != nil {
+		return apperr.Wrap(apperr.IO, "snapshot.guard", s.projectRoot, err)
+	}
+	target, err := filepath.Abs(filepath.Join(absRoot, rel))
+	if err != nil {
+		return apperr.Wrap(apperr.IO, "snapshot.guard", rel, err)
+	}
+	return fsx.GuardAncestors(absRoot, target)
 }

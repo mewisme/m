@@ -26,10 +26,12 @@ func Decode(data []byte) (*Document, error) {
 	}
 
 	doc := &Document{}
+	originalVersion := 0
 	if v, ok := raw["lockfileVersion"]; ok {
 		if err := json.Unmarshal(v, &doc.LockfileVersion); err != nil {
 			return nil, apperr.Wrap(apperr.Lockfile, "mlock.decode", "lockfileVersion", err)
 		}
+		originalVersion = doc.LockfileVersion
 	}
 	if v, ok := raw["checksum"]; ok {
 		if err := json.Unmarshal(v, &doc.Checksum); err != nil {
@@ -82,8 +84,10 @@ func Decode(data []byte) (*Document, error) {
 	if err := doc.Normalize(); err != nil {
 		return nil, err
 	}
-	if err := verifyChecksum(doc); err != nil {
-		return nil, err
+	if originalVersion >= LockfileVersion {
+		if err := verifyChecksum(doc); err != nil {
+			return nil, err
+		}
 	}
 	return doc, nil
 }

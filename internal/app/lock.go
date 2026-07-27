@@ -35,7 +35,7 @@ func WriteLock(ctx context.Context, ac *Context, res *resolver.Resolution) error
 			return err
 		}
 	}
-	settings, err := mlock.SettingsFromEffective(ac.Config)
+	settings, err := mlock.SettingsWithFingerprints(ac.Config, proj.Normalized.Overrides)
 	if err != nil {
 		return err
 	}

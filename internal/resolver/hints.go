@@ -16,8 +16,48 @@ type graphHints struct {
 	priorOverrides   map[string]string
 	currentOverrides map[string]string
 	overrideChanged  bool
+	policyDrift      bool
+	platformDrift    bool
 	policyFP         string
 	reuseIndex       map[string]string
+}
+
+func (h graphHints) canReuse() bool {
+	if h.overrideChanged || h.policyDrift || h.platformDrift {
+		return false
+	}
+	return true
+}
+
+func (h graphHints) reusedVersion(ctx pinContext) (version string, ok bool) {
+	if !h.incremental || !h.canReuse() || h.reuseIndex == nil {
+		return "", false
+	}
+	if _, in := closureNames(h.updateClosure)[ctx.depName]; in {
+		return "", false
+	}
+	k := reuseKey{
+		importer:     ctx.importer,
+		depName:      ctx.depName,
+		kind:         ctx.kind,
+		rangeSpec:    ctx.rangeSpec,
+		peerContext:  ctx.peerContext,
+		overrideHash: hashOverrides(h.currentOverrides),
+		policyFP:     h.policyFP,
+	}
+	if h.priorOverrides != nil {
+		k.overrideHash = hashOverrides(h.priorOverrides)
+	}
+	priorKey, ok := h.reuseIndex[k.String()]
+	if !ok {
+		return "", false
+	}
+	id := parsePackageKey(priorKey)
+	sat, err := semver.Satisfies(id.Version, ctx.rangeSpec)
+	if err != nil || !sat {
+		return "", false
+	}
+	return id.Version, true
 }
 
 func (h graphHints) canPin(name string) bool {
@@ -27,10 +67,10 @@ func (h graphHints) canPin(name string) bool {
 	if !h.incremental {
 		return true
 	}
-	if _, inClosure := h.updateClosure[name]; inClosure {
+	if !h.canReuse() {
 		return false
 	}
-	if h.overrideChanged || !mapsEqual(h.currentOverrides, h.priorOverrides) {
+	if _, in := closureNames(h.updateClosure)[name]; in {
 		return false
 	}
 	if priorRng, ok := h.priorSpecs[name]; ok {

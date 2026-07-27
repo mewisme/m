@@ -78,3 +78,15 @@ func SettingsFromEffective(eff *config.Effective) (Settings, error) {
 	s.Policy.StrictPeerDependencies = config.Bool(eff, "resolve.strictPeerDependencies", true)
 	return s, s.Normalize()
 }
+
+// SettingsWithFingerprints builds lock settings including resolver fingerprint snapshots.
+func SettingsWithFingerprints(eff *config.Effective, overrides map[string]string) (Settings, error) {
+	s, err := SettingsFromEffective(eff)
+	if err != nil {
+		return s, err
+	}
+	s.OverridesFingerprint = resolver.OverridesFingerprint(overrides)
+	s.ResolverPolicyFingerprint = resolver.PolicyFingerprint(&s.Policy)
+	s.TargetPlatformFingerprint = resolver.TargetPlatformFingerprint(resolver.CurrentTarget())
+	return s, nil
+}

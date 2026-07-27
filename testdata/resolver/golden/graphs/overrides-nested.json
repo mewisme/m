@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "importers": [
     {
       "id": ".",
@@ -36,18 +36,21 @@
   "edges": [
     {
       "from": ".",
+      "name": "pkg-a",
       "to": "pkg-a@1.0.0",
       "kind": "prod",
       "range": "1.0.0"
     },
     {
       "from": "pkg-a@1.0.0",
+      "name": "pkg-b",
       "to": "pkg-b@1.0.0",
       "kind": "prod",
       "range": "1.0.0"
     },
     {
       "from": "pkg-b@1.0.0",
+      "name": "pkg-c",
       "to": "pkg-c@1.0.1",
       "kind": "prod",
       "range": "^1.0.0"

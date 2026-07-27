@@ -3,7 +3,6 @@ package isolated
 import (
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/mewisme/m/internal/graph"
 )
@@ -22,6 +21,11 @@ type aliasLink struct {
 	Dest string // symlink/junction destination
 }
 
+type depEdge struct {
+	name  string
+	toKey string
+}
+
 // Layout describes isolated virtual store paths for g under nmRoot.
 type Layout struct {
 	Packages []pkgLayout
@@ -32,6 +36,9 @@ type Layout struct {
 func computeLayout(g *graph.Graph, nmRoot string) (*Layout, error) {
 	if g == nil {
 		return &Layout{}, nil
+	}
+	if err := CheckStoreIDCollisions(g.Packages); err != nil {
+		return nil, err
 	}
 	byKey := map[string]graph.Package{}
 	for _, p := range g.Packages {
@@ -56,21 +63,20 @@ func computeLayout(g *graph.Graph, nmRoot string) (*Layout, error) {
 		return out.Packages[i].StoreID < out.Packages[j].StoreID
 	})
 
-	children := childEdges(g)
+	children := childDepEdges(g)
 	contentOf := map[string]string{}
 	for _, pl := range out.Packages {
 		contentOf[pl.Key] = pl.ContentDir
 	}
 
-	for from, tos := range children {
-		for _, toKey := range tos {
-			childName := packageNameFromKey(toKey)
-			target, ok := contentOf[toKey]
+	for from, edges := range children {
+		for _, edge := range edges {
+			target, ok := contentOf[edge.toKey]
 			if !ok {
 				continue
 			}
 			if from == string(graph.RootImporter) {
-				dest := filepath.Join(append([]string{nmRoot}, installSegments(childName)...)...)
+				dest := filepath.Join(append([]string{nmRoot}, installSegments(edge.name)...)...)
 				out.Aliases = append(out.Aliases, aliasLink{Src: target, Dest: dest})
 				continue
 			}
@@ -78,12 +84,25 @@ func computeLayout(g *graph.Graph, nmRoot string) (*Layout, error) {
 			if parentPrivate == "" {
 				continue
 			}
-			dest := filepath.Join(append([]string{parentPrivate}, installSegments(childName)...)...)
+			dest := filepath.Join(append([]string{parentPrivate}, installSegments(edge.name)...)...)
 			out.DepLinks = append(out.DepLinks, aliasLink{Src: target, Dest: dest})
 		}
 	}
 	sort.Slice(out.Aliases, func(i, j int) bool { return out.Aliases[i].Dest < out.Aliases[j].Dest })
 	sort.Slice(out.DepLinks, func(i, j int) bool { return out.DepLinks[i].Dest < out.DepLinks[j].Dest })
+	return out, nil
+}
+
+// PackageContentDirs returns package key -> content directory for tests and validation.
+func PackageContentDirs(g *graph.Graph, nmRoot string) (map[string]string, error) {
+	layout, err := computeLayout(g, nmRoot)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(layout.Packages))
+	for _, p := range layout.Packages {
+		out[p.Key] = p.ContentDir
+	}
 	return out, nil
 }
 
@@ -96,22 +115,34 @@ func privateNMFor(pkgs []pkgLayout, key string) string {
 	return ""
 }
 
-func childEdges(g *graph.Graph) map[string][]string {
-	out := make(map[string][]string)
+func childDepEdges(g *graph.Graph) map[string][]depEdge {
+	out := make(map[string][]depEdge)
 	for _, e := range g.Edges {
-		out[e.From] = append(out[e.From], e.To)
+		name := e.Name
+		if name == "" {
+			name = graph.TargetNameFromKey(e.To)
+		}
+		out[e.From] = append(out[e.From], depEdge{name: name, toKey: e.To})
 	}
 	for from := range out {
-		sort.Strings(out[from])
+		sort.Slice(out[from], func(i, j int) bool {
+			a, b := out[from][i], out[from][j]
+			if a.name != b.name {
+				return a.name < b.name
+			}
+			return a.toKey < b.toKey
+		})
 	}
 	return out
 }
 
 func installSegments(name string) []string {
-	if strings.HasPrefix(name, "@") {
+	if len(name) > 0 && name[0] == '@' {
 		rest := name[1:]
-		if i := strings.IndexByte(rest, '/'); i >= 0 {
-			return []string{"@" + rest[:i], rest[i+1:]}
+		for i := 0; i < len(rest); i++ {
+			if rest[i] == '/' {
+				return []string{"@" + rest[:i], rest[i+1:]}
+			}
 		}
 		return []string{"@" + rest}
 	}

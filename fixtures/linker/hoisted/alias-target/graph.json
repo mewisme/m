@@ -1,0 +1,14 @@
+{
+  "packages": [
+    {"name": "bar", "version": "1.0.0", "key": "bar@1.0.0"},
+    {"name": "pkg-a", "version": "1.0.0", "key": "pkg-a@1.0.0"}
+  ],
+  "edges": [
+    {"from": ".", "name": "foo", "to": "bar@1.0.0", "kind": "prod"},
+    {"from": ".", "to": "pkg-a@1.0.0", "kind": "prod"}
+  ],
+  "expect": {
+    "bar@1.0.0": "node_modules/foo",
+    "pkg-a@1.0.0": "node_modules/pkg-a"
+  }
+}

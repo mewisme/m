@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	SchemaVersion = 2
-	JournalName   = "journal.v2.json"
+	SchemaVersion = 3
+	JournalName   = "journal.v3.json"
+	JournalNameV2 = "journal.v2.json"
 	JournalNameV1 = "journal.v1.json"
 )
 
@@ -32,13 +33,27 @@ const (
 	OpMkdir  = "mkdir"
 )
 
-// Op progress states (journal v2).
+// Op progress states.
 const (
 	ProgressPending     = "pending"
 	ProgressApplying    = "applying"
 	ProgressApplied     = "applied"
 	ProgressRollingBack = "rolling_back"
 	ProgressRolledBack  = "rolled_back"
+)
+
+// Op phase sub-states (journal v3 plan ops).
+const (
+	PhasePending          = "pending"
+	PhasePriorIdentified  = "prior_identified"
+	PhasePriorBackedUp    = "prior_backed_up"
+	PhasePriorMovedAside  = "prior_moved_aside"
+	PhasePublishStarted   = "publish_started"
+	PhasePublished        = "published"
+	PhaseApplied          = "applied"
+	PhaseRollbackStarted  = "rollback_started"
+	PhasePriorRestored    = "prior_restored"
+	PhaseRollbackComplete = "rollback_completed"
 )
 
 // Destination kinds for backup metadata.
@@ -50,7 +65,7 @@ const (
 	DestKindJunction = "junction"
 )
 
-// Document is journal.v2 — deterministic, versioned, with a forward plan.
+// Document is the versioned transaction journal.
 type Document struct {
 	SchemaVersion int    `json:"schemaVersion"`
 	ID            string `json:"id"`
@@ -66,6 +81,8 @@ type Op struct {
 	Path          string `json:"path"`
 	Backup        string `json:"backup,omitempty"`
 	Progress      string `json:"progress,omitempty"`
+	Phase         string `json:"phase,omitempty"`
+	StagingPath   string `json:"stagingPath,omitempty"`
 	DestKind      string `json:"destKind,omitempty"`
 	HadPrior      bool   `json:"hadPrior,omitempty"`
 	PriorKind     string `json:"priorKind,omitempty"`
@@ -87,7 +104,7 @@ func Encode(doc *Document) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Decode unmarshals and normalizes a journal document (v1 or v2).
+// Decode unmarshals and normalizes a journal document (v1–v3).
 func Decode(data []byte) (*Document, error) {
 	var doc Document
 	if err := json.Unmarshal(data, &doc); err != nil {
@@ -107,7 +124,7 @@ func Normalize(doc *Document) error {
 	if doc.SchemaVersion == 0 {
 		doc.SchemaVersion = SchemaVersion
 	}
-	if doc.SchemaVersion != 1 && doc.SchemaVersion != SchemaVersion {
+	if doc.SchemaVersion != 1 && doc.SchemaVersion != 2 && doc.SchemaVersion != SchemaVersion {
 		return apperr.New(apperr.Transaction, "transaction.normalize", JournalName,
 			fmt.Sprintf("unsupported schemaVersion %d", doc.SchemaVersion))
 	}
@@ -123,6 +140,9 @@ func Normalize(doc *Document) error {
 	for i := range doc.Plan {
 		if doc.Plan[i].Progress == "" {
 			doc.Plan[i].Progress = ProgressPending
+		}
+		if doc.Plan[i].Phase == "" {
+			doc.Plan[i].Phase = PhasePending
 		}
 	}
 	return nil

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "importers": [
     {
       "id": ".",
@@ -20,6 +20,7 @@
   "edges": [
     {
       "from": ".",
+      "name": "lodash",
       "to": "lodash@4.17.21",
       "kind": "prod",
       "range": "^4.17.0"

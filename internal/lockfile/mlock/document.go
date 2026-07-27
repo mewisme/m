@@ -7,7 +7,7 @@ import (
 )
 
 // LockfileVersion is the current m.lock schema version.
-const LockfileVersion = 2
+const LockfileVersion = 3
 
 // Document is the on-disk m.lock v1 shape.
 type Document struct {
@@ -22,8 +22,11 @@ type Document struct {
 
 // Settings snapshots linker and policy for install handoff.
 type Settings struct {
-	Linker string        `json:"linker"`
-	Policy policy.Policy `json:"policy"`
+	Linker                    string        `json:"linker"`
+	Policy                    policy.Policy `json:"policy"`
+	OverridesFingerprint      string        `json:"overridesFingerprint,omitempty"`
+	ResolverPolicyFingerprint string        `json:"resolverPolicyFingerprint,omitempty"`
+	TargetPlatformFingerprint string        `json:"targetPlatformFingerprint,omitempty"`
 }
 
 // ImporterSection is one workspace package with declared specifiers.

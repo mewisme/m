@@ -1,0 +1,16 @@
+{
+  "name": "bar",
+  "dist-tags": {
+    "latest": "1.0.0"
+  },
+  "versions": {
+    "1.0.0": {
+      "name": "bar",
+      "version": "1.0.0",
+      "dist": {
+        "integrity": "sha512-bar",
+        "tarball": "https://registry.example/bar-1.0.0.tgz"
+      }
+    }
+  }
+}

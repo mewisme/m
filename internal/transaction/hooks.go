@@ -1,6 +1,11 @@
 package transaction
 
-import "sync"
+import (
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+)
 
 var (
 	testHookMu sync.Mutex
@@ -21,6 +26,12 @@ func InvokeTestHook(phase string, opIndex int) error {
 }
 
 func invokeTestHook(phase string, opIndex int) error {
+	if spec := strings.TrimSpace(os.Getenv("MEW_TXN_CRASH_AT")); spec != "" {
+		key := fmt.Sprintf("%s:%d", phase, opIndex)
+		if spec == phase || spec == key {
+			os.Exit(2)
+		}
+	}
 	testHookMu.Lock()
 	fn := testHook
 	testHookMu.Unlock()

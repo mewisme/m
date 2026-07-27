@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -25,6 +26,7 @@ type TreeEntryKind string
 const (
 	EntryFile    TreeEntryKind = "file"
 	EntrySymlink TreeEntryKind = "symlink"
+	EntryDir     TreeEntryKind = "dir"
 )
 
 // TreeEntry is one path in a published package tree.
@@ -83,6 +85,11 @@ func generateTreeManifest(root string) (*TreeManifest, error) {
 			return nil
 		}
 		if d.IsDir() {
+			entries = append(entries, TreeEntry{
+				Path: rel,
+				Kind: string(EntryDir),
+				Mode: mode,
+			})
 			return nil
 		}
 		hash, err := hashFile(path)
@@ -121,6 +128,9 @@ func writeTreeManifest(dir string, m *TreeManifest) error {
 	if m == nil {
 		return apperr.New(apperr.Store, "store.manifest", dir, "nil manifest")
 	}
+	if err := validateTreeManifest(m); err != nil {
+		return err
+	}
 	raw, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return apperr.Wrap(apperr.Store, "store.manifest", dir, err)
@@ -144,49 +154,69 @@ func readTreeManifest(dir string) (*TreeManifest, error) {
 	return &m, nil
 }
 
-func verifyTreeManifest(dir string, m *TreeManifest) error {
+func validateTreeManifest(m *TreeManifest) error {
 	if m == nil {
-		return apperr.New(apperr.Store, "store.verify", dir, "nil manifest")
+		return apperr.New(apperr.Store, "store.verify", "", "nil manifest")
 	}
+	seen := make(map[string]struct{}, len(m.Entries))
 	for _, e := range m.Entries {
-		path := filepath.Join(dir, filepath.FromSlash(e.Path))
-		info, err := os.Lstat(path)
-		if err != nil {
+		if err := validateManifestPath(e.Path); err != nil {
 			return apperr.Wrap(apperr.Store, "store.verify", e.Path, err)
 		}
-		mode := uint32(info.Mode().Perm())
-		if mode != e.Mode {
-			return apperr.New(apperr.Store, "store.verify", e.Path, "mode drift")
+		if _, ok := seen[e.Path]; ok {
+			return apperr.New(apperr.Store, "store.verify", e.Path, "duplicate manifest path")
 		}
+		seen[e.Path] = struct{}{}
 		switch TreeEntryKind(e.Kind) {
-		case EntrySymlink:
-			if info.Mode()&fs.ModeSymlink == 0 {
-				return apperr.New(apperr.Store, "store.verify", e.Path, "expected symlink")
-			}
-			target, err := os.Readlink(path)
-			if err != nil {
-				return apperr.Wrap(apperr.Store, "store.verify", e.Path, err)
-			}
-			if filepath.ToSlash(target) != e.SymlinkTarget {
-				return apperr.New(apperr.Store, "store.verify", e.Path, "symlink target changed")
-			}
 		case EntryFile:
-			if info.Mode()&fs.ModeType != 0 && info.Mode()&fs.ModeSymlink == 0 {
-				return apperr.New(apperr.Store, "store.verify", e.Path, "expected regular file")
+			if e.Hash == "" {
+				return apperr.New(apperr.Store, "store.verify", e.Path, "file entry missing hash")
 			}
-			if info.Mode()&fs.ModeSymlink != 0 {
-				return apperr.New(apperr.Store, "store.verify", e.Path, "expected file, found symlink")
+		case EntrySymlink:
+			if e.SymlinkTarget == "" {
+				return apperr.New(apperr.Store, "store.verify", e.Path, "symlink entry missing target")
 			}
-			got, err := hashFile(path)
-			if err != nil {
-				return apperr.Wrap(apperr.Store, "store.verify", e.Path, err)
-			}
-			if !strings.EqualFold(got, e.Hash) {
-				return apperr.New(apperr.Store, "store.verify", e.Path, "content hash mismatch")
-			}
+		case EntryDir:
 		default:
-			return apperr.New(apperr.Store, "store.verify", e.Path, "unknown entry kind")
+			return apperr.New(apperr.Store, "store.verify", e.Path, fmt.Sprintf("unsupported entry kind %q", e.Kind))
 		}
+	}
+	return nil
+}
+
+func validateManifestPath(path string) error {
+	if path == "" {
+		return fmt.Errorf("empty manifest path")
+	}
+	if strings.HasPrefix(path, "/") || strings.HasPrefix(path, "\\") {
+		return fmt.Errorf("absolute manifest path")
+	}
+	if filepath.IsAbs(path) {
+		return fmt.Errorf("absolute manifest path")
+	}
+	clean := filepath.ToSlash(filepath.Clean(path))
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "/../") {
+		return fmt.Errorf("escaping manifest path")
+	}
+	if clean != filepath.ToSlash(path) {
+		return fmt.Errorf("non-canonical manifest path")
+	}
+	return nil
+}
+
+func verifyTreeManifest(dir string, m *TreeManifest) error {
+	if err := validateTreeManifest(m); err != nil {
+		return err
+	}
+	manifestPaths := make(map[string]TreeEntry, len(m.Entries))
+	for _, e := range m.Entries {
+		manifestPaths[e.Path] = e
+		if err := verifyManifestEntry(dir, e); err != nil {
+			return err
+		}
+	}
+	if err := verifyNoExtraTreePaths(dir, manifestPaths); err != nil {
+		return err
 	}
 	if _, err := os.Stat(treeManifestPath(dir)); err != nil {
 		return apperr.Wrap(apperr.Store, "store.verify", treeManifestFileName, err)
@@ -199,4 +229,77 @@ func verifyTreeManifest(dir string, m *TreeManifest) error {
 		return apperr.Wrap(apperr.Store, "store.verify", pkgJSON, err)
 	}
 	return nil
+}
+
+func verifyManifestEntry(dir string, e TreeEntry) error {
+	path := filepath.Join(dir, filepath.FromSlash(e.Path))
+	info, err := os.Lstat(path)
+	if err != nil {
+		return apperr.Wrap(apperr.Store, "store.verify", e.Path, err)
+	}
+	mode := uint32(info.Mode().Perm())
+	if mode != e.Mode {
+		return apperr.New(apperr.Store, "store.verify", e.Path, "mode drift")
+	}
+	switch TreeEntryKind(e.Kind) {
+	case EntrySymlink:
+		if info.Mode()&fs.ModeSymlink == 0 {
+			return apperr.New(apperr.Store, "store.verify", e.Path, "expected symlink")
+		}
+		target, err := os.Readlink(path)
+		if err != nil {
+			return apperr.Wrap(apperr.Store, "store.verify", e.Path, err)
+		}
+		if filepath.ToSlash(target) != e.SymlinkTarget {
+			return apperr.New(apperr.Store, "store.verify", e.Path, "symlink target changed")
+		}
+	case EntryFile:
+		if info.Mode()&fs.ModeType != 0 && info.Mode()&fs.ModeSymlink == 0 {
+			return apperr.New(apperr.Store, "store.verify", e.Path, "expected regular file")
+		}
+		if info.Mode()&fs.ModeSymlink != 0 {
+			return apperr.New(apperr.Store, "store.verify", e.Path, "expected file, found symlink")
+		}
+		got, err := hashFile(path)
+		if err != nil {
+			return apperr.Wrap(apperr.Store, "store.verify", e.Path, err)
+		}
+		if !strings.EqualFold(got, e.Hash) {
+			return apperr.New(apperr.Store, "store.verify", e.Path, "content hash mismatch")
+		}
+	case EntryDir:
+		if !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+			return apperr.New(apperr.Store, "store.verify", e.Path, "expected directory")
+		}
+	default:
+		return apperr.New(apperr.Store, "store.verify", e.Path, "unknown entry kind")
+	}
+	return nil
+}
+
+func verifyNoExtraTreePaths(dir string, manifestPaths map[string]TreeEntry) error {
+	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return nil
+		}
+		base := filepath.Base(rel)
+		if base == treeManifestFileName || base == packageMarker {
+			return nil
+		}
+		rel = filepath.ToSlash(rel)
+		if _, ok := manifestPaths[rel]; ok {
+			return nil
+		}
+		if d.IsDir() {
+			return apperr.New(apperr.Store, "store.verify", rel, "extra directory")
+		}
+		return apperr.New(apperr.Store, "store.verify", rel, "extra file")
+	})
 }

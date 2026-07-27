@@ -735,10 +735,10 @@
       "name": "isolated virtual store",
       "module": "linker",
       "nub_status": "shipped",
-      "mew_status": "in-progress",
+      "mew_status": "experimental",
       "compatibility_class": "parity",
       "primary_mvp": "0019",
-      "notes": "experimental until StoreID v2 + Node phantom require() tests ship on all platforms",
+      "notes": "requires MEW_EXPERIMENTAL_ISOLATED_LINKER=1; StoreID digest + phantom require() tests shipped",
       "tests": [
         "internal/linker/isolated",
         "tests/integration"

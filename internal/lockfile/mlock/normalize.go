@@ -50,6 +50,9 @@ func (d *Document) Normalize() error {
 		if a.From != b.From {
 			return a.From < b.From
 		}
+		if a.Name != b.Name {
+			return a.Name < b.Name
+		}
 		if a.To != b.To {
 			return a.To < b.To
 		}
@@ -88,7 +91,12 @@ func (d *Document) Normalize() error {
 		pkgByKey[key] = p
 	}
 
-	for _, e := range d.Edges {
+	for i := range d.Edges {
+		graph.NormalizeEdge(&d.Edges[i])
+		e := d.Edges[i]
+		if e.Name == "" {
+			return apperr.New(apperr.Lockfile, "mlock.normalize", "m.lock", "edge missing name")
+		}
 		if e.To == "" {
 			return apperr.New(apperr.Lockfile, "mlock.normalize", "m.lock", "edge missing to")
 		}

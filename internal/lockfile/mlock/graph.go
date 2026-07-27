@@ -4,7 +4,6 @@ import (
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/manifest"
-	"strings"
 )
 
 // ToGraph extracts the canonical graph from a lock document.
@@ -113,14 +112,10 @@ func SpecifiersFromGraph(g *graph.Graph) map[graph.ImporterID][]Specifier {
 	return out
 }
 
-// edgeDepName extracts the package name from an edge's To key (name@version).
+// edgeDepName returns the exposed dependency name for an edge.
 func edgeDepName(e graph.Edge) string {
-	to := e.To
-	if i := strings.IndexByte(to, '#'); i >= 0 {
-		to = to[:i]
+	if e.Name != "" {
+		return e.Name
 	}
-	if i := strings.LastIndexByte(to, '@'); i > 0 {
-		return to[:i]
-	}
-	return to
+	return graph.TargetNameFromKey(e.To)
 }

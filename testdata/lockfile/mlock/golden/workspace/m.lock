@@ -1,6 +1,6 @@
 {
-  "lockfileVersion": 2,
-  "checksum": "4d2d4bdc37db938a325ba313b076d521971fe7aa55ed608c5573b3f1ce881e5e",
+  "lockfileVersion": 3,
+  "checksum": "626f2c3708e8a7e297050d300e06bbdcd26d960dd3a33f8f45ae4dc76f91fdc9",
   "settings": {
     "linker": "auto",
     "policy": {
@@ -48,12 +48,14 @@
   "edges": [
     {
       "from": ".",
+      "name": "shared",
       "to": "shared@1.0.0",
       "kind": "prod",
       "range": "^1.0.0"
     },
     {
       "from": "packages/a",
+      "name": "shared",
       "to": "shared@1.0.0",
       "kind": "prod",
       "range": "^1.0.0"

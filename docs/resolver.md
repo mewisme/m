@@ -18,8 +18,8 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 
 `resolver.Resolution`:
 
-- `SchemaVersion`
-- `Graph` — importers, packages, edges (validated / sorted)
+- `SchemaVersion` (graph schema v3)
+- `Graph` — importers, packages, edges with `Edge.Name` (validated / sorted)
 - `Decisions` — per-request candidates, selected version, reason, policy rejects, peer context
 - `Extensions` — e.g. `mew.resolver/local` for workspace and local-source placeholders
 
@@ -41,11 +41,18 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 ### Peer dependencies (0020)
 
 - Collect `peerDependencies` (and optional `peerDependenciesMeta`) from packuments.
-- Match peers via **ancestor walk** from the importing context (nearest provider wins).
-- **Strict by default** (`resolve.strictPeerDependencies=true`): missing required peers fail with `ERR_M_RESOLVE` and a structured peer conflict (see `m explain peer`).
+- Match peers via **ancestor walk** from the importing context.
+- **Nearest provider wins:** walk contexts nearest→farthest; first compatible provider
+  is selected (no global max-version scan across branches).
+- **Nearest incompatible:** fail under strict peers; do not skip to a farther branch
+  unless optional/auto-install policy applies.
+- **Strict by default** (`resolve.strictPeerDependencies=true`): missing required peers fail with `ERR_M_RESOLVE` and a structured peer conflict tree (see `m explain peer`).
 - **Auto-install** (`resolve.autoInstallPeers=true`): enqueue missing peers as prod edges from the **requesting importer/context** (not always root).
 - Optional peers (`peerDependenciesMeta.optional`) may be absent without error.
-- When peer sets diverge, assign `graph.PeerProviderContext` on `PackageID` after resolution. Key format: `name@version#providerKey,...` where each provider key is the resolved `name@version` (sorted provider names). Golden: `testdata/graph/peers.json`.
+- **Multiple instances:** provisional instance keys before dedup keep distinct
+  `plugin@1.0.0` nodes under different peer environments (e.g. react@18 vs
+  react@19). Canonical `PackageID` + `PeerProviderContext` are assigned when peer
+  sets are final.
 - Dependency cycles keyed by full package identity add edges to in-progress nodes instead of false-positive name-path errors.
 
 ### Optional and platform (0020)
@@ -57,7 +64,8 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 ### Overrides and aliases (0020)
 
 - npm-style nested `overrides` rewrite specifiers before queueing; nearest importer override wins.
-- `npm:bar@^1` aliases resolve `bar` while keeping the declared edge label.
+- `npm:bar@^1` aliases resolve `bar` while keeping the declared edge label in `Edge.Name`.
+- `Edge.Range` retains the full specifier string.
 
 ### Workspace protocol (0020)
 
@@ -65,6 +73,7 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 - `workspace:^` → `^memberVersion` range satisfied only by that member.
 - Missing target → `ERR_M_RESOLVE` with `workspace target "pkg" not found`.
 - Workspace members register as graph nodes with empty `integrity` / `tarballUrl` and `mew.resolver/local` `{protocol:"workspace", path:"..."}`.
+- Full workspace install wiring — **0022** (resolve-only today).
 
 ### Local sources (0020 placeholders)
 
@@ -75,10 +84,24 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 ### Incremental resolve (0020)
 
 - `ResolveOptions.Prior` + `Hints` reuse pinned versions when specifiers, overrides, and update closure are unchanged.
+- **Edge-keyed update closure:** seeds by importer + `depName` + kind + range; traverses prior graph by canonical edges and package instance keys (not name-only).
 - Reuse keys incorporate importer, edge kind/range, prior parent package key, resolved peer-provider context, override hash, and policy fingerprint from the prior lock.
+- **Lock fingerprints** (`overridesFingerprint`, `resolverPolicyFingerprint`, `targetPlatformFingerprint`) compared against current effective policy — drift forces re-resolve.
 - Pin reuse requires full packument metadata recovery; Mew does not synthesize dependency trees from name/version/integrity alone during incremental update.
 - After resolve, packages outside the update closure are merged verbatim from `Prior` so unrelated subgraphs stay byte-stable.
 - `m update [pkg...]` re-resolves with `UpdateTargets`; empty args refresh direct deps only while preserving unrelated subgraph. Routed through the install transaction (`runInstallTxn`).
+
+### Conflict explanation (0020 partial)
+
+Peer resolution failures build a structured `ConflictNode` tree during resolve
+(ancestry steps and per-environment provider search). Golden fixtures live under
+`testdata/resolver/explain/`. Full product `m explain` beyond the peer
+subcommand — **0028**.
+
+### Registry cancellation
+
+`Packument` duplicate wait and `Packuments` worker enqueue honor caller `context`
+cancellation (`ERR_M_CANCELLED`).
 
 ## CLI
 
@@ -90,20 +113,21 @@ m explain peer <name> [--json]
 
 `--plan` is the dry-resolve mode (default). `--json` emits `Resolution`.
 `--trace` prints peer context, override rewrites, skipped optional deps, and workspace/local resolutions.
-Full `m explain` beyond the peer subcommand is MVP 0028.
 
 ## Lockfile handoff (0015 / 0020)
 
-`app.WriteLock` builds `m.lock` from `Resolution` plus manifest specifiers,
-config settings (including resolver policy), and extensions. `app.ReadLockGraph`
-feeds `ResolveOptions.Hints` / `Prior` for incremental resolve. See
-[`lockfile.md`](lockfile.md).
+`app.WriteLock` builds `m.lock` v3 from `Resolution` plus manifest specifiers,
+config settings (including resolver policy and fingerprints), and extensions.
+`app.ReadLockGraph` feeds `ResolveOptions.Hints` / `Prior` for incremental resolve.
+See [`lockfile.md`](lockfile.md).
 
 ## Fixtures
 
 | Path | Exercises |
 |---|---|
 | `fixtures/resolver/peers/react-ecosystem/` | Peer contexts, strict failure, auto-install |
+| `fixtures/resolver/peers/dual-react-plugin/` | Multiple peer-context instances |
+| `fixtures/resolver/aliases/` | npm alias protocol + `Edge.Name` |
 | `fixtures/resolver/optional-platform/` | OS/CPU optional skip |
 | `fixtures/resolver/overrides-nested/` | Nested transitive override |
 | `fixtures/projects/workspace-protocol/` | `workspace:*` / `workspace:^` |

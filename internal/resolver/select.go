@@ -16,6 +16,7 @@ func selectVersion(
 	name, rng string,
 	pol *policy.Policy,
 	hints *graphHints,
+	pin pinContext,
 ) (meta *registry.VersionMeta, decision ResolutionDecision, err error) {
 	decision = ResolutionDecision{
 		Package:    name,
@@ -33,23 +34,31 @@ func selectVersion(
 		eligible = append(eligible, ver)
 	}
 
-	if hv := hints.version(name, rng); hv != "" {
-		if containsStr(eligible, hv) {
+	if hints != nil {
+		if hv, ok := hints.reusedVersion(pin); ok && containsStr(eligible, hv) {
 			m := p.Versions[hv]
 			decision.Selected = hv
-			decision.Reason = "hint"
+			decision.Reason = "reuse-key"
 			return &m, decision, nil
 		}
-		if pkg, ok := hints.pkg(name, hv); ok {
-			if reason := policyRejectReason(&registry.VersionMeta{
-				Version: hv, Deprecated: "", Time: "",
-			}, pol); reason == "" {
+		if hv := hints.version(name, rng); hv != "" && !hints.incremental {
+			if containsStr(eligible, hv) {
+				m := p.Versions[hv]
 				decision.Selected = hv
 				decision.Reason = "hint"
-				return &registry.VersionMeta{
-					Name: name, Version: hv,
-					Dist: registry.Dist{Integrity: pkg.Integrity, Tarball: pkg.TarballURL},
-				}, decision, nil
+				return &m, decision, nil
+			}
+			if pkg, ok := hints.pkg(name, hv); ok {
+				if reason := policyRejectReason(&registry.VersionMeta{
+					Version: hv, Deprecated: "", Time: "",
+				}, pol); reason == "" {
+					decision.Selected = hv
+					decision.Reason = "hint"
+					return &registry.VersionMeta{
+						Name: name, Version: hv,
+						Dist: registry.Dist{Integrity: pkg.Integrity, Tarball: pkg.TarballURL},
+					}, decision, nil
+				}
 			}
 		}
 	}

@@ -3,31 +3,33 @@ package isolated
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"unicode"
 
+	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/graph"
 )
 
 const storeIDMaxLen = 120
 
 // StoreID returns a deterministic virtual-store directory name for id.
-// Format: readable name@version[@shortHash] with Windows-safe characters only.
+// Format: readable name@version[@digest] with Windows-safe characters only.
+// When the readable prefix exceeds storeIDMaxLen, a sha256 identity digest is always appended.
 func StoreID(id graph.PackageID) string {
 	prefix := nameVersionPrefix(id.Name, id.Version)
-	if len(id.PeerProviderContext) == 0 {
-		return truncateStoreID(prefix)
+	if len(id.PeerProviderContext) > 0 {
+		digest := shortPeerDigest(id.PeerProviderContext)
+		combined := prefix + "@" + digest
+		if len(combined) <= storeIDMaxLen {
+			return combined
+		}
+		return truncateWithDigest(prefix, combined)
 	}
-	digest := shortPeerDigest(id.PeerProviderContext)
-	combined := prefix + "@" + digest
-	if len(combined) <= storeIDMaxLen {
-		return combined
+	if len(prefix) <= storeIDMaxLen {
+		return prefix
 	}
-	keep := storeIDMaxLen - len(digest) - 1
-	if keep < 1 {
-		return truncateStoreID(digest)
-	}
-	return truncateStoreID(prefix[:keep] + "@" + digest)
+	return truncateWithDigest(prefix, prefix)
 }
 
 // StoreIDFromKey derives StoreID from a package key string.
@@ -86,11 +88,36 @@ func isStoreIDRune(r rune) bool {
 	}
 }
 
-func truncateStoreID(s string) string {
-	if len(s) <= storeIDMaxLen {
-		return s
+func identityDigest(full string) string {
+	sum := sha256.Sum256([]byte(full))
+	return hex.EncodeToString(sum[:8])
+}
+
+func truncateWithDigest(prefix, fullIdentity string) string {
+	digest := identityDigest(fullIdentity)
+	keep := storeIDMaxLen - len(digest) - 1
+	if keep < 1 {
+		return digest
 	}
-	return s[:storeIDMaxLen]
+	if len(prefix) > keep {
+		prefix = prefix[:keep]
+	}
+	return sanitizeStoreID(prefix) + "@" + digest
+}
+
+// CheckStoreIDCollisions returns ERR_M_INTEGRITY when two package keys share a StoreID.
+func CheckStoreIDCollisions(pkgs []graph.Package) error {
+	byID := map[string]string{}
+	for _, p := range pkgs {
+		sid := StoreID(p.ID)
+		key := p.ID.Key()
+		if prev, ok := byID[sid]; ok && prev != key {
+			return apperr.New(apperr.Integrity, "linker.isolated.store_id", sid,
+				fmt.Sprintf("store id collision between %q and %q", prev, key))
+		}
+		byID[sid] = key
+	}
+	return nil
 }
 
 func parsePackageKey(key string) graph.PackageID {

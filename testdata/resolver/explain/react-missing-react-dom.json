@@ -7,9 +7,21 @@
     "searchPath": [
       "."
     ],
-    "candidates": [
-      "(none resolved)"
-    ],
-    "remediation": "install react-dom@^18.0.0 in the dependency tree or enable resolve.autoInstallPeers"
+    "remediation": "install react-dom@^18.0.0 in the dependency tree or enable resolve.autoInstallPeers",
+    "children": [
+      {
+        "constraint": "ancestry: .",
+        "importer": ".",
+        "children": [
+          {
+            "constraint": "environment: . (strict peers)",
+            "importer": ".",
+            "candidates": [
+              "(no providers in context)"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

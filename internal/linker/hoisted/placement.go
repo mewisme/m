@@ -132,14 +132,19 @@ type hoistEntry struct {
 	key     string
 }
 
+type depEdge struct {
+	name  string
+	toKey string
+}
+
 func placements(g *graph.Graph, nmRoot string) ([]linker.Placement, error) {
-	children := childEdges(g)
+	children := childDepEdges(g)
 	projectRoot := filepath.Dir(nmRoot)
 	rootHoisted := map[string]hoistEntry{}
-	for _, toKey := range children[string(graph.RootImporter)] {
-		rootHoisted[packageName(toKey)] = hoistEntry{
-			version: packageVersion(toKey),
-			key:     toKey,
+	for _, e := range children[string(graph.RootImporter)] {
+		rootHoisted[e.name] = hoistEntry{
+			version: packageVersion(e.toKey),
+			key:     e.toKey,
 		}
 	}
 
@@ -153,34 +158,35 @@ func placements(g *graph.Graph, nmRoot string) ([]linker.Placement, error) {
 		if fromKey == string(graph.RootImporter) {
 			importer = string(graph.RootImporter)
 		}
-		for _, toKey := range children[fromKey] {
-			edgeKey := fromKey + "->" + toKey
+		for _, edge := range children[fromKey] {
+			edgeKey := fromKey + "->" + edge.name + "->" + edge.toKey
 			if _, seen := visitedEdges[edgeKey]; seen {
 				continue
 			}
 			visitedEdges[edgeKey] = struct{}{}
 
-			depName := packageName(toKey)
-			version := packageVersion(toKey)
+			depName := edge.name
+			version := packageVersion(edge.toKey)
 			fromRoot := fromKey == string(graph.RootImporter)
-			destDir, hoistLvl := resolveHoistedDest(fromRoot, parentPkgDir, nmRoot, toKey, depName, version, rootHoisted)
+			destDir, hoistLvl := resolveHoistedDest(fromRoot, parentPkgDir, nmRoot, edge.toKey, depName, version, rootHoisted)
 
 			if existing, ok := destCtx[destDir]; ok && existing.destDir == destDir {
-				walk(existing, toKey, destDir)
+				walk(existing, edge.toKey, destDir)
 				continue
 			}
 
 			pid := linker.PlacementID{
-				Parent:     parent.id.String(),
-				Importer:   importer,
-				DepName:    depName,
-				PackageKey: toKey,
-				HoistLevel: hoistLvl,
+				Parent:      parent.id.String(),
+				Importer:    importer,
+				DepName:     depName,
+				PackageKey:  edge.toKey,
+				HoistLevel:  hoistLvl,
+				PeerContext: peerContextDigest(edge.toKey),
 			}
 			ctx := walkCtx{id: pid, destDir: destDir, hoistLvl: hoistLvl}
 			destCtx[destDir] = ctx
-			result = append(result, linker.Placement{ID: pid, Key: toKey, DestDir: destDir})
-			walk(ctx, toKey, destDir)
+			result = append(result, linker.Placement{ID: pid, Key: edge.toKey, DestDir: destDir})
+			walk(ctx, edge.toKey, destDir)
 		}
 	}
 
@@ -192,28 +198,35 @@ func placements(g *graph.Graph, nmRoot string) ([]linker.Placement, error) {
 	return result, nil
 }
 
-func resolveHoistedDest(fromRoot bool, parentPkgDir, nmRoot, packageKey, name, version string, rootHoisted map[string]hoistEntry) (destDir string, hoistLvl int) {
+func resolveHoistedDest(fromRoot bool, parentPkgDir, nmRoot, packageKey, edgeName, version string, rootHoisted map[string]hoistEntry) (destDir string, hoistLvl int) {
 	if fromRoot {
-		entry, exists := rootHoisted[name]
+		entry, exists := rootHoisted[edgeName]
 		if !exists {
-			rootHoisted[name] = hoistEntry{version: version, key: packageKey}
-			return installUnder(nmRoot, name), 0
+			rootHoisted[edgeName] = hoistEntry{version: version, key: packageKey}
+			return installUnder(nmRoot, edgeName), 0
 		}
 		if entry.version == version && entry.key == packageKey {
-			return installUnder(nmRoot, name), 0
+			return installUnder(nmRoot, edgeName), 0
 		}
 		nested := filepath.Join(parentPkgDir, "node_modules")
-		return installUnder(nested, name), hoistLevelFor(nested, nmRoot)
+		return installUnder(nested, edgeName), hoistLevelFor(nested, nmRoot)
 	}
-	if entry, exists := rootHoisted[name]; exists {
+	if entry, exists := rootHoisted[edgeName]; exists {
 		if entry.version == version && entry.key == packageKey {
-			return installUnder(nmRoot, name), 0
+			return installUnder(nmRoot, edgeName), 0
 		}
 		nested := filepath.Join(parentPkgDir, "node_modules")
-		return installUnder(nested, name), hoistLevelFor(nested, nmRoot)
+		return installUnder(nested, edgeName), hoistLevelFor(nested, nmRoot)
 	}
-	rootHoisted[name] = hoistEntry{version: version, key: packageKey}
-	return installUnder(nmRoot, name), 0
+	rootHoisted[edgeName] = hoistEntry{version: version, key: packageKey}
+	return installUnder(nmRoot, edgeName), 0
+}
+
+func peerContextDigest(packageKey string) string {
+	if i := strings.IndexByte(packageKey, '#'); i >= 0 {
+		return packageKey[i+1:]
+	}
+	return ""
 }
 
 func hoistLevelFor(scopeDir, nmRoot string) int {
@@ -253,26 +266,29 @@ func rootDependencyKeys(g *graph.Graph) map[string]bool {
 	return out
 }
 
-func childEdges(g *graph.Graph) map[string][]string {
-	out := make(map[string][]string)
+func childDepEdges(g *graph.Graph) map[string][]depEdge {
+	out := make(map[string][]depEdge)
 	for _, e := range g.Edges {
-		out[e.From] = append(out[e.From], e.To)
+		name := e.Name
+		if name == "" {
+			name = graph.TargetNameFromKey(e.To)
+		}
+		out[e.From] = append(out[e.From], depEdge{name: name, toKey: e.To})
 	}
 	for from := range out {
-		sort.Strings(out[from])
+		sort.Slice(out[from], func(i, j int) bool {
+			a, b := out[from][i], out[from][j]
+			if a.name != b.name {
+				return a.name < b.name
+			}
+			return a.toKey < b.toKey
+		})
 	}
 	return out
 }
 
 func packageName(key string) string {
-	s := key
-	if i := strings.IndexByte(s, '#'); i >= 0 {
-		s = s[:i]
-	}
-	if i := strings.LastIndexByte(s, '@'); i > 0 {
-		return s[:i]
-	}
-	return s
+	return graph.TargetNameFromKey(key)
 }
 
 func packageVersion(key string) string {
