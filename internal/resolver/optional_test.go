@@ -51,6 +51,9 @@ func optionalPackuments() map[string]registry.Packument {
 }
 
 func TestResolveOptionalPlatformSkipped(t *testing.T) {
+	if resolver.CurrentTarget().OS == "darwin" {
+		t.Skip("host is darwin; platform skip not expected")
+	}
 	eng, _ := engineWithPackuments(t, optionalPackuments())
 	root := writeProject(t, `{
   "name": "root",
@@ -72,9 +75,6 @@ func TestResolveOptionalPlatformSkipped(t *testing.T) {
 		if d.Package == "opt-darwin" && d.Reason == "platform-skipped" {
 			skipped = true
 		}
-	}
-	if resolver.CurrentTarget().OS == "darwin" {
-		t.Skip("host is darwin; platform skip not expected")
 	}
 	if !skipped {
 		t.Fatal("expected platform-skipped decision for opt-darwin")

@@ -134,8 +134,3 @@ func applyJunction(src, dest string) error {
 	}
 	return nil
 }
-
-// reflinkFile is implemented per-platform; default tries hardlink.
-func reflinkFile(src, dest string) error {
-	return applyHardlinkFile(src, dest, 0)
-}
