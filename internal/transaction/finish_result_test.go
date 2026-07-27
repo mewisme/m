@@ -98,3 +98,57 @@ func TestCleanupErrorCriticalWithoutWarnings(t *testing.T) {
 		t.Fatalf("code=%s", apperr.CodeOf(err))
 	}
 }
+
+func TestCleanupErrorTxnDirRemoveOnly(t *testing.T) {
+	dirErr := apperr.New(apperr.IO, "transaction.finish", "txn", "remove failed")
+	fr := transaction.FinishResult{
+		Committed:           true,
+		CleanupWarnings:     []error{dirErr},
+		CleanupWarningCodes: []string{"txn_dir_remove"},
+	}
+	if fr.CleanupError() != nil {
+		t.Fatalf("expected nil critical error, got %v", fr.CleanupError())
+	}
+	if fr.HasCriticalCleanupFailure() {
+		t.Fatal("warning-only should not be critical")
+	}
+	warns := fr.WarningErrors()
+	if len(warns) != 1 || !errors.Is(warns[0], dirErr) {
+		t.Fatalf("warnings=%v", warns)
+	}
+}
+
+func TestCleanupErrorFinishHookOnly(t *testing.T) {
+	hookErr := apperr.New(apperr.Transaction, "transaction.finish", "", "hook failed")
+	fr := transaction.FinishResult{
+		Committed:           true,
+		CleanupWarnings:     []error{hookErr},
+		CleanupWarningCodes: []string{"finish_hook"},
+	}
+	if fr.CleanupError() != nil {
+		t.Fatalf("expected nil critical error, got %v", fr.CleanupError())
+	}
+}
+
+func TestCleanupErrorMixedCriticalAndWarning(t *testing.T) {
+	currentErr := apperr.New(apperr.Integrity, "transaction.current", "current.bad", "malformed")
+	dirErr := apperr.New(apperr.IO, "transaction.finish", "txn", "remove failed")
+	fr := transaction.FinishResult{
+		CurrentClearRequested: true,
+		CleanupWarnings:       []error{dirErr, currentErr},
+		CleanupWarningCodes:   []string{"txn_dir_remove", transaction.CleanupCodeTxnCurrentCleanup},
+	}
+	err := fr.CleanupError()
+	if !errors.Is(err, currentErr) {
+		t.Fatalf("expected current err, got %v", err)
+	}
+	if errors.Is(err, dirErr) {
+		t.Fatal("dir remove should not be critical")
+	}
+}
+
+func TestCleanupCodeSeverityUnknownDefaultsWarning(t *testing.T) {
+	if transaction.CleanupCodeSeverity("unknown_future_code") != transaction.CleanupWarning {
+		t.Fatal("unknown code should default to warning")
+	}
+}

@@ -51,6 +51,32 @@ func TestWriteInstallResultJSONStoreMaintenance(t *testing.T) {
 	}
 }
 
+func TestWriteInstallResultJSONWarningOnlyFinish(t *testing.T) {
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	result := app.InstallResult{
+		Committed:           true,
+		CleanupIncomplete:   true,
+		CleanupWarningCodes: []string{"finish_hook"},
+		CleanupWarnings:     []string{"finish hook failed"},
+	}
+	if err := writeInstallResult(cmd, result, true, false); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if strings.Contains(out, "recoveryRequired") {
+		t.Fatalf("warning-only should not set recoveryRequired: %s", out)
+	}
+	if strings.Contains(out, "transactionCleanupIncomplete") {
+		t.Fatalf("warning-only should not set transactionCleanupIncomplete: %s", out)
+	}
+	if !strings.Contains(out, "finish_hook") {
+		t.Fatalf("missing warning code: %s", out)
+	}
+}
+
 func TestWriteInstallResultJSONTransactionCleanup(t *testing.T) {
 	cmd := &cobra.Command{}
 	buf := new(bytes.Buffer)
