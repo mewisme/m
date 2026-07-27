@@ -135,10 +135,11 @@ make fuzz-smoke
 | Isolated layout + rollback | `tests/integration/isolated_test.go`, `install_test.go` (`TestInstallFailurePreservesOldTree`) | Virtual store topology; failed install leaves prior tree intact |
 | ABA proc takeover | `internal/fsx/lockdir_aba_proc_test.go` | Cross-process stale lock takeover blocked when live lock reappears (project/import/index) |
 
-Run integration suites without `-short` (proc/crash tests skip under `-short`):
+Run integration suites without `-short` (proc tests skip under `-short`). Crash-matrix files use the `crash` build tag and are excluded from default `go test ./...`:
 
 ```powershell
 go test ./tests/integration/... -count=1
+go test -tags crash ./tests/integration/... -count=1 -run Crash -timeout 30m
 ```
 
 ## Stabilization pass 3 suites (0016–0020 hard correctness)
@@ -203,7 +204,7 @@ when present).
 | `go test ./...` | yes (hermetic; linux/macOS/windows matrix) | yes |
 | `go test -race ./...` | yes (ubuntu) | yes |
 | `race-windows` job | `transaction`, `store`, `fsx` on windows-latest | yes |
-| `crash-integration` job | `go test ./tests/integration/... -run Crash -count=1` (no `-short`) | yes |
+| `crash-integration` job | `go test -tags crash ./tests/integration/... -run Crash -count=1 -timeout 30m` on ubuntu + windows (no `-short`) | yes |
 | `platform-lock` job | cross-process lock + ABA proc tests on all OS (darwin uses `x/sys/unix` flock) | yes |
 | `golangci-lint run` | yes (Ubuntu) | yes |
 | Fixture registry | local only | local only |

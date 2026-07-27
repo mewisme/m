@@ -1,3 +1,5 @@
+//go:build crash
+
 package integration_test
 
 import (

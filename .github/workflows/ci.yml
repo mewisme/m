@@ -53,14 +53,19 @@ jobs:
         run: go test -race ./internal/transaction/... ./internal/store/... ./internal/fsx/... -count=1
 
   crash-integration:
-    runs-on: ubuntu-latest
+    name: crash-integration (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
       - name: Process crash matrix (install, update, snapshot restore)
-        run: go test ./tests/integration/... -count=1 -run 'Crash'
+        run: go test -tags crash ./tests/integration/... -count=1 -run 'Crash' -timeout 30m
 
   race-macos:
     runs-on: macos-latest

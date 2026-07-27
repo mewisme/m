@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,6 +11,48 @@ import (
 
 	"github.com/mewisme/m/internal/apperr"
 )
+
+// ResolveConfigPath resolves a --config path against the invocation working directory.
+// Absolute paths are cleaned; relative paths join invocationCWD before absoluting.
+func ResolveConfigPath(invocationCWD, configPath string) (string, error) {
+	if configPath == "" {
+		return "", errors.New("empty config path")
+	}
+	if filepath.IsAbs(configPath) {
+		return filepath.Abs(configPath)
+	}
+	return filepath.Abs(filepath.Join(invocationCWD, configPath))
+}
+
+// IsPathWithin reports whether candidate is lexically inside root (no symlink follow).
+func IsPathWithin(root, candidate string) (bool, error) {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return false, err
+	}
+	rootAbs = filepath.Clean(rootAbs)
+	candAbs, err := filepath.Abs(candidate)
+	if err != nil {
+		return false, err
+	}
+	candAbs = filepath.Clean(candAbs)
+
+	rel, err := filepath.Rel(rootAbs, candAbs)
+	if err != nil {
+		return false, nil
+	}
+	if rel == ".." {
+		return false, nil
+	}
+	sep := string(filepath.Separator)
+	if strings.HasPrefix(rel, ".."+sep) {
+		return false, nil
+	}
+	if filepath.IsAbs(rel) {
+		return false, nil
+	}
+	return true, nil
+}
 
 // String returns a string config value, or def if missing/empty.
 func String(eff *Effective, key, def string) string {

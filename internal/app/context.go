@@ -4,10 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
+	"runtime"
 
 	"github.com/mewisme/m/internal/config"
 	"github.com/mewisme/m/internal/diagnostics"
+	"github.com/mewisme/m/internal/project"
 )
 
 // Context is the process-level application state for one CLI invocation.
@@ -69,19 +70,28 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 		env = os.Environ()
 	}
 
+	projectRoot := cwd
+	if r, err := project.FindRoot(cwd); err == nil {
+		projectRoot = r
+	}
+
 	loadOpts := config.LoadOptions{
 		CWD:         cwd,
-		ProjectRoot: cwd,
+		ProjectRoot: projectRoot,
 		Env:         env,
 		CLI:         cliOverlay,
+		GlobalPath:  config.GlobalConfigPathFromEnv(env, runtime.GOOS),
 	}
 	if opts.ConfigPath != "" {
-		cfgAbs, err := filepath.Abs(opts.ConfigPath)
+		cfgAbs, err := config.ResolveConfigPath(cwd, opts.ConfigPath)
 		if err != nil {
 			return nil, err
 		}
-		rel, err := filepath.Rel(cwd, cfgAbs)
-		if err == nil && !strings.HasPrefix(rel, "..") {
+		within, err := config.IsPathWithin(projectRoot, cfgAbs)
+		if err != nil {
+			return nil, err
+		}
+		if within {
 			loadOpts.ProjectPath = cfgAbs
 			loadOpts.RequireProjectConfig = true
 		} else {
