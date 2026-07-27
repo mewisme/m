@@ -96,6 +96,7 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 	return cmd
 }
 
+// loadEffective rebuilds config for m config subcommands (not the mutation reload path).
 func loadEffective(g *globalFlags) (*config.Effective, error) {
 	cwd := g.cwd
 	if cwd == "" {

@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"os"
 	"path/filepath"
 
 	"github.com/mewisme/m/internal/apperr"
@@ -61,12 +60,7 @@ func (s *MutationSession) ReloadEffectiveConfig(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	eff, err := config.Load(ctx, config.LoadOptions{
-		CWD:         s.ac.CWD,
-		ProjectRoot: s.projectRoot,
-		Env:         os.Environ(),
-		CLI:         cliOverlayFromEffective(s.ac.Config),
-	})
+	eff, err := config.Load(ctx, s.ac.ConfigLoadSpec.Clone().WithProjectRoot(s.projectRoot).LoadOptions())
 	if err != nil {
 		return err
 	}
@@ -89,13 +83,14 @@ func (s *MutationSession) AppContext() (*Context, error) {
 		return s.sessionAC, nil
 	}
 	s.sessionAC = &Context{
-		CWD:       s.ac.CWD,
-		Config:    s.effective,
-		Reporter:  s.ac.Reporter,
-		Version:   s.ac.Version,
-		Commit:    s.ac.Commit,
-		BuildDate: s.ac.BuildDate,
-		Ctx:       s.ac.Ctx,
+		CWD:            s.ac.CWD,
+		Config:         s.effective,
+		ConfigLoadSpec: s.ac.ConfigLoadSpec,
+		Reporter:       s.ac.Reporter,
+		Version:        s.ac.Version,
+		Commit:         s.ac.Commit,
+		BuildDate:      s.ac.BuildDate,
+		Ctx:            s.ac.Ctx,
 	}
 	return s.sessionAC, nil
 }
@@ -153,22 +148,6 @@ func (s *MutationSession) Abort(ctx context.Context) (transaction.FinishResult, 
 	}
 	fr, cleanupErr, _ := rollbackSession(ctx, s, s.runner)
 	return fr, cleanupErr
-}
-
-func cliOverlayFromEffective(eff *config.Effective) map[string]any {
-	if eff == nil || eff.Values == nil {
-		return nil
-	}
-	out := make(map[string]any)
-	for k, v := range eff.Values {
-		if v.Source == config.SourceCLI {
-			out[k] = v.Raw
-		}
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
 }
 
 func resolveProjectRoot(ac *Context, explicit string) (string, error) {

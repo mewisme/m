@@ -38,19 +38,21 @@ func testStoreInstallContext(t *testing.T) (*Context, string, func()) {
 }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	eff, err := config.Load(context.Background(), config.LoadOptions{
-		CWD: proj,
+	loadOpts := config.LoadOptions{
+		CWD:         proj,
+		ProjectRoot: proj,
 		CLI: map[string]any{
 			"registry":              srv.URL,
 			"link.use_global_store": true,
 			"store.dir":             storeDir,
 			"cache.dir":             cacheDir,
 		},
-	})
+	}
+	eff, err := config.Load(context.Background(), loadOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &Context{CWD: proj, Config: eff}, proj, srv.Close
+	return &Context{CWD: proj, Config: eff, ConfigLoadSpec: config.LoadSpecFromOptions(loadOpts)}, proj, srv.Close
 }
 
 func TestFetchAndImportGraphSurfacesStoreCleanup(t *testing.T) {

@@ -56,6 +56,9 @@ type LoadOptions struct {
 	ProjectRoot string // empty = CWD (caller may set after FindRoot)
 	Env         []string
 	CLI         map[string]any // already-parsed CLI overlays
+	// RequireProjectConfig/RequireGlobalConfig make explicit --config paths mandatory.
+	RequireProjectConfig bool
+	RequireGlobalConfig  bool
 	// IdentityMew when true skips branded PM config authority (always true for Load today).
 	IdentityMew bool
 }
@@ -161,7 +164,7 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 	if gpath == "" {
 		gpath = GlobalConfigPath()
 	}
-	if err := mergeFile(eff, gpath, SourceGlobal); err != nil {
+	if err := mergeFile(eff, gpath, SourceGlobal, opts.RequireGlobalConfig); err != nil {
 		return nil, err
 	}
 
@@ -169,7 +172,7 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 	if ppath == "" {
 		ppath = filepath.Join(root, "m.jsonc")
 	}
-	if err := mergeFile(eff, ppath, SourceProject); err != nil {
+	if err := mergeFile(eff, ppath, SourceProject, opts.RequireProjectConfig); err != nil {
 		return nil, err
 	}
 
@@ -191,10 +194,13 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 	return eff, nil
 }
 
-func mergeFile(eff *Effective, path string, src Source) error {
+func mergeFile(eff *Effective, path string, src Source, required bool) error {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			if required {
+				return apperr.New(apperr.Config, "config.load", path, "explicit config file missing: "+path)
+			}
 			return nil
 		}
 		return apperr.Wrap(apperr.IO, "config.load", path, err)
