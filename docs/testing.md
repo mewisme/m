@@ -18,6 +18,7 @@ fixtures/
     basic-cjs/ basic-esm/ typescript-app/ workspace-simple/
   identity/                 # lockfile identity cases (0006)
   security/evil-archives/   # known-bad member names; never extract in prod
+  lifecycle/                # lifecycle script fixtures + registry (0021)
 tests/
   integration/              # clean-home + local registry smoke
   conformance/              # differential harness + inventory stub
@@ -81,6 +82,19 @@ make conformance
 # or
 go test ./tests/conformance/... -count=1
 ```
+
+## Lifecycle tests (0021)
+
+Integration tests in `tests/integration/lifecycle*_test.go` use
+`fixtures/lifecycle/registry` and `testkit.EnableLifecycle` (`MEW_EXPERIMENTAL_LIFECYCLE=1`).
+
+```powershell
+go test ./tests/integration/... -run Lifecycle -count=1
+```
+
+Node.js is required for script fixtures that invoke `node`; trust/policy tests run without Node.
+
+See [`docs/lifecycle.md`](lifecycle.md).
 
 ## Fuzz smoke
 

@@ -34,11 +34,16 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 | `cache.dir` | string | platform cache (empty = derive) |
 | `store.dir` | string | platform store (empty = derive) |
 | `link.use_global_store` | bool | `false` — experimental global store + smart linker (or `MEW_EXPERIMENTAL_GLOBAL_STORE=1`) |
+| `lifecycle.enabled` | bool | `false` — run lifecycle scripts (or `MEW_EXPERIMENTAL_LIFECYCLE=1`) |
+| `lifecycle.ignore_scripts` | bool | `false` — skip all lifecycle scripts |
+| `lifecycle.script_trust` | string | `deny` (`allow` \| `deny` \| `ask`) |
 
 Environment:
 
 | Variable | Effect |
 |---|---|
+| `MEW_EXPERIMENTAL_LIFECYCLE` | Maps to `lifecycle.enabled` |
+| `MEW_EXPERIMENTAL_GLOBAL_STORE` | Maps to `link.use_global_store` |
 | `MEW_EXPERIMENTAL_ISOLATED_LINKER` | Set to `1` to allow `install.linker=isolated` |
 | `MEW_RESOLVE_AUTO_INSTALL_PEERS` | Maps to `resolve.autoInstallPeers` |
 | `MEW_RESOLVE_STRICT_PEER_DEPS` | Maps to `resolve.strictPeerDependencies` |

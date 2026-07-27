@@ -833,40 +833,40 @@
       "name": "lifecycle scripts",
       "module": "lifecycle",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0021",
-      "tests": []
+      "tests": ["tests/integration/lifecycle_test.go", "tests/integration/lifecycle_rollback_test.go"]
     },
     {
       "id": "lifecycle.trusted-deps",
       "name": "trusted dependencies / build approval",
       "module": "lifecycle",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0021",
-      "tests": []
+      "tests": ["tests/integration/lifecycle_test.go", "tests/integration/lifecycle_rollback_test.go"]
     },
     {
       "id": "lifecycle.sandbox",
       "name": "script sandbox",
       "module": "lifecycle",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0021",
-      "tests": []
+      "tests": ["tests/integration/lifecycle_test.go", "tests/integration/lifecycle_rollback_test.go"]
     },
     {
       "id": "lifecycle.build-cache",
       "name": "build-output cache",
       "module": "lifecycle",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0021",
-      "tests": []
+      "tests": ["tests/integration/lifecycle_test.go", "tests/integration/lifecycle_rollback_test.go"]
     },
     {
       "id": "security.audit",

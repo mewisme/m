@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "blobs": [
-    {"path": "packuments/lifecycle-postinstall-ok.json", "sha256": "a4657cce5dab3d2526a016784df653f9030e375aa58b4a0b2830a52503bc4029"},
-    {"path": "tarballs/lifecycle-postinstall-ok-1.0.0.tgz", "sha256": "78c3afa9f84d11dfffcf64005df8c284ecd80f3318153bcc34da34e3fc916334"},
+    {"path": "packuments/lifecycle-postinstall-ok.json", "sha256": "64726184753c2ed15dfc86e84639b4635b4c0f849849b1bdc67b5fe97df946ae"},
+    {"path": "tarballs/lifecycle-postinstall-ok-1.0.0.tgz", "sha256": "26d734ac282656faef3a3efaf0cea77e3eb5d8c05adde2f64fcbd237c007f95f"},
     {"path": "packuments/lifecycle-failing.json", "sha256": "89f0cc71dd64ed2acc58807a049272fb814f5628f59c554a860a15d14e10b099"},
     {"path": "tarballs/lifecycle-failing-1.0.0.tgz", "sha256": "72b3682f63ce554cb04ebbffb1e12c1da60b41c3c975ad161f5cf474fe02a6db"},
     {"path": "packuments/lifecycle-native-stub.json", "sha256": "617c3462714cb82d0f72fa1af163cc5e9afe7ec0114351c5780488fb3b17bae5"},
