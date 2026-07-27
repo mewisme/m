@@ -5,14 +5,13 @@ package transaction
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"syscall"
 
 	"golang.org/x/sys/unix"
 )
 
 func processStartTime(pid int) (int64, error) {
-	k, err := unix.SysctlKinfoProc("kern.proc.pid." + strconv.Itoa(pid))
+	k, err := unix.SysctlKinfoProc("kern.proc.pid", pid)
 	if err != nil {
 		return 0, err
 	}

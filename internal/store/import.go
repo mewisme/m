@@ -99,9 +99,6 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath string
 	if err := writeTreeManifest(stage, manifest); err != nil {
 		return ImportResult{}, err
 	}
-	if err := makeTreeReadOnly(stage); err != nil {
-		return ImportResult{}, apperr.Wrap(apperr.Store, "store.import", stage, err)
-	}
 	if err := verifyTreeManifest(stage, manifest); err != nil {
 		return ImportResult{}, err
 	}
@@ -115,6 +112,9 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath string
 				return s.finishImportLocked(key, release, &released)
 			}
 		}
+		return ImportResult{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
+	}
+	if err := makeTreeReadOnly(dest); err != nil {
 		return ImportResult{}, apperr.Wrap(apperr.Store, "store.import", dest, err)
 	}
 
