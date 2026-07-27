@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "importers": [
+    {
+      "id": ".",
+      "name": "overrides-nested-root",
+      "path": "."
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "pkg-a",
+        "version": "1.0.0"
+      },
+      "integrity": "sha256-2e1afab8b566a6ac1019ae2ba9201ea8a036b0ca1463ed2b22673d4cc87b2354",
+      "tarballUrl": "http://registry.test/pkg-a/-/pkg-a-1.0.0.tgz"
+    },
+    {
+      "id": {
+        "name": "pkg-b",
+        "version": "1.0.0"
+      },
+      "integrity": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "tarballUrl": "http://registry.test/pkg-b/-/pkg-b-1.0.0.tgz"
+    },
+    {
+      "id": {
+        "name": "pkg-c",
+        "version": "1.0.1"
+      },
+      "integrity": "sha256-9b75a3d4e441037d52cbcf35988036a38e8e931c5d77c71d729abc85a89ded6a",
+      "tarballUrl": "http://registry.test/pkg-c/-/pkg-c-1.0.1.tgz"
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "to": "pkg-a@1.0.0",
+      "kind": "prod",
+      "range": "1.0.0"
+    },
+    {
+      "from": "pkg-a@1.0.0",
+      "to": "pkg-b@1.0.0",
+      "kind": "prod",
+      "range": "1.0.0"
+    },
+    {
+      "from": "pkg-b@1.0.0",
+      "to": "pkg-c@1.0.1",
+      "kind": "prod",
+      "range": "^1.0.0"
+    }
+  ]
+}

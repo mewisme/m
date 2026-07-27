@@ -1,0 +1,10 @@
+{
+  "name": "optional-platform-root",
+  "version": "1.0.0",
+  "dependencies": {
+    "root-only": "1.0.0"
+  },
+  "optionalDependencies": {
+    "opt-darwin": "1.0.0"
+  }
+}

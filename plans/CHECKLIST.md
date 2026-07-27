@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current MVP: 0020 — Full Dependency Resolver (next)
+- Current MVP: 0021 — Lifecycle Scripts, Trust, and Sandbox Policy (next)
 - Last updated: 2026-07-27
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
@@ -11,7 +11,7 @@
 
 Predecessors satisfied for:
 
-1. [0020 - Full dependency resolver](0020-advanced-resolver.md) - requires 0019
+1. [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) - requires 0018, 0020
 
 ## MVP completion (65)
 
@@ -36,7 +36,7 @@ Predecessors satisfied for:
 | 0017 | Core MVP 8 — Transactional Install and Instant Rollback | Core / MVP 8 | 0016 | [x] | [0017](0017-transaction-rollback.md) | [0017-transaction-rollback](cursor/0017-transaction-rollback.plan.md) |
 | 0018 | Core MVP 9 — Global Content Store and Smart Filesystem Pl... | Core / MVP 9 | 0014, 0017 | [x] | [0018](0018-global-store-smart-linker.md) | [0018-global-store-smart-linker](cursor/0018-global-store-smart-linker.plan.md) |
 | 0019 | Core MVP 10 — Isolated Virtual Store and Node Modules Layout | Core / MVP 10 | 0018 | [x] | [0019](0019-isolated-linker.md) | [0019-isolated-linker](cursor/0019-isolated-linker.plan.md) |
-| 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [ ] | [0020](0020-advanced-resolver.md) | [0020-advanced-resolver](cursor/0020-advanced-resolver.plan.md) |
+| 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [x] | [0020](0020-advanced-resolver.md) | [0020-advanced-resolver](cursor/0020-advanced-resolver.plan.md) |
 | 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [ ] | [0021](0021-lifecycle-sandbox.md) | [0021-lifecycle-sandbox](cursor/0021-lifecycle-sandbox.plan.md) |
 | 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [ ] | [0022](0022-workspaces-catalogs.md) | [0022-workspaces-catalogs](cursor/0022-workspaces-catalogs.plan.md) |
 | 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [ ] | [0023](0023-nub-pnpm-lock-bridge.md) | [0023-nub-pnpm-lock-bridge](cursor/0023-nub-pnpm-lock-bridge.plan.md) |
@@ -713,36 +713,36 @@ Predecessors satisfied for:
 
 ### 0020 - Core MVP 11 — Full Dependency Resolver
 
-- status: planned
+- status: done
 - plan: [0020-advanced-resolver.md](0020-advanced-resolver.md)
 - cursor: [cursor/0020-advanced-resolver.plan.md](cursor/0020-advanced-resolver.plan.md)
 
-- [ ] Implement peer dependency constraint collection per importer
-- [ ] Generate peer contexts as part of package identity
-- [ ] Implement auto-install peers policy with strict and loose modes
-- [ ] Prune optional dependencies failing os/cpu/libc filters
-- [ ] Apply overrides and resolutions rewriting dependency edges
-- [ ] Support npm: alias protocol and package aliases
-- [ ] Resolve workspace:* and workspace:^ protocol to local packages
-- [ ] Support file:, link:, and portal: source placeholders
-- [ ] Implement incremental lock reuse preserving unaffected subgraph
-- [ ] Minimize graph churn on targeted m update
-- [ ] Emit conflict explanation tree for unsatisfiable peers
-- [ ] Record resolver policy choices in m.lock settings
-- [ ] Add conformance fixtures for peer, optional, override cases
-- [ ] Add workspace protocol resolution tests
-- [ ] Document peer context ID format
-- [ ] Fail with actionable errors for missing workspace targets
-- [ ] Benchmark resolver on large monorepo fixture
-- [ ] Acceptance: Conflicting peer deps produce explanation tree not silent wrong version
-- [ ] Acceptance: workspace:* resolves to correct local package version
-- [ ] Acceptance: Optional dep skipped on unsupported platform
-- [ ] Acceptance: Override replaces transitive version deterministically
-- [ ] Acceptance: Targeted update preserves unrelated lock subgraph
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement peer dependency constraint collection per importer
+- [x] Generate peer contexts as part of package identity
+- [x] Implement auto-install peers policy with strict and loose modes
+- [x] Prune optional dependencies failing os/cpu/libc filters
+- [x] Apply overrides and resolutions rewriting dependency edges
+- [x] Support npm: alias protocol and package aliases
+- [x] Resolve workspace:* and workspace:^ protocol to local packages
+- [x] Support file:, link:, and portal: source placeholders
+- [x] Implement incremental lock reuse preserving unaffected subgraph
+- [x] Minimize graph churn on targeted m update
+- [x] Emit conflict explanation tree for unsatisfiable peers
+- [x] Record resolver policy choices in m.lock settings
+- [x] Add conformance fixtures for peer, optional, override cases
+- [x] Add workspace protocol resolution tests
+- [x] Document peer context ID format
+- [x] Fail with actionable errors for missing workspace targets
+- [x] Benchmark resolver on large monorepo fixture
+- [x] Acceptance: Conflicting peer deps produce explanation tree not silent wrong version
+- [x] Acceptance: workspace:* resolves to correct local package version
+- [x] Acceptance: Optional dep skipped on unsupported platform
+- [x] Acceptance: Override replaces transitive version deterministically
+- [x] Acceptance: Targeted update preserves unrelated lock subgraph
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0021 - Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy
 

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "blobs": [
+    {
+      "path": "packuments/opt-darwin.json",
+      "sha256": "056205abb68fca1183ef29702e360a8ee9a5fe966ca6eeae218114e9f0a8c7d3"
+    },
+    {
+      "path": "packuments/opt-parent.json",
+      "sha256": "2677c8be0dc2083b4fc4db50fa022c5ea055e16de97f42927747343174bad371"
+    },
+    {
+      "path": "packuments/root-only.json",
+      "sha256": "95ce985fa343554453fd3b5248d889d070c33ea4c87fa77376862dd37baa5fed"
+    }
+  ]
+}

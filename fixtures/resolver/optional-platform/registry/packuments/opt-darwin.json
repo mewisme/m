@@ -1,0 +1,19 @@
+{
+  "dist-tags": {
+    "latest": "1.0.0"
+  },
+  "name": "opt-darwin",
+  "versions": {
+    "1.0.0": {
+      "dist": {
+        "integrity": "sha512-opt-darwin",
+        "tarball": "opt-darwin-1.0.0.tgz"
+      },
+      "name": "opt-darwin",
+      "os": [
+        "darwin"
+      ],
+      "version": "1.0.0"
+    }
+  }
+}

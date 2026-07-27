@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "blobs": [
+    {
+      "path": "packuments/react-dom.json",
+      "sha256": "00e2cd67e5c23f2f8c39372b290b3648b8679a1086c5cdc7975883c67dd68628"
+    },
+    {
+      "path": "packuments/react.json",
+      "sha256": "e0b3472313f9448a6577aab7fd2a9b7db7adac534e4fb21bab836a4a9e8317df"
+    }
+  ]
+}

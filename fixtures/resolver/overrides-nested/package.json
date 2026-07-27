@@ -1,0 +1,12 @@
+{
+  "name": "overrides-nested-root",
+  "version": "1.0.0",
+  "dependencies": {
+    "pkg-a": "1.0.0"
+  },
+  "overrides": {
+    "pkg-a": {
+      "pkg-b": "1.0.0"
+    }
+  }
+}

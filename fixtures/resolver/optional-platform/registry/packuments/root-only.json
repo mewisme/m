@@ -1,0 +1,16 @@
+{
+  "dist-tags": {
+    "latest": "1.0.0"
+  },
+  "name": "root-only",
+  "versions": {
+    "1.0.0": {
+      "dist": {
+        "integrity": "sha512-opt-root-only",
+        "tarball": "root-only-1.0.0.tgz"
+      },
+      "name": "root-only",
+      "version": "1.0.0"
+    }
+  }
+}

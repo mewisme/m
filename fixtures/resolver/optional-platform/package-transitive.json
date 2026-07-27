@@ -1,0 +1,7 @@
+{
+  "name": "optional-platform-transitive",
+  "version": "1.0.0",
+  "dependencies": {
+    "opt-parent": "1.0.0"
+  }
+}

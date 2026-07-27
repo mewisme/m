@@ -422,50 +422,69 @@
       "name": "peer dependencies and peer contexts",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0020",
-      "tests": []
+      "tests": [
+        "internal/resolver",
+        "fixtures/resolver/peers/react-ecosystem",
+        "tests/integration"
+      ]
     },
     {
       "id": "resolver.optional-platform",
       "name": "optional/dev/platform dependencies",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0020",
-      "tests": []
+      "tests": [
+        "internal/resolver",
+        "fixtures/resolver/optional-platform",
+        "tests/integration"
+      ]
     },
     {
       "id": "resolver.overrides",
       "name": "overrides and resolutions",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0020",
-      "tests": []
+      "tests": [
+        "internal/resolver",
+        "fixtures/resolver/overrides-nested",
+        "tests/integration"
+      ]
     },
     {
       "id": "resolver.workspace-protocol",
       "name": "workspace protocol and catalogs",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0022",
-      "tests": []
+      "tests": [
+        "internal/resolver",
+        "fixtures/projects/workspace-protocol",
+        "tests/integration"
+      ]
     },
     {
       "id": "resolver.aliases",
       "name": "aliases and npm protocol",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0020",
-      "tests": []
+      "tests": [
+        "internal/resolver",
+        "tests/integration"
+      ]
     },
     {
       "id": "resolver.git-sources",

@@ -27,6 +27,8 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 | `registry` | string | `https://registry.npmjs.org` |
 | `registries.@scope` | string | scoped registry URL (object `registries` in JSONC) |
 | `install.linker` | string | `auto` (`auto` \| `hoisted` \| `isolated`) |
+| `resolve.autoInstallPeers` | bool | `false` — when true, enqueue missing peers from the importer |
+| `resolve.strictPeerDependencies` | bool | `true` — fail when required peers are unsatisfied |
 | `offline` | bool | `false` |
 | `prefer-offline` | bool | `false` |
 | `cache.dir` | string | platform cache (empty = derive) |
@@ -38,6 +40,8 @@ Environment:
 | Variable | Effect |
 |---|---|
 | `MEW_EXPERIMENTAL_ISOLATED_LINKER` | Set to `1` to allow `install.linker=isolated` |
+| `MEW_RESOLVE_AUTO_INSTALL_PEERS` | Maps to `resolve.autoInstallPeers` |
+| `MEW_RESOLVE_STRICT_PEER_DEPS` | Maps to `resolve.strictPeerDependencies` |
 | `network.timeout_ms` | int | `60000` |
 | `network.proxy` | string | empty — http/https proxy URL (else env) |
 | `network.ca_file` | string | empty — optional PEM CA bundle |

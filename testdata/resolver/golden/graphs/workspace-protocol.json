@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "importers": [
+    {
+      "id": ".",
+      "name": "workspace-protocol-root",
+      "path": "."
+    },
+    {
+      "id": "packages/app",
+      "name": "app",
+      "path": "packages/app"
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "lib",
+        "version": "2.4.0"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "to": "lib@2.4.0",
+      "kind": "prod",
+      "range": "workspace:*"
+    },
+    {
+      "from": "packages/app",
+      "to": "lib@2.4.0",
+      "kind": "prod",
+      "range": "workspace:^"
+    }
+  ]
+}

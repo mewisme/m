@@ -22,7 +22,12 @@ Mew's native lockfile is deterministic JSON at the project root. Format decision
   "checksum": "<sha256-hex>",
   "settings": {
     "linker": "auto",
-    "policy": { "schemaVersion": 1, "scriptTrust": "ask" }
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask",
+      "autoInstallPeers": false,
+      "strictPeerDependencies": true
+    }
   },
   "importers": [
     {
@@ -42,13 +47,28 @@ Mew's native lockfile is deterministic JSON at the project root. Format decision
 | Field | Purpose |
 |---|---|
 | `settings.linker` | Snapshot of `install.linker` (`auto` \| `hoisted` \| `isolated`) |
-| `settings.policy` | Trust/policy snapshot for install handoff (see [`policy`](../internal/policy/policy.go)) |
+| `settings.policy` | Trust and resolver policy snapshot for install handoff (see [`policy`](../internal/policy/policy.go)) |
+| `settings.policy.autoInstallPeers` | Snapshot of `resolve.autoInstallPeers` (0020) |
+| `settings.policy.strictPeerDependencies` | Snapshot of `resolve.strictPeerDependencies` (0020) |
 | `importers[]` | Workspace packages with declared `specifiers[]` |
 | `packages[]` | Resolved `graph.Package` entries (`id`, `integrity`, `tarballUrl`) |
 | `edges[]` | `graph.Edge` dependency links |
 | `extensions` | Forward-compatible unknown top-level fields (omitted when empty) |
 
 Package `id` may include `peerContext` when peer resolution supplies it (MVP 0020).
+Peer context IDs sort peer names lexicographically and append `#peer@range,...` to the
+base `name@version` key (see `testdata/graph/peers.json`).
+
+`extensions.mew.resolver/local` maps package keys (`name@version`) to local source
+metadata:
+
+```json
+{
+  "lib@2.4.0": { "protocol": "workspace", "path": "packages/lib" }
+}
+```
+
+Protocols: `workspace`, `file`, `link`, `portal`. Registry packages omit this extension.
 
 ## Checksum
 
