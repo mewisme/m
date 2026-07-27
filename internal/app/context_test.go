@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mewisme/m/internal/app"
+	"github.com/mewisme/m/internal/config"
 	"github.com/mewisme/m/internal/testkit"
 )
 
@@ -113,6 +114,58 @@ func TestNewFreezesGlobalPathFromEnvSnapshot(t *testing.T) {
 	want, _ := filepath.Abs(filepath.Join(cfgDir, "config.jsonc"))
 	if ac.ConfigLoadSpec.GlobalPath != want {
 		t.Fatalf("global path=%q want %q", ac.ConfigLoadSpec.GlobalPath, want)
+	}
+}
+
+func TestNewCacheStorePathsFromEnvSnapshot(t *testing.T) {
+	testkit.CleanEnv(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"paths"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cacheDir := filepath.Join(root, "my-cache")
+	storeDir := filepath.Join(root, "my-store")
+	env := []string{
+		"MEW_CACHE_DIR=" + cacheDir,
+		"MEW_STORE_DIR=" + storeDir,
+	}
+	ac, err := app.New(context.Background(), app.Options{CWD: root, Env: env})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := config.String(ac.Config, "cache.dir", ""); got != cacheDir {
+		t.Fatalf("cache.dir=%q want %q", got, cacheDir)
+	}
+	storeGot, err := config.StoreRoot(ac.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeWant, _ := filepath.Abs(storeDir)
+	if storeGot != storeWant {
+		t.Fatalf("store=%q want %q", storeGot, storeWant)
+	}
+}
+
+func TestNewPathsStableAfterAmbientEnvChange(t *testing.T) {
+	testkit.CleanEnv(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"stable"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cacheDir := filepath.Join(root, "frozen-cache")
+	env := []string{"MEW_CACHE_DIR=" + cacheDir}
+	ac, err := app.New(context.Background(), app.Options{CWD: root, Env: env})
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := config.CacheRoot(ac.Config)
+	t.Setenv("MEW_CACHE_DIR", filepath.Join(root, "ambient-changed"))
+	after := config.CacheRoot(ac.Config)
+	if before != after {
+		t.Fatalf("cache root changed after ambient env: %q -> %q", before, after)
+	}
+	if before != cacheDir {
+		t.Fatalf("cache=%q want %q", before, cacheDir)
 	}
 }
 

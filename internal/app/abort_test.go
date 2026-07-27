@@ -416,6 +416,7 @@ func TestFormatInstallSummaryTransactionCleanup(t *testing.T) {
 		RolledBack:                   true,
 		TransactionCleanupIncomplete: true,
 		RecoveryRequired:             true,
+		CleanupWarningCodes:          []string{cleanupCodeTxnLockRelease},
 		CleanupWarnings:              []string{"lock release failed"},
 	})
 	if !strings.Contains(summary, "m recover") {
@@ -428,6 +429,8 @@ func TestFormatInstallSummaryTransactionCleanup(t *testing.T) {
 	committed := FormatInstallSummary(InstallResult{
 		Committed:                    true,
 		TransactionCleanupIncomplete: true,
+		RecoveryRequired:             true,
+		CleanupWarningCodes:          []string{cleanupCodeTxnCurrentCleanup},
 		CleanupWarnings:              []string{"current cleanup failed"},
 	})
 	if !strings.Contains(committed, "Installation committed") {
