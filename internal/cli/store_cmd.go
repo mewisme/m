@@ -81,12 +81,11 @@ func newStorePruneCmd() *cobra.Command {
 			if ac == nil {
 				return apperr.New(apperr.Internal, "store.prune", "", "missing app context")
 			}
-			var roots []string
+			var projRoot string
 			if p, err := app.OpenProject(cmd.Context(), ac); err == nil {
-				roots = app.DefaultStoreScanRoots(p.Root)
-			} else {
-				roots = app.DefaultStoreScanRoots("")
+				projRoot = p.Root
 			}
+			roots := app.DefaultStoreScanRoots(ac.Config.Env, projRoot)
 			res, err := app.PruneStore(cmd.Context(), ac, dryRun, roots)
 			if err != nil {
 				return err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/config"
@@ -64,10 +65,7 @@ func PruneStore(ctx context.Context, ac *Context, dryRun bool, scanRoots []strin
 		return res, err
 	}
 	if len(scanRoots) == 0 {
-		// safe: ambient MEW_HOME for default prune scan roots when caller omits roots.
-		if home := os.Getenv("MEW_HOME"); home != "" {
-			scanRoots = []string{home}
-		}
+		scanRoots = DefaultStoreScanRoots(ac.Config.Env, "")
 	}
 	refs, err := CollectReferencedIntegrities(scanRoots)
 	if err != nil {
@@ -109,14 +107,31 @@ func IntegrityFromKey(algo, hex string) string {
 }
 
 // DefaultStoreScanRoots returns directories to scan for store manifests.
-func DefaultStoreScanRoots(projRoot string) []string {
+// Order: project root (when set), then MEW_HOME from the invocation snapshot.
+func DefaultStoreScanRoots(snap config.EnvSnapshot, projectRoot string) []string {
+	seen := map[string]struct{}{}
 	var roots []string
-	if projRoot != "" {
-		roots = append(roots, projRoot)
+	add := func(p string) {
+		if p == "" {
+			return
+		}
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			abs = p
+		}
+		if _, ok := seen[abs]; ok {
+			return
+		}
+		seen[abs] = struct{}{}
+		roots = append(roots, abs)
 	}
-	// safe: ambient MEW_HOME supplements project root for store manifest discovery.
-	if home := os.Getenv("MEW_HOME"); home != "" {
-		roots = append(roots, home)
+	if projectRoot != "" {
+		add(projectRoot)
+	}
+	if snap.Initialized() {
+		if home, ok := snap.Lookup("MEW_HOME"); ok {
+			add(home)
+		}
 	}
 	return roots
 }

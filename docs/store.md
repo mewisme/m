@@ -112,8 +112,9 @@ marker-only reuse is not allowed.
 After a successful install with the global store enabled, Mew writes
 `<project>/.mew/store-manifest.json` listing integrity keys for packages in the
 current graph. `m store prune` uses these manifests, active transaction journals
-(staged `store-manifest.json` under `.mew/txn/<id>/stage/`), and scan roots under
-`MEW_HOME` to decide which store entries are still referenced.
+(staged `store-manifest.json` under `.mew/txn/<id>/stage/`), and scan roots from
+the invocation environment snapshot: the project root (when known) plus `MEW_HOME`
+from that snapshot (not ambient host env).
 
 ## Commands
 
