@@ -82,6 +82,9 @@ var ownedKeys = map[string]string{
 	"network.ca_file":                "string",
 	"registry.auth_token_env":        "string",
 	"transaction.snapshot_retention": "int",
+	"lifecycle.enabled":              "bool",
+	"lifecycle.ignore_scripts":       "bool",
+	"lifecycle.script_trust":         "string",
 }
 
 // OwnedKeys returns the sorted list of owned config keys.
@@ -112,6 +115,9 @@ func defaults() map[string]any {
 		"network.ca_file":                "",
 		"registry.auth_token_env":        "",
 		"transaction.snapshot_retention": 10,
+		"lifecycle.enabled":              false,
+		"lifecycle.ignore_scripts":       false,
+		"lifecycle.script_trust":         "deny",
 	}
 }
 
@@ -251,6 +257,7 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) {
 	set("resolve.rejectDeprecated", "MEW_RESOLVE_REJECT_DEPRECATED", parseBool)
 	set("registry", "MEW_REGISTRY", func(s string) (any, error) { return s, nil })
 	set("registry.auth_token_env", "MEW_REGISTRY_AUTH_TOKEN_ENV", func(s string) (any, error) { return s, nil })
+	set("lifecycle.enabled", "MEW_EXPERIMENTAL_LIFECYCLE", parseBool)
 }
 
 func parseBool(s string) (any, error) {
@@ -331,6 +338,13 @@ func validateKeyValue(key string, v any) error {
 			case "auto", "hoisted", "isolated", "":
 			default:
 				return fmt.Errorf("install.linker: want auto|hoisted|isolated")
+			}
+		}
+		if key == "lifecycle.script_trust" {
+			switch s {
+			case "allow", "deny", "ask", "":
+			default:
+				return fmt.Errorf("lifecycle.script_trust: want allow|deny|ask")
 			}
 		}
 	case "bool":

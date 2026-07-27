@@ -34,6 +34,8 @@ type InstallOptions struct {
 	AddSpec      string
 	AddDev       bool
 	AddSaveExact bool
+	// IgnoreScripts skips lifecycle script execution when true.
+	IgnoreScripts bool
 }
 
 // UpdateResolveOptions selects incremental update resolve parameters.
