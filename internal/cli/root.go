@@ -46,6 +46,7 @@ func NewMRoot(info BuildInfo) *cobra.Command {
 	root.AddCommand(newFetchCmd())
 	root.AddCommand(newLockCmd())
 	root.AddCommand(newInstallCmd())
+	root.AddCommand(newLsCmd())
 	root.AddCommand(newAddCmd())
 	root.AddCommand(newRemoveCmd())
 	root.AddCommand(newCiCmd())

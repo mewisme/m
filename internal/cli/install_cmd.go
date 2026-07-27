@@ -18,6 +18,7 @@ func newInstallCmd() *cobra.Command {
 		keepJournal   bool
 		linkerMode    string
 		ignoreScripts bool
+		recursive     bool
 		asJSON        bool
 	)
 	cmd := &cobra.Command{
@@ -30,7 +31,15 @@ func newInstallCmd() *cobra.Command {
 			if ac == nil {
 				return apperr.New(apperr.Internal, "install", "", "missing app context")
 			}
-			opts := app.InstallOptions{Prod: prod, Frozen: frozen, DryRun: dryRun, KeepJournal: keepJournal, Linker: linkerMode, IgnoreScripts: ignoreScripts}
+			opts := installOptsFromGlobals(cmd, app.InstallOptions{
+				Prod:          prod,
+				Frozen:        frozen,
+				DryRun:        dryRun,
+				KeepJournal:   keepJournal,
+				Linker:        linkerMode,
+				IgnoreScripts: ignoreScripts,
+				Recursive:     recursive,
+			})
 			result, err := app.Install(cmd.Context(), ac, opts)
 			outErr := writeInstallResult(cmd, result, asJSON, dryRun)
 			if err != nil {
@@ -48,6 +57,7 @@ func newInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&keepJournal, "journal", false, "keep transaction journal after success")
 	cmd.Flags().StringVar(&linkerMode, "linker", "", "node linker mode: hoisted or isolated")
 	cmd.Flags().BoolVar(&ignoreScripts, "ignore-scripts", false, "skip lifecycle scripts")
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "install all workspace packages")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
 	return cmd
 }
@@ -72,7 +82,10 @@ func newAddCmd() *cobra.Command {
 			result, err := app.Add(cmd.Context(), ac, args[0], app.AddOptions{
 				Dev:       dev,
 				SaveExact: saveExact,
-				Install:   app.InstallOptions{Linker: linkerMode, IgnoreScripts: ignoreScripts},
+				Install: installOptsFromGlobals(cmd, app.InstallOptions{
+					Linker:        linkerMode,
+					IgnoreScripts: ignoreScripts,
+				}),
 			})
 			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {

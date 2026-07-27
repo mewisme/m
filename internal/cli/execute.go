@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mewisme/m/internal/app"
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/diagnostics"
 )
@@ -27,6 +28,7 @@ type globalFlags struct {
 	configPath    string
 	offline       bool
 	preferOffline bool
+	filter        []string
 }
 
 var flagOwners sync.Map // *cobra.Command -> *globalFlags
@@ -42,6 +44,7 @@ func (g *globalFlags) bind(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&g.configPath, "config", "", "JSONC config file overlay path")
 	cmd.PersistentFlags().BoolVar(&g.offline, "offline", false, "force offline mode")
 	cmd.PersistentFlags().BoolVar(&g.preferOffline, "prefer-offline", false, "prefer cached artifacts")
+	cmd.PersistentFlags().StringArrayVar(&g.filter, "filter", nil, "workspace package filter (pnpm-style)")
 }
 
 func (g *globalFlags) resolveFormat() string {
@@ -90,6 +93,19 @@ func attachGlobals(root *cobra.Command) *globalFlags {
 	g.bind(root)
 	flagOwners.Store(root, g)
 	return g
+}
+
+func workspaceFilters(cmd *cobra.Command) []string {
+	g := ownerFlags(cmd.Root())
+	if g == nil || len(g.filter) == 0 {
+		return nil
+	}
+	return append([]string(nil), g.filter...)
+}
+
+func installOptsFromGlobals(cmd *cobra.Command, base app.InstallOptions) app.InstallOptions {
+	base.Filter = workspaceFilters(cmd)
+	return base
 }
 
 func ownerFlags(root *cobra.Command) *globalFlags {
