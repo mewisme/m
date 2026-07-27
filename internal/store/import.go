@@ -15,8 +15,9 @@ import (
 
 // ImportResult is the outcome of ImportFromTarball.
 type ImportResult struct {
-	Key             PackageKey
-	CleanupWarnings []string
+	Key                 PackageKey
+	CleanupWarningCodes []string
+	CleanupWarnings     []string
 }
 
 // ImportFromTarball extracts tarballPath into the global store keyed by integrity.
@@ -125,8 +126,11 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath string
 	}
 
 	size, _ := dirSize(dest)
-	s.indexUpsertOrWarn(key, key.Integrity(), size)
-	return s.finishImportLocked(key, release, &released)
+	idxCodes, idxWarnings := s.indexUpsertOrWarn(key, key.Integrity(), size)
+	result, err := s.finishImportLocked(key, release, &released)
+	result.CleanupWarningCodes = append(result.CleanupWarningCodes, idxCodes...)
+	result.CleanupWarnings = append(result.CleanupWarnings, idxWarnings...)
+	return result, err
 }
 
 func (s *PackageStore) finishImportLocked(key PackageKey, release func() error, released *bool) (ImportResult, error) {
@@ -136,6 +140,7 @@ func (s *PackageStore) finishImportLocked(key PackageKey, release func() error, 
 	}
 	*released = true
 	if err := release(); err != nil {
+		result.CleanupWarningCodes = append(result.CleanupWarningCodes, CleanupCodeImportLockRelease)
 		result.CleanupWarnings = append(result.CleanupWarnings, err.Error())
 		s.warnImportLockRelease(err)
 	}

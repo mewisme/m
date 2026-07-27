@@ -26,7 +26,7 @@ func TestImportFromTarballSurfacesReleaseFailure(t *testing.T) {
 	importLockReleaseTestHook = func(lockDir string) error {
 		return apperr.New(apperr.Store, "store.import.lock.release", lockDir, "lock not released: not owner")
 	}
-	t.Cleanup(func() { importLockReleaseTestHook = nil })
+	t.Cleanup(func() { SetImportLockReleaseTestHook(nil) })
 
 	result, err := ps.ImportFromTarball(context.Background(), tgz, mustParseSRI(t, integrity))
 	if err != nil {
@@ -40,6 +40,9 @@ func TestImportFromTarballSurfacesReleaseFailure(t *testing.T) {
 	}
 	if !strings.Contains(result.CleanupWarnings[0], "not owner") {
 		t.Fatalf("warning=%q", result.CleanupWarnings[0])
+	}
+	if len(result.CleanupWarningCodes) != 1 || result.CleanupWarningCodes[0] != CleanupCodeImportLockRelease {
+		t.Fatalf("codes=%v want %q", result.CleanupWarningCodes, CleanupCodeImportLockRelease)
 	}
 	if err := ps.VerifyPackage(context.Background(), result.Key); err != nil {
 		t.Fatalf("package should remain valid: %v", err)
@@ -66,7 +69,7 @@ func TestReconcileIndexSurfacesIndexLockReleaseFailure(t *testing.T) {
 	indexLockReleaseTestHook = func(lockDir string) error {
 		return apperr.New(apperr.Store, "store.index.lock.release", lockDir, "lock not released: not owner")
 	}
-	t.Cleanup(func() { indexLockReleaseTestHook = nil })
+	t.Cleanup(func() { SetIndexLockReleaseTestHook(nil) })
 
 	result, err := ps.ReconcileIndex()
 	if err != nil {
@@ -77,6 +80,29 @@ func TestReconcileIndexSurfacesIndexLockReleaseFailure(t *testing.T) {
 	}
 	if !strings.Contains(rep.buf.String(), "warning: store index lock release failed") {
 		t.Fatalf("expected maintenance warning, got %q", rep.buf.String())
+	}
+
+	// Import a fresh package and assert index lock release code on index upsert path.
+	ps2 := NewPackageStore(filepath.Join(t.TempDir(), "store2"))
+	ps2.Reporter = rep
+	tgz2 := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "pkg-a-1.0.0.tgz")
+	integrity2 := "sha256-2e1afab8b566a6ac1019ae2ba9201ea8a036b0ca1463ed2b22673d4cc87b2354"
+	SetIndexLockReleaseTestHook(func(lockDir string) error {
+		return apperr.New(apperr.Store, "store.index.lock.release", lockDir, "lock not released: not owner")
+	})
+	importResult, err := ps2.ImportFromTarball(context.Background(), tgz2, mustParseSRI(t, integrity2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundIndexCode := false
+	for _, c := range importResult.CleanupWarningCodes {
+		if c == CleanupCodeIndexLockRelease {
+			foundIndexCode = true
+			break
+		}
+	}
+	if !foundIndexCode {
+		t.Fatalf("expected %q in codes=%v", CleanupCodeIndexLockRelease, importResult.CleanupWarningCodes)
 	}
 }
 
