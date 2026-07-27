@@ -128,10 +128,17 @@ func Remove(ctx context.Context, ac *Context, name string, opts InstallOptions) 
 // FormatInstallSummary returns a human-readable install summary line.
 func FormatInstallSummary(r InstallResult) string {
 	line := fmt.Sprintf("added %d, removed %d, changed %d (%d packages)", r.Added, r.Removed, r.Changed, r.Packages)
-	if r.Committed && (r.TransactionCleanupIncomplete || r.CleanupIncomplete) {
+	if r.Committed && (r.TransactionCleanupIncomplete || r.RecoveryRequired) {
 		line += "\nInstallation committed, but transaction cleanup is incomplete. Run m recover to clear stale transaction metadata."
 		for _, w := range filterCleanupWarnings(r, cleanupCodeTxnLockRelease, cleanupCodeTxnCurrentCleanup) {
 			line += "\n  " + w
+		}
+	} else if r.Committed && r.CleanupIncomplete {
+		line += "\nInstallation committed with a non-critical cleanup warning."
+		for _, w := range r.CleanupWarnings {
+			if w != "" {
+				line += "\n  " + w
+			}
 		}
 	} else if r.RolledBack && (r.TransactionCleanupIncomplete || r.RecoveryRequired) {
 		line += "\nRollback completed with cleanup warnings. Run m recover if stale transaction metadata remains."
