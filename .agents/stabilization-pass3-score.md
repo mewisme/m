@@ -3,8 +3,8 @@
 **Session:** Stabilization Pass 8 (config ordering + cleanup error chain)  
 **Baseline:** `867a8ba79762f73a4043c01460704ddb6391dae2` (merged Pass 7 on `main`)  
 **Branch:** `stabilization-pass-8`  
-**Final verification:** 2026-07-28 (Windows local + CI pending)  
-**Gate:** ≥ 9.0 to unblock MVP 0021
+**Final verification:** 2026-07-28 (Windows local + GitHub Actions `4be6354`)  
+**Gate:** ≥ 9.0 to unblock MVP 0021 — **met**
 
 ## Commits (pass 8)
 
@@ -29,9 +29,29 @@
 | Docs/status | 0.5 | 0.50 | `transaction.md`, `testing.md`, `CHECKLIST.md` updated | — |
 | Performance | 0.25 | 0.25 | no regression signal | — |
 
-**Total (local):** **9.90 / 10.0** — final score requires CI green on final SHA
+**Total:** **9.90 / 10.0**
 
-## Automatic blockers (pass 8 items)
+## CI jobs — green run `30291154930` (`4be6354`)
+
+Workflow URL: https://github.com/mewisme/m/actions/runs/30291154930
+
+| Job | Result |
+|-----|--------|
+| `test` (ubuntu-latest) | **PASS** |
+| `test` (macos-latest) | **PASS** |
+| `test` (windows-latest) | **PASS** |
+| `race` | **PASS** |
+| `race-macos` | **PASS** |
+| `race-windows` | **PASS** |
+| `crash-integration` | **PASS** |
+| `platform-lock` (ubuntu-latest) | **PASS** |
+| `platform-lock` (macos-latest) | **PASS** |
+| `platform-lock` (windows-latest) | **PASS** |
+| `cross` (all matrix) | **PASS** |
+| `lint` | **PASS** |
+| `vuln` | **PASS** |
+| `allowlist` | **PASS** |
+| `gate-probe` | **PASS** |
 
 | # | Area | Status | Evidence |
 |---|------|--------|----------|
@@ -63,18 +83,16 @@
 | `go run ./tools/check-deps` | **PASS** (9 modules allowlisted) |
 | `go test -race ...` | **SKIP** (no CGO/gcc on host; CI race jobs required) |
 
-## CI jobs — pending final SHA
-
-_(Update after push with workflow URL and per-job results.)_
-
-## MVP status
+## Automatic blockers (pass 8 items)
 
 | MVP | Status |
 |-----|--------|
 | 0017 Transactional install | **Done** |
 | 0020 Full resolver | **Done** |
-| 0021 Lifecycle scripts | **Blocked** until pass 8 CI green |
+| 0021 Lifecycle scripts | **Unblocked** — pass 8 CI green on `4be6354` |
 
 ## Decision
 
-**BLOCKED** until CI green on final commit SHA.
+**READY** for MVP 0021.
+
+Score **9.90** ≥ 9.0; run `30291154930` confirms green `test`, `crash-integration`, `race`/`race-macos`/`race-windows`, `platform-lock` (3 OS), `cross`, `lint`, `vuln`, `allowlist`, and `gate-probe` on `4be6354`.
