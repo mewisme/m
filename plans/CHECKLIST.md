@@ -2,16 +2,16 @@
 
 ## Program status
 
-- Current MVP: **0021** — blocked until stabilization pass 10 CI green (`stabilization-pass-10`)
+- Current MVP: **0021** — lifecycle scripts (pass 10 CI green on `3a164d8`)
 - Last updated: 2026-07-28
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) — unblocked after pass 10 CI green on final `stabilization-pass-10` SHA.
+**Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md)
 
-Stabilization pass 10 (`stabilization-pass-10` from `ec2f411`): config path resolution against invocation CWD and project root; frozen global path from env snapshot; warning-only CLI/JSON output; abort cleanup severity. MVP 0021 gate: all required CI jobs green on final commit.
+Stabilization pass 10 complete on `3a164d8` — CI run https://github.com/mewisme/m/actions/runs/30308833823 (21/21 green). Merge PR #7 to land on `main`, then start 0021.
 
 Stabilization pass 9 (`stabilization-pass-9` from `fae9b48`): `ConfigLoadSpec` preserves load inputs across mutation reload; `CriticalCleanupError`/`WarningErrors` split; custom-config lock-wait proc test.
 
@@ -754,7 +754,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0021 - Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy
 
-- status: planned (blocked on stabilization pass 10 CI gate)
+- status: planned
 - plan: [0021-lifecycle-sandbox.md](0021-lifecycle-sandbox.md)
 - cursor: [cursor/0021-lifecycle-sandbox.plan.md](cursor/0021-lifecycle-sandbox.plan.md)
 

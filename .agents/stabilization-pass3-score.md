@@ -185,9 +185,9 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30297084653
 **Baseline:** `ec2f4110031d5b12577ebf010156b2956946c735`  
 **Branch:** `stabilization-pass-10`  
 **PR:** https://github.com/mewisme/m/pull/7  
-**Final SHA:** `479864f13a15c8ebb85a22ab8519f99e6412aad2`  
-**Final verification:** 2026-07-28 (Windows local + GitHub Actions `30304689171`)  
-**Gate:** ≥ 9.0 to unblock MVP 0021 — **local met; CI blocked (billing)**
+**Final SHA:** `3a164d8680ce8a3b5c2603b1577dee03657aba71`  
+**Final verification:** 2026-07-28 (Windows local + GitHub Actions `30308833823`)  
+**Gate:** ≥ 9.0 to unblock MVP 0021 — **met (local + CI)**
 
 ## Commits (pass 10)
 
@@ -199,6 +199,13 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30297084653
 | `347d5ff` | fix(app): apply cleanup severity to abort results |
 | `e7c3b24` | test(cli): require clean JSON and correct recovery hints |
 | `479864f` | docs: record stabilization pass 10 evidence |
+| `5a7a789` | fix(config): snapshot env for cache/store/linker paths |
+| `2cac44c` | fix(app): clone session config load specification |
+| `940eab0` | fix(app): deduplicate cleanup warning output |
+| `31e90cb` | test(config): cover snapshot paths and Windows casing |
+| `00c6f01` | test(app): cover combined cleanup warning output |
+| `8f86ba6` | fix(test): use temp dirs for StoreRoot snapshot test |
+| `3a164d8` | fix(test): stabilize import lock cancel proc test |
 
 ## Gaps fixed
 
@@ -209,6 +216,10 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30297084653
 | 3 | Empty `GlobalPath` → `os.Getenv` on every reload | `GlobalConfigPathFromEnv` frozen at `app.New` |
 | 4 | Warning-only cleanup triggered `m recover` in human + JSON | `FormatInstallSummary` + `writeInstallResult` use critical flags only |
 | 5 | `populateAbortCleanup` treated any warning as critical | `CleanupCodeSeverity` per code in abort path |
+| 6 | Cache/store paths read ambient `os.Getenv` on reload | `EnvSnapshot` on `LoadSpec` / `Effective`; `CacheRoot` / `StoreRoot` use snapshot |
+| 7 | Windows env lookup case-sensitive in snapshot | `EnvSnapshot.Lookup` normalizes keys on Windows |
+| 8 | Session `ConfigLoadSpec` shallow-copied | `MutationSession` uses `ConfigLoadSpec.Clone()` |
+| 9 | Duplicate store warnings in `FormatInstallSummary` | Categorized txn vs store blocks with dedupe |
 
 ## Audit grep (pass 10)
 
@@ -227,9 +238,24 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30297084653
 |-----|--------|
 | 0017 Transactional install | **Done** |
 | 0020 Full resolver | **Done** |
-| 0021 Lifecycle scripts | **Blocked** — pass 10 CI billing (`runner_id: 0`) |
+| 0021 Lifecycle scripts | **Unblocked** — pass 10 CI green on `3a164d8` |
 
-## CI jobs — run `30304689171` (`479864f`)
+## CI jobs — run `30308833823` (`3a164d8`)
+
+Workflow URL: https://github.com/mewisme/m/actions/runs/30308833823
+
+**All 21 jobs passed.**
+
+| Job | Result |
+|-----|--------|
+| `test` (ubuntu/macos/windows) | **PASS** |
+| `race` / `race-macos` / `race-windows` | **PASS** |
+| `crash-integration` (ubuntu/windows) | **PASS** (windows ~4m22s) |
+| `platform-lock` (3 OS) | **PASS** |
+| `cross` (all matrix) | **PASS** |
+| `lint` / `vuln` / `allowlist` / `gate-probe` | **PASS** |
+
+## CI jobs — run `30304689171` (`479864f`) — superseded
 
 Workflow URL: https://github.com/mewisme/m/actions/runs/30304689171
 
@@ -258,8 +284,8 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30304689171
 
 ## Score
 
-**9.90 / 10.0** (deduct 0.10 for CI billing blocker preventing green run verification)
+**10.0 / 10.0**
 
 ## Decision
 
-**BLOCKED** — local gates pass; CI cannot run until GitHub Actions billing/spending limit is restored (`runner_id: 0` on all jobs in run `30304689171`).
+**PASS** — local gates and full CI matrix green on `3a164d8` (run `30308833823`). MVP 0021 may proceed after PR #7 merges to `main`.
