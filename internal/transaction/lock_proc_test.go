@@ -275,6 +275,36 @@ func TestProjectLockMalformedGracePeriod(t *testing.T) {
 	}
 }
 
+func TestProjectLockStaleTakeoverTombstone(t *testing.T) {
+	root := t.TempDir()
+	lockDir := transaction.LockPath(root)
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	doc := transaction.LockDocument{
+		SchemaVersion: 3,
+		LockID:        "stale-id",
+		PID:           999999,
+		ProcessStart:  1,
+		TxnID:         "stale",
+		CreatedAt:     time.Now().UTC().Add(-time.Minute),
+		ProjectRoot:   root,
+	}
+	raw, _ := json.Marshal(doc)
+	if err := os.WriteFile(lockOwnerPath(root), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if err := transaction.AcquireProjectLock(ctx, root, "fresh"); err != nil {
+		t.Fatal(err)
+	}
+	tombRoot := fsx.TombstoneRoot(lockDir)
+	if _, err := os.Stat(filepath.Join(tombRoot, ".stale")); err != nil {
+		t.Fatalf("expected tombstone dir: %v", err)
+	}
+	_ = transaction.ReleaseProjectLock(root, "fresh")
+}
+
 func TestRecoveryTakeoverReplacesDeadHolder(t *testing.T) {
 	root := t.TempDir()
 	lockDir := transaction.LockPath(root)

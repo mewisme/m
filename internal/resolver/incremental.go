@@ -3,8 +3,10 @@ package resolver
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/mewisme/m/internal/config"
 	"github.com/mewisme/m/internal/graph"
@@ -185,16 +187,57 @@ func hashOverrides(m map[string]string) string {
 	return hex.EncodeToString(sum[:8])
 }
 
-func policyFingerprint(pol *policy.Policy) string {
+// resolverPolicyFingerprintSchema versions the resolver-subset fingerprint encoder.
+const resolverPolicyFingerprintSchema = 1
+
+// resolverPolicySubset is the graph-affecting policy surface encoded into lock fingerprints.
+type resolverPolicySubset struct {
+	SchemaVersion          int           `json:"schemaVersion"`
+	StrictPeerDependencies bool          `json:"strictPeerDependencies"`
+	AutoInstallPeers       bool          `json:"autoInstallPeers"`
+	MinimumReleaseAge      time.Duration `json:"minimumReleaseAge,omitempty"`
+	RejectDeprecated       bool          `json:"rejectDeprecated,omitempty"`
+	Offline                bool          `json:"offline,omitempty"`
+}
+
+func resolverPolicySubsetFrom(pol *policy.Policy) resolverPolicySubset {
 	if pol == nil {
-		return ""
+		return resolverPolicySubset{SchemaVersion: resolverPolicyFingerprintSchema, StrictPeerDependencies: true}
 	}
-	data, err := policy.EncodeJSON(pol)
+	return resolverPolicySubset{
+		SchemaVersion:          resolverPolicyFingerprintSchema,
+		StrictPeerDependencies: pol.StrictPeerDependencies,
+		AutoInstallPeers:       pol.AutoInstallPeers,
+		MinimumReleaseAge:      pol.MinimumReleaseAge,
+		RejectDeprecated:       pol.RejectDeprecated,
+		Offline:                pol.Offline,
+	}
+}
+
+func policyFingerprint(pol *policy.Policy) string {
+	sub := resolverPolicySubsetFrom(pol)
+	data, err := json.Marshal(sub)
 	if err != nil {
 		return ""
 	}
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:8])
+}
+
+func validPolicyFingerprint(fp string) bool {
+	if len(fp) != 16 {
+		return false
+	}
+	for _, c := range fp {
+		switch {
+		case c >= '0' && c <= '9':
+		case c >= 'a' && c <= 'f':
+		case c >= 'A' && c <= 'F':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func targetPlatformFingerprint(t Target) string {
@@ -249,6 +292,9 @@ func expandClosureForMerge(prior, resolved *graph.Graph, closure map[string]stru
 		out[k] = struct{}{}
 	}
 	importers := importerIDs(prior)
+	resolvedImporters := importerIDs(resolved)
+	keyMap := buildPriorResolvedKeyMap(prior, resolved, closure, importers)
+
 	queue := make([]string, 0, len(closure))
 	for k := range closure {
 		queue = append(queue, k)
@@ -265,13 +311,19 @@ func expandClosureForMerge(prior, resolved *graph.Graph, closure map[string]stru
 			if pe.From != key && pe.To != key {
 				continue
 			}
-			if re, ok := matchingResolvedEdge(pe, resolved); ok {
+			parentKey := mappedParentKey(pe.From, keyMap, importers)
+			if re, ok := matchingResolvedEdge(pe, resolved, parentKey); ok {
 				out[re.To] = struct{}{}
-				if _, imp := importers[graph.ImporterID(re.From)]; !imp {
+				keyMap[pe.To] = re.To
+				if _, imp := resolvedImporters[graph.ImporterID(re.From)]; !imp {
 					out[re.From] = struct{}{}
+					keyMap[pe.From] = re.From
 					if _, done := seen[re.From]; !done {
 						queue = append(queue, re.From)
 					}
+				}
+				if _, done := seen[re.To]; !done {
+					queue = append(queue, re.To)
 				}
 			}
 			if _, in := closure[pe.To]; in {
@@ -294,13 +346,59 @@ func expandClosureForMerge(prior, resolved *graph.Graph, closure map[string]stru
 	return out
 }
 
-func matchingResolvedEdge(pe graph.Edge, resolved *graph.Graph) (graph.Edge, bool) {
-	fromID := edgeEndpointIdentity(pe.From)
+// buildPriorResolvedKeyMap links prior package keys to resolved keys via full parent identity.
+func buildPriorResolvedKeyMap(
+	prior, resolved *graph.Graph,
+	closure map[string]struct{},
+	importers map[graph.ImporterID]struct{},
+) map[string]string {
+	mapping := map[string]string{}
+	changed := true
+	for changed {
+		changed = false
+		for _, pe := range prior.Edges {
+			touchesClosure := false
+			if _, in := closure[pe.To]; in {
+				touchesClosure = true
+			} else if _, in := closure[pe.From]; in {
+				touchesClosure = true
+			} else if _, imp := importers[graph.ImporterID(pe.From)]; imp {
+				touchesClosure = true
+			}
+			if !touchesClosure {
+				continue
+			}
+			parentKey := mappedParentKey(pe.From, mapping, importers)
+			if re, ok := matchingResolvedEdge(pe, resolved, parentKey); ok {
+				if priorTo, exists := mapping[pe.To]; exists && priorTo != re.To {
+					continue
+				}
+				if _, exists := mapping[pe.To]; !exists {
+					mapping[pe.To] = re.To
+					changed = true
+				}
+			}
+		}
+	}
+	return mapping
+}
+
+func mappedParentKey(from string, keyMap map[string]string, importers map[graph.ImporterID]struct{}) string {
+	if mapped, ok := keyMap[from]; ok {
+		return mapped
+	}
+	return edgeParentKey(from)
+}
+
+func matchingResolvedEdge(pe graph.Edge, resolved *graph.Graph, parentKey string) (graph.Edge, bool) {
+	if parentKey == "" {
+		parentKey = edgeParentKey(pe.From)
+	}
 	for _, re := range resolved.Edges {
-		if re.Name != pe.Name || re.Kind != pe.Kind || re.Range != pe.Range {
+		if edgeParentKey(re.From) != parentKey {
 			continue
 		}
-		if edgeEndpointIdentity(re.From) != fromID {
+		if re.Name != pe.Name || re.Kind != pe.Kind || re.Range != pe.Range || re.Optional != pe.Optional {
 			continue
 		}
 		return re, true
@@ -308,11 +406,8 @@ func matchingResolvedEdge(pe graph.Edge, resolved *graph.Graph) (graph.Edge, boo
 	return graph.Edge{}, false
 }
 
-func edgeEndpointIdentity(endpoint string) string {
-	if endpoint == string(graph.RootImporter) {
-		return endpoint
-	}
-	return parsePackageKey(endpoint).Name
+func edgeParentKey(endpoint string) string {
+	return endpoint
 }
 
 func preservedEdge(e graph.Edge, closure map[string]struct{}, importers map[graph.ImporterID]struct{}) bool {
@@ -437,11 +532,15 @@ func prepareHints(eff *config.Effective, opts ResolveOptions, m *manifest.Manife
 			}
 			currentPolicy := PolicyFromEffective(eff)
 			h.policyFP = policyFingerprint(currentPolicy)
-			if pf := opts.PriorFingerprints; pf != nil {
+			if pf := opts.PriorFingerprints; pf == nil {
+				h.policyDrift = true
+			} else {
 				if pf.OverridesFingerprint != "" && pf.OverridesFingerprint != hashOverrides(m.Overrides) {
 					h.overrideChanged = true
 				}
-				if pf.ResolverPolicyFingerprint != "" && pf.ResolverPolicyFingerprint != h.policyFP {
+				if pf.ResolverPolicyFingerprint == "" || !validPolicyFingerprint(pf.ResolverPolicyFingerprint) {
+					h.policyDrift = true
+				} else if pf.ResolverPolicyFingerprint != h.policyFP {
 					h.policyDrift = true
 				}
 				if pf.TargetPlatformFingerprint != "" && pf.TargetPlatformFingerprint != targetPlatformFingerprint(CurrentTarget()) {

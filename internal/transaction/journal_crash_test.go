@@ -123,3 +123,51 @@ func TestJournalIncompleteHeadFallsBackToPriorGeneration(t *testing.T) {
 	_ = gen2Data
 	_ = runner.Discard()
 }
+
+func TestJournalPhaseStartedWithoutFilesystemPublish(t *testing.T) {
+	root := t.TempDir()
+	live := filepath.Join(root, "target.txt")
+	if err := os.WriteFile(live, []byte("prior"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runner := NewRunner(root)
+	ctx := context.Background()
+	if err := runner.Begin(ctx); err != nil {
+		t.Fatal(err)
+	}
+	stage := runner.StagePath()
+	staged := filepath.Join(stage, "target.txt")
+	if err := os.WriteFile(staged, []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	plan := []Op{{Kind: OpRename, Path: "target.txt", Backup: "stage/target.txt"}}
+	if err := runner.SetPlan(plan); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.RecordBackup("target.txt"); err != nil {
+		t.Fatal(err)
+	}
+	runner.doc.Plan[0].Phase = PhasePublishStarted
+	runner.doc.Plan[0].Progress = ProgressApplying
+	if err := runner.saveJournal(); err != nil {
+		t.Fatal(err)
+	}
+	prior, err := os.ReadFile(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(prior) != "prior" {
+		t.Fatalf("live mutated before publish: %q", prior)
+	}
+	if _, err := runner.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != "prior" {
+		t.Fatalf("rollback should restore prior from backup, got %q", after)
+	}
+	_ = runner.Finish(false)
+}

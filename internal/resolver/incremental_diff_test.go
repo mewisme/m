@@ -111,7 +111,7 @@ func TestIncrementalAliasStability(t *testing.T) {
 		UpdateTargets: []string{"foo"}, IncrementalUpdate: true,
 		PriorFingerprints: &resolver.PriorFingerprints{
 			OverridesFingerprint:      resolver.OverridesFingerprint(nil),
-			ResolverPolicyFingerprint: resolver.PolicyFingerprint(&policy.Policy{StrictPeerDependencies: true}),
+			ResolverPolicyFingerprint: resolver.PolicyFingerprint(resolver.PolicyFromEffective(eng.Effective)),
 			TargetPlatformFingerprint: resolver.TargetPlatformFingerprint(resolver.CurrentTarget()),
 		},
 	})
@@ -144,7 +144,7 @@ func TestIncrementalPolicyDriftReResolves(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	strict := &policy.Policy{StrictPeerDependencies: true}
+	strict := resolver.PolicyFromEffective(eng.Effective)
 	loose := &policy.Policy{StrictPeerDependencies: false}
 	res, err := eng.Resolve(context.Background(), root, resolver.ResolveOptions{
 		Prior: prior, Hints: prior,

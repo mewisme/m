@@ -41,6 +41,104 @@ func TestValidateTreeManifestDuplicatePaths(t *testing.T) {
 	}
 }
 
+func TestValidateTreeManifestCaseCollision(t *testing.T) {
+	m := &TreeManifest{
+		SchemaVersion: 2,
+		Entries: []TreeEntry{
+			{Path: "lib/Util.js", Kind: string(EntryFile), Hash: strings.Repeat("a", 64), Mode: 0o444},
+			{Path: "lib/util.js", Kind: string(EntryFile), Hash: strings.Repeat("b", 64), Mode: 0o444},
+		},
+	}
+	if err := validateTreeManifest(m); err == nil {
+		t.Fatal("expected case collision error")
+	} else if !strings.Contains(err.Error(), "portable path collision") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestValidateTreeManifestTrailingDotCollision(t *testing.T) {
+	m := &TreeManifest{
+		SchemaVersion: 2,
+		Entries: []TreeEntry{
+			{Path: "readme.md", Kind: string(EntryFile), Hash: strings.Repeat("a", 64), Mode: 0o444},
+			{Path: "readme.md.", Kind: string(EntryFile), Hash: strings.Repeat("b", 64), Mode: 0o444},
+		},
+	}
+	if err := validateTreeManifest(m); err == nil {
+		t.Fatal("expected trailing dot collision error")
+	} else if !strings.Contains(err.Error(), "portable path collision") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestValidateTreeManifestTrailingSpaceCollision(t *testing.T) {
+	m := &TreeManifest{
+		SchemaVersion: 2,
+		Entries: []TreeEntry{
+			{Path: "data.json", Kind: string(EntryFile), Hash: strings.Repeat("a", 64), Mode: 0o444},
+			{Path: "data.json ", Kind: string(EntryFile), Hash: strings.Repeat("b", 64), Mode: 0o444},
+		},
+	}
+	if err := validateTreeManifest(m); err == nil {
+		t.Fatal("expected trailing space collision error")
+	}
+}
+
+func TestPortableCollisionKeySlashNormalization(t *testing.T) {
+	a := portableCollisionKey("lib/foo")
+	b := portableCollisionKey(`lib\foo`)
+	if a != b {
+		t.Fatalf("keys differ: %q vs %q", a, b)
+	}
+}
+
+func TestVerifyTreeManifestDiskCaseCollision(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "probe"), []byte("a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "PROBE"), []byte("b"), 0o644); err != nil {
+		t.Skip("case-insensitive filesystem")
+	}
+	probe, err := os.ReadFile(filepath.Join(dir, "probe"))
+	if err != nil || string(probe) != "a" {
+		t.Skip("case-insensitive filesystem")
+	}
+	_ = os.Remove(filepath.Join(dir, "probe"))
+	_ = os.Remove(filepath.Join(dir, "PROBE"))
+
+	pkgData := []byte(`{"name":"x"}`)
+	pkgPath := filepath.Join(dir, "package.json")
+	if err := os.WriteFile(pkgPath, pkgData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, packageMarker), []byte("sha256-dead"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	altPath := filepath.Join(dir, "PACKAGE.json")
+	if err := os.WriteFile(altPath, []byte("collision"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Lstat(pkgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &TreeManifest{
+		SchemaVersion: 2,
+		Entries: []TreeEntry{
+			{Path: "package.json", Kind: string(EntryFile), Hash: mustHashBytes(pkgData), Mode: uint32(info.Mode().Perm())},
+		},
+	}
+	if err := writeTreeManifest(dir, m); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyTreeManifest(dir, m); err == nil {
+		t.Fatal("expected disk case collision failure")
+	} else if !strings.Contains(err.Error(), "portable path collision") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
 func TestVerifyTreeManifestExtraFile(t *testing.T) {
 	dir := t.TempDir()
 	pkgData := []byte(`{"name":"x"}`)

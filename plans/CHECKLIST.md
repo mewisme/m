@@ -11,7 +11,7 @@
 
 **Next:** Complete stabilization pass 3 (score ≥ 9.0), then [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md).
 
-Stabilization pass 2 (0017–0020 correctness gates) completed 2026-07-27. Pass 3 in progress — **0021 blocked** until score ≥ 9.0.
+Stabilization pass 2 (0017–0020 correctness gates) completed 2026-07-27. Pass 3 phases 1–15 complete — **0021 blocked** until CI green on new crash/race jobs and score ≥ 9.0 confirmed in Actions.
 
 ## MVP completion (65)
 

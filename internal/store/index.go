@@ -1,11 +1,12 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mewisme/m/internal/apperr"
@@ -33,8 +34,6 @@ type ReconcileIndexResult struct {
 	Removed int
 }
 
-var indexMu sync.Mutex
-
 func (s *PackageStore) indexPath() string {
 	return filepath.Join(s.Root, "index.json")
 }
@@ -56,14 +55,21 @@ func (s *PackageStore) loadIndex() (*Index, error) {
 		idx.Packages = map[string]IndexEntry{}
 	}
 	if idx.SchemaVersion == 0 {
-		idx.SchemaVersion = indexSchemaVersion
+		return nil, apperr.New(apperr.Store, "store.index", path, "missing schemaVersion")
+	}
+	if idx.SchemaVersion != indexSchemaVersion {
+		return nil, apperr.New(apperr.Store, "store.index", path,
+			fmt.Sprintf("unsupported schemaVersion %d", idx.SchemaVersion))
 	}
 	return &idx, nil
 }
 
 func (s *PackageStore) indexUpsert(key PackageKey, integrity string, size int64) error {
-	indexMu.Lock()
-	defer indexMu.Unlock()
+	release, err := acquireIndexLock(context.Background(), s.Root)
+	if err != nil {
+		return err
+	}
+	defer release()
 
 	idx, err := s.loadIndex()
 	if err != nil {
@@ -87,15 +93,16 @@ func (s *PackageStore) warnIndex(msg string, key PackageKey, err error) {
 	if s == nil || s.Reporter == nil || err == nil {
 		return
 	}
-	s.Reporter.Debug(msg,
-		diagnostics.Attr{Key: "key", Value: key.String()},
-		diagnostics.Attr{Key: "error", Value: err.Error()},
-	)
+	line := "warning: " + msg + " key=" + key.String() + " error=" + err.Error()
+	s.Reporter.Progress(diagnostics.Event{Phase: line})
 }
 
 func (s *PackageStore) writeIndex(idx *Index) error {
 	if idx == nil {
 		return apperr.New(apperr.Store, "store.index", "", "nil index")
+	}
+	if idx.SchemaVersion == 0 {
+		idx.SchemaVersion = indexSchemaVersion
 	}
 	raw, err := json.MarshalIndent(idx, "", "  ")
 	if err != nil {
@@ -120,8 +127,11 @@ func (s *PackageStore) ReconcileIndex() (ReconcileIndexResult, error) {
 		return ReconcileIndexResult{}, err
 	}
 
-	indexMu.Lock()
-	defer indexMu.Unlock()
+	release, err := acquireIndexLock(context.Background(), s.Root)
+	if err != nil {
+		return ReconcileIndexResult{}, err
+	}
+	defer release()
 
 	idx, err := s.loadIndex()
 	if err != nil {
@@ -185,30 +195,43 @@ func (s *PackageStore) Status() (count int, bytes int64, err error) {
 		return 0, 0, apperr.New(apperr.Store, "store.status", "", "nil store")
 	}
 	_, _ = s.CleanupStaleStaging(time.Hour)
+
+	keys, err := s.ListPackageKeys()
+	if err != nil {
+		return 0, 0, err
+	}
+	fsCount := len(keys)
+
 	idx, err := s.loadIndex()
 	if err != nil {
 		return 0, 0, err
 	}
-	for _, e := range idx.Packages {
-		count++
-		bytes += e.SizeBytes
+	if len(idx.Packages) != fsCount {
+		if _, err := s.ReconcileIndex(); err != nil {
+			return 0, 0, err
+		}
+		idx, err = s.loadIndex()
+		if err != nil {
+			return 0, 0, err
+		}
 	}
-	if count > 0 {
+
+	if len(idx.Packages) > 0 {
+		for _, e := range idx.Packages {
+			count++
+			bytes += e.SizeBytes
+		}
 		return count, bytes, nil
 	}
-	pkgRoot := filepath.Join(s.Root, "packages")
-	_ = filepath.WalkDir(pkgRoot, func(path string, d os.DirEntry, walkErr error) error {
-		if walkErr != nil || d == nil || d.IsDir() {
-			return walkErr
+
+	for _, key := range keys {
+		entry, err := indexEntryFromPackage(s.PackagePath(key))
+		if err != nil {
+			return 0, 0, apperr.Wrap(apperr.Store, "store.status", key.String(), err)
 		}
-		if filepath.Base(path) == "package.json" {
-			count++
-		}
-		if info, err := d.Info(); err == nil {
-			bytes += info.Size()
-		}
-		return nil
-	})
+		count++
+		bytes += entry.SizeBytes
+	}
 	return count, bytes, nil
 }
 

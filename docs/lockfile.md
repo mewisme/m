@@ -59,7 +59,7 @@ Mew's native lockfile is deterministic JSON at the project root. Format decision
 |---|---|
 | `settings.linker` | Snapshot of `install.linker` (`auto` \| `hoisted` \| `isolated`) |
 | `settings.overridesFingerprint` | Hash of effective overrides for incremental invalidation |
-| `settings.resolverPolicyFingerprint` | Hash of resolver policy snapshot |
+| `settings.resolverPolicyFingerprint` | Hash of effective resolver policy (`PolicyFromEffective`: peers, release age, deprecated, offline) |
 | `settings.targetPlatformFingerprint` | Hash of OS/CPU/libc target for optional/platform edges |
 | `settings.policy` | Trust and resolver policy snapshot for install handoff (see [`policy`](../internal/policy/policy.go)) |
 | `settings.policy.autoInstallPeers` | Snapshot of `resolve.autoInstallPeers` (0020) |

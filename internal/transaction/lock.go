@@ -104,7 +104,11 @@ func acquireProjectLock(ctx context.Context, projectRoot, txnID string, takeover
 // ReleaseProjectLock removes the project lock when owned by this process and txnID.
 // An empty txnID releases only when the on-disk lock matches this process identity.
 func ReleaseProjectLock(projectRoot, txnID string) error {
-	lockDir := LockPath(projectRoot)
+	absRoot, err := filepath.Abs(projectRoot)
+	if err != nil {
+		return apperr.Wrap(apperr.IO, "transaction.lock", projectRoot, err)
+	}
+	lockDir := LockPath(absRoot)
 	match := func(data []byte) bool {
 		doc, err := parseLockDocument(data)
 		if err != nil {
@@ -115,10 +119,22 @@ func ReleaseProjectLock(projectRoot, txnID string) error {
 		}
 		return processOwnsLock(doc)
 	}
-	if err := fsx.ReleaseDirLock(lockDir, match); err != nil {
+	result, err := fsx.ReleaseDirLock(lockDir, match)
+	if err != nil {
 		return apperr.Wrap(apperr.IO, "transaction.lock", lockDir, err)
 	}
-	return nil
+	switch result {
+	case fsx.ReleaseOK:
+		return nil
+	case fsx.ReleaseMissingOwner:
+		return apperr.New(apperr.Transaction, "transaction.lock", lockDir, "lock owner metadata missing")
+	case fsx.ReleaseMalformedOwner:
+		return apperr.New(apperr.Transaction, "transaction.lock", lockDir, "lock owner metadata malformed")
+	case fsx.ReleaseNotOwner:
+		return nil
+	default:
+		return nil
+	}
 }
 
 func newLockDocument(projectRoot, txnID string) (LockDocument, []byte, error) {
@@ -208,11 +224,6 @@ func processOwnsLock(doc LockDocument) bool {
 // tryRemoveStaleLock is kept for LoadIncomplete cleanup paths.
 func tryRemoveStaleLock(projectRoot string) (bool, error) {
 	lockDir := LockPath(projectRoot)
-	removed, err := tryRemoveStaleDirLockCompat(lockDir)
-	return removed, err
-}
-
-func tryRemoveStaleDirLockCompat(lockDir string) (bool, error) {
 	info, err := os.Stat(lockDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -221,33 +232,84 @@ func tryRemoveStaleDirLockCompat(lockDir string) (bool, error) {
 		return false, err
 	}
 	if !info.IsDir() {
-		doc, readErr := parseLockDocument(readFileOrEmpty(lockDir))
+		data := readFileOrEmpty(lockDir)
+		doc, readErr := parseLockDocument(data)
 		if readErr != nil || !lockHolderAlive(doc) {
 			_ = os.Remove(lockDir)
 			return true, nil
 		}
 		return false, nil
 	}
-	data, readErr := os.ReadFile(filepath.Join(lockDir, lockOwnerFile))
+	ownerPath := filepath.Join(lockDir, lockOwnerFile)
+	data, readErr := os.ReadFile(ownerPath)
+	dirMod := info.ModTime()
+	if fi, statErr := os.Stat(ownerPath); statErr == nil {
+		dirMod = fi.ModTime()
+	}
+	stale := func(owner []byte, mod time.Time) bool {
+		if len(owner) > 0 {
+			parsed, err := parseLockDocument(owner)
+			if err == nil {
+				return !lockHolderAlive(parsed)
+			}
+			if time.Since(mod) < lockGracePeriod {
+				return false
+			}
+			return true
+		}
+		if time.Since(mod) < lockGracePeriod {
+			return false
+		}
+		return true
+	}
+	tombstoneRoot := fsx.TombstoneRoot(lockDir)
 	if readErr != nil {
-		if time.Since(info.ModTime()) >= lockGracePeriod {
-			_ = os.RemoveAll(lockDir)
+		if os.IsNotExist(readErr) {
+			if time.Since(info.ModTime()) < lockGracePeriod {
+				return false, nil
+			}
+			obs := fsx.LockObservation{DirMod: info.ModTime(), OwnerMissing: true}
+			if err := fsx.ForceRemoveStaleDirLock(lockDir, obs, tombstoneRoot); err != nil {
+				if errors.Is(err, os.ErrExist) {
+					return false, nil
+				}
+				return false, err
+			}
+			return true, nil
+		}
+		if time.Since(dirMod) < lockGracePeriod {
+			return false, nil
+		}
+		if stale(nil, dirMod) {
+			obs := fsx.LockObservation{DirMod: dirMod, OwnerMissing: true}
+			if err := fsx.ForceRemoveStaleDirLock(lockDir, obs, tombstoneRoot); err != nil {
+				if errors.Is(err, os.ErrExist) {
+					return false, nil
+				}
+				return false, err
+			}
 			return true, nil
 		}
 		return false, nil
 	}
-	doc, err := parseLockDocument(data)
-	if err != nil {
-		if time.Since(info.ModTime()) >= lockGracePeriod {
-			_ = os.RemoveAll(lockDir)
-			return true, nil
+	if !stale(data, dirMod) {
+		return false, nil
+	}
+	lockID := ""
+	if doc, err := parseLockDocument(data); err == nil {
+		lockID = doc.LockID
+	}
+	obs := fsx.LockObservation{
+		LockID:    lockID,
+		OwnerJSON: append([]byte(nil), data...),
+		DirMod:    dirMod,
+	}
+	if err := fsx.ForceRemoveStaleDirLock(lockDir, obs, tombstoneRoot); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return false, nil
 		}
-		return false, nil
+		return false, err
 	}
-	if lockHolderAlive(doc) {
-		return false, nil
-	}
-	_ = os.RemoveAll(lockDir)
 	return true, nil
 }
 

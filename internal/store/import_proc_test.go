@@ -119,6 +119,42 @@ func writeImportDirLock(t *testing.T, root, algo, hex string, pid int) {
 	}
 }
 
+func TestImportProcStaleLockTombstone(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "store")
+	ps := store.NewPackageStore(root)
+	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "lodash-4.17.21.tgz")
+	integrity := "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
+	key, err := store.PackageKeyFromIntegrity(integrity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockDir := filepath.Join(root, ".locks", key.Algo, key.Hex)
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := json.Marshal(map[string]any{
+		"schemaVersion": 2,
+		"lockId":        "stale-tomb",
+		"pid":           999999999,
+		"processStart":  1,
+		"packageKey":    key.String(),
+		"createdAt":     time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(lockDir, fsx.OwnerFileName), doc, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ps.ImportFromTarball(context.Background(), tgz, integrity); err != nil {
+		t.Fatal(err)
+	}
+	tombRoot := fsx.TombstoneRoot(lockDir)
+	if _, err := os.Stat(filepath.Join(tombRoot, ".stale")); err != nil {
+		t.Fatalf("expected tombstone dir: %v", err)
+	}
+}
+
 func TestImportProcStaleLockRecovery(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "store")
 	ps := store.NewPackageStore(root)

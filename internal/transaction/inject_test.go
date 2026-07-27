@@ -120,7 +120,7 @@ func TestPartialNodeModulesRepair(t *testing.T) {
 	if err := txn.SetState(transaction.StateCommitting); err != nil {
 		t.Fatal(err)
 	}
-	if err := txn.Rollback(ctx); err != nil {
+	if _, err := txn.Rollback(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(live, "pkg")); err != nil {
@@ -171,7 +171,7 @@ func TestInjectRollbackWithoutStagedArtifact(t *testing.T) {
 	if err := txn.SetState(transaction.StateCommitting); err != nil {
 		t.Fatal(err)
 	}
-	if err := txn.Rollback(ctx); err != nil {
+	if _, err := txn.Rollback(ctx); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(liveLock)

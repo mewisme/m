@@ -158,6 +158,28 @@ func readTreeManifest(dir string) (*TreeManifest, error) {
 	return &m, nil
 }
 
+// portableCollisionKey folds case, normalizes slashes, and trims Windows trailing
+// dots/spaces per path segment so manifests stay safe on case-insensitive targets.
+func portableCollisionKey(path string) string {
+	path = filepath.ToSlash(path)
+	segs := strings.Split(path, "/")
+	out := make([]string, 0, len(segs))
+	for _, seg := range segs {
+		if seg == "" || seg == "." {
+			continue
+		}
+		seg = strings.TrimRight(seg, ". ")
+		seg = strings.ToLower(seg)
+		out = append(out, seg)
+	}
+	return strings.Join(out, "/")
+}
+
+func portablePathCollisionErr(a, b string) error {
+	return apperr.New(apperr.Store, "store.verify", a,
+		fmt.Sprintf("portable path collision with %q", b))
+}
+
 func validateTreeManifest(m *TreeManifest) error {
 	if m == nil {
 		return apperr.New(apperr.Store, "store.verify", "", "nil manifest")
@@ -167,6 +189,7 @@ func validateTreeManifest(m *TreeManifest) error {
 			fmt.Sprintf("unsupported manifest schema version %d", m.SchemaVersion))
 	}
 	seen := make(map[string]struct{}, len(m.Entries))
+	collisionSeen := make(map[string]string, len(m.Entries))
 	for _, e := range m.Entries {
 		if err := validateManifestPath(e.Path); err != nil {
 			return apperr.Wrap(apperr.Store, "store.verify", e.Path, err)
@@ -175,6 +198,12 @@ func validateTreeManifest(m *TreeManifest) error {
 			return apperr.New(apperr.Store, "store.verify", e.Path, "duplicate manifest path")
 		}
 		seen[e.Path] = struct{}{}
+		if ck := portableCollisionKey(e.Path); ck != "" {
+			if first, ok := collisionSeen[ck]; ok {
+				return portablePathCollisionErr(first, e.Path)
+			}
+			collisionSeen[ck] = e.Path
+		}
 		switch TreeEntryKind(e.Kind) {
 		case EntryFile:
 			if err := validateManifestHash(e.Hash); err != nil {
@@ -354,6 +383,14 @@ func verifyManifestEntry(dir string, e TreeEntry) error {
 }
 
 func verifyNoExtraTreePaths(dir string, manifestPaths map[string]TreeEntry) error {
+	collisionIndex := make(map[string]string, len(manifestPaths))
+	for path := range manifestPaths {
+		ck := portableCollisionKey(path)
+		if first, ok := collisionIndex[ck]; ok && first != path {
+			return portablePathCollisionErr(first, path)
+		}
+		collisionIndex[ck] = path
+	}
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -372,6 +409,9 @@ func verifyNoExtraTreePaths(dir string, manifestPaths map[string]TreeEntry) erro
 		rel = filepath.ToSlash(rel)
 		if _, ok := manifestPaths[rel]; ok {
 			return nil
+		}
+		if canonical, ok := collisionIndex[portableCollisionKey(rel)]; ok {
+			return portablePathCollisionErr(canonical, rel)
 		}
 		if d.IsDir() {
 			return apperr.New(apperr.Store, "store.verify", rel, "extra directory")

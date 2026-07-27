@@ -17,8 +17,11 @@ type captureReporter struct {
 	buf bytes.Buffer
 }
 
-func (c *captureReporter) Progress(diagnostics.Event) {}
-func (c *captureReporter) Error(error)                {}
+func (c *captureReporter) Progress(ev diagnostics.Event) {
+	c.buf.WriteString(ev.Phase)
+}
+
+func (c *captureReporter) Error(error) {}
 func (c *captureReporter) Debug(msg string, attrs ...diagnostics.Attr) {
 	c.buf.WriteString(msg)
 	for _, a := range attrs {
@@ -45,7 +48,7 @@ func TestIndexUpsertFailureWarns(t *testing.T) {
 	}
 
 	ps.indexUpsertOrWarn(key, integrity, 123)
-	if !strings.Contains(rep.buf.String(), "store index upsert failed") {
+	if !strings.Contains(rep.buf.String(), "warning: store index upsert failed") {
 		t.Fatalf("expected index warning, got %q", rep.buf.String())
 	}
 }
@@ -119,4 +122,94 @@ func TestReconcileIndexOrphanEntry(t *testing.T) {
 
 func indexPathForTest(root string) string {
 	return filepath.Join(root, "index.json")
+}
+
+func TestLoadIndexRejectsSchemaVersionZero(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "store")
+	path := indexPathForTest(root)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw := `{"schemaVersion":0,"packages":{}}` + "\n"
+	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadIndex(root); err == nil {
+		t.Fatal("expected schemaVersion rejection")
+	} else if !strings.Contains(err.Error(), "missing schemaVersion") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestLoadIndexRejectsCorruptJSON(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "store")
+	path := indexPathForTest(root)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadIndex(root); err == nil {
+		t.Fatal("expected parse error")
+	}
+}
+
+func TestStatusPartialIndexReconciles(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "store")
+	ps := NewPackageStore(root)
+	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "lodash-4.17.21.tgz")
+	integrity := "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
+	key, err := ps.ImportFromTarball(context.Background(), tgz, integrity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx, err := ReadIndex(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delete(idx.Packages, key.String())
+	raw, err := json.MarshalIndent(idx, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw = append(raw, '\n')
+	if err := os.WriteFile(indexPathForTest(root), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	count, _, err := ps.Status()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("count=%d", count)
+	}
+	got, err := ReadIndex(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := got.Packages[key.String()]; !ok {
+		t.Fatal("expected reconciled index entry")
+	}
+}
+
+func TestStatusFilesystemFallback(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "store")
+	ps := NewPackageStore(root)
+	tgz := filepath.Join(testkit.FixtureDir(t, "registry/v1"), "tarballs", "lodash-4.17.21.tgz")
+	integrity := "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
+	if _, err := ps.ImportFromTarball(context.Background(), tgz, integrity); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(indexPathForTest(root)); err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	count, bytes, err := ps.Status()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 || bytes <= 0 {
+		t.Fatalf("count=%d bytes=%d", count, bytes)
+	}
 }

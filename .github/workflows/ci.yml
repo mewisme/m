@@ -42,6 +42,26 @@ jobs:
       - name: Race
         run: go test -race ./... -count=1
 
+  race-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Race (transaction, store, fsx)
+        run: go test -race ./internal/transaction/... ./internal/store/... ./internal/fsx/... -count=1
+
+  crash-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Process crash matrix (install, update, snapshot restore)
+        run: go test ./tests/integration/... -count=1 -run 'Crash'
+
   race-macos:
     runs-on: macos-latest
     steps:
@@ -65,7 +85,7 @@ jobs:
         with:
           go-version: "1.26.x"
       - name: Cross-process lock and identity tests
-        run: go test ./internal/transaction/... ./internal/store/... -count=1 -run 'Proc|Identity|Takeover|Import'
+        run: go test ./internal/transaction/... ./internal/store/... ./internal/fsx/... -count=1 -run 'Proc|Identity|Takeover|Import|ABA'
 
   cross:
     runs-on: ubuntu-latest

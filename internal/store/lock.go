@@ -181,3 +181,126 @@ func removeLegacyImportLockFile(storeRoot string, key PackageKey) {
 		_ = os.Remove(legacy)
 	}
 }
+
+// IndexLockDocument is persisted at <store>/.locks/index/owner.json.
+type IndexLockDocument struct {
+	SchemaVersion int       `json:"schemaVersion"`
+	LockID        string    `json:"lockId"`
+	PID           int       `json:"pid"`
+	ProcessStart  int64     `json:"processStart"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
+func indexLockDir(storeRoot string) string {
+	return filepath.Join(storeRoot, ".locks", "index")
+}
+
+func acquireIndexLock(ctx context.Context, storeRoot string) (release func(), err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	lockDir := indexLockDir(storeRoot)
+	doc, raw, err := newIndexLockDocument()
+	if err != nil {
+		return nil, err
+	}
+	match := func(data []byte) bool { return indexLockOwnerMatches(data, doc.LockID) }
+	stale := func(data []byte, mod time.Time) bool {
+		if len(data) > 0 {
+			parsed, err := parseIndexLockDocument(data)
+			if err == nil {
+				return !indexLockHolderAlive(parsed)
+			}
+			if time.Since(mod) < importLockGracePeriod {
+				return false
+			}
+			return true
+		}
+		if time.Since(mod) < importLockGracePeriod {
+			return false
+		}
+		return true
+	}
+	release, err = fsx.AcquireDirLock(ctx, lockDir, raw, fsx.DirLockOptions{
+		RetryInterval: importLockRetryInterval,
+		MaxWait:       importLockMaxWait,
+		GracePeriod:   importLockGracePeriod,
+	}, stale, match)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return nil, apperr.New(apperr.Store, "store.index.lock", lockDir,
+				"timeout waiting for index lock")
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, apperr.Wrap(apperr.Cancelled, "store.index.lock", lockDir, err)
+		}
+		return nil, apperr.Wrap(apperr.Store, "store.index.lock", lockDir, err)
+	}
+	return release, nil
+}
+
+func newIndexLockDocument() (IndexLockDocument, []byte, error) {
+	pid, start, err := currentProcessIdentity()
+	if err != nil {
+		return IndexLockDocument{}, nil, apperr.Wrap(apperr.Store, "store.index.lock", "", err)
+	}
+	lockID, err := fsx.NewLockID()
+	if err != nil {
+		return IndexLockDocument{}, nil, apperr.Wrap(apperr.Store, "store.index.lock", "", err)
+	}
+	doc := IndexLockDocument{
+		SchemaVersion: importLockSchemaVersion,
+		LockID:        lockID,
+		PID:           pid,
+		ProcessStart:  start,
+		CreatedAt:     time.Now().UTC(),
+	}
+	raw, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return IndexLockDocument{}, nil, apperr.Wrap(apperr.Store, "store.index.lock", "", err)
+	}
+	raw = append(raw, '\n')
+	return doc, raw, nil
+}
+
+func parseIndexLockDocument(data []byte) (IndexLockDocument, error) {
+	var doc IndexLockDocument
+	if len(data) == 0 {
+		return IndexLockDocument{}, apperr.New(apperr.Store, "store.index.lock", "", "empty lock owner")
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return IndexLockDocument{}, apperr.Wrap(apperr.Store, "store.index.lock", "", err)
+	}
+	return doc, nil
+}
+
+func indexLockHolderAlive(doc IndexLockDocument) bool {
+	if doc.PID <= 0 {
+		return false
+	}
+	if doc.SchemaVersion >= 2 && doc.ProcessStart != 0 {
+		return processIdentityAlive(doc.PID, doc.ProcessStart)
+	}
+	return processAlive(doc.PID)
+}
+
+func indexLockOwnerMatches(data []byte, lockID string) bool {
+	doc, err := parseIndexLockDocument(data)
+	if err != nil {
+		return false
+	}
+	if lockID != "" && doc.LockID != lockID {
+		return false
+	}
+	pid, start, err := currentProcessIdentity()
+	if err != nil {
+		return false
+	}
+	if doc.PID != pid {
+		return false
+	}
+	if doc.SchemaVersion >= 2 && doc.ProcessStart != 0 {
+		return doc.ProcessStart == start
+	}
+	return true
+}

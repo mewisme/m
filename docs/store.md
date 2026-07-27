@@ -67,8 +67,14 @@ truth. A missing, corrupt, or stale `index.json` does not block imports.
 - **Rebuild:** `ReconcileIndex()` scans `packages/`, reads `.mew-package-integrity`
   markers, and rewrites `index.json`. Use this to repair missing entries or drop
   orphan index rows for packages that no longer exist on disk.
-- **Status fallback:** when the index is empty, `m store status` falls back to a
-  filesystem scan under `packages/`.
+- **Status fallback:** when the index is empty or incomplete, `m store status`
+  falls back to a filesystem scan under `packages/`. `Status()` does not treat a
+  non-empty but partial index as authoritative.
+
+## Path collisions
+
+Tree manifest import rejects portable path collisions (case-insensitive duplicate
+paths on case-insensitive volumes) before publish.
 
 ## Verification
 

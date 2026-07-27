@@ -97,12 +97,24 @@ ranges (`internal/semver`).
 make fuzz-smoke
 ```
 
+## Stabilization pass 3 suites (0016–0020 hard correctness)
+
+| Area | Package / path | What it proves |
+|---|---|---|
+| Mutation preflight | `internal/transaction/preflight_test.go`, `preflight_proc_test.go` | Scan incomplete txns, recover before begin, stale lock + concurrent install |
+| ABA-safe lock takeover | `internal/fsx/lockdir_aba_proc_test.go` | Tombstone rename; live lock survives stale cleanup race |
+| Owner-safe release | `internal/fsx/lockdir_release_test.go` | Failed release leaves lock dir intact |
+| Process crash matrix | `tests/integration/txn_crash_test.go`, `snapshot_crash_test.go`, `update_crash_test.go` | `MEW_TXN_CRASH_AT` at resolve/fetch/link/lockfile/validate/backup/publish/commit/finish boundaries |
+| Atomic snapshot restore | `tests/integration/snapshot_restore_test.go` | Single-txn restore; live tree unchanged on failure |
+| Policy parity | `internal/resolver/policy_parity_test.go`, `policy_drift_test.go` | Install/update same graph; fingerprint drift disables reuse |
+| Index + collisions | `internal/store/index_proc_test.go`, `treemanifest_security_test.go` | Cross-process index lock; portable path collision reject |
+
 ## Stabilization pass 2 suites (0017–0020)
 
 | Area | Package / path | What it proves |
 |---|---|---|
 | Project lock contention | `internal/transaction/lock_proc_test.go` | 20-process exclusive lock, stale recovery, ctx cancel |
-| Crash recovery | `internal/transaction/inject_test.go`, `tests/integration/txn_inject_test.go`, `tests/integration/txn_crash_test.go` | Kill-boundary recovery, idempotent `m recover` |
+| Crash recovery | `internal/transaction/inject_test.go`, `tests/integration/txn_inject_test.go`, `tests/integration/txn_crash_test.go`, `tests/integration/snapshot_crash_test.go`, `tests/integration/update_crash_test.go` | Kill-boundary recovery, idempotent `m recover`, auto-recover on retry |
 | Store import locks | `internal/store/import_proc_test.go` | External `.locks/<algo>/<hex>.lock`, GC safety |
 | Tree manifest security | `internal/store/treemanifest_security_test.go` | Bidirectional verify, hostile manifests, legacy re-import |
 | Graph aliases | `internal/graph/alias_test.go`, `fixtures/resolver/aliases/` | `Edge.Name` round-trip |
@@ -144,7 +156,11 @@ when present).
 
 | Suite | Normal PR CI | Scheduled / 0080 |
 |---|---|---|
-| `go test ./...` | yes (hermetic) | yes |
+| `go test ./...` | yes (hermetic; linux/macOS/windows matrix) | yes |
+| `go test -race ./...` | yes (ubuntu) | yes |
+| `race-windows` job | `transaction`, `store`, `fsx` on windows-latest | yes |
+| `crash-integration` job | `go test ./tests/integration/... -run Crash` (no `-short`) | yes |
+| `platform-lock` job | cross-process lock + ABA proc tests on all OS | yes |
 | `golangci-lint run` | yes (Ubuntu) | yes |
 | Fixture registry | local only | local only |
 | Public npm | never | never |

@@ -85,7 +85,7 @@ func BenchmarkTransactionRollback(b *testing.B) {
 			b.Fatal(err)
 		}
 		b.StartTimer()
-		if err := txn.Rollback(ctx); err != nil {
+		if _, err := txn.Rollback(ctx); err != nil {
 			b.Fatal(err)
 		}
 		b.StopTimer()

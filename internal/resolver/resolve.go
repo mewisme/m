@@ -109,7 +109,7 @@ func (e *Engine) Resolve(ctx context.Context, root string, opts ResolveOptions) 
 func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts ResolveOptions) (*Resolution, error) {
 	pol := opts.Policy
 	if pol == nil {
-		pol = &policy.Policy{StrictPeerDependencies: true}
+		pol = PolicyFromEffective(e.Effective)
 	}
 	if err := pol.Normalize(); err != nil {
 		return nil, err

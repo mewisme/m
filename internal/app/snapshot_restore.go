@@ -2,16 +2,13 @@ package app
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 
 	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/m/internal/lockfile/mlock"
 	"github.com/mewisme/m/internal/snapshot"
-	"github.com/mewisme/m/internal/transaction"
 )
 
-// RestoreSnapshot copies snapshot manifest+lock to live and reinstalls frozen from cache.
+// RestoreSnapshot restores manifest, lock, and node_modules in one transaction.
 func RestoreSnapshot(ctx context.Context, ac *Context, id string) (InstallResult, error) {
 	var res InstallResult
 	proj, err := OpenProject(ctx, ac)
@@ -23,40 +20,22 @@ func RestoreSnapshot(ctx context.Context, ac *Context, id string) (InstallResult
 	if err != nil {
 		return res, err
 	}
-	txn := transaction.NewRunner(proj.Root)
-	if err := txn.Begin(ctx); err != nil {
+	lockDoc, err := mlock.Decode(rec.Lock)
+	if err != nil {
 		return res, err
 	}
-	stage := txn.StagePath()
-	if err := os.WriteFile(filepath.Join(stage, "package.json"), rec.Manifest, 0o644); err != nil {
-		_ = txn.Rollback(ctx)
-		return res, apperr.Wrap(apperr.IO, "app.restore", "package.json", err)
-	}
-	if err := os.WriteFile(filepath.Join(stage, lockFileName), rec.Lock, 0o644); err != nil {
-		_ = txn.Rollback(ctx)
-		return res, apperr.Wrap(apperr.IO, "app.restore", lockFileName, err)
-	}
-	plan := []transaction.Op{
-		{Kind: transaction.OpRename, Path: "package.json", Backup: "stage/package.json"},
-		{Kind: transaction.OpRename, Path: lockFileName, Backup: "stage/" + lockFileName},
-	}
-	if err := txn.SetPlan(plan); err != nil {
-		_ = txn.Rollback(ctx)
+	g, err := mlock.ToGraph(lockDoc)
+	if err != nil {
 		return res, err
 	}
-	for _, rel := range []string{"package.json", lockFileName} {
-		if err := txn.RecordBackup(rel); err != nil {
-			_ = txn.Rollback(ctx)
-			return res, err
-		}
-	}
-	if err := txn.Commit(ctx, nil); err != nil {
-		_ = txn.Rollback(ctx)
-		return res, err
-	}
-	manifest.Invalidate(proj.Root)
-	_ = txn.Finish(false)
-	return Install(ctx, ac, InstallOptions{Frozen: true})
+	return runInstallTxn(ctx, ac, InstallOptions{
+		Frozen:           true,
+		WriteManifest:    true,
+		PreResolvedGraph: g,
+		StagedManifest:   rec.Manifest,
+		StagedLock:       rec.Lock,
+		SkipSnapshot:     true,
+	}, nil)
 }
 
 // Rollback restores the previous snapshot (second-newest).

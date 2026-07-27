@@ -28,10 +28,25 @@ Lock document fields: `schemaVersion`, `pid`, `processStart`, `txnId`, `createdA
   context cancellation (`ERR_M_CANCELLED`).
 - **Stale recovery:** remove only when process identity is provably dead (not PID
   alone).
-- **Release:** verify `txnId` + process identity before `Remove`; never delete
-  another owner's lock.
+- **Release:** `ReleaseDirLock` verifies `owner.json` ownership before delete.
+  Missing or malformed owner metadata returns typed `ReleaseResult` without
+  removing the lock directory. Stale takeover uses tombstone rename (ABA-safe),
+  not blind `RemoveAll`.
 - Wired through install, add, remove, update, frozen install, snapshot restore,
   and recover.
+
+## Mutation preflight
+
+`BeginMutation` is the single entrypoint for new install-family transactions:
+
+1. Generate transaction ID and acquire project lock
+2. `RecoverScanned` — directory scan (not only `current`) rolls back or discards
+   any authoritative incomplete journal
+3. Re-scan; refuse to begin if incomplete state remains (`ERR_M_INTEGRITY`)
+4. Create txn dirs, journal, and `current` pointer
+
+`m recover` and automatic preflight on the next install/update/restore share the
+same scan + recovery logic.
 
 ## Journal v3
 
@@ -90,12 +105,9 @@ Each successful commit stores `package.json`, `m.lock`, and `graphDigest`
 metadata (not a full `node_modules` copy). Default retention is **10** snapshots
 (`transaction.snapshot_retention` in config).
 
-Restore copies manifest + lock, then runs `m install --frozen-lockfile` to relink
-from the blob cache (offline when blobs are present).
-
-**Known gap:** `RestoreSnapshot` writes manifest and lock before opening the
-install transaction. A crash between those writes and install completion can leave
-manifest/lock ahead of `node_modules`. Recovery is `m recover` + `m install`.
+Restore runs through the same `runInstallTxn` path as install: staged manifest,
+lock, and `node_modules` publish inside one journal commit. A failure before
+`committed` leaves the prior live tree intact.
 
 ## Recovery commands
 
@@ -108,6 +120,21 @@ manifest/lock ahead of `node_modules`. Recovery is `m recover` + `m install`.
 
 `m recover` handles interrupted commits (including partial `node_modules` rename
 on Windows) by restoring from backups and replaying rollback phases.
+
+## Cleanup visibility
+
+`Finish` / `Discard` / `Rollback` return `FinishResult` with `LockReleased`,
+`CurrentCleared`, and non-critical `CleanupWarnings`. The installer emits debug
+warnings when critical cleanup (lock release or current pointer clear) fails after
+a successful commit.
+
+## Crash injection (tests)
+
+`MEW_TXN_CRASH_AT` kills the process at named boundaries for subprocess crash
+tests: `journal_created`, `post_resolve`, `post_fetch`, `post_link`,
+`post_lockfile`, `post_validate`, `backup:N`, `publish:N`, `commit:N`,
+`pre_committed`, `committed`, `finish`, `recovery`, `rollback:N`. See
+[`testing.md`](testing.md).
 
 ## Path guards
 

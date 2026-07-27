@@ -27,7 +27,10 @@ func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, 
 	if err != nil {
 		return nil, err
 	}
-	ropts := resolver.ResolveOptions{OmitRootDev: opts.Prod}
+	ropts := resolver.ResolveOptions{
+		OmitRootDev: opts.Prod,
+		Policy:      resolver.PolicyFromEffective(ac.Config),
+	}
 	if !manifestChanged {
 		if prior, err := readLockHints(ctx, ac, proj); err == nil && prior != nil {
 			ropts.Prior = prior

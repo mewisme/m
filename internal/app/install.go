@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/plan"
 	"github.com/mewisme/m/internal/project"
 	"github.com/mewisme/m/internal/registry"
@@ -22,6 +23,14 @@ type InstallOptions struct {
 	Linker        string // hoisted | isolated | empty
 	WriteManifest bool   // commit package.json when true
 	Update        *UpdateResolveOptions
+	// PreResolvedGraph skips resolve and uses the given frozen graph (snapshot restore).
+	PreResolvedGraph *graph.Graph
+	// StagedManifest writes these bytes to staged package.json (snapshot restore).
+	StagedManifest []byte
+	// StagedLock writes these bytes to staged m.lock (snapshot restore).
+	StagedLock []byte
+	// SkipSnapshot omits staging a new install snapshot in the txn (snapshot restore).
+	SkipSnapshot bool
 }
 
 // UpdateResolveOptions selects incremental update resolve parameters.

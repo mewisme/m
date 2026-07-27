@@ -19,43 +19,35 @@ func Recover(ctx context.Context, ac *Context) (RecoverResult, error) {
 	if err != nil {
 		return out, err
 	}
-	txn, err := transaction.LoadIncomplete(proj.Root)
+	txns, err := transaction.ScanIncompleteTxns(proj.Root)
 	if err != nil {
 		return out, err
 	}
-	if txn == nil {
+	auth, err := transaction.ResolveAuthoritativeIncomplete(txns)
+	if err != nil {
+		return out, err
+	}
+	if auth == nil {
 		out.Action = "none"
 		return out, nil
 	}
-	out.TxnID = txn.ID
-	doc := txn.Document()
-	if doc == nil {
-		out.Action = "none"
-		return out, nil
-	}
-	switch doc.State {
+	out.TxnID = auth.ID
+	switch auth.State {
 	case transaction.StateStaging, transaction.StateValidated:
-		if err := transaction.TakeoverProjectLock(ctx, proj.Root, txn.ID); err != nil {
-			return out, err
-		}
-		if err := txn.Discard(); err != nil {
-			return out, err
-		}
 		out.Action = "discarded"
 	case transaction.StateCommitting:
-		if err := transaction.TakeoverProjectLock(ctx, proj.Root, txn.ID); err != nil {
-			return out, err
-		}
-		if err := txn.Rollback(ctx); err != nil {
-			return out, err
-		}
-		_ = txn.Finish(false)
 		out.Action = "rolled_back"
 	default:
 		out.Action = "none"
 	}
-	// Idempotent second pass.
-	if again, err := transaction.LoadIncomplete(proj.Root); err == nil && again == nil {
+	if err := transaction.RecoverScanned(ctx, proj.Root, transaction.RecoverScannedOpts{}); err != nil {
+		return out, err
+	}
+	again, err := transaction.ScanIncompleteTxns(proj.Root)
+	if err != nil {
+		return out, err
+	}
+	if len(again) > 0 {
 		return out, nil
 	}
 	return out, nil

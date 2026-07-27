@@ -23,6 +23,7 @@ Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DE
 | `ERR_M_RESOLVE` | 1 | Dependency resolution failure: unsatisfiable range, cycle, missing packument, or limit exceeded (MVP 0013) |
 | `ERR_M_TRANSACTION` | 1 | Transaction journal, commit, rollback, recovery, or project lock failure (MVP 0017) |
 | `ERR_M_STORE` | 1 | Global content store import, verify, or prune failure (MVP 0018) |
+| `ERR_M_INTEGRITY` | 1 | Ambiguous incomplete transaction state, tree manifest collision, or verification failure |
 
 ### Transaction detail (0017 journal v3)
 
@@ -30,6 +31,9 @@ Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DE
 |---|---|---|
 | Concurrent install (`lock` held) | `ERR_M_TRANSACTION` | Another process holds `.mew/txn/lock` |
 | Lock wait cancelled | `ERR_M_CANCELLED` | Context cancelled during `AcquireProjectLock` |
+| Multiple incomplete `committing` journals | `ERR_M_INTEGRITY` | Directory scan found ambiguous state |
+| Incomplete txn after preflight recovery | `ERR_M_INTEGRITY` | `BeginMutation` refused to start |
+| Lock release without ownership | `ERR_M_TRANSACTION` | `ReleaseDirLock` returned `ReleaseNotOwner` / `ReleaseMissingOwner` |
 | Commit / publish failure | `ERR_M_TRANSACTION` | Roll back via `m recover` when incomplete |
 | Recovery failure | `ERR_M_TRANSACTION` | Partial `node_modules` rename may need manual cleanup |
 | Symlink/junction in guarded path | `ERR_M_TRANSACTION` | Ancestor guard on `.mew` / `node_modules` / snapshots |

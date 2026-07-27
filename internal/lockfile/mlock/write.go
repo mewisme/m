@@ -74,8 +74,9 @@ func SettingsFromEffective(eff *config.Effective) (Settings, error) {
 			s.Linker = linker
 		}
 	}
-	s.Policy.AutoInstallPeers = config.Bool(eff, "resolve.autoInstallPeers", false)
-	s.Policy.StrictPeerDependencies = config.Bool(eff, "resolve.strictPeerDependencies", true)
+	if pol := resolver.PolicyFromEffective(eff); pol != nil {
+		s.Policy = *pol
+	}
 	return s, s.Normalize()
 }
 
@@ -86,7 +87,7 @@ func SettingsWithFingerprints(eff *config.Effective, overrides map[string]string
 		return s, err
 	}
 	s.OverridesFingerprint = resolver.OverridesFingerprint(overrides)
-	s.ResolverPolicyFingerprint = resolver.PolicyFingerprint(&s.Policy)
+	s.ResolverPolicyFingerprint = resolver.PolicyFingerprint(resolver.PolicyFromEffective(eff))
 	s.TargetPlatformFingerprint = resolver.TargetPlatformFingerprint(resolver.CurrentTarget())
 	return s, nil
 }

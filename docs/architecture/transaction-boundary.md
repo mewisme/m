@@ -54,9 +54,15 @@ live `node_modules`.
 **progress** and **phase** sub-states, and backup metadata (including prior
 `node_modules` kind).
 
+**Single mutation entrypoint:** `BeginMutation` acquires the project lock,
+runs `RecoverScanned` (directory scan + idempotent rollback/discard), refuses to
+begin when incomplete journals remain, then creates the new transaction.
+
 A project-level lock at `.mew/txn/lock` (schema v2, exclusive create with process
 identity) prevents concurrent install transactions. Acquire waits honor caller
-`context` cancellation.
+`context` cancellation. Stale lock takeover renames the observed lock into
+`.lock-tombstones/` after verifying `owner.json` (ABA-safe); normal release never
+deletes a lock without verified ownership.
 
 Recovery and rollback always restore live state from `backups/`; rename ops do not
 use symmetric inverse renames for directories.

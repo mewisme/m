@@ -48,19 +48,27 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	}
 
 	emitPhase(ac, "resolve", "")
-	manifestChanged := opts.WriteManifest
+	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0
 	if edit != nil {
 		if err := edit(proj); err != nil {
 			return res, err
 		}
 	}
 	priorKeys, _ := priorPackageKeys(ctx, ac, proj)
-	resolution, err := resolveForInstall(ctx, ac, proj, opts, manifestChanged)
-	if err != nil {
-		return res, err
+	var resolution *resolver.Resolution
+	if opts.PreResolvedGraph != nil {
+		resolution = &resolver.Resolution{Graph: opts.PreResolvedGraph}
+	} else {
+		resolution, err = resolveForInstall(ctx, ac, proj, opts, manifestChanged)
+		if err != nil {
+			return res, err
+		}
 	}
 	if err := guardLocalInstall(resolution); err != nil {
 		return res, err
+	}
+	if err := transaction.InvokeTestHook("post_resolve", 0); err != nil {
+		return res, apperr.Wrap(apperr.Transaction, "app.install", "resolve", err)
 	}
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
 
@@ -71,15 +79,24 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 		return res, nil
 	}
 
+	if err := transaction.RecoverScanned(ctx, proj.Root, transaction.RecoverScannedOpts{}); err != nil {
+		return res, err
+	}
 	txn := transaction.NewRunner(proj.Root)
 	if err := txn.Begin(ctx); err != nil {
 		return res, err
 	}
 	stage := txn.StagePath()
 
-	if manifestChanged {
+	if len(opts.StagedManifest) > 0 {
+		if err := os.WriteFile(filepath.Join(stage, "package.json"), opts.StagedManifest, 0o644); err != nil {
+			_, _ = txn.Rollback(ctx)
+			return res, apperr.Wrap(apperr.IO, "app.install", "package.json", err)
+		}
+		manifestChanged = true
+	} else if manifestChanged {
 		if err := writeStagedManifest(stage, proj); err != nil {
-			_ = txn.Rollback(ctx)
+			_, _ = txn.Rollback(ctx)
 			return res, err
 		}
 	}
@@ -89,14 +106,18 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	stageNM := filepath.Join(stage, "node_modules")
 	linkerMode, err := resolveLinkerMode(ctx, ac, proj, opts)
 	if err != nil {
-		_ = txn.Rollback(ctx)
+		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	useStore := config.UseGlobalStore(ac.Config)
 	extracts, _, err := fetchPackages(ctx, ac, resolution.Graph, extractDir, useStore)
 	if err != nil {
-		_ = txn.Rollback(ctx)
+		_, _ = txn.Rollback(ctx)
 		return res, err
+	}
+	if err := transaction.InvokeTestHook("post_fetch", 0); err != nil {
+		_, _ = txn.Rollback(ctx)
+		return res, apperr.Wrap(apperr.Transaction, "app.install", "fetch", err)
 	}
 
 	emitPhase(ac, "link", "")
@@ -112,56 +133,72 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	})
 	linkPlan, err := lnk.Plan(ctx, resolution.Graph)
 	if err != nil {
-		_ = txn.Rollback(ctx)
+		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	if err := lnk.Apply(ctx, linkPlan); err != nil {
-		_ = txn.Rollback(ctx)
+		_, _ = txn.Rollback(ctx)
 		return res, err
+	}
+	if err := transaction.InvokeTestHook("post_link", 0); err != nil {
+		_, _ = txn.Rollback(ctx)
+		return res, apperr.Wrap(apperr.Transaction, "app.install", "link", err)
 	}
 	emitLinkSummary(ac, linkPlan.LinkSummary)
 	if linkerMode == "isolated" {
 		emitPhase(ac, "link", fmt.Sprintf("linker=isolated packages=%d", len(resolution.Graph.Packages)))
 		if err := writeModulesMetadata(stageNM, resolution.Graph); err != nil {
-			_ = txn.Rollback(ctx)
+			_, _ = txn.Rollback(ctx)
 			return res, err
 		}
 	}
 
-	if err := writeStagedLock(stage, ac, proj, resolution); err != nil {
-		_ = txn.Rollback(ctx)
+	if len(opts.StagedLock) > 0 {
+		if err := os.WriteFile(filepath.Join(stage, lockFileName), opts.StagedLock, 0o644); err != nil {
+			_, _ = txn.Rollback(ctx)
+			return res, apperr.Wrap(apperr.IO, "app.install", lockFileName, err)
+		}
+	} else if err := writeStagedLock(stage, ac, proj, resolution); err != nil {
+		_, _ = txn.Rollback(ctx)
 		return res, err
+	}
+	if err := transaction.InvokeTestHook("post_lockfile", 0); err != nil {
+		_, _ = txn.Rollback(ctx)
+		return res, apperr.Wrap(apperr.Transaction, "app.install", "lockfile", err)
 	}
 	if useStore {
 		if err := writeStagedStoreManifest(stage, resolution.Graph); err != nil {
-			_ = txn.Rollback(ctx)
+			_, _ = txn.Rollback(ctx)
 			return res, err
 		}
 	}
 
-	snapID, err := stageSnapshot(ctx, stage, proj, resolution)
-	if err != nil {
-		_ = txn.Rollback(ctx)
-		return res, err
+	snapID := ""
+	if !opts.SkipSnapshot {
+		snapID, err = stageSnapshot(ctx, stage, proj, resolution)
+		if err != nil {
+			_, _ = txn.Rollback(ctx)
+			return res, err
+		}
 	}
 
 	emitPhase(ac, "validate", "")
 	if err := validateStaged(stage, linkPlan, resolution.Graph, linkerMode); err != nil {
-		_ = txn.Rollback(ctx)
+		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	if err := txn.SetState(transaction.StateValidated); err != nil {
-		_ = txn.Rollback(ctx)
+		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_validate", 0); err != nil {
-		_ = txn.Rollback(ctx)
+		_, _ = txn.Rollback(ctx)
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "validate", err)
 	}
 
 	plan := buildCommitPlan(commitPlanInput{manifestChanged: manifestChanged, useStore: useStore, snapshotID: snapID})
 	if err := txn.SetPlan(plan); err != nil {
-		_ = txn.Rollback(ctx)
+		_, _ = txn.Rollback(ctx)
 		return res, err
 	}
 
@@ -177,7 +214,7 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	for _, rel := range backupPaths {
 		if err := txn.RecordBackup(rel); err != nil {
 			emitPhase(ac, "rollback", rel)
-			_ = txn.Rollback(ctx)
+			_, _ = txn.Rollback(ctx)
 			return res, err
 		}
 	}
@@ -185,7 +222,6 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	emitPhase(ac, "commit", "")
 	if err := txn.Commit(ctx, nil); err != nil {
 		emitPhase(ac, "rollback", "")
-		_ = txn.Rollback(ctx)
 		return res, err
 	}
 
@@ -195,9 +231,20 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 		}
 	}
 
-	if err := txn.Finish(opts.KeepJournal); err != nil {
+	finish := txn.Finish(opts.KeepJournal)
+	if finish.HasCriticalCleanupFailure() && ac != nil && ac.Reporter != nil {
+		msg := "transaction cleanup incomplete after commit"
+		if !finish.LockReleased {
+			msg += "; project lock not released"
+		}
+		if !finish.CurrentCleared {
+			msg += "; transaction pointer not cleared"
+		}
+		ac.Reporter.Debug(msg, diagnostics.Attr{Key: "txn", Value: txn.ID})
+	}
+	for _, w := range finish.CleanupWarnings {
 		if ac != nil && ac.Reporter != nil {
-			ac.Reporter.Debug("transaction cleanup failed", diagnostics.Attr{Key: "error", Value: err.Error()})
+			ac.Reporter.Debug("transaction cleanup warning", diagnostics.Attr{Key: "error", Value: w.Error()})
 		}
 	}
 	return res, nil

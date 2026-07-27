@@ -5,6 +5,7 @@ import (
 
 	"github.com/mewisme/m/internal/config"
 	"github.com/mewisme/m/internal/lockfile/mlock"
+	"github.com/mewisme/m/internal/resolver"
 )
 
 func TestSettingsFromEffectiveResolvePolicy(t *testing.T) {
@@ -21,6 +22,21 @@ func TestSettingsFromEffectiveResolvePolicy(t *testing.T) {
 	}
 	if s.Policy.StrictPeerDependencies {
 		t.Fatal("expected strictPeerDependencies false")
+	}
+}
+
+func TestSettingsWithFingerprintsUsesResolverEncoder(t *testing.T) {
+	eff := &config.Effective{Values: map[string]config.Value{
+		"resolve.autoInstallPeers":       {Raw: true, Source: config.SourceCLI},
+		"resolve.strictPeerDependencies": {Raw: true, Source: config.SourceCLI},
+	}}
+	s, err := mlock.SettingsWithFingerprints(eff, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := resolver.PolicyFingerprint(resolver.PolicyFromEffective(eff))
+	if s.ResolverPolicyFingerprint != want {
+		t.Fatalf("fingerprint=%q want %q", s.ResolverPolicyFingerprint, want)
 	}
 }
 

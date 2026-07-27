@@ -10,7 +10,7 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 |---|---|
 | Root manifest | `project.Open` → `manifest.ToNormalized` |
 | Registry | `registry.Client.Packument` via scoped URL routing |
-| Policy | `ResolveOptions.Policy` — release age, deprecated rejection, peer policy |
+| Policy | `resolver.PolicyFromEffective` — unified install/update path loads strict peers, auto-install peers, minimum release age, reject deprecated, and offline registry blocking |
 | Hints / prior graph | `ResolveOptions.Hints` / `ResolveOptions.Prior` — incremental reuse (0015, 0020) |
 | Workspace index | `workspace.Index` when `workspaces` is declared |
 
@@ -86,7 +86,12 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 - `ResolveOptions.Prior` + `Hints` reuse pinned versions when specifiers, overrides, and update closure are unchanged.
 - **Edge-keyed update closure:** seeds by importer + `depName` + kind + range; traverses prior graph by canonical edges and package instance keys (not name-only).
 - Reuse keys incorporate importer, edge kind/range, prior parent package key, resolved peer-provider context, override hash, and policy fingerprint from the prior lock.
-- **Lock fingerprints** (`overridesFingerprint`, `resolverPolicyFingerprint`, `targetPlatformFingerprint`) compared against current effective policy — drift forces re-resolve.
+- **Lock fingerprints** (`overridesFingerprint`, `resolverPolicyFingerprint`,
+  `targetPlatformFingerprint`) compared against current effective policy via
+  `PolicyFromEffective` — drift or a missing prior fingerprint disables unsafe
+  incremental reuse.
+- Parent merge during incremental update preserves full package identity keys
+  (not name-only).
 - Pin reuse requires full packument metadata recovery; Mew does not synthesize dependency trees from name/version/integrity alone during incremental update.
 - After resolve, packages outside the update closure are merged verbatim from `Prior` so unrelated subgraphs stay byte-stable.
 - `m update [pkg...]` re-resolves with `UpdateTargets`; empty args refresh direct deps only while preserving unrelated subgraph. Routed through the install transaction (`runInstallTxn`).

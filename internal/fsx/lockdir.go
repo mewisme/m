@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -15,8 +16,28 @@ const (
 	// OwnerFileName is the metadata file inside a directory lock.
 	OwnerFileName = "owner.json"
 	// DefaultLockGrace is how long a malformed owner file is tolerated after creation.
-	DefaultLockGrace = 5 * time.Second
+	DefaultLockGrace  = 5 * time.Second
+	staleTombstoneDir = ".stale"
 )
+
+// ReleaseResult classifies directory lock release outcomes.
+type ReleaseResult int
+
+const (
+	ReleaseOK ReleaseResult = iota
+	ReleaseNotOwner
+	ReleaseMissingOwner
+	ReleaseMalformedOwner
+)
+
+// LockObservation captures lock metadata at stale-detection time for ABA-safe takeover.
+type LockObservation struct {
+	LockID       string
+	PackageKey   string
+	OwnerJSON    []byte
+	DirMod       time.Time
+	OwnerMissing bool
+}
 
 // DirLockOptions tunes directory lock acquisition.
 type DirLockOptions struct {
@@ -36,6 +57,11 @@ func (o DirLockOptions) withDefaults() DirLockOptions {
 		o.GracePeriod = DefaultLockGrace
 	}
 	return o
+}
+
+// TombstoneRoot returns the sibling tombstone directory for lockDir.
+func TombstoneRoot(lockDir string) string {
+	return filepath.Join(filepath.Dir(lockDir), ".lock-tombstones")
 }
 
 // NewLockID returns a random hex identifier for lock ownership.
@@ -68,11 +94,12 @@ func AcquireDirLock(
 	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
 		deadline = d
 	}
+	tombstoneRoot := TombstoneRoot(lockDir)
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if removed, remErr := tryRemoveStaleDirLock(lockDir, opts.GracePeriod, stale); remErr != nil {
+		if removed, remErr := tryRemoveStaleDirLock(lockDir, opts.GracePeriod, stale, tombstoneRoot); remErr != nil {
 			return nil, remErr
 		} else if removed {
 			if rel, acqErr := createDirLock(lockDir, ownerJSON, matchOwner); acqErr == nil {
@@ -103,17 +130,72 @@ func createDirLock(lockDir string, ownerJSON []byte, matchOwner func(ownerJSON [
 		return nil, err
 	}
 	ownerPath := filepath.Join(lockDir, OwnerFileName)
-	if err := WriteAtomic(ownerPath, ownerJSON, 0o644); err != nil {
+	if err := PublishFile(ownerPath, ownerJSON, 0o644); err != nil {
 		_ = os.RemoveAll(lockDir)
 		return nil, err
 	}
 	return func() {
-		_ = ReleaseDirLock(lockDir, matchOwner)
+		_, _ = ReleaseDirLock(lockDir, matchOwner)
 	}, nil
 }
 
 // ReleaseDirLock removes lockDir when matchOwner accepts the on-disk owner file.
-func ReleaseDirLock(lockDir string, matchOwnerFn func(ownerJSON []byte) bool) error {
+func ReleaseDirLock(lockDir string, matchOwnerFn func(ownerJSON []byte) bool) (ReleaseResult, error) {
+	ownerPath := filepath.Join(lockDir, OwnerFileName)
+	data, err := os.ReadFile(ownerPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if _, statErr := os.Stat(lockDir); os.IsNotExist(statErr) {
+				return ReleaseOK, nil
+			}
+			return ReleaseMissingOwner, nil
+		}
+		return ReleaseOK, err
+	}
+	if matchOwnerFn != nil {
+		switch ownerMatchResult(data, matchOwnerFn) {
+		case ownerMatchOK:
+		case ownerMatchMalformed:
+			return ReleaseMalformedOwner, nil
+		default:
+			return ReleaseNotOwner, nil
+		}
+	}
+	if err := os.RemoveAll(lockDir); err != nil && !os.IsNotExist(err) {
+		return ReleaseOK, err
+	}
+	return ReleaseOK, nil
+}
+
+type ownerMatchOutcome int
+
+const (
+	ownerMatchOK ownerMatchOutcome = iota
+	ownerMatchNotOwner
+	ownerMatchMalformed
+)
+
+func ownerMatchResult(data []byte, matchOwnerFn func([]byte) bool) ownerMatchOutcome {
+	type ownerProbe struct {
+		LockID string `json:"lockId"`
+	}
+	if len(data) > 0 {
+		var probe ownerProbe
+		if err := json.Unmarshal(data, &probe); err != nil {
+			return ownerMatchMalformed
+		}
+	}
+	if matchOwnerFn(data) {
+		return ownerMatchOK
+	}
+	return ownerMatchNotOwner
+}
+
+// TakeoverStaleDirLock renames a stale lock directory into tombstoneRoot without deleting a recreated lock.
+func TakeoverStaleDirLock(lockDir string, observed LockObservation, tombstoneRoot string) error {
+	if observed.OwnerMissing {
+		return tombstoneLockDir(lockDir, observed, tombstoneRoot)
+	}
 	ownerPath := filepath.Join(lockDir, OwnerFileName)
 	data, err := os.ReadFile(ownerPath)
 	if err != nil {
@@ -121,19 +203,83 @@ func ReleaseDirLock(lockDir string, matchOwnerFn func(ownerJSON []byte) bool) er
 			if _, statErr := os.Stat(lockDir); os.IsNotExist(statErr) {
 				return nil
 			}
-		} else {
-			return err
+			observed.OwnerMissing = true
+			return tombstoneLockDir(lockDir, observed, tombstoneRoot)
 		}
-	} else if matchOwnerFn != nil && !matchOwnerFn(data) {
-		return nil
-	}
-	if err := os.RemoveAll(lockDir); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+	if observed.LockID != "" {
+		gotID, err := parseLockID(data)
+		if err != nil {
+			return err
+		}
+		if gotID != observed.LockID {
+			return os.ErrExist
+		}
+	}
+	if len(observed.OwnerJSON) > 0 && string(data) != string(observed.OwnerJSON) {
+		return os.ErrExist
+	}
+	return tombstoneLockDir(lockDir, observed, tombstoneRoot)
+}
+
+// ForceRemoveStaleDirLock tombstones a stale lock for recovery paths only.
+func ForceRemoveStaleDirLock(lockDir string, observed LockObservation, tombstoneRoot string) error {
+	if _, err := os.Stat(lockDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return TakeoverStaleDirLock(lockDir, observed, tombstoneRoot)
+}
+
+func tombstoneLockDir(lockDir string, observed LockObservation, tombstoneRoot string) error {
+	staleDir := filepath.Join(tombstoneRoot, staleTombstoneDir)
+	if err := os.MkdirAll(staleDir, 0o755); err != nil {
+		return err
+	}
+	name := observed.LockID
+	if name == "" {
+		name = "missing"
+	}
+	tombPath := filepath.Join(staleDir, fmt.Sprintf("%s-%d", name, time.Now().UnixNano()))
+	if err := os.Rename(lockDir, tombPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if observed.LockID != "" {
+		data, err := os.ReadFile(filepath.Join(tombPath, OwnerFileName))
+		if err != nil {
+			return err
+		}
+		gotID, err := parseLockID(data)
+		if err != nil {
+			return err
+		}
+		if gotID != observed.LockID {
+			return os.ErrExist
+		}
+	}
+	CleanupTombstones(tombstoneRoot)
 	return nil
 }
 
-func tryRemoveStaleDirLock(lockDir string, grace time.Duration, stale func(ownerJSON []byte, dirMod time.Time) bool) (bool, error) {
+// CleanupTombstones best-effort removes tombstoned lock directories.
+func CleanupTombstones(tombstoneRoot string) {
+	staleDir := filepath.Join(tombstoneRoot, staleTombstoneDir)
+	entries, err := os.ReadDir(staleDir)
+	if err != nil {
+		return
+	}
+	for _, ent := range entries {
+		_ = os.RemoveAll(filepath.Join(staleDir, ent.Name()))
+	}
+}
+
+func tryRemoveStaleDirLock(lockDir string, grace time.Duration, stale func(ownerJSON []byte, dirMod time.Time) bool, tombstoneRoot string) (bool, error) {
 	info, err := os.Stat(lockDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -152,7 +298,7 @@ func tryRemoveStaleDirLock(lockDir string, grace time.Duration, stale func(owner
 	ownerPath := filepath.Join(lockDir, OwnerFileName)
 	data, readErr := os.ReadFile(ownerPath)
 	dirMod := info.ModTime()
-	if fi, err := os.Stat(ownerPath); err == nil {
+	if fi, statErr := os.Stat(ownerPath); statErr == nil {
 		dirMod = fi.ModTime()
 	}
 	if readErr != nil {
@@ -160,23 +306,57 @@ func tryRemoveStaleDirLock(lockDir string, grace time.Duration, stale func(owner
 			if time.Since(info.ModTime()) < grace {
 				return false, nil
 			}
-			_ = os.RemoveAll(lockDir)
+			obs := LockObservation{DirMod: info.ModTime(), OwnerMissing: true}
+			if err := ForceRemoveStaleDirLock(lockDir, obs, tombstoneRoot); err != nil {
+				if errors.Is(err, os.ErrExist) {
+					return false, nil
+				}
+				return false, err
+			}
 			return true, nil
 		}
 		if time.Since(dirMod) < grace {
 			return false, nil
 		}
 		if stale != nil && stale(nil, dirMod) {
-			_ = os.RemoveAll(lockDir)
+			obs := LockObservation{DirMod: dirMod, OwnerMissing: true}
+			if err := ForceRemoveStaleDirLock(lockDir, obs, tombstoneRoot); err != nil {
+				if errors.Is(err, os.ErrExist) {
+					return false, nil
+				}
+				return false, err
+			}
 			return true, nil
 		}
 		return false, nil
 	}
 	if stale != nil && stale(data, dirMod) {
-		_ = os.RemoveAll(lockDir)
+		lockID, _ := parseLockID(data)
+		obs := LockObservation{
+			LockID:    lockID,
+			OwnerJSON: append([]byte(nil), data...),
+			DirMod:    dirMod,
+		}
+		if err := ForceRemoveStaleDirLock(lockDir, obs, tombstoneRoot); err != nil {
+			if errors.Is(err, os.ErrExist) {
+				return false, nil
+			}
+			return false, err
+		}
 		return true, nil
 	}
 	return false, nil
+}
+
+func parseLockID(data []byte) (string, error) {
+	type ownerID struct {
+		LockID string `json:"lockId"`
+	}
+	var doc ownerID
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return "", err
+	}
+	return doc.LockID, nil
 }
 
 func readLegacyOwner(path string) []byte {

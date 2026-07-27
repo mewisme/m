@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/m/internal/fsx"
 )
 
 const (
@@ -49,47 +50,14 @@ func (r *Runner) StagePath() string {
 
 // Begin creates .mew/txn/<id>/, writes journal state=staging, and sets current.
 func (r *Runner) Begin(ctx context.Context) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if r.ProjectRoot == "" {
-		return apperr.New(apperr.Transaction, "transaction.begin", "", "empty project root")
-	}
-	id, err := newTxnID()
+	run, err := BeginMutation(ctx, r.ProjectRoot)
 	if err != nil {
 		return err
 	}
-	if err := AcquireProjectLock(ctx, r.ProjectRoot, id); err != nil {
-		return err
-	}
-	r.ID = id
-	r.Root = filepath.Join(TxnRoot(r.ProjectRoot), id)
-	r.doc = &Document{
-		SchemaVersion: SchemaVersion,
-		ID:            id,
-		ProjectRoot:   r.ProjectRoot,
-		State:         StateStaging,
-	}
-	if err := os.MkdirAll(r.StagePath(), 0o755); err != nil {
-		_ = ReleaseProjectLock(r.ProjectRoot, id)
-		return apperr.Wrap(apperr.IO, "transaction.begin", r.Root, err)
-	}
-	if err := os.MkdirAll(filepath.Join(r.Root, backupsDir), 0o755); err != nil {
-		_ = ReleaseProjectLock(r.ProjectRoot, id)
-		return apperr.Wrap(apperr.IO, "transaction.begin", r.Root, err)
-	}
-	if err := r.saveJournal(); err != nil {
-		_ = ReleaseProjectLock(r.ProjectRoot, id)
-		return err
-	}
-	if err := invokeTestHook("journal_created", 0); err != nil {
-		_ = ReleaseProjectLock(r.ProjectRoot, id)
-		return apperr.Wrap(apperr.Transaction, "transaction.begin", r.ID, err)
-	}
-	if err := writeCurrent(r.ProjectRoot, id); err != nil {
-		_ = ReleaseProjectLock(r.ProjectRoot, id)
-		return err
-	}
+	r.ID = run.ID
+	r.Root = run.Root
+	r.doc = run.doc
+	r.journalGen = run.journalGen
 	return nil
 }
 
@@ -113,8 +81,8 @@ func (r *Runner) SetPlan(plan []Op) error {
 		if cp[i].Progress == "" {
 			cp[i].Progress = ProgressPending
 		}
-		if cp[i].Phase == "" || cp[i].Phase == PhasePending {
-			cp[i].Phase = PhasePriorIdentified
+		if cp[i].Phase == "" {
+			cp[i].Phase = PhasePending
 		}
 	}
 	r.doc.Plan = cp
@@ -162,7 +130,7 @@ func (r *Runner) RecordBackup(rel string) error {
 	if err := r.saveJournal(); err != nil {
 		return err
 	}
-	r.markPlanPhase(rel, PhasePriorBackedUp)
+	r.markPlanPhase(rel, PhaseBackupReady)
 	if err := r.saveJournal(); err != nil {
 		return err
 	}
@@ -190,20 +158,20 @@ func (r *Runner) Commit(ctx context.Context, extra []Op) error {
 	}
 	for i := range r.doc.Plan {
 		if err := invokeTestHook("publish", i); err != nil {
-			_ = r.Rollback(ctx)
+			_, _ = r.Rollback(ctx)
 			return apperr.Wrap(apperr.Transaction, "transaction.commit", r.doc.Plan[i].Path, err)
 		}
 		if err := invokeTestHook("commit", i); err != nil {
-			_ = r.Rollback(ctx)
+			_, _ = r.Rollback(ctx)
 			return apperr.Wrap(apperr.Transaction, "transaction.commit", r.doc.Plan[i].Path, err)
 		}
 		if err := r.applyPlanOp(ctx, i, true); err != nil {
-			_ = r.Rollback(ctx)
+			_, _ = r.Rollback(ctx)
 			return err
 		}
 	}
 	if err := invokeTestHook("pre_committed", 0); err != nil {
-		_ = r.Rollback(ctx)
+		_, _ = r.Rollback(ctx)
 		return apperr.Wrap(apperr.Transaction, "transaction.commit", "", err)
 	}
 	r.doc.State = StateCommitted
@@ -214,15 +182,16 @@ func (r *Runner) Commit(ctx context.Context, extra []Op) error {
 }
 
 // Rollback restores backups and inverses applied forward ops.
-func (r *Runner) Rollback(ctx context.Context) error {
+func (r *Runner) Rollback(ctx context.Context) (FinishResult, error) {
+	var fr FinishResult
 	if r.doc == nil {
-		return nil
+		return fr, nil
 	}
 	if err := ctx.Err(); err != nil {
-		return err
+		return fr, err
 	}
 	if err := invokeTestHook("rollback", 0); err != nil {
-		return apperr.Wrap(apperr.Transaction, "transaction.rollback", "", err)
+		return fr, apperr.Wrap(apperr.Transaction, "transaction.rollback", "", err)
 	}
 	_ = repairPartialNodeModules(r.ProjectRoot)
 	for i := len(r.doc.Plan) - 1; i >= 0; i-- {
@@ -231,10 +200,10 @@ func (r *Runner) Rollback(ctx context.Context) error {
 			continue
 		}
 		if err := invokeTestHook("rollback", i+1); err != nil {
-			return apperr.Wrap(apperr.Transaction, "transaction.rollback", op.Path, err)
+			return fr, apperr.Wrap(apperr.Transaction, "transaction.rollback", op.Path, err)
 		}
 		if err := r.rollbackPlanOp(ctx, i); err != nil {
-			return err
+			return fr, err
 		}
 	}
 	for i := len(r.doc.Ops) - 1; i >= 0; i-- {
@@ -246,41 +215,65 @@ func (r *Runner) Rollback(ctx context.Context) error {
 			continue
 		}
 		if err := r.restoreBackup(op); err != nil {
-			return err
+			return fr, err
 		}
 	}
 	r.doc.State = StateAborted
 	if err := r.saveJournal(); err != nil {
-		return err
+		return fr, err
 	}
-	_ = clearCurrent(r.ProjectRoot)
-	_ = ReleaseProjectLock(r.ProjectRoot, r.ID)
-	return nil
+	fr = r.finishCriticalCleanup()
+	return fr, nil
 }
 
 // Finish clears the current pointer and optionally removes the txn dir.
-// Post-commit cleanup errors are best-effort and never returned.
-func (r *Runner) Finish(keepJournal bool) error {
+func (r *Runner) Finish(keepJournal bool) FinishResult {
 	if r.doc == nil {
-		return nil
+		return FinishResult{}
 	}
-	_ = clearCurrent(r.ProjectRoot)
-	_ = ReleaseProjectLock(r.ProjectRoot, r.ID)
-	if keepJournal {
-		return nil
+	fr := r.finishCleanup(keepJournal)
+	if r.doc.State == StateCommitted {
+		fr.Committed = true
 	}
-	_ = os.RemoveAll(r.Root)
-	return nil
+	return fr
 }
 
 // Discard removes an incomplete transaction without restoring backups.
-func (r *Runner) Discard() error {
-	_ = clearCurrent(r.ProjectRoot)
-	_ = ReleaseProjectLock(r.ProjectRoot, r.ID)
-	if r.Root == "" {
-		return nil
+func (r *Runner) Discard() FinishResult {
+	if r.doc == nil {
+		return FinishResult{}
 	}
-	return os.RemoveAll(r.Root)
+	return r.finishCleanup(false)
+}
+
+func (r *Runner) finishCriticalCleanup() FinishResult {
+	var fr FinishResult
+	if err := clearCurrent(r.ProjectRoot); err != nil {
+		fr.CleanupWarnings = append(fr.CleanupWarnings, err)
+	} else {
+		fr.CurrentCleared = true
+	}
+	if err := ReleaseProjectLock(r.ProjectRoot, r.ID); err != nil {
+		fr.CleanupWarnings = append(fr.CleanupWarnings, err)
+	} else {
+		fr.LockReleased = true
+	}
+	return fr
+}
+
+func (r *Runner) finishCleanup(keepJournal bool) FinishResult {
+	if err := invokeTestHook("finish", 0); err != nil {
+		fr := r.finishCriticalCleanup()
+		fr.CleanupWarnings = append(fr.CleanupWarnings, err)
+		return fr
+	}
+	fr := r.finishCriticalCleanup()
+	if !keepJournal && r.Root != "" {
+		if err := os.RemoveAll(r.Root); err != nil {
+			fr.CleanupWarnings = append(fr.CleanupWarnings, err)
+		}
+	}
+	return fr
 }
 
 // Document returns the current journal (read-only copy).
@@ -294,30 +287,28 @@ func (r *Runner) Document() *Document {
 	return &cp
 }
 
-// LoadIncomplete reads current pointer and journal when state != committed.
+// LoadIncomplete returns the authoritative incomplete transaction from directory scan.
 func LoadIncomplete(projectRoot string) (*Runner, error) {
-	id, err := readCurrent(projectRoot)
+	txns, err := ScanIncompleteTxns(projectRoot)
 	if err != nil {
 		return nil, err
 	}
-	if id == "" {
-		return nil, nil
-	}
-	root := filepath.Join(TxnRoot(projectRoot), id)
-	doc, err := loadJournal(root)
+	auth, err := ResolveAuthoritativeIncomplete(txns)
 	if err != nil {
 		return nil, err
 	}
-	if doc == nil {
-		_ = clearCurrent(projectRoot)
+	if auth == nil {
+		id, readErr := readCurrent(projectRoot)
+		if readErr != nil {
+			return nil, readErr
+		}
+		if id != "" {
+			_ = clearCurrent(projectRoot)
+			_, _ = tryRemoveStaleLock(projectRoot)
+		}
 		return nil, nil
 	}
-	if doc.State == StateCommitted || doc.State == StateAborted {
-		_ = clearCurrent(projectRoot)
-		_, _ = tryRemoveStaleLock(projectRoot)
-		return nil, nil
-	}
-	return &Runner{ProjectRoot: projectRoot, ID: id, Root: root, doc: doc, journalGen: currentJournalGen(root)}, nil
+	return scannedToRunner(projectRoot, auth), nil
 }
 
 // RecoverIncomplete rolls back or resumes an interrupted transaction (idempotent).
@@ -330,12 +321,14 @@ func RecoverIncomplete(ctx context.Context, projectRoot string) error {
 		return err
 	}
 	switch txn.doc.State {
-	case StateStaging:
-		return txn.Discard()
-	case StateValidated:
-		return txn.Discard()
+	case StateStaging, StateValidated:
+		if fr := txn.Discard(); fr.HasCriticalCleanupFailure() {
+			return finishResultError(fr)
+		}
+		return nil
 	case StateCommitting:
-		return txn.Rollback(ctx)
+		_, err := txn.Rollback(ctx)
+		return err
 	default:
 		return nil
 	}
@@ -359,11 +352,13 @@ func (r *Runner) applyPlanOp(ctx context.Context, index int, forward bool) error
 	if err := r.saveJournal(); err != nil {
 		return err
 	}
-	if err := r.applyForward(ctx, r.doc.Plan[index]); err != nil {
+	if err := r.applyForward(ctx, index, r.doc.Plan[index]); err != nil {
 		return err
 	}
 	r.doc.Plan[index].Progress = ProgressApplied
-	r.doc.Plan[index].Phase = PhaseApplied
+	if r.doc.Plan[index].Phase != PhaseApplied {
+		r.doc.Plan[index].Phase = PhaseApplied
+	}
 	return r.saveJournal()
 }
 
@@ -472,11 +467,7 @@ func (r *Runner) saveJournal() error {
 	return nil
 }
 
-func loadJournal(root string) (*Document, error) {
-	return loadJournalGeneration(root)
-}
-
-func (r *Runner) applyForward(ctx context.Context, op Op) error {
+func (r *Runner) applyForward(ctx context.Context, planIndex int, op Op) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -484,13 +475,9 @@ func (r *Runner) applyForward(ctx context.Context, op Op) error {
 	case OpBackup:
 		return nil
 	case OpRename:
-		r.markPlanPhase(op.Path, PhasePriorMovedAside)
-		if err := r.saveJournal(); err != nil {
-			return err
-		}
-		return r.renameOp(op, true)
+		return r.renameOp(planIndex, op, true)
 	case OpWrite:
-		return r.writeOp(op)
+		return r.writeOp(planIndex, op)
 	case OpRemove:
 		live, err := GuardPath(r.ProjectRoot, op.Path)
 		if err != nil {
@@ -539,7 +526,7 @@ func (r *Runner) restoreBackup(op Op) error {
 	return copyPath(backup, live)
 }
 
-func (r *Runner) renameOp(op Op, forward bool) error {
+func (r *Runner) renameOp(planIndex int, op Op, forward bool) error {
 	live, err := GuardPath(r.ProjectRoot, op.Path)
 	if err != nil {
 		return err
@@ -549,21 +536,46 @@ func (r *Runner) renameOp(op Op, forward bool) error {
 		src, live = live, src
 	}
 	if isDir(src) || isDir(live) {
-		return publishDir(src, live)
+		return r.publishDirOp(planIndex, src, live)
 	}
 	if err := os.MkdirAll(filepath.Dir(live), 0o755); err != nil {
 		return apperr.Wrap(apperr.IO, "transaction.rename", live, err)
 	}
-	if err := os.Rename(src, live); err != nil {
-		_ = os.Remove(live)
-		if err2 := os.Rename(src, live); err2 != nil {
-			return apperr.Wrap(apperr.IO, "transaction.rename", live, err2)
-		}
+	if err := fsx.PublishRename(src, live); err != nil {
+		return err
 	}
-	return nil
+	r.doc.Plan[planIndex].Phase = PhaseNewFilePublished
+	return r.saveJournal()
 }
 
-func (r *Runner) writeOp(op Op) error {
+func (r *Runner) publishDirOp(planIndex int, stageDir, liveDir string) error {
+	backup := liveDir + ".mew-old"
+	_ = os.RemoveAll(backup)
+	if _, err := os.Stat(liveDir); err == nil {
+		if err := os.Rename(liveDir, backup); err != nil {
+			return apperr.Wrap(apperr.IO, "transaction.publish", liveDir, err)
+		}
+		r.doc.Plan[planIndex].Phase = PhaseOldTreeMoved
+		if err := r.saveJournal(); err != nil {
+			return err
+		}
+	}
+	if err := os.Rename(stageDir, liveDir); err != nil {
+		if _, statErr := os.Stat(backup); statErr == nil {
+			_ = os.Rename(backup, liveDir)
+		}
+		return apperr.Wrap(apperr.IO, "transaction.publish", stageDir, err)
+	}
+	r.doc.Plan[planIndex].Phase = PhaseNewTreePublished
+	if err := r.saveJournal(); err != nil {
+		return err
+	}
+	_ = os.RemoveAll(backup)
+	r.doc.Plan[planIndex].Phase = PhaseParentSynced
+	return r.saveJournal()
+}
+
+func (r *Runner) writeOp(planIndex int, op Op) error {
 	live, err := GuardPath(r.ProjectRoot, op.Path)
 	if err != nil {
 		return err
@@ -593,13 +605,15 @@ func (r *Runner) writeOp(op Op) error {
 	if err := tmp.Close(); err != nil {
 		return apperr.Wrap(apperr.IO, "transaction.write", live, err)
 	}
-	if err := os.Rename(tmpName, live); err != nil {
-		_ = os.Remove(live)
-		if err2 := os.Rename(tmpName, live); err2 != nil {
-			return apperr.Wrap(apperr.IO, "transaction.write", live, err2)
-		}
+	r.doc.Plan[planIndex].Phase = PhaseNewFileWritten
+	if err := r.saveJournal(); err != nil {
+		return err
 	}
-	return nil
+	if err := fsx.PublishRename(tmpName, live); err != nil {
+		return err
+	}
+	r.doc.Plan[planIndex].Phase = PhaseNewFilePublished
+	return r.saveJournal()
 }
 
 // repairPartialNodeModules fixes interrupted node_modules rename choreography.
@@ -647,25 +661,6 @@ func sanitizeBackupName(rel string) string {
 		return "backup"
 	}
 	return s
-}
-
-// publishDir swaps stageDir into liveDir using rename choreography (Windows-safe).
-func publishDir(stageDir, liveDir string) error {
-	backup := liveDir + ".mew-old"
-	_ = os.RemoveAll(backup)
-	if _, err := os.Stat(liveDir); err == nil {
-		if err := os.Rename(liveDir, backup); err != nil {
-			return apperr.Wrap(apperr.IO, "transaction.publish", liveDir, err)
-		}
-	}
-	if err := os.Rename(stageDir, liveDir); err != nil {
-		if _, statErr := os.Stat(backup); statErr == nil {
-			_ = os.Rename(backup, liveDir)
-		}
-		return apperr.Wrap(apperr.IO, "transaction.publish", stageDir, err)
-	}
-	_ = os.RemoveAll(backup)
-	return nil
 }
 
 func copyPath(src, dst string) error {

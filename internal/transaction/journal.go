@@ -45,14 +45,20 @@ const (
 	ProgressRolledBack  = "rolled_back"
 )
 
-// Op phase sub-states (journal v3 plan ops).
+// Op phase sub-states (journal v3+ plan ops).
 const (
 	PhasePending          = "pending"
-	PhasePriorIdentified  = "prior_identified"
-	PhasePriorBackedUp    = "prior_backed_up"
-	PhasePriorMovedAside  = "prior_moved_aside"
+	PhasePriorIdentified  = "prior_identified" // legacy journals only
+	PhasePriorBackedUp    = "prior_backed_up"  // alias: backup_ready
+	PhaseBackupReady      = "backup_ready"
+	PhasePriorMovedAside  = "prior_moved_aside" // legacy; prefer old_tree_moved
+	PhaseOldTreeMoved     = "old_tree_moved"
 	PhasePublishStarted   = "publish_started"
-	PhasePublished        = "published"
+	PhaseNewFileWritten   = "new_file_written"
+	PhaseNewFilePublished = "new_file_published"
+	PhaseNewTreePublished = "new_tree_published"
+	PhaseParentSynced     = "parent_synced"
+	PhasePublished        = "published" // legacy alias
 	PhaseApplied          = "applied"
 	PhaseRollbackStarted  = "rollback_started"
 	PhasePriorRestored    = "prior_restored"
