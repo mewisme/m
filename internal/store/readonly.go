@@ -19,13 +19,21 @@ func SetPublishReadOnly(v bool) {
 
 // makeTreeReadOnly sets best-effort read-only permissions on a published tree.
 func makeTreeReadOnly(root string) error {
+	return setTreePermissions(root, 0o444, 0o555)
+}
+
+func makeTreeWritable(root string) error {
+	return setTreePermissions(root, 0o644, 0o755)
+}
+
+func setTreePermissions(root string, fileMode, dirMode fs.FileMode) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		mode := fs.FileMode(0o444)
+		mode := fileMode
 		if d.IsDir() {
-			mode = 0o555
+			mode = dirMode
 		}
 		if chmodErr := os.Chmod(path, mode); chmodErr != nil {
 			// ponytail: best-effort per OS; Windows ACLs may ignore chmod

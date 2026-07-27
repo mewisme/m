@@ -25,4 +25,5 @@ func TestMakeTreeReadOnlyRoundTrip(t *testing.T) {
 	if info.Mode().Perm() != 0o444 {
 		t.Fatalf("mode=%o want 0444", info.Mode().Perm())
 	}
+	t.Cleanup(func() { _ = makeTreeWritable(root) })
 }

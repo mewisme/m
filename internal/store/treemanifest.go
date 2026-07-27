@@ -161,6 +161,7 @@ func readTreeManifest(dir string) (*TreeManifest, error) {
 // portableCollisionKey folds case, normalizes slashes, and trims Windows trailing
 // dots/spaces per path segment so manifests stay safe on case-insensitive targets.
 func portableCollisionKey(path string) string {
+	path = strings.ReplaceAll(path, `\`, `/`)
 	path = filepath.ToSlash(path)
 	segs := strings.Split(path, "/")
 	out := make([]string, 0, len(segs))
