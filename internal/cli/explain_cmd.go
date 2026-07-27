@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -44,7 +43,7 @@ func newExplainPeerCmd() *cobra.Command {
 				}
 				prior = nil
 			}
-			eng, err := resolver.NewFromApp(ac.Config, proj, os.Environ())
+			eng, err := resolver.NewFromApp(ac.Config, proj)
 			if err != nil {
 				return err
 			}

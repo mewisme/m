@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"os"
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/project"
@@ -24,7 +23,7 @@ func prepareAddDependency(ctx context.Context, ac *Context, proj *project.Projec
 	if name == "" {
 		return apperr.New(apperr.Usage, "app.add", opts.AddSpec, "invalid package name")
 	}
-	eng, err := resolver.NewFromApp(ac.Config, proj, os.Environ())
+	eng, err := resolver.NewFromApp(ac.Config, proj)
 	if err != nil {
 		return err
 	}

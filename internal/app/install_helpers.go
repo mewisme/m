@@ -24,7 +24,7 @@ func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, 
 	if opts.Update != nil {
 		return resolveForUpdate(ctx, ac, proj, *opts.Update)
 	}
-	eng, err := resolver.NewFromApp(ac.Config, proj, os.Environ())
+	eng, err := resolver.NewFromApp(ac.Config, proj)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, 
 }
 
 func resolveForUpdate(ctx context.Context, ac *Context, proj *project.Project, u UpdateResolveOptions) (*resolver.Resolution, error) {
-	eng, err := resolver.NewFromApp(ac.Config, proj, os.Environ())
+	eng, err := resolver.NewFromApp(ac.Config, proj)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractR
 		art, err := dl.Download(ctx, fetch.DownloadRequest{
 			URL:       pkg.TarballURL,
 			Integrity: pkg.Integrity,
-			AuthToken: config.AuthToken(ac.Config, os.Environ()),
+			AuthToken: config.AuthToken(ac.Config),
 		})
 		if err != nil {
 			return nil, err
@@ -211,7 +211,7 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph) (Fetc
 		art, err := dl.Download(ctx, fetch.DownloadRequest{
 			URL:       pkg.TarballURL,
 			Integrity: pkg.Integrity,
-			AuthToken: config.AuthToken(ac.Config, os.Environ()),
+			AuthToken: config.AuthToken(ac.Config),
 		})
 		if err != nil {
 			return out, err

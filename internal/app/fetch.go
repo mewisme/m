@@ -77,7 +77,7 @@ func Fetch(ctx context.Context, ac *Context, plan FetchPlan, destDir string) ([]
 			URL:       p.TarballURL,
 			Integrity: p.Integrity,
 			Shasum:    p.Shasum,
-			AuthToken: config.AuthToken(ac.Config, os.Environ()),
+			AuthToken: config.AuthToken(ac.Config),
 		}
 	}
 	arts, err := dl.DownloadAll(ctx, reqs)

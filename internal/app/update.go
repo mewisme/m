@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"os"
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/manifest"
@@ -53,7 +52,7 @@ func Update(ctx context.Context, ac *Context, opts UpdateOptions) (InstallResult
 }
 
 func bumpDependencyRanges(ctx context.Context, ac *Context, proj *project.Project, targets []string) error {
-	eng, err := resolver.NewFromApp(ac.Config, proj, os.Environ())
+	eng, err := resolver.NewFromApp(ac.Config, proj)
 	if err != nil {
 		return err
 	}

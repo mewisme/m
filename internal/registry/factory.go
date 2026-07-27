@@ -12,7 +12,7 @@ import (
 )
 
 // NewFromApp builds a Client from effective config and project identity.
-func NewFromApp(eff *config.Effective, projectRoot string, identity project.Identity, environ []string) (*Client, error) {
+func NewFromApp(eff *config.Effective, projectRoot string, identity project.Identity) (*Client, error) {
 	timeoutMs := config.Int(eff, "network.timeout_ms", 60000)
 	hc, err := fetch.NewClient(fetch.Options{
 		Timeout:  time.Duration(timeoutMs) * time.Millisecond,
@@ -32,7 +32,7 @@ func NewFromApp(eff *config.Effective, projectRoot string, identity project.Iden
 		CacheDir:      cacheDir,
 		Offline:       config.Bool(eff, "offline", false),
 		PreferOffline: config.Bool(eff, "prefer-offline", false),
-		AuthToken:     config.AuthToken(eff, environ),
+		AuthToken:     config.AuthToken(eff),
 		HTTPClient:    hc,
 	}), nil
 }

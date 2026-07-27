@@ -259,19 +259,17 @@ func ScopeRegistries(eff *Effective) map[string]string {
 
 // AuthToken resolves the bearer token from registry.auth_token_env (env var name).
 // Empty when unset. Never logs the token.
-func AuthToken(eff *Effective, environ []string) string {
+func AuthToken(eff *Effective) string {
 	name := String(eff, "registry.auth_token_env", "")
 	if name == "" {
 		return ""
 	}
-	if environ == nil {
-		environ = os.Environ()
+	if eff == nil || !eff.Env.Initialized() {
+		return os.Getenv(name)
 	}
-	for _, e := range environ {
-		k, v, ok := strings.Cut(e, "=")
-		if ok && k == name {
-			return v
-		}
+	v, ok := eff.Env.Lookup(name)
+	if !ok {
+		return ""
 	}
-	return ""
+	return v
 }

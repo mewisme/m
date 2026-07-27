@@ -64,7 +64,7 @@ func TestFetchAndImportGraphSurfacesStoreCleanup(t *testing.T) {
 	})
 	t.Cleanup(func() { store.SetImportLockReleaseTestHook(nil) })
 
-	eng, err := resolver.NewFromApp(ac.Config, nil, os.Environ())
+	eng, err := resolver.NewFromApp(ac.Config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

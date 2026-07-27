@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -33,7 +32,7 @@ func newResolveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			eng, err := resolver.NewFromApp(ac.Config, proj, os.Environ())
+			eng, err := resolver.NewFromApp(ac.Config, proj)
 			if err != nil {
 				return err
 			}

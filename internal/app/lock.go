@@ -27,7 +27,7 @@ func WriteLock(ctx context.Context, ac *Context, res *resolver.Resolution) error
 		return err
 	}
 	if res == nil {
-		eng, err := resolver.NewFromApp(ac.Config, proj, os.Environ())
+		eng, err := resolver.NewFromApp(ac.Config, proj)
 		if err != nil {
 			return err
 		}

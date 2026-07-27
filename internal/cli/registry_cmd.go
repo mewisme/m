@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -137,7 +136,7 @@ func newViewCmd() *cobra.Command {
 			} else if apperr.CodeOf(err) != apperr.NotFound {
 				return err
 			}
-			client, err := registry.NewFromApp(ac.Config, root, id, os.Environ())
+			client, err := registry.NewFromApp(ac.Config, root, id)
 			if err != nil {
 				return err
 			}
