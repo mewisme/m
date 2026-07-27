@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current MVP: **0021 blocked** — stabilization pass 5 complete locally; awaiting CI green
+- Current MVP: **0021 blocked** — hard-fix pass 6 pushed; awaiting CI green
 - Last updated: 2026-07-27
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
@@ -11,7 +11,10 @@
 
 **Next:** [0021 - Lifecycle scripts, trust, and sandbox policy](0021-lifecycle-sandbox.md) after CI confirms green `crash-integration`, `race-windows`, and full OS matrix.
 
-Stabilization pass 5 (hard-fix integration, phases 11–13) completed locally 2026-07-27: `go test ./...` green on Windows, lint/vet/vulncheck pass. **0021 remains blocked** until GitHub Actions URLs are green (requires push).
+Stabilization pass 6 (hard-fix durability, phases 10–11) pushed 2026-07-27: local gate green
+(`go test ./...`, lint, vet, vulncheck). CI fix `d26c6e7` addresses darwin sysctl,
+store publish readonly ordering, and `golang.org/x/sys` allowlist. **0021 remains blocked**
+until required GitHub Actions jobs are green.
 
 ## MVP completion (65)
 

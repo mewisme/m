@@ -35,6 +35,24 @@ Lock document fields: `schemaVersion`, `pid`, `processStart`, `txnId`, `createdA
 - Wired through install, add, remove, update, frozen install, snapshot restore,
   and recover.
 
+## Mutation session (pass 6)
+
+Install-family commands acquire a `MutationSession` via `BeginMutationSession` before
+reading live `package.json` or `m.lock`. The session owns the project lock until
+`Finish` or `Abort`:
+
+1. Acquire project lock and recover incomplete journals (`BeginMutation`)
+2. `ReopenProject` — first live manifest/lock read after ownership is held
+3. Run resolve/fetch/link/validate through `runInstallInSession`
+4. `Finish` — commit journal, verified `current` cleanup, release lock
+
+`Abort` rolls back and releases the lock. Snapshot restore and `m rollback` use the
+same session boundary so restore cannot race an in-flight install.
+
+`FinishOpts` splits cleanup between the runner (clear `current` only) and the session
+(verified lock release). `FinishResult.HasCriticalCleanupFailure` surfaces incomplete
+lock release or `current` pointer cleanup after commit.
+
 ## Mutation preflight
 
 `BeginMutation` is the single entrypoint for new install-family transactions:
@@ -78,7 +96,9 @@ The journal is persisted after every state, progress, and phase transition.
 
 Backup ops record **prior kind** (`none`, `file`, `dir`, `symlink`, `junction`) so
 recovery restores `node_modules` trees, files, or symlinks from `backups/` only —
-never via symmetric inverse rename for directories.
+never via symmetric inverse rename for directories. Windows **junction** backups store
+a `.reparse.json` sidecar (reparse tag, substitute, print name) so rollback can
+recreate the mount point without copying the target tree.
 
 `journal.v2.json` and `journal.v1.json` remain readable for recovery of older
 interrupted transactions.
@@ -125,8 +145,9 @@ on Windows) by restoring from backups and replaying rollback phases.
 
 `Finish` / `Discard` / `Rollback` return `FinishResult` with `LockReleased`,
 `CurrentCleared`, and non-critical `CleanupWarnings`. The installer emits debug
-warnings when critical cleanup (lock release or current pointer clear) fails after
-a successful commit.
+warnings when critical cleanup (lock release or verified `current` pointer clear)
+fails after a successful commit. `m recover` may report the same when post-recovery
+cleanup is incomplete.
 
 ## Crash injection (tests)
 

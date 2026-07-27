@@ -58,6 +58,11 @@ live `node_modules`.
 runs `RecoverScanned` (directory scan + idempotent rollback/discard), refuses to
 begin when incomplete journals remain, then creates the new transaction.
 
+**Session ownership (pass 6):** `BeginMutationSession` wraps `BeginMutation` for
+install-family commands. Live manifest and lock reads happen only after the session
+holds the project lock. `Finish` / `Abort` release the lock with verified `current`
+cleanup.
+
 A project-level lock at `.mew/txn/lock` (schema v2, exclusive create with process
 identity) prevents concurrent install transactions. Acquire waits honor caller
 `context` cancellation. Stale lock takeover renames the observed lock into

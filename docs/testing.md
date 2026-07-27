@@ -97,6 +97,17 @@ ranges (`internal/semver`).
 make fuzz-smoke
 ```
 
+## Stabilization pass 6 suites (hard-fix durability)
+
+| Area | Package / path | What it proves |
+|---|---|---|
+| Mutation session ordering | `internal/app/mutation_session_test.go`, `mutation_prepare_test.go` | Lock before live reads; abort/finish release ownership |
+| Verified current cleanup | `internal/transaction/current_cleanup_test.go`, `recovery_ownership_test.go` | `current` head + generation files cleared with verification |
+| Windows reparse backup | `internal/transaction/reparse_backup.go`, `internal/fsx/reparse_windows_test.go` | Junction backup sidecar round-trip |
+| Store lock cleanup | `internal/store/lock_cleanup_test.go` | Import lock release warnings; not-owner paths |
+| Snapshot restore under lock | `tests/integration/snapshot_restore_test.go` | `m rollback` / restore via mutation session |
+| Publish file durability | `internal/transaction/publish_file_test.go` | Atomic file publish under transaction |
+
 ## Stabilization pass 5 suites (hard-fix integration)
 
 | Area | Package / path | What it proves |

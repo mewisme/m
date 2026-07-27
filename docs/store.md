@@ -28,8 +28,6 @@ Default store roots follow [`naming.md`](naming.md):
 
 Override with `store.dir`, `MEW_STORE_DIR`, or `MEW_HOME/store`.
 
-**CI URLs:** jobs are defined in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) but require a push/PR to record green run URLs. No Actions URLs recorded in this session.
-
 ## Content identity (`internal/contentid`)
 
 npm tarball `dist.integrity` strings (SRI: `algo-base64` or `algo-hex`) are parsed by
@@ -50,8 +48,8 @@ digests return `ERR_M_INTEGRITY` / `ERR_M_STORE` at the trust boundary.
 5. Extract into `<store>/.staging/<id>/`.
 6. Write `.mew-package-integrity`, generate `.mew-tree-manifest.json` schema **v2**
    (files, directories, symlinks), verify staged tree bidirectionally.
-7. Set tree read-only (best-effort per OS).
-8. Atomically rename into `packages/<algo>/<hex>/`.
+7. Atomically rename into `packages/<algo>/<hex>/`.
+8. Set published tree read-only (best-effort per OS).
 9. Verify published tree; upsert `index.json` while still holding the import lock.
    Index write failures are reported via the optional store reporter and do not fail
    import.
