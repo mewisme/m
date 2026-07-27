@@ -14,21 +14,23 @@ func effFromEnv(env []string, goos string) *config.Effective {
 }
 
 func TestCacheRootFromMewHomeSnapshot(t *testing.T) {
-	eff := effFromEnv([]string{"MEW_HOME=/mew-home"}, "linux")
+	home := t.TempDir()
+	eff := effFromEnv([]string{"MEW_HOME=" + home}, "linux")
 	got := config.CacheRoot(eff)
-	want := filepath.Join("/mew-home", "cache")
+	want := filepath.Join(home, "cache")
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
 }
 
 func TestStoreRootFromMewHomeSnapshot(t *testing.T) {
-	eff := effFromEnv([]string{"MEW_HOME=/mew-home"}, "linux")
+	home := t.TempDir()
+	eff := effFromEnv([]string{"MEW_HOME=" + home}, "linux")
 	got, err := config.StoreRoot(eff)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := filepath.Join("/mew-home", "store")
+	want := filepath.Join(home, "store")
 	absWant, _ := filepath.Abs(want)
 	if got != absWant {
 		t.Fatalf("got %q want %q", got, absWant)
@@ -36,12 +38,14 @@ func TestStoreRootFromMewHomeSnapshot(t *testing.T) {
 }
 
 func TestCacheRootMewCacheDirOverridesHome(t *testing.T) {
+	home := t.TempDir()
+	cacheDir := filepath.Join(home, "custom-cache")
 	eff := effFromEnv([]string{
-		"MEW_HOME=/home",
-		"MEW_CACHE_DIR=/custom/cache",
+		"MEW_HOME=" + home,
+		"MEW_CACHE_DIR=" + cacheDir,
 	}, "linux")
 	got := config.CacheRoot(eff)
-	if got != "/custom/cache" {
+	if got != cacheDir {
 		t.Fatalf("got %q", got)
 	}
 }
