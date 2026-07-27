@@ -134,6 +134,16 @@ func TestAbortMutationCurrentCleanupFail(t *testing.T) {
 	if !errors.Is(err, primary) {
 		t.Fatalf("expected primary, got %v", err)
 	}
+	var of *apperr.OperationFailure
+	if !errors.As(err, &of) {
+		t.Fatal("expected OperationFailure")
+	}
+	if of.Cleanup == nil {
+		t.Fatal("expected cleanup error in OperationFailure")
+	}
+	if apperr.CodeOf(of.Cleanup) != apperr.Integrity {
+		t.Fatalf("cleanup code=%s", apperr.CodeOf(of.Cleanup))
+	}
 	if !res.TransactionCleanupIncomplete {
 		t.Fatal("expected TransactionCleanupIncomplete")
 	}
@@ -175,6 +185,13 @@ func TestAbortMutationLockReleaseFail(t *testing.T) {
 	if !errors.Is(err, primary) {
 		t.Fatalf("expected primary, got %v", err)
 	}
+	var of *apperr.OperationFailure
+	if !errors.As(err, &of) || of.Cleanup == nil {
+		t.Fatal("expected OperationFailure with cleanup")
+	}
+	if apperr.CodeOf(err) != apperr.Transaction {
+		t.Fatalf("code=%s", apperr.CodeOf(err))
+	}
 	if !res.TransactionCleanupIncomplete {
 		t.Fatal("expected TransactionCleanupIncomplete")
 	}
@@ -186,6 +203,104 @@ func TestAbortMutationLockReleaseFail(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected %s code, got %v", cleanupCodeTxnLockRelease, res.CleanupWarningCodes)
+	}
+}
+
+func TestAbortMutationBothCleanupFailures(t *testing.T) {
+	root := t.TempDir()
+	writeMinimalProject(t, root)
+	sess, ctx := beginTestSession(t, root)
+	txn := sess.Runner()
+
+	txnDir := transaction.TxnRoot(root)
+	if err := os.MkdirAll(txnDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(txnDir, "current.bad"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	lockDir := transaction.LockPath(root)
+	ownerPath := filepath.Join(lockDir, fsx.OwnerFileName)
+	data, err := os.ReadFile(ownerPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered := strings.Replace(string(data), txn.ID, "other-txn-id", 1)
+	if tampered == string(data) {
+		t.Fatal("failed to tamper lock owner txn id")
+	}
+	if err := os.WriteFile(ownerPath, []byte(tampered), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	primary := apperr.New(apperr.Install, "app.install.link", "", "link failed")
+	_, err = abortMutation(ctx, sess, txn, primary)
+	if !errors.Is(err, primary) {
+		t.Fatalf("expected primary, got %v", err)
+	}
+	var of *apperr.OperationFailure
+	if !errors.As(err, &of) || of.Cleanup == nil {
+		t.Fatal("expected OperationFailure with cleanup")
+	}
+	if apperr.CodeOf(of.Cleanup) == apperr.Internal {
+		t.Fatalf("expected typed cleanup errors, got %v", of.Cleanup)
+	}
+	for _, code := range []apperr.Code{apperr.Integrity, apperr.Transaction} {
+		found := false
+		var walk func(error)
+		walk = func(err error) {
+			if err == nil || found {
+				return
+			}
+			if apperr.CodeOf(err) == code {
+				found = true
+				return
+			}
+			switch e := err.(type) {
+			case interface{ Unwrap() []error }:
+				for _, child := range e.Unwrap() {
+					walk(child)
+				}
+			default:
+				walk(errors.Unwrap(err))
+			}
+		}
+		walk(of.Cleanup)
+		if !found {
+			t.Fatalf("missing cleanup code %s in %v", code, of.Cleanup)
+		}
+	}
+}
+
+func TestAbortMutationOperationFailureShape(t *testing.T) {
+	root := t.TempDir()
+	writeMinimalProject(t, root)
+	sess, ctx := beginTestSession(t, root)
+	txn := sess.Runner()
+
+	primary := apperr.New(apperr.Network, "app.install.fetch", "pkg", "fetch failed")
+	_, err := abortMutation(ctx, sess, txn, primary)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, primary) {
+		t.Fatalf("primary=%v", err)
+	}
+	if apperr.CodeOf(err) != apperr.Network {
+		t.Fatalf("code=%s", apperr.CodeOf(err))
+	}
+}
+
+func TestAbortMutationCleanupOnly(t *testing.T) {
+	cleanup := errors.New("cleanup only")
+	err := apperr.WithCleanup(nil, cleanup)
+	if !errors.Is(err, cleanup) {
+		t.Fatal("expected cleanup-only error")
+	}
+	var of *apperr.OperationFailure
+	if errors.As(err, &of) && of.Primary != nil {
+		t.Fatal("expected nil primary")
 	}
 }
 

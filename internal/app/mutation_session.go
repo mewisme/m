@@ -137,14 +137,10 @@ func (s *MutationSession) Finish(ctx context.Context, keepJournal bool) (transac
 	}
 	txnID := s.runner.ID
 	fr := s.runner.Finish(keepJournal, transaction.DefaultFinishOpts())
-	if err := releaseSessionLock(s.projectRoot, txnID, &fr); err != nil {
-		if fr.HasCriticalCleanupFailure() {
-			return fr, err
-		}
-	}
+	lockErr := releaseSessionLock(s.projectRoot, txnID, &fr)
 	s.runner = nil
-	if fr.HasCriticalCleanupFailure() {
-		return fr, apperr.New(apperr.Transaction, "app.mutation.finish", "", "transaction cleanup incomplete")
+	if cleanupErr := joinSessionCleanup(fr, nil, lockErr); cleanupErr != nil {
+		return fr, cleanupErr
 	}
 	return fr, nil
 }

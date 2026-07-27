@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"errors"
+
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/fsx"
 )
@@ -45,11 +47,23 @@ func appendCleanupWarning(fr *FinishResult, code string, err error) {
 	}
 }
 
-func finishResultError(fr FinishResult) error {
+// CleanupError joins cleanup warnings and reports critical cleanup failures.
+func (fr FinishResult) CleanupError() error {
+	var errs []error
 	for _, err := range fr.CleanupWarnings {
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
-	return apperr.New(apperr.Transaction, "transaction.cleanup", "", "critical cleanup incomplete")
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	if fr.HasCriticalCleanupFailure() {
+		return apperr.New(apperr.Transaction, "transaction.cleanup", "", "critical cleanup incomplete")
+	}
+	return nil
+}
+
+func finishResultError(fr FinishResult) error {
+	return fr.CleanupError()
 }

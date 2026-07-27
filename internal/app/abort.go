@@ -21,17 +21,17 @@ func abortMutation(ctx context.Context, sess *MutationSession, txn *transaction.
 	if primary == nil {
 		return res, nil
 	}
-	fr, rollbackErr, rolledBack := rollbackSession(ctx, sess, txn)
+	fr, cleanupErr, rolledBack := rollbackSession(ctx, sess, txn)
 	res.RolledBack = rolledBack
 	if !rolledBack {
 		res.RecoveryRequired = true
 		res.CleanupIncomplete = true
-		if rollbackErr != nil {
-			res.CleanupWarnings = append(res.CleanupWarnings, rollbackErr.Error())
+		if cleanupErr != nil {
+			res.CleanupWarnings = append(res.CleanupWarnings, cleanupErr.Error())
 		}
 	}
 	populateAbortCleanup(&res, fr)
-	return res, apperr.JoinCleanup(primary, rollbackErr)
+	return res, apperr.JoinCleanup(primary, cleanupErr)
 }
 
 // rollbackSession rolls back the active runner and releases the session-owned lock once.
@@ -44,18 +44,33 @@ func rollbackSession(ctx context.Context, sess *MutationSession, txn *transactio
 	}
 	fr, rollbackErr := txn.Rollback(ctx, transaction.DefaultFinishOpts())
 	rolledBack := rollbackErr == nil
-	var cleanupErr error
-	if rollbackErr != nil {
-		cleanupErr = rollbackErr
-	}
+	var lockErr error
 	if sess != nil && sess.runner != nil {
 		txnID := sess.runner.ID
 		sess.runner = nil
-		if lockErr := releaseSessionLock(sess.projectRoot, txnID, &fr); lockErr != nil {
-			cleanupErr = errors.Join(cleanupErr, lockErr)
-		}
+		lockErr = releaseSessionLock(sess.projectRoot, txnID, &fr)
 	}
-	return fr, cleanupErr, rolledBack
+	return fr, joinSessionCleanup(fr, rollbackErr, lockErr), rolledBack
+}
+
+func joinSessionCleanup(fr transaction.FinishResult, rollbackErr, lockErr error) error {
+	cleanupErr := fr.CleanupError()
+	cleanupErr = joinDistinctCleanup(cleanupErr, rollbackErr)
+	cleanupErr = joinDistinctCleanup(cleanupErr, lockErr)
+	return cleanupErr
+}
+
+func joinDistinctCleanup(dst, err error) error {
+	if err == nil {
+		return dst
+	}
+	if dst == nil {
+		return err
+	}
+	if errors.Is(dst, err) {
+		return dst
+	}
+	return errors.Join(dst, err)
 }
 
 func releaseSessionLock(projectRoot, txnID string, fr *transaction.FinishResult) error {
