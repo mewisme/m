@@ -27,7 +27,7 @@ func TestPrepareAddDependencySetsRange(t *testing.T) {
 		t.Fatal(err)
 	}
 	opts := InstallOptions{AddSpec: "lodash@4.17.21", WriteManifest: true}
-	if err := prepareAddDependency(ctx, ac, proj, &opts); err != nil {
+	if err := prepareAddDependency(ctx, sess.AppContext(), proj, &opts); err != nil {
 		t.Fatal(err)
 	}
 	got, ok := proj.Doc.Dependencies["lodash"]
@@ -57,7 +57,7 @@ func TestPrepareAddDependencySaveExact(t *testing.T) {
 		t.Fatal(err)
 	}
 	opts := InstallOptions{AddSpec: "lodash@4.17.21", AddSaveExact: true, WriteManifest: true}
-	if err := prepareAddDependency(ctx, ac, proj, &opts); err != nil {
+	if err := prepareAddDependency(ctx, sess.AppContext(), proj, &opts); err != nil {
 		t.Fatal(err)
 	}
 	got := proj.Doc.Dependencies["lodash"]

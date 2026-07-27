@@ -10,6 +10,9 @@ import (
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/config"
 	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/m/internal/project"
+	"github.com/mewisme/m/internal/registry"
+	"github.com/mewisme/m/internal/testkit"
 	"github.com/mewisme/m/internal/transaction"
 )
 
@@ -134,5 +137,92 @@ func TestIsLockWaitCancellation(t *testing.T) {
 	}
 	if isLockWaitCancellation(errors.New("other")) {
 		t.Fatal("unexpected match")
+	}
+}
+
+func TestMutationSessionReloadEffectiveConfig(t *testing.T) {
+	testkit.CleanEnv(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"cfg-reload","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	baseEff, err := config.Load(context.Background(), config.LoadOptions{
+		CWD:         root,
+		ProjectRoot: root,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := config.String(baseEff, "install.linker", ""); got != "auto" {
+		t.Fatalf("base linker=%q", got)
+	}
+	ac := &Context{CWD: root, Config: baseEff}
+	ctx := context.Background()
+	sess, err := BeginMutationSession(ctx, ac, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = sess.Abort(ctx) }()
+
+	cfgPath := filepath.Join(root, "m.jsonc")
+	if err := os.WriteFile(cfgPath, []byte(`{"install.linker":"isolated"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sess.ReopenProject(ctx); err != nil {
+		t.Fatal(err)
+	}
+	sac := sess.AppContext()
+	if sac == nil || sac.Config == nil {
+		t.Fatal("missing session app context")
+	}
+	if got := config.String(sac.Config, "install.linker", ""); got != "isolated" {
+		t.Fatalf("reloaded linker=%q want isolated", got)
+	}
+	if got := config.String(ac.Config, "install.linker", ""); got != "auto" {
+		t.Fatalf("shared context should keep pre-reload default: %q", got)
+	}
+}
+
+func TestMutationSessionScopedRegistryReload(t *testing.T) {
+	testkit.CleanEnv(t)
+	t.Setenv("NO_PROXY", "*")
+	reg := testkit.LoadRegistry(t, "registry/v1")
+	srv := reg.Start(t)
+	defer srv.Close()
+
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"scope-reload","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	baseEff, err := config.Load(context.Background(), config.LoadOptions{
+		CWD:         root,
+		ProjectRoot: root,
+		CLI:         map[string]any{"registry": srv.URL},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ac := &Context{CWD: root, Config: baseEff}
+	ctx := context.Background()
+	sess, err := BeginMutationSession(ctx, ac, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = sess.Abort(ctx) }()
+
+	scopeURL := srv.URL + "/scoped"
+	if err := os.WriteFile(filepath.Join(root, "m.jsonc"), []byte(`{"registry":"`+srv.URL+`","registries":{"@scope":"`+scopeURL+`"}}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.ReloadEffectiveConfig(ctx); err != nil {
+		t.Fatal(err)
+	}
+	proj := &project.Project{Root: root, Identity: project.IdentityMew}
+	got := registry.ResolveBaseForPackage(sess.AppContext().Config, root, proj.Identity, "@scope/pkg")
+	if got != scopeURL {
+		t.Fatalf("scoped registry=%q want %q", got, scopeURL)
+	}
+	if before := registry.ResolveBaseForPackage(ac.Config, root, proj.Identity, "@scope/pkg"); before == scopeURL {
+		t.Fatalf("shared context should not pick up reloaded scope mapping: %q", before)
 	}
 }
