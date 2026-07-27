@@ -19,6 +19,12 @@ type workspaceMember struct {
 }
 
 func (s *resolveState) initWorkspace() error {
+	cat, err := workspace.LoadCatalog(s.proj.Root)
+	if err != nil {
+		return err
+	}
+	s.catalog = cat
+
 	patterns, err := s.proj.Doc.WorkspacePatterns()
 	if err != nil {
 		return err
@@ -26,40 +32,38 @@ func (s *resolveState) initWorkspace() error {
 	if len(patterns) == 0 {
 		return nil
 	}
-	idx, err := workspace.BuildIndex(s.proj.Root)
+	wg, err := workspace.BuildGraph(s.proj.Root)
 	if err != nil {
 		return err
 	}
-	s.wsIndex = idx
-	s.wsByName = make(map[string]workspaceMember, len(idx.Members))
-	s.wsMemberPaths = make(map[string]struct{}, len(idx.Members))
-	for _, memPath := range idx.Members {
-		doc, err := manifest.Load(filepath.Join(s.proj.Root, filepath.FromSlash(memPath), "package.json"))
-		if err != nil {
-			return apperr.Wrap(apperr.Manifest, "resolver.workspace", memPath, err)
-		}
-		name := doc.Name
-		if name == "" {
-			return apperr.New(apperr.Manifest, "resolver.workspace", memPath, "workspace member missing name")
-		}
-		if prev, ok := s.wsByName[name]; ok {
-			return apperr.New(apperr.Resolve, "resolver.workspace", name,
-				fmt.Sprintf("ambiguous workspace target %q: members %q and %q", name, prev.Path, memPath))
-		}
-		ver := doc.Version
-		if ver == "" {
-			ver = "0.0.0"
-		}
-		s.wsByName[name] = workspaceMember{Name: name, Version: ver, Path: memPath}
-		s.wsMemberPaths[memPath] = struct{}{}
+	s.wsIndex = wg.Index
+	s.wsGraph = wg
+	s.wsByName = make(map[string]workspaceMember, len(wg.Members))
+	s.wsMemberPaths = make(map[string]struct{}, len(wg.ByPath))
+	for name, mem := range wg.Members {
+		s.wsByName[name] = workspaceMember{Name: mem.Name, Version: mem.Version, Path: mem.Path}
+		s.wsMemberPaths[mem.Path] = struct{}{}
 	}
 	return nil
 }
 
-func (s *resolveState) seedWorkspaceMembers() error {
+func (s *resolveState) seedWorkspaceMembers(opts ResolveOptions) error {
 	if s.wsIndex == nil {
 		return nil
 	}
+	if workspace.Enabled(s.e.Effective) {
+		if len(opts.Filter) > 0 {
+			return s.seedFilteredMembers(opts.Filter)
+		}
+		if opts.Recursive {
+			return s.seedAllMembers()
+		}
+		return nil
+	}
+	return s.seedMembersWithDeps()
+}
+
+func (s *resolveState) seedMembersWithDeps() error {
 	paths := append([]string(nil), s.wsIndex.Members...)
 	sort.Strings(paths)
 	for _, memPath := range paths {
@@ -73,19 +77,85 @@ func (s *resolveState) seedWorkspaceMembers() error {
 		if !memberHasDeps(doc) {
 			continue
 		}
-		norm, err := manifest.ToNormalized(doc)
-		if err != nil {
-			return err
-		}
-		importerID := graph.ImporterID(memPath)
-		if !s.seededImporters[importerID] {
-			s.b.Importer(importerID, norm.Name)
-			s.seededImporters[importerID] = true
-		}
-		if err := s.seedDeps(string(importerID), memPath, norm, 1, nil, nil); err != nil {
+		if err := s.seedMemberImporter(memPath, doc); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func (s *resolveState) seedAllMembers() error {
+	paths := append([]string(nil), s.wsIndex.Members...)
+	sort.Strings(paths)
+	for _, memPath := range paths {
+		if memPath == "." || memPath == string(graph.RootImporter) {
+			continue
+		}
+		doc, err := manifest.Load(filepath.Join(s.proj.Root, filepath.FromSlash(memPath), "package.json"))
+		if err != nil {
+			return err
+		}
+		if err := s.seedMemberImporter(memPath, doc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *resolveState) seedFilteredMembers(patterns []string) error {
+	if s.wsGraph == nil {
+		return apperr.New(apperr.Internal, "resolver.workspace", "", "missing workspace graph")
+	}
+	ids, err := workspace.ExpandFilter(s.wsGraph, patterns)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		memPath := string(id)
+		doc, err := manifest.Load(filepath.Join(s.proj.Root, filepath.FromSlash(memPath), "package.json"))
+		if err != nil {
+			return err
+		}
+		if err := s.seedMemberImporter(memPath, doc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *resolveState) seedMemberImporter(memPath string, doc *manifest.Document) error {
+	norm, err := manifest.ToNormalized(doc)
+	if err != nil {
+		return err
+	}
+	importerID := graph.ImporterID(memPath)
+	if !s.seededImporters[importerID] {
+		s.b.Importer(importerID, norm.Name)
+		s.seededImporters[importerID] = true
+	}
+	if workspace.Enabled(s.e.Effective) {
+		if err := s.ensureWorkspaceMemberPackage(memPath, doc); err != nil {
+			return err
+		}
+	}
+	return s.seedDeps(string(importerID), memPath, norm, 1, nil, nil)
+}
+
+func (s *resolveState) ensureWorkspaceMemberPackage(memPath string, doc *manifest.Document) error {
+	if s.wsByName == nil || doc == nil {
+		return nil
+	}
+	member, ok := s.wsByName[doc.Name]
+	if !ok {
+		return nil
+	}
+	key := basePackageKey(member.Name, member.Version)
+	if _, ok := s.seenPkg[key]; ok {
+		return nil
+	}
+	s.seenPkg[key] = struct{}{}
+	s.b.Package(graph.PackageID{Name: member.Name, Version: member.Version}, "", "")
+	s.localSources[key] = LocalSource{Protocol: "workspace", Path: member.Path}
 	return nil
 }
 

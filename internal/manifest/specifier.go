@@ -18,6 +18,7 @@ const (
 	ProtocolFile      Protocol = "file"
 	ProtocolLink      Protocol = "link"
 	ProtocolPortal    Protocol = "portal"
+	ProtocolCatalog   Protocol = "catalog"
 )
 
 // Specifier is a parsed package.json dependency specifier.
@@ -40,6 +41,22 @@ func ParseSpecifier(displayName, spec string) (Specifier, error) {
 	}
 
 	switch {
+	case strings.HasPrefix(spec, "catalog:"):
+		entry := spec[len("catalog:"):]
+		if entry == "" || entry == "default" {
+			return Specifier{
+				DisplayName: displayName,
+				TargetName:  displayName,
+				Range:       displayName,
+				Protocol:    ProtocolCatalog,
+			}, nil
+		}
+		return Specifier{
+			DisplayName: displayName,
+			TargetName:  displayName,
+			Range:       entry,
+			Protocol:    ProtocolCatalog,
+		}, nil
 	case strings.HasPrefix(spec, "workspace:"):
 		rng := spec[len("workspace:"):]
 		if rng != "*" && rng != "^" {

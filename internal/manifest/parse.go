@@ -59,6 +59,9 @@ func Parse(data []byte) (*Document, error) {
 	if v, ok := raw["workspaces"]; ok {
 		doc.Workspaces = append(json.RawMessage(nil), v...)
 	}
+	if v, ok := raw["catalog"]; ok {
+		doc.Catalog = append(json.RawMessage(nil), v...)
+	}
 	if v, ok := raw["bin"]; ok {
 		doc.Bin = append(json.RawMessage(nil), v...)
 	}

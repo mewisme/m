@@ -71,6 +71,9 @@ func cloneDoc(d *Document) *Document {
 	if d.Workspaces != nil {
 		out.Workspaces = append(out.Workspaces[:0:0], d.Workspaces...)
 	}
+	if d.Catalog != nil {
+		out.Catalog = append(out.Catalog[:0:0], d.Catalog...)
+	}
 	if d.Bin != nil {
 		out.Bin = append(out.Bin[:0:0], d.Bin...)
 	}

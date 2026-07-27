@@ -21,5 +21,6 @@ type Document struct {
 	Engines              map[string]string
 	PackageManager       string
 	Workspaces           json.RawMessage // array or {"packages":[...]}
+	Catalog              json.RawMessage // catalog entry map
 	Bin                  json.RawMessage // string or object
 }
