@@ -14,6 +14,7 @@ type Spec struct {
 // Handle is an opaque running process handle.
 type Handle struct {
 	PID int
+	raw any
 }
 
 // ProcessSupervisor starts and waits on child processes.
