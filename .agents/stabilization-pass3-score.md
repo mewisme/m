@@ -104,8 +104,8 @@ Score **9.90** ≥ 9.0; run `30291154930` confirms green `test`, `crash-integrat
 **Session:** Stabilization Pass 9 (config load spec + cleanup severity)  
 **Baseline:** `fae9b4855b825474af27b1f907963ceca3c55e56`  
 **Branch:** `stabilization-pass-9`  
-**Final verification:** pending CI on final SHA  
-**Gate:** ≥ 9.0 to unblock MVP 0021
+**Final verification:** 2026-07-28 (Windows local + GitHub Actions `30297084653` on `d148750`)  
+**Gate:** ≥ 9.0 to unblock MVP 0021 — **met**
 
 ## Gaps fixed
 
@@ -132,8 +132,47 @@ Score **9.90** ≥ 9.0; run `30291154930` confirms green `test`, `crash-integrat
 |-----|--------|
 | 0017 Transactional install | **Done** |
 | 0020 Full resolver | **Done** |
-| 0021 Lifecycle scripts | **Blocked** until pass 9 CI green |
+| 0021 Lifecycle scripts | **Unblocked** — pass 9 CI green on `d148750` |
+
+## CI jobs — green run `30297084653` (`d148750`)
+
+Workflow URL: https://github.com/mewisme/m/actions/runs/30297084653
+
+| Job | Result |
+|-----|--------|
+| `test` (ubuntu-latest) | **PASS** |
+| `test` (macos-latest) | **PASS** |
+| `test` (windows-latest) | **PASS** (rerun after 10m timeout flake) |
+| `race` | **PASS** |
+| `race-macos` | **PASS** |
+| `race-windows` | **PASS** |
+| `crash-integration` | **PASS** |
+| `platform-lock` (ubuntu-latest) | **PASS** |
+| `platform-lock` (macos-latest) | **PASS** |
+| `platform-lock` (windows-latest) | **PASS** |
+| `cross` (all matrix) | **PASS** |
+| `lint` | **PASS** |
+| `vuln` | **PASS** |
+| `allowlist` | **PASS** |
+| `gate-probe` | **PASS** |
+
+## Local gate results (2026-07-28, Windows)
+
+| Command | Result |
+|---------|--------|
+| `gofmt -w` (changed files) | **PASS** |
+| `go test ./internal/app/... ./internal/config/... ./internal/transaction/... ./internal/cli/... ./tests/integration/... -count=1` | **PASS** |
+| `go test ./... -count=1` | **PASS** (~164s) |
+| `go vet ./...` | **PASS** |
+| `golangci-lint run ./...` | **PASS** (0 issues) |
+| `govulncheck ./...` | **PASS** |
+| `go run ./tools/check-deps` | **PASS** |
+| `go test -race ...` | **SKIP** (CGO_ENABLED=0; CI race jobs green) |
+
+## Score
+
+**9.85 / 10.0** (deduct 0.05 for Windows integration timeout flake on first CI attempt)
 
 ## Decision
 
-**PENDING** — awaiting CI on final SHA.
+**READY** for MVP 0021.
