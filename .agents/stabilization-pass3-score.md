@@ -96,3 +96,44 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30291154930
 **READY** for MVP 0021.
 
 Score **9.90** ≥ 9.0; run `30291154930` confirms green `test`, `crash-integration`, `race`/`race-macos`/`race-windows`, `platform-lock` (3 OS), `cross`, `lint`, `vuln`, `allowlist`, and `gate-probe` on `4be6354`.
+
+---
+
+# Stabilization Pass 9 — Quality Scorecard
+
+**Session:** Stabilization Pass 9 (config load spec + cleanup severity)  
+**Baseline:** `fae9b4855b825474af27b1f907963ceca3c55e56`  
+**Branch:** `stabilization-pass-9`  
+**Final verification:** pending CI on final SHA  
+**Gate:** ≥ 9.0 to unblock MVP 0021
+
+## Gaps fixed
+
+| # | Gap | Fix |
+|---|-----|-----|
+| 1 | Mutation reload dropped `--config` path, env snapshot, CLI overlays | `config.LoadSpec` captured at `app.New`; `ReloadEffectiveConfig` clones spec |
+| 2 | Non-critical cleanup warnings became command errors | `CriticalCleanupError()` / `WarningErrors()`; `CleanupCodeSeverity` registry |
+| 3 | Config-wait proc test did not prove reload-after-lock-wait | Rewritten sync: `app.New` → lock wait → config rewrite → `ReopenProject` reload |
+
+## Audit grep (pass 9)
+
+| Pattern | Result |
+|---------|--------|
+| `os.Environ()` in mutation reload | **Fixed** — only in `app.New` env snapshot |
+| `cliOverlayFromEffective` | **Removed** |
+| `config.Load` hand-built in mutation path | **Fixed** — uses `ConfigLoadSpec` |
+| `CleanupError()` in app layer | **Fixed** — `CriticalCleanupError()` |
+| `RecoveryRequired` on warning-only finish | **Fixed** — `populateWarningCleanup` |
+| `internal/cli/config_cmd.go` `loadEffective` | **Safe** — `m config` only; not mutation path |
+
+## MVP status (pass 9)
+
+| MVP | Status |
+|-----|--------|
+| 0017 Transactional install | **Done** |
+| 0020 Full resolver | **Done** |
+| 0021 Lifecycle scripts | **Blocked** until pass 9 CI green |
+
+## Decision
+
+**PENDING** — awaiting CI on final SHA.

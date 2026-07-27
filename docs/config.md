@@ -75,3 +75,27 @@ m config list [--sources]
 
 For **mew** identity, `.npmrc`, `.yarnrc*`, `pnpm-workspace.yaml`, and
 `.pnpmfile.cjs` are **not** config authority. See [`identity.md`](identity.md).
+
+## Mutation reload (`ConfigLoadSpec`)
+
+`app.New` captures a `config.LoadSpec` on `app.Context` (`ConfigLoadSpec` field).
+The spec is an immutable snapshot of load inputs: CWD, resolved absolute
+`--config` path (project vs global), env slice, and CLI overlays (`offline`,
+`prefer-offline`, etc.).
+
+`MutationSession.ReloadEffectiveConfig` clones the stored spec and may only change
+`ProjectRoot` after `FindRoot`. It must not call `os.Environ()` or rebuild CLI
+overlays from the effective map.
+
+### Explicit `--config` strictness
+
+When `--config` resolves inside the project tree, `RequireProjectConfig` is set;
+when it resolves outside (global overlay), `RequireGlobalConfig` is set. A missing
+explicit file fails load with `ERR_M_CONFIG` (`explicit config file missing: …`).
+Default discovery (`m.jsonc` absent) remains optional.
+
+### Env snapshot
+
+If `app.Options.Env` is nil, `app.New` snapshots `os.Environ()` once into
+`ConfigLoadSpec`. Later `t.Setenv` / process env changes do not affect mutation
+reload.
