@@ -112,25 +112,24 @@ func AddInSession(ctx context.Context, sess *MutationSession, spec string, opts 
 
 // Remove deletes a dependency in memory and reinstalls (manifest written at commit).
 func Remove(ctx context.Context, ac *Context, name string, opts InstallOptions) (InstallResult, error) {
+	opts.WriteManifest = true
+	if len(opts.Filter) > 0 {
+		prepare := func(ctx context.Context, ac *Context, proj *project.Project, opts *InstallOptions) error {
+			return prepareFilteredRemove(ctx, ac, proj, opts, name)
+		}
+		return runInstallTxn(ctx, ac, opts, nil, prepare)
+	}
 	fields := []string{"dependencies", "devDependencies", "optionalDependencies", "peerDependencies"}
 	edit := func(p *project.Project) error {
-		var removed bool
-		for _, field := range fields {
-			if err := p.Doc.RemoveDependency(field, name); err != nil {
-				if apperr.CodeOf(err) == apperr.NotFound {
-					continue
-				}
-				return err
-			}
-			removed = true
-			break
+		ok, err := removeFromDoc(p.Doc, fields, name)
+		if err != nil {
+			return err
 		}
-		if !removed {
+		if !ok {
 			return apperr.New(apperr.NotFound, "app.remove", name, "dependency not found")
 		}
 		return nil
 	}
-	opts.WriteManifest = true
 	return runInstallTxn(ctx, ac, opts, edit, nil)
 }
 

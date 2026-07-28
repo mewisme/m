@@ -170,6 +170,31 @@ func TestWorkspaceAddFilterUpdatesMemberOnly(t *testing.T) {
 	}
 }
 
+func TestWorkspaceRemoveFilterUpdatesMemberOnly(t *testing.T) {
+	projDir, cfgPath := setupWorkspaceProject(t, "projects/workspace-filter")
+	code, out := runM(t, projDir, cfgPath, "install", "-r")
+	if code != 0 {
+		t.Fatalf("install exit=%d out=%s", code, out)
+	}
+	rootBefore, _ := os.ReadFile(filepath.Join(projDir, "package.json"))
+	alphaBefore, _ := os.ReadFile(filepath.Join(projDir, "packages", "alpha", "package.json"))
+	code, out = runM(t, projDir, cfgPath, "--filter", "alpha", "remove", "pkg-a")
+	if code != 0 {
+		t.Fatalf("remove exit=%d out=%s", code, out)
+	}
+	rootAfter, _ := os.ReadFile(filepath.Join(projDir, "package.json"))
+	if string(rootBefore) != string(rootAfter) {
+		t.Fatal("root package.json changed on filtered remove")
+	}
+	alphaAfter, _ := os.ReadFile(filepath.Join(projDir, "packages", "alpha", "package.json"))
+	if string(alphaBefore) == string(alphaAfter) {
+		t.Fatal("alpha package.json unchanged after filtered remove")
+	}
+	if strings.Contains(string(alphaAfter), "pkg-a") {
+		t.Fatalf("alpha still lists pkg-a: %s", string(alphaAfter))
+	}
+}
+
 func TestCiRejectsFilter(t *testing.T) {
 	projDir, cfgPath := setupWorkspaceProject(t, "projects/workspace-simple")
 	code, out := runM(t, projDir, cfgPath, "install", "-r")
