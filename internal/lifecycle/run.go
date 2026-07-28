@@ -22,7 +22,10 @@ func RunInstallScripts(ctx context.Context, in InstallInput) (Result, error) {
 		return res, err
 	}
 	caps := DefaultCapabilities()
-	timeout := ScriptTimeout(in.Config)
+	timeout, err := ScriptTimeout(in.Config)
+	if err != nil {
+		return res, err
+	}
 	seen := map[string]struct{}{}
 	for _, script := range plan.Scripts {
 		trustKey := script.PackageName
@@ -80,7 +83,11 @@ type RunSpec struct {
 // RunScript executes one lifecycle script in a restricted execution environment.
 func RunScript(ctx context.Context, sup process.ProcessSupervisor, spec RunSpec) (int, error) {
 	if spec.Timeout <= 0 {
-		spec.Timeout = ScriptTimeout(spec.Config)
+		var err error
+		spec.Timeout, err = ScriptTimeout(spec.Config)
+		if err != nil {
+			return 1, err
+		}
 	}
 	runCtx, cancel := context.WithTimeout(ctx, spec.Timeout)
 	defer cancel()

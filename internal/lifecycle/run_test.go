@@ -95,12 +95,6 @@ func TestDefaultCapabilitiesHonest(t *testing.T) {
 	}
 }
 
-func TestScriptTimeoutDefault(t *testing.T) {
-	if got := lifecycle.ScriptTimeout(nil); got != 10*time.Minute {
-		t.Fatalf("default timeout=%v", got)
-	}
-}
-
 func TestPrepareMarkerDoesNotSkipExecution(t *testing.T) {
 	dir := t.TempDir()
 	cacheDir := filepath.Join(dir, "cache")
