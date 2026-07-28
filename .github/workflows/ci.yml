@@ -202,7 +202,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
       - name: pnpm 9 lock bridge conformance
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpm9 -v
 
@@ -219,7 +218,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
       - name: pnpm 10 lock bridge conformance
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpm10 -v
 
@@ -236,7 +234,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
       - name: pnpm 11 lock bridge conformance
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpm11 -v
 

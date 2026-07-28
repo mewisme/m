@@ -3,7 +3,7 @@
   "blobs": [
     {
       "path": "packuments/@scope/pkg.json",
-      "sha256": "6c849f6006f904715da6eda86a20646406db421dae68feb21a25df032d61998e"
+      "sha256": "95a95aaca9290490507a020643d6fc05223af7b70f4c915f928bd21dd57e6c26"
     },
     {
       "path": "packuments/cycle-a.json",

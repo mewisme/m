@@ -10,17 +10,6 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-var knownTopLevel = map[string]struct{}{
-	"lockfileVersion": {},
-	"settings":        {},
-	"importers":       {},
-	"packages":        {},
-	"snapshots":       {},
-	"dependencies":    {},
-	"devDependencies": {},
-	"specifiers":      {},
-}
-
 // Decode parses pnpm lock YAML into a Document.
 func Decode(data []byte) (*Document, error) {
 	if err := validateLockInput(data); err != nil {

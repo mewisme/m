@@ -384,11 +384,9 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 
 func snapshotFromGraphEdges(pkgKey string, g *graph.Graph, prior map[string]any) map[string]any {
 	snap := map[string]any{}
-	if prior != nil {
-		for k, v := range prior {
-			if k != "dependencies" && k != "optionalDependencies" && k != "peerDependencies" {
-				snap[k] = v
-			}
+	for k, v := range prior {
+		if k != "dependencies" && k != "optionalDependencies" && k != "peerDependencies" {
+			snap[k] = v
 		}
 	}
 	deps := map[string]string{}
@@ -566,8 +564,4 @@ func mapAnyKeys(m map[string]any) []string {
 		out = append(out, k)
 	}
 	return out
-}
-
-func jsonUnmarshal(data []byte, v any) error {
-	return json.Unmarshal(data, v)
 }
