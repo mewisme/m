@@ -73,6 +73,19 @@ func v6ToGraph(doc *Document) (*graph.Graph, error) {
 
 func v9ShapeToGraph(doc *Document) (*graph.Graph, error) {
 	g := &graph.Graph{SchemaVersion: graph.SchemaVersion}
+
+	pkgKeys := sortedStrings(keys(doc.Packages))
+	packageKeys := make(map[string]struct{}, len(pkgKeys))
+	for _, key := range pkgKeys {
+		entry := doc.Packages[key]
+		name, version := keyToNameVersion(key)
+		g.Packages = append(g.Packages, graph.Package{
+			ID:        graph.PackageID{Name: name, Version: version},
+			Integrity: integrityFromResolution(entry.Resolution),
+		})
+		packageKeys[key] = struct{}{}
+	}
+
 	importerIDs := sortedStrings(mapImporterSectionKeys(doc.Importers))
 	if len(importerIDs) == 0 {
 		importerIDs = []string{"."}
@@ -83,29 +96,116 @@ func v9ShapeToGraph(doc *Document) (*graph.Graph, error) {
 		g.Importers = append(g.Importers, graph.Importer{ID: graph.ImporterID(id), Path: id})
 		appendImporterEdges(g, graph.ImporterID(id), im.Dependencies, graph.DepProd)
 		appendImporterEdges(g, graph.ImporterID(id), im.DevDependencies, graph.DepDev)
+		appendImporterEdges(g, graph.ImporterID(id), im.OptionalDependencies, graph.DepOptional)
 	}
 
-	pkgKeys := sortedStrings(keys(doc.Packages))
-	for _, key := range pkgKeys {
-		entry := doc.Packages[key]
-		name, version := keyToNameVersion(key)
-		g.Packages = append(g.Packages, graph.Package{
-			ID:        graph.PackageID{Name: name, Version: version},
-			Integrity: integrityFromResolution(entry.Resolution),
-		})
-		for depName, depVer := range entry.Dependencies {
-			g.Edges = append(g.Edges, graph.Edge{
-				From: key,
-				Name: depName,
-				To:   depVer,
-				Kind: graph.DepProd,
-			})
+	if len(doc.Snapshots) > 0 {
+		for _, snapKey := range sortedSnapshotKeys(doc.Snapshots) {
+			if err := appendSnapshotEdges(g, snapKey, doc.Snapshots[snapKey], packageKeys); err != nil {
+				return nil, err
+			}
 		}
+	} else {
+		for _, key := range pkgKeys {
+			entry := doc.Packages[key]
+			for depName, depVer := range entry.Dependencies {
+				g.Edges = append(g.Edges, graph.Edge{
+					From: key,
+					Name: depName,
+					To:   depVer,
+					Kind: graph.DepProd,
+				})
+			}
+		}
+	}
+
+	if err := validateImporterTargets(g, doc); err != nil {
+		return nil, err
 	}
 	if err := g.Validate(); err != nil {
 		return nil, err
 	}
 	return g, nil
+}
+
+func appendSnapshotEdges(g *graph.Graph, from string, snap map[string]any, known map[string]struct{}) error {
+	if err := appendSnapshotDepField(g, from, snap, "dependencies", graph.DepProd, false, known); err != nil {
+		return err
+	}
+	if err := appendSnapshotDepField(g, from, snap, "optionalDependencies", graph.DepOptional, true, known); err != nil {
+		return err
+	}
+	if err := appendSnapshotDepField(g, from, snap, "peerDependencies", graph.DepPeer, false, known); err != nil {
+		return err
+	}
+	return nil
+}
+
+func appendSnapshotDepField(g *graph.Graph, from string, snap map[string]any, field string, kind graph.DepKind, optional bool, known map[string]struct{}) error {
+	raw, ok := snap[field]
+	if !ok {
+		return nil
+	}
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return apperr.New(apperr.Lockfile, "pnpm.graph", from+"."+field, "expected mapping")
+	}
+	names := make([]string, 0, len(m))
+	for name := range m {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		to, ok := m[name].(string)
+		if !ok || to == "" {
+			return apperr.New(apperr.Lockfile, "pnpm.graph", from+"."+field+"."+name, "expected version key")
+		}
+		if !isAllowedEdgeTarget(to, known) {
+			return apperr.New(apperr.Lockfile, "pnpm.graph", from, "snapshot edge target not found: "+to)
+		}
+		g.Edges = append(g.Edges, graph.Edge{
+			From:     from,
+			Name:     name,
+			To:       to,
+			Kind:     kind,
+			Optional: optional,
+		})
+	}
+	return nil
+}
+
+func isAllowedEdgeTarget(to string, known map[string]struct{}) bool {
+	if _, ok := known[to]; ok {
+		return true
+	}
+	return strings.HasPrefix(to, "link:") || strings.HasPrefix(to, "workspace:")
+}
+
+func validateImporterTargets(g *graph.Graph, doc *Document) error {
+	packageKeys := make(map[string]struct{}, len(doc.Packages))
+	for k := range doc.Packages {
+		packageKeys[k] = struct{}{}
+	}
+	for _, e := range g.Edges {
+		if _, ok := packageKeys[e.From]; ok {
+			continue
+		}
+		if _, ok := doc.Importers[e.From]; ok {
+			if !isAllowedEdgeTarget(e.To, packageKeys) {
+				return apperr.New(apperr.Lockfile, "pnpm.graph", e.From, "importer edge target not found: "+e.To)
+			}
+		}
+	}
+	return nil
+}
+
+func sortedSnapshotKeys(m map[string]map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func appendImporterEdges(g *graph.Graph, from graph.ImporterID, deps map[string]ImporterDep, kind graph.DepKind) {
@@ -215,10 +315,25 @@ func fromGraphV6(g *graph.Graph, doc *Document) (*Document, error) {
 func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document, error) {
 	importers := map[string]ImporterSection{}
 	for _, im := range g.Importers {
-		importers[string(im.ID)] = ImporterSection{
-			Dependencies:    map[string]ImporterDep{},
-			DevDependencies: map[string]ImporterDep{},
+		id := string(im.ID)
+		sec := ImporterSection{
+			Dependencies:         map[string]ImporterDep{},
+			DevDependencies:      map[string]ImporterDep{},
+			OptionalDependencies: map[string]ImporterDep{},
 		}
+		if prior != nil {
+			if prev, ok := prior.Importers[id]; ok {
+				sec.DependenciesMeta = cloneMap(prev.DependenciesMeta)
+				sec.PublishDirectory = prev.PublishDirectory
+				if prev.Extra != nil {
+					sec.Extra = make(map[string]json.RawMessage, len(prev.Extra))
+					for k, v := range prev.Extra {
+						sec.Extra[k] = v
+					}
+				}
+			}
+		}
+		importers[id] = sec
 	}
 	for _, e := range g.Edges {
 		id := graph.ImporterID(e.From)
@@ -230,6 +345,8 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 		switch e.Kind {
 		case graph.DepDev:
 			sec.DevDependencies[e.Name] = dep
+		case graph.DepOptional:
+			sec.OptionalDependencies[e.Name] = dep
 		default:
 			sec.Dependencies[e.Name] = dep
 		}
@@ -238,8 +355,10 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 	doc.Importers = importers
 
 	priorPkgs := map[string]PackageEntry{}
+	priorSnaps := map[string]map[string]any{}
 	if prior != nil {
 		priorPkgs = prior.Packages
+		priorSnaps = prior.Snapshots
 	}
 	for _, p := range g.Packages {
 		key := p.ID.Key()
@@ -258,22 +377,50 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 			entry.Resolution["integrity"] = p.Integrity
 		}
 		doc.Packages[key] = entry
-		if _, ok := doc.Snapshots[key]; !ok {
-			doc.Snapshots[key] = map[string]any{}
-		}
+		doc.Snapshots[key] = snapshotFromGraphEdges(key, g, priorSnaps[key])
 	}
 	return doc, nil
 }
 
-func defaultLockfileVersion(det lockfile.Detection) string {
-	switch det.Format {
-	case FormatV6:
-		return "5.4"
-	case FormatV10, FormatV11:
-		return "9.0"
-	default:
-		return "9.0"
+func snapshotFromGraphEdges(pkgKey string, g *graph.Graph, prior map[string]any) map[string]any {
+	snap := map[string]any{}
+	if prior != nil {
+		for k, v := range prior {
+			if k != "dependencies" && k != "optionalDependencies" && k != "peerDependencies" {
+				snap[k] = v
+			}
+		}
 	}
+	deps := map[string]string{}
+	opt := map[string]string{}
+	peer := map[string]string{}
+	for _, e := range g.Edges {
+		if e.From != pkgKey {
+			continue
+		}
+		switch e.Kind {
+		case graph.DepOptional:
+			opt[e.Name] = e.To
+		case graph.DepPeer:
+			peer[e.Name] = e.To
+		default:
+			deps[e.Name] = e.To
+		}
+	}
+	if len(deps) > 0 {
+		snap["dependencies"] = deps
+	}
+	if len(opt) > 0 {
+		snap["optionalDependencies"] = opt
+	}
+	if len(peer) > 0 {
+		snap["peerDependencies"] = peer
+	}
+	return snap
+}
+
+func defaultLockfileVersion(det lockfile.Detection) string {
+	return SelectPolicy(det).DefaultLockfileVersion()
 }
 
 func integrityFromResolution(res map[string]any) string {
