@@ -141,7 +141,10 @@ func (Adapter) LossFromDocument(ctx context.Context, prior []byte) (lockfile.Los
 		})
 	}
 	for k, snap := range doc.Snapshots {
-		if len(snap) > 0 {
+		if snapHasOnlyTopology(snap) {
+			continue
+		}
+		if len(stripSnapshotTopology(snap)) > 0 {
 			report.Items = append(report.Items, lockfile.LossItem{
 				Field:        "snapshots." + k,
 				Reason:       "snapshot metadata not represented in canonical graph",
