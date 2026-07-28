@@ -276,6 +276,27 @@ func runMewAdd(t *testing.T, projDir string, major int, name, version string) {
 	runMewInstall(t, projDir, major)
 }
 
+func stripPackageManager(t *testing.T, projDir string) {
+	t.Helper()
+	pkgPath := filepath.Join(projDir, "package.json")
+	raw, err := os.ReadFile(pkgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	delete(doc, "packageManager")
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pkgPath, append(out, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func testPnpmMutation(t *testing.T, rel string, major int) {
 	t.Helper()
 	dir, meta := loadGeneratedFixture(t, rel)
@@ -296,6 +317,7 @@ func testPnpmMutation(t *testing.T, rel string, major int) {
 		t.Fatal("mutation must change lock bytes")
 	}
 	runLockValidateCLI(t, proj, major)
+	stripPackageManager(t, proj)
 	runPnpmFrozen(t, proj, major, registryURL, false)
 
 	runMewInstall(t, proj, major, "--frozen-lockfile")
