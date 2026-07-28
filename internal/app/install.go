@@ -45,6 +45,8 @@ type InstallOptions struct {
 	Filter []string
 	// MemberEdits holds in-memory workspace member manifest edits (add --filter).
 	MemberEdits map[string]*manifest.Document
+	// PnpmMajor disambiguates v9-shaped pnpm locks (9, 10, or 11).
+	PnpmMajor int
 }
 
 // UpdateResolveOptions selects incremental update resolve parameters.

@@ -48,7 +48,7 @@ func resolveLinkerMode(ctx context.Context, ac *Context, proj *project.Project, 
 		}
 	}
 	lockLinker := ""
-	if data, err := readLockSettings(proj.Root); err == nil && data != nil {
+	if data, err := readLockSettings(proj.Root, proj.Identity); err == nil && data != nil {
 		lockLinker = data.Settings.Linker
 	}
 	if opts.Linker != "" && ac != nil && ac.Config != nil {

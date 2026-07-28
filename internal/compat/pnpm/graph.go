@@ -333,17 +333,46 @@ func keyToNameVersion(key string) (string, string) {
 	return key[:at], key[at+1:]
 }
 
-// GraphsEqual compares two graphs semantically.
+// GraphsEqual compares two graphs for lock write decisions, ignoring fetch-only metadata.
 func GraphsEqual(a, b *graph.Graph) (bool, error) {
-	ga, err := graph.EncodeJSON(a)
+	ac, err := cloneGraphStripFetchMeta(a)
 	if err != nil {
 		return false, err
 	}
-	gb, err := graph.EncodeJSON(b)
+	bc, err := cloneGraphStripFetchMeta(b)
+	if err != nil {
+		return false, err
+	}
+	ga, err := graph.EncodeJSON(ac)
+	if err != nil {
+		return false, err
+	}
+	gb, err := graph.EncodeJSON(bc)
 	if err != nil {
 		return false, err
 	}
 	return string(ga) == string(gb), nil
+}
+
+func cloneGraphStripFetchMeta(g *graph.Graph) (*graph.Graph, error) {
+	if g == nil {
+		return nil, nil
+	}
+	data, err := graph.EncodeJSON(g)
+	if err != nil {
+		return nil, err
+	}
+	out, err := graph.DecodeJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out.Packages {
+		out.Packages[i].TarballURL = ""
+	}
+	for i := range out.Importers {
+		out.Importers[i].Name = ""
+	}
+	return out, nil
 }
 
 func sortedStrings(in []string) []string {

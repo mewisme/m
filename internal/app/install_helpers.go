@@ -13,6 +13,7 @@ import (
 	"github.com/mewisme/mew/internal/fetch"
 	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/linker"
+	"github.com/mewisme/mew/internal/lockfile"
 	"github.com/mewisme/mew/internal/manifest"
 	"github.com/mewisme/mew/internal/plan"
 	"github.com/mewisme/mew/internal/project"
@@ -59,7 +60,7 @@ func resolveForUpdate(ctx context.Context, ac *Context, proj *project.Project, u
 	if err != nil {
 		return nil, err
 	}
-	fps, err := readLockFingerprints(proj.Root)
+	fps, err := readLockFingerprints(proj.Root, proj.Identity)
 	if err != nil {
 		return nil, err
 	}
@@ -81,17 +82,23 @@ func resolveForUpdate(ctx context.Context, ac *Context, proj *project.Project, u
 	})
 }
 
-func readLockFingerprints(root string) (*resolver.PriorFingerprints, error) {
-	path := LockPath(root)
+func readLockFingerprints(root string, id project.Identity) (*resolver.PriorFingerprints, error) {
+	if id != project.IdentityMew {
+		return nil, nil
+	}
+	path := filepath.Join(root, "m.lock")
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
 		return nil, apperr.Wrap(apperr.IO, "app.update", path, err)
 	}
-	doc, err := readLockDocument(root)
+	doc, err := readLockDocument(root, id)
 	if err != nil {
 		return nil, err
+	}
+	if doc == nil {
+		return nil, nil
 	}
 	return &resolver.PriorFingerprints{
 		OverridesFingerprint:      doc.Settings.OverridesFingerprint,
@@ -101,14 +108,14 @@ func readLockFingerprints(root string) (*resolver.PriorFingerprints, error) {
 }
 
 func readLockHints(ctx context.Context, ac *Context, proj *project.Project) (*graph.Graph, error) {
-	path := LockPath(proj.Root)
+	path := LockPath(proj)
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
 		return nil, apperr.Wrap(apperr.IO, "app.install", path, err)
 	}
-	return ReadLockGraph(ctx, ac)
+	return lockfile.ReadGraph(ctx, proj.Root, proj.Identity)
 }
 
 func fetchPackages(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string, useGlobalStore bool, preExtracts map[string]string) (FetchOutcome, error) {

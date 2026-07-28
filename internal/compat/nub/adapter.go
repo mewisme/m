@@ -44,8 +44,8 @@ func (a Adapter) WritePreserving(ctx context.Context, path string, g *graph.Grap
 
 // EncodePreserving applies incumbent write policy for nub.lock.
 func (a Adapter) EncodePreserving(ctx context.Context, path string, g *graph.Graph, prior []byte, ext lockfile.Extensions, det lockfile.Detection) (lockfile.WriteResult, error) {
-	if det.Format == "" {
-		det = lockfile.Detection{Format: formatNub, Confidence: lockfile.DetectionCertain}
+	if det.Format == "" || det.Format == formatNub {
+		det = lockfile.Detection{Format: pnpm.FormatV9, ProducerMajor: 9, Confidence: lockfile.DetectionCertain}
 	}
 	return a.inner.EncodePreserving(ctx, path, g, prior, ext, det)
 }

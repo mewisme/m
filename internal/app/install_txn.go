@@ -35,6 +35,7 @@ type commitPlanInput struct {
 	useStore        bool
 	snapshotID      string
 	memberManifests []string
+	lockBasename    string
 }
 
 // runInstallTxn resolves, stages, validates, and commits install-family mutations.
@@ -194,8 +195,10 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		}
 		if prior != nil {
 			var priorExt lockfile.Extensions
-			if priorDoc, readErr := readLockDocument(proj.Root); readErr == nil && priorDoc != nil {
-				priorExt = priorDoc.Extensions
+			if proj.Identity == project.IdentityMew {
+				if priorDoc, readErr := readLockDocument(proj.Root, proj.Identity); readErr == nil && priorDoc != nil {
+					priorExt = priorDoc.Extensions
+				}
 			}
 			untouched := untouchedImporterIDs(prior, resolution.Graph)
 			merged, mergeErr := mergeFilteredWorkspaceResolution(prior, priorExt, resolution, untouched)
@@ -211,6 +214,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
 
 	stage := txn.StagePath()
+	lockName := IncumbentLockBasename(proj)
 
 	if len(opts.StagedManifest) > 0 {
 		if err := os.WriteFile(filepath.Join(stage, "package.json"), opts.StagedManifest, 0o644); err != nil {
@@ -286,8 +290,8 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 
 	if len(opts.StagedLock) > 0 {
-		if err := os.WriteFile(filepath.Join(stage, lockFileName), opts.StagedLock, 0o644); err != nil {
-			return res, apperr.Wrap(apperr.IO, "app.install", lockFileName, err)
+		if err := os.WriteFile(filepath.Join(stage, lockName), opts.StagedLock, 0o644); err != nil {
+			return res, apperr.Wrap(apperr.IO, "app.install", lockName, err)
 		}
 	} else if err := writeStagedLock(stage, ac, proj, resolution, opts); err != nil {
 		return res, err
@@ -329,12 +333,13 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		useStore:        useStore,
 		snapshotID:      snapID,
 		memberManifests: allMemberManifestPaths(opts),
+		lockBasename:    lockName,
 	})
 	if err := txn.SetPlan(plan); err != nil {
 		return res, err
 	}
 
-	backupPaths := []string{lockFileName, "node_modules"}
+	backupPaths := []string{lockName, "node_modules"}
 	if manifestChanged {
 		backupPaths = append([]string{"package.json"}, backupPaths...)
 		backupPaths = append(backupPaths, allMemberManifestPaths(opts)...)
@@ -419,6 +424,10 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 
 func buildCommitPlan(in commitPlanInput) []transaction.Op {
 	var ops []transaction.Op
+	lockName := in.lockBasename
+	if lockName == "" {
+		lockName = "m.lock"
+	}
 	if in.manifestChanged {
 		ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: "package.json", Backup: "stage/package.json"})
 		for _, rel := range in.memberManifests {
@@ -429,7 +438,7 @@ func buildCommitPlan(in commitPlanInput) []transaction.Op {
 			})
 		}
 	}
-	ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: lockFileName, Backup: "stage/m.lock"})
+	ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: lockName, Backup: filepath.Join("stage", lockName)})
 	ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: "node_modules", Backup: "stage/node_modules"})
 	if in.useStore {
 		ops = append(ops, transaction.Op{
@@ -466,11 +475,12 @@ func stageSnapshot(ctx context.Context, stage string, proj *project.Project, res
 	if err != nil {
 		return "", apperr.Wrap(apperr.IO, "app.snapshot", "package.json", err)
 	}
-	lockBytes, err := os.ReadFile(filepath.Join(stage, lockFileName))
+	lockName := IncumbentLockBasename(proj)
+	lockBytes, err := os.ReadFile(filepath.Join(stage, lockName))
 	if err != nil {
-		return "", apperr.Wrap(apperr.IO, "app.snapshot", lockFileName, err)
+		return "", apperr.Wrap(apperr.IO, "app.snapshot", lockName, err)
 	}
-	members, err := collectSnapshotMemberManifests(stage, proj.Root, opts, lockBytes)
+	members, err := collectSnapshotMemberManifests(stage, proj.Root, proj.Identity, opts, lockBytes)
 	if err != nil {
 		return "", err
 	}
@@ -584,7 +594,7 @@ func writeStagedMemberManifests(stage string, members map[string][]byte) error {
 	return nil
 }
 
-func collectSnapshotMemberManifests(stage, projRoot string, opts InstallOptions, lockBytes []byte) (map[string][]byte, error) {
+func collectSnapshotMemberManifests(stage, projRoot string, id project.Identity, opts InstallOptions, lockBytes []byte) (map[string][]byte, error) {
 	out := map[string][]byte{}
 	add := func(rel string) error {
 		if _, err := snapshot.ParseMemberManifestPath(rel); err != nil {
@@ -611,20 +621,22 @@ func collectSnapshotMemberManifests(stage, projRoot string, opts InstallOptions,
 			return nil, err
 		}
 	}
-	doc, err := mlock.Decode(lockBytes)
-	if err != nil {
-		return nil, err
-	}
-	for _, im := range doc.Importers {
-		if im.ID == graph.RootImporter {
-			continue
+	if id == project.IdentityMew {
+		doc, err := mlock.Decode(lockBytes)
+		if err != nil {
+			return nil, err
 		}
-		rel := filepath.Join(string(im.ID), "package.json")
-		if err := add(rel); err != nil {
-			if errors.Is(err, os.ErrNotExist) {
+		for _, im := range doc.Importers {
+			if im.ID == graph.RootImporter {
 				continue
 			}
-			return nil, err
+			rel := filepath.Join(string(im.ID), "package.json")
+			if err := add(rel); err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					continue
+				}
+				return nil, err
+			}
 		}
 	}
 	if len(out) == 0 {
@@ -634,6 +646,54 @@ func collectSnapshotMemberManifests(stage, projRoot string, opts InstallOptions,
 }
 
 func writeStagedLock(stage string, ac *Context, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {
+	lockName := IncumbentLockBasename(proj)
+	stagePath := filepath.Join(stage, lockName)
+	switch proj.Identity {
+	case project.IdentityMew:
+		return writeStagedMlock(stagePath, ac, proj, res, opts)
+	case project.IdentityNub, project.IdentityPNPM:
+		return writeStagedExtLock(stagePath, proj, res, opts)
+	default:
+		return lockfile.NewUnsupported("app.install", lockName, "lock adapter not implemented for identity")
+	}
+}
+
+func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {
+	prior, err := project.ReadLockfileBytes(proj.Root, proj.Identity)
+	if err != nil {
+		return err
+	}
+	ext, ok := lockfile.ExtAdapterFor(proj.Identity)
+	if !ok {
+		return lockfile.NewUnsupported("app.install", project.LockFilename(proj.Identity), "adapter not registered")
+	}
+	livePath := LockPath(proj)
+	var extensions lockfile.Extensions
+	if _, extData, readErr := ext.ReadWithExtensions(context.Background(), livePath); readErr == nil {
+		extensions = extData
+	}
+	det := lockfile.Detection{}
+	if proj.Identity == project.IdentityPNPM {
+		det, err = lockfile.DetectPnpmWithMajor(prior, opts.PnpmMajor)
+		if err != nil {
+			return err
+		}
+		if opts.PnpmMajor != 0 {
+			det.ExplicitMajor = true
+		}
+	}
+	out, err := lockfile.EncodePreserving(context.Background(), ext, livePath, res.Graph, prior, extensions, det)
+	if err != nil {
+		return err
+	}
+	data := out.Bytes
+	if out.Unchanged {
+		data = prior
+	}
+	return os.WriteFile(stagePath, data, 0o644)
+}
+
+func writeStagedMlock(stagePath string, ac *Context, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {
 	settings, err := mlock.SettingsWithFingerprints(ac.Config, proj.Normalized.Overrides)
 	if err != nil {
 		return err
@@ -643,7 +703,7 @@ func writeStagedLock(stage string, ac *Context, proj *project.Project, res *reso
 		return err
 	}
 	if workspace.Enabled(ac.Config) && len(opts.Filter) > 0 {
-		if priorDoc, readErr := readLockDocument(proj.Root); readErr == nil && priorDoc != nil {
+		if priorDoc, readErr := readLockDocument(proj.Root, proj.Identity); readErr == nil && priorDoc != nil {
 			mergePriorImporterSpecs(specs, priorDoc, res.Graph)
 		}
 	}
@@ -652,11 +712,11 @@ func writeStagedLock(stage string, ac *Context, proj *project.Project, res *reso
 		return err
 	}
 	if workspace.Enabled(ac.Config) && len(opts.Filter) > 0 {
-		if priorDoc, readErr := readLockDocument(proj.Root); readErr == nil && priorDoc != nil {
+		if priorDoc, readErr := readLockDocument(proj.Root, proj.Identity); readErr == nil && priorDoc != nil {
 			mergePriorImporterSections(doc, priorDoc, importerIDsInGraph(res.Graph))
 		}
 	}
-	return mlock.WriteAtomic(filepath.Join(stage, lockFileName), doc)
+	return mlock.WriteAtomic(stagePath, doc)
 }
 
 func mergePriorImporterSections(doc *mlock.Document, prior *mlock.Document, active map[graph.ImporterID]bool) {
