@@ -2,8 +2,10 @@
 
 **Session:** Stabilization Pass 12 (MVP 0021/0022 hardening)  
 **Baseline:** `70bb503884f93a7911dcd9a6dfae81424e0f34ce`  
+**Final SHA:** `b028e5f96ddf6879d6a7aa9d2f4a76893ca2b0f2`  
 **Branch:** `main`  
-**Gate:** ≥ 8.5 to unblock continued 0023 prep
+**Final verification:** 2026-07-28 (Windows local + GitHub Actions `30342456729`)  
+**Gate:** ≥ 8.5 — **met (9.6)**
 
 ## Confirmed defects fixed
 
@@ -30,7 +32,22 @@
 | Docs/status | 0.5 | 0.5 | lifecycle/workspaces/testing + CHECKLIST note |
 | Performance | 0.25 | 0.25 | no regression signal |
 
-**Total:** **9.60 / 10.0** (pre-CI; adjust if CI fails)
+**Total:** **9.60 / 10.0**
+
+## CI jobs — green run `30342456729` (`b028e5f`)
+
+Workflow URL: https://github.com/mewisme/m/actions/runs/30342456729
+
+| Job | Result |
+|-----|--------|
+| `test` (ubuntu, macos, windows) | **PASS** |
+| `race`, `race-macos`, `race-windows` | **PASS** |
+| `crash-integration` (ubuntu, windows) | **PASS** |
+| `platform-lock` (all 3) | **PASS** |
+| `cross` (all 6 matrix) | **PASS** |
+| `lint`, `vuln`, `allowlist`, `gate-probe` | **PASS** |
+
+**21/21 green**
 
 ## Local gate results
 
@@ -51,4 +68,4 @@
 
 ## Verdict
 
-**READY** (pending green CI on final SHA)
+**READY**
