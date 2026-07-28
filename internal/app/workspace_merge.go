@@ -68,10 +68,10 @@ func mergeFilteredWorkspaceResolution(
 		b.EdgeEx(e.From, e.Name, e.To, e.Kind, e.Range, e.Optional)
 		activeEdge[edgeKey(e)] = struct{}{}
 	}
-	untouchedSet := map[graph.ImporterID]bool{}
-	for _, id := range untouched {
-		untouchedSet[id] = true
+	if err := validatePriorGraphTopology(prior); err != nil {
+		return nil, err
 	}
+	preservedEdges := preservedSubgraphEdges(prior, untouched)
 	for _, e := range prior.Edges {
 		if _, ok := activeEdge[edgeKey(e)]; ok {
 			continue
@@ -85,7 +85,7 @@ func mergeFilteredWorkspaceResolution(
 		if activeIDs[graph.ImporterID(e.From)] {
 			continue
 		}
-		if !untouchedSet[graph.ImporterID(e.From)] {
+		if _, ok := preservedEdges[edgeKey(e)]; !ok {
 			continue
 		}
 		b.EdgeEx(e.From, e.Name, e.To, e.Kind, e.Range, e.Optional)
@@ -170,23 +170,136 @@ func edgeKey(e graph.Edge) string {
 	return e.From + "\x00" + e.Name + "\x00" + e.To
 }
 
+func reachableFromImporter(g *graph.Graph, start graph.ImporterID) map[string]struct{} {
+	nodes := map[string]struct{}{string(start): {}}
+	changed := true
+	for changed {
+		changed = false
+		for _, e := range g.Edges {
+			if _, ok := nodes[e.From]; !ok {
+				continue
+			}
+			if _, ok := nodes[e.To]; ok {
+				continue
+			}
+			nodes[e.To] = struct{}{}
+			changed = true
+		}
+	}
+	return nodes
+}
+
+func preservedSubgraphEdges(prior *graph.Graph, untouched []graph.ImporterID) map[string]struct{} {
+	out := map[string]struct{}{}
+	if prior == nil {
+		return out
+	}
+	for _, id := range untouched {
+		reachable := reachableFromImporter(prior, id)
+		for _, e := range prior.Edges {
+			if _, ok := reachable[e.From]; !ok {
+				continue
+			}
+			if _, ok := reachable[e.To]; !ok {
+				continue
+			}
+			out[edgeKey(e)] = struct{}{}
+		}
+	}
+	return out
+}
+
+func priorNodeKinds(g *graph.Graph) (pkgs, importers map[string]struct{}) {
+	pkgs = map[string]struct{}{}
+	importers = map[string]struct{}{}
+	if g == nil {
+		return pkgs, importers
+	}
+	for _, p := range g.Packages {
+		pkgs[p.ID.Key()] = struct{}{}
+	}
+	for _, im := range g.Importers {
+		importers[string(im.ID)] = struct{}{}
+	}
+	return pkgs, importers
+}
+
+func validatePriorGraphTopology(g *graph.Graph) error {
+	if g == nil {
+		return nil
+	}
+	pkgs, importers := priorNodeKinds(g)
+	for _, e := range g.Edges {
+		if _, ok := pkgs[e.To]; !ok {
+			return apperr.New(apperr.Lockfile, "app.install.merge", e.To, "prior edge references missing package")
+		}
+		if _, ok := importers[e.From]; ok {
+			continue
+		}
+		if _, ok := pkgs[e.From]; !ok {
+			return apperr.New(apperr.Lockfile, "app.install.merge", e.From, "prior edge references missing source")
+		}
+	}
+	return nil
+}
+
 func validateMergedWorkspaceGraph(g *graph.Graph, prior *graph.Graph, untouched []graph.ImporterID, ext lockfile.Extensions) error {
 	if g == nil {
 		return nil
 	}
 	pkgs := map[string]struct{}{}
+	importers := map[string]struct{}{}
 	for _, p := range g.Packages {
 		pkgs[p.ID.Key()] = struct{}{}
 	}
+	for _, im := range g.Importers {
+		importers[string(im.ID)] = struct{}{}
+	}
+	mergedEdges := map[string]graph.Edge{}
 	for _, e := range g.Edges {
 		if _, ok := pkgs[e.To]; !ok {
-			return apperr.New(apperr.Lockfile, "app.install.merge", e.To, "dangling edge in merged graph")
+			return apperr.New(apperr.Lockfile, "app.install.merge", e.To, "dangling edge target in merged graph")
 		}
+		if _, ok := importers[e.From]; !ok {
+			if _, ok := pkgs[e.From]; !ok {
+				return apperr.New(apperr.Lockfile, "app.install.merge", e.From, "dangling edge source in merged graph")
+			}
+		}
+		mergedEdges[edgeKey(e)] = e
 	}
 	for _, id := range untouched {
 		for k := range dependencyClosure(prior, id) {
 			if _, ok := pkgs[k]; !ok {
 				return apperr.New(apperr.Lockfile, "app.install.merge", k, "missing package from untouched importer closure")
+			}
+		}
+	}
+	preserved := preservedSubgraphEdges(prior, untouched)
+	for key := range preserved {
+		merged, ok := mergedEdges[key]
+		if !ok {
+			return apperr.New(apperr.Lockfile, "app.install.merge", key, "missing preserved subgraph edge in merged graph")
+		}
+		for _, e := range prior.Edges {
+			if edgeKey(e) != key {
+				continue
+			}
+			if e.Name != merged.Name || e.Range != merged.Range || e.Kind != merged.Kind || e.Optional != merged.Optional {
+				return apperr.New(apperr.Lockfile, "app.install.merge", key, "preserved subgraph edge metadata mismatch")
+			}
+			break
+		}
+	}
+	for _, im := range g.Importers {
+		if im.ID == graph.RootImporter {
+			continue
+		}
+		for _, e := range g.Edges {
+			if e.From != string(im.ID) {
+				continue
+			}
+			if _, ok := pkgs[e.To]; !ok {
+				return apperr.New(apperr.Lockfile, "app.install.merge", e.To, "importer dependency missing package")
 			}
 		}
 	}

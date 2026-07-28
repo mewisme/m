@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/lockfile/mlock"
 	"github.com/mewisme/mew/internal/testkit"
 )
@@ -108,6 +109,20 @@ func TestWorkspaceFilterPreservesLock(t *testing.T) {
 	}
 	if !strings.Contains(string(lockData), "pkg-b@1.2.0") {
 		t.Fatalf("pkg-b missing from lock after filtered install: %s", string(lockData))
+	}
+	if !strings.Contains(string(lockData), "pkg-c@") {
+		t.Fatalf("pkg-c transitive dep missing from lock after filtered install: %s", string(lockData))
+	}
+	lockDoc, err := mlock.Decode(lockData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := mlock.ToGraph(lockDoc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !lockHasEdge(g, "pkg-b@1.2.0", "pkg-c", "pkg-c@1.0.1") {
+		t.Fatal("lock graph missing preserved package-to-package edge pkg-b -> pkg-c")
 	}
 	nm := filepath.Join(projDir, "node_modules")
 	found := false
@@ -218,6 +233,15 @@ func TestCiRejectsFilter(t *testing.T) {
 		t.Fatalf("expected ci --filter to fail, out=%s", out)
 	}
 	_ = out
+}
+
+func lockHasEdge(g *graph.Graph, from, name, to string) bool {
+	for _, e := range g.Edges {
+		if e.From == from && e.Name == name && e.To == to {
+			return true
+		}
+	}
+	return false
 }
 
 func TestWorkspaceProtocolMissing(t *testing.T) {
