@@ -33,16 +33,31 @@ func NewPackageIndex(keys []string) PackageIndex {
 	}
 	for _, key := range keys {
 		idx.keys[key] = struct{}{}
-		id, err := ParsePackageIdentity(key)
-		if err != nil {
-			continue
+		if name := packageNameFromKey(key); name != "" {
+			idx.byName[name] = append(idx.byName[name], key)
 		}
-		idx.byName[id.Name] = append(idx.byName[id.Name], key)
 	}
 	for name := range idx.byName {
 		sort.Strings(idx.byName[name])
 	}
 	return idx
+}
+
+func packageNameFromKey(key string) string {
+	if isProtocolRef(key) {
+		name, _ := protocolNameVersion(key)
+		return name
+	}
+	if base, _, ok := strings.Cut(key, "#"); ok {
+		name, _ := splitNameVersionKey(base)
+		return name
+	}
+	id, err := ParsePackageIdentity(key)
+	if err != nil {
+		name, _ := splitNameVersionKey(key)
+		return name
+	}
+	return id.Name
 }
 
 func (idx *mapIndex) HasKey(key string) bool {
@@ -76,7 +91,7 @@ func ResolveDependencyTarget(depName, resolutionRef string, idx PackageIndex) (T
 				return Target{Key: candidate}, nil
 			}
 		}
-		return Target{}, danglingTarget(depName, ref)
+		return Target{}, danglingTarget(depName, ref, idx)
 	}
 	if id, err := ParsePackageIdentity(ref); err == nil && id.Name == depName {
 		if idx != nil {
@@ -94,12 +109,12 @@ func ResolveDependencyTarget(depName, resolutionRef string, idx PackageIndex) (T
 		}
 	}
 	if idx == nil {
-		return Target{}, danglingTarget(depName, ref)
+		return Target{}, danglingTarget(depName, ref, nil)
 	}
 	matches := matchKeysForRef(idx, depName, ref)
 	switch len(matches) {
 	case 0:
-		return Target{}, danglingTarget(depName, ref)
+		return Target{}, danglingTarget(depName, ref, idx)
 	case 1:
 		return Target{Key: matches[0]}, nil
 	default:
@@ -114,16 +129,48 @@ func matchKeysForRef(idx PackageIndex, depName, ref string) []string {
 	}
 	var matches []string
 	for _, key := range keys {
-		if key == ref || strings.HasSuffix(key, ref) || strings.HasPrefix(key, depName+"@"+ref) {
+		if key == ref {
+			matches = append(matches, key)
+			continue
+		}
+		if gk, err := instanceKeyToGraphKey(depName + "@" + ref); err == nil && gk == key {
+			matches = append(matches, key)
+			continue
+		}
+		if gk, err := instanceKeyToGraphKey(ref); err == nil && gk == key {
+			matches = append(matches, key)
+			continue
+		}
+		if enc, err := dependencyRefFromGraphKey(depName, key); err == nil && enc == ref {
 			matches = append(matches, key)
 		}
 	}
 	return matches
 }
 
-func danglingTarget(depName, ref string) error {
-	return apperr.New(apperr.Lockfile, "pnpm.refresolve", depName,
-		fmt.Sprintf("dangling dependency reference %q", ref))
+func dependencyRefFromGraphKey(depName, graphKey string) (string, error) {
+	if isProtocolRef(graphKey) {
+		return graphKey, nil
+	}
+	base, peerPart, hasPeer := strings.Cut(graphKey, "#")
+	name, ver := splitNameVersionKey(base)
+	if name != depName {
+		return "", fmt.Errorf("graph key %q name mismatch for %q", graphKey, depName)
+	}
+	if !hasPeer {
+		return ver, nil
+	}
+	return ver + "(" + peerPart + ")", nil
+}
+
+func danglingTarget(depName, ref string, idx PackageIndex) error {
+	msg := fmt.Sprintf("dangling dependency reference %q", ref)
+	if idx != nil {
+		if candidates := idx.KeysForName(depName); len(candidates) > 0 {
+			msg += fmt.Sprintf("; candidates: %v", candidates)
+		}
+	}
+	return apperr.New(apperr.Lockfile, "pnpm.refresolve", depName, msg)
 }
 
 func ambiguousTarget(depName, ref string, matches []string) error {

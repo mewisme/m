@@ -56,9 +56,15 @@ func v9ShapeToGraph(doc *Document) (*graph.Graph, error) {
 	for _, id := range importerIDs {
 		im := doc.Importers[id]
 		g.Importers = append(g.Importers, graph.Importer{ID: graph.ImporterID(id), Path: id})
-		appendImporterEdges(g, graph.ImporterID(id), im.Dependencies, graph.DepProd, idx)
-		appendImporterEdges(g, graph.ImporterID(id), im.DevDependencies, graph.DepDev, idx)
-		appendImporterEdges(g, graph.ImporterID(id), im.OptionalDependencies, graph.DepOptional, idx)
+		if err := appendImporterEdges(g, graph.ImporterID(id), im.Dependencies, graph.DepProd, idx); err != nil {
+			return nil, err
+		}
+		if err := appendImporterEdges(g, graph.ImporterID(id), im.DevDependencies, graph.DepDev, idx); err != nil {
+			return nil, err
+		}
+		if err := appendImporterEdges(g, graph.ImporterID(id), im.OptionalDependencies, graph.DepOptional, idx); err != nil {
+			return nil, err
+		}
 	}
 
 	if len(doc.Snapshots) > 0 {
@@ -186,12 +192,12 @@ func sortedSnapshotKeys(m map[string]map[string]any) []string {
 	return out
 }
 
-func appendImporterEdges(g *graph.Graph, from graph.ImporterID, deps map[string]ImporterDep, kind graph.DepKind, idx PackageIndex) {
+func appendImporterEdges(g *graph.Graph, from graph.ImporterID, deps map[string]ImporterDep, kind graph.DepKind, idx PackageIndex) error {
 	for _, name := range sortedStrings(mapStringKeys(deps)) {
 		dep := deps[name]
 		target, err := ResolveDependencyTarget(name, dep.Version, idx)
 		if err != nil {
-			target = Target{Key: depVersionToKey(name, dep.Version)}
+			return apperr.Wrap(apperr.Lockfile, "pnpm.graph", string(from)+"."+name, err)
 		}
 		g.Edges = append(g.Edges, graph.Edge{
 			From:  string(from),
@@ -201,13 +207,7 @@ func appendImporterEdges(g *graph.Graph, from graph.ImporterID, deps map[string]
 			Range: dep.Specifier,
 		})
 	}
-}
-
-func depVersionToKey(name, version string) string {
-	if strings.Contains(version, "@") || isProtocolRef(version) {
-		return version
-	}
-	return name + "@" + version
+	return nil
 }
 
 func keyToDepVersion(name, key string) string {
