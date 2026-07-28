@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -93,17 +94,28 @@ func newLockValidateCmd() *cobra.Command {
 			if ac == nil {
 				return apperr.New(apperr.Internal, "lock.validate", "", "missing app context")
 			}
-			_ = pnpmMajor // reserved for inferred pnpm detection on read paths
-			path, err := app.ValidateIncumbentLock(cmd.Context(), ac, frozen)
+			result, err := app.ValidateIncumbentLock(cmd.Context(), ac, app.ValidateLockOptions{
+				Frozen: frozen, PnpmMajor: pnpmMajor,
+			})
 			if err != nil {
 				return err
 			}
 			if asJSON {
 				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetEscapeHTML(false)
-				return enc.Encode(map[string]any{"ok": true, "path": path, "frozen": frozen})
+				return enc.Encode(map[string]any{
+					"ok": true, "path": result.Path, "frozen": frozen, "detection": result.Detection,
+				})
 			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), "ok", path)
+			if result.Detection.Format != "" {
+				_, err = fmt.Fprintf(cmd.OutOrStdout(), "ok %s format=%s major=%d confidence=%s\n",
+					result.Path, result.Detection.Format, result.Detection.ProducerMajor, result.Detection.Confidence)
+				if len(result.Detection.Evidence) > 0 {
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "evidence: %s\n", strings.Join(result.Detection.Evidence, ", "))
+				}
+				return err
+			}
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), "ok", result.Path)
 			return err
 		},
 	}
@@ -176,12 +188,18 @@ func newLockMigrateCmd() *cobra.Command {
 				return err
 			}
 			if dryRun || asJSON {
-				data, encErr := app.EncodeLossReportJSON(result.LossReport)
-				if encErr != nil {
-					return encErr
+				payload := map[string]any{
+					"dryRun":           result.DryRun,
+					"path":             result.Path,
+					"sourceIdentity":   result.SourceIdentity,
+					"sourceLockPath":   result.SourceLockPath,
+					"detection":        result.Detection,
+					"preservedUnknown": result.PreservedUnknown,
+					"lossReport":       result.LossReport,
 				}
-				_, err = cmd.OutOrStdout().Write(data)
-				return err
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetEscapeHTML(false)
+				return enc.Encode(payload)
 			}
 			_, err = fmt.Fprintln(cmd.OutOrStdout(), "migrated", result.Path)
 			return err
@@ -191,6 +209,6 @@ func newLockMigrateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&to, "to", "m", "target format (only m is supported)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "emit loss report without writing m.lock")
 	cmd.Flags().IntVar(&pnpmMajor, "pnpm-major", 0, "disambiguate v9-shaped pnpm locks (9, 10, or 11)")
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit loss report JSON on success")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit migration report JSON on success")
 	return cmd
 }

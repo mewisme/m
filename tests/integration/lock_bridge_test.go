@@ -131,15 +131,15 @@ func TestLockBridgeMigrateDryRunReportsLoss(t *testing.T) {
 		t.Fatalf("migrate dry-run exit=%d out=%s", code, out)
 	}
 	var report struct {
-		SchemaVersion int `json:"schemaVersion"`
-		Items         []struct {
-			Field string `json:"field"`
-		} `json:"items"`
+		SourceIdentity string `json:"sourceIdentity"`
+		LossReport     struct {
+			SchemaVersion int `json:"schemaVersion"`
+		} `json:"lossReport"`
 	}
 	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &report); err != nil {
-		t.Fatalf("loss report JSON: %v out=%q", err, out)
+		t.Fatalf("migration report JSON: %v out=%q", err, out)
 	}
-	if report.SchemaVersion == 0 {
+	if report.LossReport.SchemaVersion == 0 {
 		t.Fatal("expected loss report schemaVersion")
 	}
 }
