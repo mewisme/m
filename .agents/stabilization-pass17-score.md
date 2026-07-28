@@ -4,7 +4,7 @@
 **Baseline:** `073b1f1153113b909422b195b00b43f50c51c7b1`  
 **Starting SHA (phases 1–7):** `abeda61`  
 **Branch:** `main`  
-**Final SHA:** `f73054c`  
+**Final SHA:** `c600e34`  
 **Gate:** ≥ 8.5 for MVP 0023 READY
 
 ## Commits (phases 8–14)
@@ -18,6 +18,11 @@
 | `05f6e90` | ci: explicit CGO_ENABLED=0 gate for non-race jobs |
 | `57a15d1` | test(app): expand lock txn failure injection coverage |
 | `dfaeba3` | compat/pnpm: expand fuzz and hostile-input limits |
+| `f73054c` | docs: pass17 scorecard and lock bridge support matrix |
+| `fbd76d3` | docs: fix pass17 scorecard final SHA |
+| `7fc3a78` | test(conformance): use public registry for mutation suite deps |
+| `d53be04` | test(conformance): fix mutation suite peer/optional/workspace gaps |
+| `c600e34` | test(conformance): stabilize mutation suite; fix lint dead code |
 
 ## Score (evidence from executed commands)
 
@@ -54,6 +59,10 @@
 | Removed | none |
 | CGO | explicit `CGO_ENABLED=0` on all non-race CI jobs |
 
+## CI — green run `30388450472` (`c600e34`)
+
+Workflow URL: https://github.com/mewisme/mew/actions/runs/30388450472
+
 ## Decision
 
-**READY** — score 8.9 ≥ 8.5; awaiting CI green on final pushed SHA.
+**READY** — score 8.9 ≥ 8.5; CI green on `c600e34`.
