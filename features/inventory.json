@@ -637,7 +637,8 @@
       "tests": [
         "internal/compat/nub",
         "tests/integration",
-        "tests/conformance"
+        "tests/conformance",
+        "tools/conformance/verify-fixtures"
       ]
     },
     {
@@ -651,7 +652,8 @@
       "tests": [
         "internal/compat/pnpm",
         "tests/integration",
-        "tests/conformance"
+        "tests/conformance",
+        "tools/conformance/verify-fixtures"
       ]
     },
     {

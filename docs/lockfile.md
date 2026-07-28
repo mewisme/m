@@ -172,16 +172,24 @@ CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
 `--pnpm-major` (9, 10, or 11) applies to `m lock validate`, `m lock diff`,
 `m lock migrate`, and `m install`.
 
-## Support matrix (Pass 16)
+## Support matrix (Pass 17)
 
 | Generation | Read | Byte no-op | Semantic rewrite | Migrate to m.lock | Frozen pnpm CI |
 |---|---|---|---|---|---|
 | pnpm v5–v8 | **rejected** | — | — | — | `conformance-pnpm-unsupported` |
-| pnpm v9 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-9` |
-| pnpm v10 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-10` |
-| pnpm v11 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-11` |
-| nub | yes | yes | policy from incumbent bytes | yes (loss report) | `conformance-nub-fixtures` |
+| pnpm v9 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-9` + `MutationSuite` |
+| pnpm v10 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-10` + `MutationSuite` |
+| pnpm v11 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-11` + `MutationSuite` |
+| nub | yes | yes | policy from incumbent bytes | yes (loss report) | `conformance-nub-fixtures` (6 families) |
 | m.lock v3 | yes | yes | yes | n/a | n/a |
+
+Pinned producer versions: `tools/conformance/pnpm-versions.env` (9.15.9 / 10.34.5 / 11.17.0).
+Verify committed fixtures: `go run ./tools/conformance/verify-fixtures` (CI `fixture-verify`).
+
+Mutation conformance runs full `pnpm install --frozen-lockfile` (not `--lockfile-only`),
+strict byte hash, `node_modules` import checks, add/update/remove txn paths, and
+commit-interrupt restore. Snapshot instance keys (peer-context) are modeled in the
+canonical graph; bare `packageManager: pnpm` does not certify major 9.
 
 Fixtures: `fixtures/locks/generated/` with `metadata.json` (SHA-256, producer,
 command). Evidence: `fixtures/locks/EVIDENCE.md`.

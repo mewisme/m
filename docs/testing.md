@@ -139,6 +139,31 @@ Go module path is `github.com/mewisme/mew` (renamed from `github.com/mewisme/m`)
 | Restore consistency | `internal/snapshot/validate.go` | v2 member/lock/importer consistency before restore |
 | Lifecycle timeout typing | `internal/lifecycle/run_test.go` | `DeadlineExceeded` / `Canceled` preserved |
 
+## Stabilization pass 17 suites (lock bridge / MVP 0023)
+
+| Area | Tests | What it proves |
+|------|-------|----------------|
+| Snapshot instances | `internal/compat/pnpm/graph_peer_test.go` | Peer-context package keys in canonical graph |
+| Strict ref resolution | `internal/compat/pnpm/refresolve_test.go` | No importer fallback; dangling refs abort |
+| Fixture verify | `tools/conformance/verify-fixtures` | SHA-256 + pin metadata for all generated families |
+| pnpm mutation conformance | `tests/conformance/lock_bridge_pnpm_test.go` | Full frozen install, node_modules import, add/update/remove, txn restore |
+| Nub families | `tests/conformance/lock_bridge_pnpm_test.go` | Six derived fixtures (parse/validate tiers) |
+| Txn failure injection | `internal/app/lock_txn_test.go` | Backup/publish/staging/encode failures preserve incumbent |
+| No-CGO gate | `internal/archcheck/nocgo_test.go`, CI `no-cgo-gate` | Production builds with `CGO_ENABLED=0` |
+| Fuzz / limits | `internal/compat/pnpm/fuzz_test.go`, `limits_test.go` | Hostile YAML, package keys, index caps |
+
+CI jobs: `no-cgo-gate`, `fixture-verify`, `conformance-pnpm-{9,10,11}` (parse + `MutationSuite`),
+`conformance-pnpm-unsupported`, `conformance-nub-fixtures`.
+
+```powershell
+$env:CGO_ENABLED = "0"
+go run ./tools/conformance/verify-fixtures
+go test ./tests/conformance/... -count=1 -run TestLockBridge
+go test ./internal/compat/pnpm/... ./internal/app/... -count=1
+```
+
+Non-race CI jobs set `CGO_ENABLED=0`; race jobs remain the only CGO exception.
+
 ## Stabilization pass 15 suites (lock bridge / MVP 0023)
 
 | Area | Tests | What it proves |
