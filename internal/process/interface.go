@@ -5,10 +5,11 @@ import "context"
 
 // Spec describes a child process to start.
 type Spec struct {
-	Path string
-	Args []string
-	Dir  string
-	Env  []string
+	Path  string
+	Args  []string
+	Dir   string
+	Env   []string
+	Shell string // optional Windows shell; ComSpec resolved from Env when empty
 }
 
 // Handle is an opaque running process handle.

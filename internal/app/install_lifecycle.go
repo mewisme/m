@@ -2,12 +2,12 @@ package app
 
 import (
 	"context"
-	"os"
 
 	"github.com/mewisme/m/internal/config"
 	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/lifecycle"
 	"github.com/mewisme/m/internal/linker"
+	"github.com/mewisme/m/internal/process"
 	"github.com/mewisme/m/internal/project"
 )
 
@@ -23,9 +23,9 @@ func runLifecyclePhase(ctx context.Context, ac *Context, proj *project.Project, 
 	if err != nil {
 		return err
 	}
-	env := os.Environ()
+	src := process.EnvSource{Explicit: true}
 	if ac.Config != nil && ac.Config.Env.Initialized() {
-		env = ac.Config.Env.Environ()
+		src.Vars = ac.Config.Env.Environ()
 	}
 	_, err = lifecycle.RunInstallScripts(ctx, lifecycle.InstallInput{
 		ProjectRoot: proj.Root,
@@ -33,7 +33,7 @@ func runLifecyclePhase(ctx context.Context, ac *Context, proj *project.Project, 
 		Graph:       g,
 		LinkPlan:    linkPlan,
 		Config:      ac.Config,
-		Env:         env,
+		Env:         src,
 		Trusted:     trust,
 		AuditPath:   lifecycle.AuditFilePath(proj.Root),
 		CacheDir:    lifecycle.CacheDir(ac.Config),

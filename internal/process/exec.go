@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -15,7 +14,7 @@ import (
 // ExecSupervisor is the production ProcessSupervisor using os/exec.
 type ExecSupervisor struct{}
 
-// NewExecSupervisor returns a path-restricted process supervisor.
+// NewExecSupervisor returns a restricted-execution process supervisor.
 func NewExecSupervisor() *ExecSupervisor {
 	return &ExecSupervisor{}
 }
@@ -36,6 +35,9 @@ func (s *ExecSupervisor) Start(ctx context.Context, spec Spec) (*Handle, error) 
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Dir = spec.Dir
 	cmd.Env = spec.Env
+	attr := &syscall.SysProcAttr{}
+	setProcessGroup(attr)
+	cmd.SysProcAttr = attr
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
@@ -57,7 +59,7 @@ func (s *ExecSupervisor) Wait(ctx context.Context, h *Handle) error {
 	}()
 	select {
 	case <-ctx.Done():
-		_ = eh.cmd.Process.Kill()
+		killProcessTree(eh.cmd)
 		return ctx.Err()
 	case err := <-waitDone:
 		if err == nil {
@@ -111,37 +113,6 @@ func ExitCode(err error) int {
 	return 1
 }
 
-// RestrictedEnv copies base env, prepends binDir to PATH, and strips secrets.
-func RestrictedEnv(base []string, binDir string) []string {
-	if len(base) == 0 {
-		base = os.Environ()
-	}
-	out := make([]string, 0, len(base))
-	seen := map[string]struct{}{}
-	for _, kv := range base {
-		key := envKey(kv)
-		if shouldStripEnv(key) {
-			continue
-		}
-		if strings.EqualFold(key, "PATH") {
-			continue
-		}
-		out = append(out, kv)
-		seen[key] = struct{}{}
-	}
-	pathKey := "PATH"
-	if runtime.GOOS == "windows" {
-		pathKey = "Path"
-	}
-	pathVal := binDir
-	if old, ok := lookupEnv(base, pathKey); ok && old != "" {
-		sep := string(os.PathListSeparator)
-		pathVal = binDir + sep + old
-	}
-	out = append(out, pathKey+"="+pathVal)
-	return out
-}
-
 func resolveCommand(spec Spec) (string, []string, error) {
 	cmd := strings.TrimSpace(spec.Path)
 	if cmd == "" {
@@ -151,7 +122,12 @@ func resolveCommand(spec Spec) (string, []string, error) {
 		return spec.Path, spec.Args, nil
 	}
 	if runtime.GOOS == "windows" {
-		shell := os.Getenv("ComSpec")
+		shell := strings.TrimSpace(spec.Shell)
+		if shell == "" {
+			if s, ok := lookupEnv(spec.Env, "ComSpec"); ok && s != "" {
+				shell = s
+			}
+		}
 		if shell == "" {
 			shell = "cmd.exe"
 		}
@@ -181,16 +157,24 @@ func lookupEnv(env []string, key string) (string, bool) {
 func shouldStripEnv(key string) bool {
 	u := strings.ToUpper(key)
 	switch u {
-	case "NPM_TOKEN", "NODE_AUTH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "NPM_CONFIG__AUTH":
+	case "NPM_TOKEN", "NODE_AUTH_TOKEN", "GITHUB_TOKEN", "GH_TOKEN",
+		"GITLAB_TOKEN", "NPM_CONFIG__AUTH", "SSH_AUTH_SOCK", "DOCKER_HOST":
 		return true
 	}
-	if strings.HasPrefix(u, "AWS_") {
+	if strings.HasPrefix(u, "AWS_") || strings.HasPrefix(u, "AZURE_") || strings.HasPrefix(u, "GOOGLE_") {
 		return true
 	}
-	if strings.Contains(u, "SECRET") || strings.Contains(u, "PASSWORD") {
+	if strings.Contains(u, "SECRET") || strings.Contains(u, "PASSWORD") ||
+		strings.Contains(u, "TOKEN") || strings.Contains(u, "PRIVATE_KEY") ||
+		strings.Contains(u, "PRIVATE-KEY") {
 		return true
 	}
 	return false
+}
+
+// ResolveCommandForTest exposes resolveCommand for unit tests.
+func ResolveCommandForTest(spec Spec) (string, []string, error) {
+	return resolveCommand(spec)
 }
 
 // BinDirForPackage returns node_modules/.bin adjacent to packageDir.
