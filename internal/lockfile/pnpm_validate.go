@@ -40,15 +40,6 @@ func ValidatePnpmHints(hints ProjectHints, explicitMajor int) error {
 	return nil
 }
 
-// parsePnpmMajorField extracts the pnpm major from a packageManager field value.
-func parsePnpmMajorField(pm string) (int, error) {
-	decl, err := ParsePMDeclaration("packageManager", pm)
-	if err != nil {
-		return 0, err
-	}
-	return decl.ProducerMajor, nil
-}
-
 // DetectPnpmForProject runs detection with manifest hints and explicit major validation.
 func DetectPnpmForProject(data []byte, hints ProjectHints, explicitMajor int) (Detection, error) {
 	if err := ValidatePnpmHints(hints, explicitMajor); err != nil {

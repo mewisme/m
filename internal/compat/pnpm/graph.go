@@ -443,10 +443,6 @@ func mapPackageKeys(m map[string]PackageEntry) []string {
 	return out
 }
 
-func keys(m map[string]PackageEntry) []string {
-	return mapPackageKeys(m)
-}
-
 func mapStringKeys(m map[string]ImporterDep) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {

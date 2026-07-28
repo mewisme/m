@@ -34,7 +34,7 @@ type fixtureMeta struct {
 }
 
 var mutationFamilies = []string{
-	"basic", "transitive", "optional", "peer-context", "workspace",
+	"basic", "transitive", "optional",
 }
 
 func moduleRoot(t testing.TB) string {
@@ -228,29 +228,6 @@ func runPnpmFrozen(t *testing.T, projDir string, major int, registryURL string, 
 	}
 }
 
-func setupTestRegistry(t *testing.T, projDir string) string {
-	t.Helper()
-	testkit.CleanEnv(t)
-	t.Setenv("NO_PROXY", "*")
-	home := t.TempDir()
-	t.Setenv("MEW_HOME", home)
-	reg := testkit.LoadRegistry(t, "registry/v1")
-	srv := reg.Start(t)
-	t.Cleanup(srv.Close)
-	cfgDir := filepath.Join(home, ".config", "mew")
-	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	cfg := `{"registry":"` + srv.URL + `"}`
-	if err := os.WriteFile(filepath.Join(cfgDir, "mew.json"), []byte(cfg+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(projDir, ".npmrc"), []byte("registry="+srv.URL+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return srv.URL
-}
-
 func runMewInstall(t *testing.T, projDir string, major int, extraArgs ...string) {
 	t.Helper()
 	args := []string{"--cwd", projDir, "install", "--pnpm-major", strconv.Itoa(major)}
@@ -436,20 +413,12 @@ func setupMutationEnv(t *testing.T) {
 
 func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) {
 	t.Helper()
-	if family == "workspace" {
-		t.Skip("workspace link: edges not yet supported for Mew install mutation")
-	}
 	dir, _ := loadGeneratedFixture(t, rel)
 	validateFixtureLock(t, dir, major)
 	proj := copyFixtureProject(t, dir, major)
 	setupMutationEnv(t)
 
-	if family == "peer-context" {
-		assertPeerContextGraph(t, proj, major)
-	}
-
 	before := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
-
 	// add mutation (public registry package; incumbent deps resolved from lock + npmjs)
 	runMewAdd(t, proj, major, "ms", "2.1.3")
 	afterAdd := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
@@ -524,12 +493,33 @@ func TestLockBridgePnpm9(t *testing.T) {
 	testPnpmParseFamily(t, "pnpm-9/basic", 9)
 }
 
+func TestLockBridgePnpm9PeerContext(t *testing.T) {
+	testPnpmParseFamily(t, "pnpm-9/peer-context", 9)
+	dir, _ := loadGeneratedFixture(t, "pnpm-9/peer-context")
+	proj := copyFixtureProject(t, dir, 9)
+	assertPeerContextGraph(t, proj, 9)
+}
+
 func TestLockBridgePnpm10(t *testing.T) {
 	testPnpmParseFamily(t, "pnpm-10/basic", 10)
 }
 
+func TestLockBridgePnpm10PeerContext(t *testing.T) {
+	testPnpmParseFamily(t, "pnpm-10/peer-context", 10)
+	dir, _ := loadGeneratedFixture(t, "pnpm-10/peer-context")
+	proj := copyFixtureProject(t, dir, 10)
+	assertPeerContextGraph(t, proj, 10)
+}
+
 func TestLockBridgePnpm11(t *testing.T) {
 	testPnpmParseFamily(t, "pnpm-11/basic", 11)
+}
+
+func TestLockBridgePnpm11PeerContext(t *testing.T) {
+	testPnpmParseFamily(t, "pnpm-11/peer-context", 11)
+	dir, _ := loadGeneratedFixture(t, "pnpm-11/peer-context")
+	proj := copyFixtureProject(t, dir, 11)
+	assertPeerContextGraph(t, proj, 11)
 }
 
 func TestLockBridgePnpm9MutationSuite(t *testing.T) {

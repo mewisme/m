@@ -257,7 +257,7 @@ jobs:
         with:
           node-version: "22"
       - name: pnpm 9 lock bridge conformance
-        run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm9($|MutationSuite)' -v
+        run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm9($|MutationSuite|PeerContext)' -v
 
   conformance-pnpm-10:
     runs-on: ubuntu-latest
@@ -283,7 +283,7 @@ jobs:
         with:
           node-version: "22"
       - name: pnpm 10 lock bridge conformance
-        run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm10($|MutationSuite)' -v
+        run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm10($|MutationSuite|PeerContext)' -v
 
   conformance-pnpm-11:
     runs-on: ubuntu-latest
@@ -309,7 +309,7 @@ jobs:
         with:
           node-version: "22"
       - name: pnpm 11 lock bridge conformance
-        run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm11($|MutationSuite)' -v
+        run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm11($|MutationSuite|PeerContext)' -v
 
   conformance-pnpm-unsupported:
     runs-on: ubuntu-latest
