@@ -125,7 +125,9 @@ foreach ($entry in $nubMap.GetEnumerator()) {
         Copy-Item (Join-Path $pnpmDir 'pnpm-workspace.yaml') $nubDest -Force
     }
     if (Test-Path (Join-Path $pnpmDir 'packages')) {
-        Copy-Item (Join-Path $pnpmDir 'packages') (Join-Path $nubDest 'packages') -Recurse -Force
+        $pkgDest = Join-Path $nubDest 'packages'
+        if (Test-Path $pkgDest) { Remove-Item -Recurse -Force $pkgDest }
+        Copy-Item (Join-Path $pnpmDir 'packages') $pkgDest -Recurse -Force
     }
     $lock = Get-Content (Join-Path $pnpmDir 'pnpm-lock.yaml') -Raw
     if ($lock -notmatch 'nubVersion:') {
