@@ -9,9 +9,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/diagnostics"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/diagnostics"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestRedactCases(t *testing.T) {

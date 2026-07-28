@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/archive"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/archive"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func BenchmarkExtract(b *testing.B) {

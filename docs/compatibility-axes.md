@@ -41,7 +41,7 @@ Mew evaluates compatibility on five **independent axes**. A feature may be at pa
 | Explainable plans | Resolver/install decision traces, semantic diffs | 0028 |
 | Dependency time travel | Historical snapshot restore | 0028 |
 | Verified capsules | Portable offline dependency bundles | 0029 |
-| Org policy file | `.github.com/mewisme/m/policy.toml` enforcement | 0030 |
+| Org policy file | `.github.com/mewisme/mew/policy.toml` enforcement | 0030 |
 
 ## Nub conformance targets
 

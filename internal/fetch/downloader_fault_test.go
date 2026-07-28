@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/fetch"
-	"github.com/mewisme/m/internal/store"
+	"github.com/mewisme/mew/internal/fetch"
+	"github.com/mewisme/mew/internal/store"
 )
 
 func TestDownloaderRetriesNetworkThenSucceeds(t *testing.T) {

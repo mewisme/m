@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func BenchmarkPeerContextResolution(b *testing.B) {

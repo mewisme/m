@@ -6,10 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/linker"
-	"github.com/mewisme/m/internal/linker/planner"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/linker"
+	"github.com/mewisme/mew/internal/linker/planner"
 )
 
 // Linker plans and applies a conservative copy-based hoisted layout.

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/fetch"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fetch"
 )
 
 func TestNewClientDefault(t *testing.T) {

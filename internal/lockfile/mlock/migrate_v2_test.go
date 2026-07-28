@@ -3,8 +3,8 @@ package mlock_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/lockfile/mlock"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lockfile/mlock"
 )
 
 func TestMigrateV2AddsEdgeName(t *testing.T) {

@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/lifecycle"
-	"github.com/mewisme/m/internal/linker"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lifecycle"
+	"github.com/mewisme/mew/internal/linker"
 )
 
 func writePkg(t *testing.T, dir, name, scriptsJSON string) {

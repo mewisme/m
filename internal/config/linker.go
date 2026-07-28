@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // ResolveLinkerMode returns hoisted or isolated for install.

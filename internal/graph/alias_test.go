@@ -3,7 +3,7 @@ package graph_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 func TestEdgeNameAliasRoundTrip(t *testing.T) {

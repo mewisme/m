@@ -26,7 +26,7 @@ func main() {
 	}
 	var banned []string
 	for _, m := range mods {
-		if m == "" || m == "github.com/mewisme/m" {
+		if m == "" || m == "github.com/mewisme/mew" {
 			continue
 		}
 		if !allow[m] {

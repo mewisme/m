@@ -5,10 +5,10 @@ import (
 	"errors"
 	"path/filepath"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 // MutationSession holds project mutation ownership from BeginMutation until Finish.

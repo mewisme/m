@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/fsx"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
 func TestDirLockExclusive(t *testing.T) {

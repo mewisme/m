@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/mewisme/m/internal/lockfile"
+	"github.com/mewisme/mew/internal/lockfile"
 )
 
 func moduleRoot(t *testing.T) string {

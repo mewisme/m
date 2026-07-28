@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/lockfile"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lockfile"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func TestMergeFilteredWorkspaceResolutionPreservesBetaOnly(t *testing.T) {

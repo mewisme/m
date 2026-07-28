@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 // RecoverResult summarizes recovery actions.

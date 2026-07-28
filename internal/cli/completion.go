@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 func newCompletionCmd(root *cobra.Command) *cobra.Command {

@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/registry"
-	"github.com/mewisme/m/internal/testkit"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/registry"
+	"github.com/mewisme/mew/internal/testkit"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func TestUsesStagedSnapshotInputs(t *testing.T) {

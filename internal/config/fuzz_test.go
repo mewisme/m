@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
 )
 
 func FuzzLoadConfig(f *testing.F) {

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/features"
-	"github.com/mewisme/m/internal/releasetrain"
+	"github.com/mewisme/mew/internal/features"
+	"github.com/mewisme/mew/internal/releasetrain"
 )
 
 func repoRoot(t *testing.T) string {

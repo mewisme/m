@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 func TestOperationFailureUnwrapAndIs(t *testing.T) {

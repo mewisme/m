@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/cli"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/cli"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func setupRegistryProject(t *testing.T, packageJSON string) (projDir, cfgPath, srvURL string) {

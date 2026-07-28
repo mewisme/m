@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/registry"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/registry"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestRegistryClientAgainstFixture(t *testing.T) {

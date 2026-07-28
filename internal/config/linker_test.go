@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/mew/internal/config"
 )
 
 func TestResolveLinkerModeAutoHoisted(t *testing.T) {

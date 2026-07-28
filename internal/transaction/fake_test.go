@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 type fakeTxn struct{}

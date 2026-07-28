@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/fsx"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
 const (

@@ -3,9 +3,9 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/lockfile"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/lockfile"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func TestValidateLocalPathsRejectsEscape(t *testing.T) {

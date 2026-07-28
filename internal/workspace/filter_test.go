@@ -3,8 +3,8 @@ package workspace_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/workspace"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/workspace"
 )
 
 func TestExpandFilterNameAndNegation(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // IsSymlinkOrJunction reports whether fi is a symlink or directory junction.

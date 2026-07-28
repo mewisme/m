@@ -55,7 +55,7 @@
     ],
     "openDecisions": [
       "Exact Node LTS floor for v1 (link 0084/0089)",
-      "Whether github.com/mewisme/m/mewx alias binaries ship in v1 installers"
+      "Whether github.com/mewisme/mew/mewx alias binaries ship in v1 installers"
     ],
     "todoSummaries": [
       "contracts: Freeze charter and compatibility axes",
@@ -378,7 +378,7 @@
     ],
     "dataFlowNodes": "env[Env] --> merge[ConfigMerge] --> identity[IdentityDetect] --> effective[EffectiveConfig]",
     "commandsFlags": "| Command | Notes |\n|---|---|\n| `m config get/set/list` | May land with 0026; define keys now |\n| `m config list --sources` | Show layer provenance |\n| Global flags | `--config`, `--cwd`, `--offline` |",
-    "artifacts": "| Artifact | Purpose |\n|---|---|\n| User config file | `~/.config/github.com/mewisme/m/config.toml` (final path per naming doc) |\n| Project config | Neutral names where convention exists |\n| Effective config dump | Debug only with redaction |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| User config file | `~/.config/github.com/mewisme/mew/config.toml` (final path per naming doc) |\n| Project config | Neutral names where convention exists |\n| Effective config dump | Debug only with redaction |",
     "scopeItems": [
       "Define config layer precedence: defaults, global, project, env, CLI",
       "Define identity detection order matching AGENTS.md",

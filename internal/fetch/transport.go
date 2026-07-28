@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // Options configures an HTTP client.

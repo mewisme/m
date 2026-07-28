@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mewisme/m/internal/features"
+	"github.com/mewisme/mew/internal/features"
 )
 
 func newFeaturesCmd() *cobra.Command {

@@ -3,11 +3,11 @@ package app
 import (
 	"context"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/manifest"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/registry"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/manifest"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/registry"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 // UpdateOptions controls m update.

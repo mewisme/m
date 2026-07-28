@@ -213,7 +213,7 @@ flowchart LR
 | `m audit` | `--json`, `--fix` | Vulnerability scan |
 | `m sbom` | `--format cyclonedx` | SBOM generation |
 | `m trust verify` | — | Provenance checks |
-| Policy config | `.github.com/mewisme/m/policy.toml` | Org rule file |
+| Policy config | `.github.com/mewisme/mew/policy.toml` | Org rule file |
 
 ## Persistent Artifacts
 

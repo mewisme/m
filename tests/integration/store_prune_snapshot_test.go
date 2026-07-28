@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestStorePruneSnapshotHomeNotAmbient(t *testing.T) {

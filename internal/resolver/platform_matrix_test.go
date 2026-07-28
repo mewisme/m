@@ -3,8 +3,8 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/registry"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/registry"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func TestPlatformMatrix(t *testing.T) {

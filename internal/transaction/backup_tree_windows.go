@@ -5,7 +5,7 @@ package transaction
 import (
 	"os"
 
-	"github.com/mewisme/m/internal/fsx"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
 func inodeVisitKey(info os.FileInfo) (string, bool) {

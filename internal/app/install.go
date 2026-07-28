@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/manifest"
-	"github.com/mewisme/m/internal/plan"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/resolver"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/manifest"
+	"github.com/mewisme/mew/internal/plan"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/resolver"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 // InstallOptions controls m install / ci / update.

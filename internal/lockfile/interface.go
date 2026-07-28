@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 // Graph is the canonical dependency graph (alias for shared ownership docs).

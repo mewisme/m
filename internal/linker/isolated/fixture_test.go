@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/linker/isolated"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/linker/isolated"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 type linkerFixture struct {

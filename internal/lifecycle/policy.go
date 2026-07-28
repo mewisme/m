@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/policy"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/policy"
 )
 
 // CheckTrust decides whether lifecycle scripts for pkg may run.

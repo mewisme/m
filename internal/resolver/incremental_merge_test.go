@@ -3,7 +3,7 @@ package resolver
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 func TestMatchingResolvedEdgeUsesFullParentKey(t *testing.T) {

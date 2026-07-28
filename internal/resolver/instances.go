@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/registry"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/registry"
 )
 
 func instanceKey(parentEnv, depName, targetName, version, peerFP string) string {

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func writeIncompleteTxn(t *testing.T, root, id, state string) {

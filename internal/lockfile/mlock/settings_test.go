@@ -3,9 +3,9 @@ package mlock_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/lockfile/mlock"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/lockfile/mlock"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func TestSettingsFromEffectiveResolvePolicy(t *testing.T) {

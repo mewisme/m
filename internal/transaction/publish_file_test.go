@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/fsx"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func TestWriteOpRecordsFilePublishPhases(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 // installCrashBoundaries are subprocess crash injection points for install-family flows.
@@ -149,7 +149,7 @@ package main
 import (
   "context"
   "os"
-  "github.com/mewisme/m/internal/app"
+  "github.com/mewisme/mew/internal/app"
 )
 func main() {
   ac, err := app.New(context.Background(), app.Options{CWD: os.Getenv("MEW_CWD"), ConfigPath: os.Getenv("MEW_CFG")})
@@ -164,7 +164,7 @@ package main
 import (
   "context"
   "os"
-  "github.com/mewisme/m/internal/app"
+  "github.com/mewisme/mew/internal/app"
 )
 func main() {
   ac, err := app.New(context.Background(), app.Options{CWD: os.Getenv("MEW_CWD"), ConfigPath: os.Getenv("MEW_CFG")})
@@ -179,7 +179,7 @@ package main
 import (
   "context"
   "os"
-  "github.com/mewisme/m/internal/app"
+  "github.com/mewisme/mew/internal/app"
 )
 func main() {
   ac, err := app.New(context.Background(), app.Options{CWD: os.Getenv("MEW_CWD"), ConfigPath: os.Getenv("MEW_CFG")})

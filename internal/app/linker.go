@@ -3,13 +3,13 @@ package app
 import (
 	"context"
 
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/linker"
-	"github.com/mewisme/m/internal/linker/hoisted"
-	"github.com/mewisme/m/internal/linker/isolated"
-	"github.com/mewisme/m/internal/linker/planner"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/workspace"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/linker"
+	"github.com/mewisme/mew/internal/linker/hoisted"
+	"github.com/mewisme/mew/internal/linker/isolated"
+	"github.com/mewisme/mew/internal/linker/planner"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/workspace"
 )
 
 type linkerOpts struct {

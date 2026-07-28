@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 // BinCommandsFromDir reads package.json bin entries from an extracted package dir.

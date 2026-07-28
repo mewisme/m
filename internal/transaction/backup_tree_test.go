@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func TestBackupTreeFileSymlinkRoundTrip(t *testing.T) {

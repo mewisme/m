@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 const cachePolicyVersion = 1

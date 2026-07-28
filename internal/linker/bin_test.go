@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/linker"
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/linker"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 func TestWriteBinsUnix(t *testing.T) {

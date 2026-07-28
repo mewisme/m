@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/linker"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/linker"
 )
 
 type fakeLinker struct{}

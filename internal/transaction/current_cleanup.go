@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // CurrentCleanupResult reports verified removal of transaction current metadata.

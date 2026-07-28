@@ -5,7 +5,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 // OpKind classifies one filesystem operation in a link plan.

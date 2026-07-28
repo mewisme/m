@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 type semanticPayload struct {

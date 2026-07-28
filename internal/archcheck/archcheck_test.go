@@ -133,17 +133,17 @@ func TestForbiddenImportEdges(t *testing.T) {
 	}
 
 	allowedCmd := map[string]bool{
-		"github.com/mewisme/m/internal/app": true,
-		"github.com/mewisme/m/internal/cli": true,
+		"github.com/mewisme/mew/internal/app": true,
+		"github.com/mewisme/mew/internal/cli": true,
 	}
 
-	for _, cmdPath := range []string{"github.com/mewisme/m/cmd/m", "github.com/mewisme/m/cmd/mx"} {
+	for _, cmdPath := range []string{"github.com/mewisme/mew/cmd/m", "github.com/mewisme/mew/cmd/mx"} {
 		p, ok := byPath[cmdPath]
 		if !ok {
 			t.Fatalf("missing package %s", cmdPath)
 		}
 		for _, imp := range p.Imports {
-			if !strings.HasPrefix(imp, "github.com/mewisme/m/") {
+			if !strings.HasPrefix(imp, "github.com/mewisme/mew/") {
 				continue
 			}
 			if !allowedCmd[imp] {
@@ -153,11 +153,11 @@ func TestForbiddenImportEdges(t *testing.T) {
 	}
 
 	cliForbidden := []string{
-		"github.com/mewisme/m/internal/linker",
-		"github.com/mewisme/m/internal/store",
-		"github.com/mewisme/m/internal/fetch",
+		"github.com/mewisme/mew/internal/linker",
+		"github.com/mewisme/mew/internal/store",
+		"github.com/mewisme/mew/internal/fetch",
 	}
-	cli := byPath["github.com/mewisme/m/internal/cli"]
+	cli := byPath["github.com/mewisme/mew/internal/cli"]
 	for _, bad := range cliForbidden {
 		for _, imp := range cli.Imports {
 			if imp == bad || strings.HasPrefix(imp, bad+"/") {
@@ -167,13 +167,13 @@ func TestForbiddenImportEdges(t *testing.T) {
 	}
 
 	resolverForbidden := []string{
-		"github.com/mewisme/m/internal/linker",
-		"github.com/mewisme/m/internal/transaction",
-		"github.com/mewisme/m/internal/runner",
-		"github.com/mewisme/m/internal/fetch",
-		"github.com/mewisme/m/internal/store",
+		"github.com/mewisme/mew/internal/linker",
+		"github.com/mewisme/mew/internal/transaction",
+		"github.com/mewisme/mew/internal/runner",
+		"github.com/mewisme/mew/internal/fetch",
+		"github.com/mewisme/mew/internal/store",
 	}
-	res := byPath["github.com/mewisme/m/internal/resolver"]
+	res := byPath["github.com/mewisme/mew/internal/resolver"]
 	for _, bad := range resolverForbidden {
 		for _, imp := range res.Imports {
 			if imp == bad || strings.HasPrefix(imp, bad+"/") {
@@ -183,14 +183,14 @@ func TestForbiddenImportEdges(t *testing.T) {
 	}
 
 	diagForbidden := []string{
-		"github.com/mewisme/m/internal/registry",
-		"github.com/mewisme/m/internal/fetch",
-		"github.com/mewisme/m/internal/linker",
+		"github.com/mewisme/mew/internal/registry",
+		"github.com/mewisme/mew/internal/fetch",
+		"github.com/mewisme/mew/internal/linker",
 	}
 	for _, pkgPath := range []string{
-		"github.com/mewisme/m/internal/apperr",
-		"github.com/mewisme/m/internal/diagnostics",
-		"github.com/mewisme/m/internal/trace",
+		"github.com/mewisme/mew/internal/apperr",
+		"github.com/mewisme/mew/internal/diagnostics",
+		"github.com/mewisme/mew/internal/trace",
 	} {
 		p, ok := byPath[pkgPath]
 		if !ok {
@@ -206,11 +206,11 @@ func TestForbiddenImportEdges(t *testing.T) {
 	}
 
 	cfgForbidden := []string{
-		"github.com/mewisme/m/internal/resolver",
-		"github.com/mewisme/m/internal/linker",
-		"github.com/mewisme/m/internal/fetch",
+		"github.com/mewisme/mew/internal/resolver",
+		"github.com/mewisme/mew/internal/linker",
+		"github.com/mewisme/mew/internal/fetch",
 	}
-	for _, pkgPath := range []string{"github.com/mewisme/m/internal/config", "github.com/mewisme/m/internal/project"} {
+	for _, pkgPath := range []string{"github.com/mewisme/mew/internal/config", "github.com/mewisme/mew/internal/project"} {
 		p, ok := byPath[pkgPath]
 		if !ok {
 			t.Fatalf("missing package %s", pkgPath)
@@ -226,17 +226,17 @@ func TestForbiddenImportEdges(t *testing.T) {
 
 	// Data-model packages stay free of fetch/linker/registry (registry itself exempt).
 	modelForbidden := []string{
-		"github.com/mewisme/m/internal/fetch",
-		"github.com/mewisme/m/internal/linker",
-		"github.com/mewisme/m/internal/registry",
+		"github.com/mewisme/mew/internal/fetch",
+		"github.com/mewisme/mew/internal/linker",
+		"github.com/mewisme/mew/internal/registry",
 	}
 	for _, pkgPath := range []string{
-		"github.com/mewisme/m/internal/graph",
-		"github.com/mewisme/m/internal/plan",
-		"github.com/mewisme/m/internal/snapshot",
-		"github.com/mewisme/m/internal/manifest",
-		"github.com/mewisme/m/internal/policy",
-		"github.com/mewisme/m/internal/capsule",
+		"github.com/mewisme/mew/internal/graph",
+		"github.com/mewisme/mew/internal/plan",
+		"github.com/mewisme/mew/internal/snapshot",
+		"github.com/mewisme/mew/internal/manifest",
+		"github.com/mewisme/mew/internal/policy",
+		"github.com/mewisme/mew/internal/capsule",
 	} {
 		p, ok := byPath[pkgPath]
 		if !ok {
@@ -257,12 +257,12 @@ func TestInternalImportGraphAcyclic(t *testing.T) {
 	pkgs := goList(t, root)
 	graph := make(map[string][]string)
 	for _, p := range pkgs {
-		if !strings.HasPrefix(p.ImportPath, "github.com/mewisme/m/internal/") {
+		if !strings.HasPrefix(p.ImportPath, "github.com/mewisme/mew/internal/") {
 			continue
 		}
 		var deps []string
 		for _, imp := range p.Imports {
-			if strings.HasPrefix(imp, "github.com/mewisme/m/internal/") {
+			if strings.HasPrefix(imp, "github.com/mewisme/mew/internal/") {
 				deps = append(deps, imp)
 			}
 		}

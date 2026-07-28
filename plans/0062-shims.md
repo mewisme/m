@@ -255,7 +255,7 @@ node shim selects version only; augmentation stays on m/mx.
 ## Open Decisions
 
 - Default shim install location per OS
-- Whether github.com/mewisme/m/mewx alias shims ship in v1
+- Whether github.com/mewisme/mew/mewx alias shims ship in v1
 
 <!-- ENRICHMENT:END -->
 

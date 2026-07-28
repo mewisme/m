@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/process"
+	"github.com/mewisme/mew/internal/process"
 )
 
 func TestExecSupervisorEcho(t *testing.T) {

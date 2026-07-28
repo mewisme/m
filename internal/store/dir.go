@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/fsx"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
 // Dir is a minimal content-addressed blob store: <root>/<algo>/<hex>.

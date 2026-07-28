@@ -3,7 +3,7 @@ package resolver
 import (
 	"strings"
 
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 // matchOverride returns an npm-style override specifier for depName under parentPath.

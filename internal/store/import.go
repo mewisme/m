@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/archive"
-	"github.com/mewisme/m/internal/contentid"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/archive"
+	"github.com/mewisme/mew/internal/contentid"
 )
 
 // ImportResult is the outcome of ImportFromTarball.

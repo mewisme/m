@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // Identity is a normalized content address: lowercase algo and hex digest.

@@ -5,11 +5,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/policy"
-	"github.com/mewisme/m/internal/registry"
-	"github.com/mewisme/m/internal/semver"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/policy"
+	"github.com/mewisme/mew/internal/registry"
+	"github.com/mewisme/mew/internal/semver"
 )
 
 // PeerConflict describes an unsatisfied peer dependency.

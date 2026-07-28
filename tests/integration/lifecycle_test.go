@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/lifecycle"
+	"github.com/mewisme/mew/internal/lifecycle"
 )
 
 func skipWithoutNode(t *testing.T) {

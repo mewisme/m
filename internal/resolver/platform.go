@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/mewisme/m/internal/registry"
+	"github.com/mewisme/mew/internal/registry"
 )
 
 // Target is the current install platform (npm os/cpu/libc vocabulary).

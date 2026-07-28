@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/project"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/project"
 )
 
 // ResolveRegistryURL picks the registry base URL for a package name.

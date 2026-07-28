@@ -3,7 +3,7 @@ package manifest_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 func TestParseCatalogSpecifier(t *testing.T) {

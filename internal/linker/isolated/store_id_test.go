@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/linker/isolated"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/linker/isolated"
 )
 
 func TestStoreIDScoped(t *testing.T) {

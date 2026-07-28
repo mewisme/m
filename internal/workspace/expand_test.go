@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/testkit"
-	"github.com/mewisme/m/internal/workspace"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/testkit"
+	"github.com/mewisme/mew/internal/workspace"
 )
 
 func TestExpandSimple(t *testing.T) {

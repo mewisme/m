@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/snapshot"
+	"github.com/mewisme/mew/internal/snapshot"
 )
 
 func TestSnapshotRoundTrip(t *testing.T) {

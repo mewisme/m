@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/manifest"
-	"github.com/mewisme/m/internal/policy"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/manifest"
+	"github.com/mewisme/mew/internal/policy"
 )
 
 // reuseKey identifies a prior resolution edge for incremental pin reuse.

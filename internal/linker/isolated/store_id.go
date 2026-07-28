@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 const storeIDMaxLen = 120

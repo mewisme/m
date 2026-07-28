@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/semver"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/semver"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 type corpusCase struct {

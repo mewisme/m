@@ -212,7 +212,7 @@ flowchart LR
 
 | Artifact | Purpose |
 |---|---|
-| User config file | `~/.config/github.com/mewisme/m/config.toml` (final path per naming doc) |
+| User config file | `~/.config/github.com/mewisme/mew/config.toml` (final path per naming doc) |
 | Project config | Neutral names where convention exists |
 | Effective config dump | Debug only with redaction |
 

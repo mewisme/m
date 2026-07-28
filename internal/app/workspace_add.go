@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/lockfile"
-	"github.com/mewisme/m/internal/manifest"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/resolver"
-	"github.com/mewisme/m/internal/workspace"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lockfile"
+	"github.com/mewisme/mew/internal/manifest"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/resolver"
+	"github.com/mewisme/mew/internal/workspace"
 )
 
 func prepareFilteredAdd(ctx context.Context, ac *Context, proj *project.Project, opts *InstallOptions, name, rng, field string) error {

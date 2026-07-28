@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/resolver"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/resolver"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestGoldenPeersReactEcosystem(t *testing.T) {

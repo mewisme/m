@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 // CollectReferencedIntegrities scans roots for store-manifest.json files and active

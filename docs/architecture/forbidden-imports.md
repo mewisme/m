@@ -7,7 +7,7 @@ Enforced by [`internal/archcheck`](../../internal/archcheck/) tests.
 
 | From | Must not import | Rationale |
 |---|---|---|
-| `cmd/m`, `cmd/mx` | any `github.com/mewisme/m/internal/...` except `app` and `cli` | Thin entrypoints only |
+| `cmd/m`, `cmd/mx` | any `github.com/mewisme/mew/internal/...` except `app` and `cli` | Thin entrypoints only |
 | `internal/cli` | `linker`, `store`, `fetch` | CLI must not own mutation; may call registry/resolver |
 | `internal/resolver` | `linker`, `transaction`, `runner`, `fetch`, `store` | Resolve completes before mutate |
 | `internal/apperr`, `internal/diagnostics`, `internal/trace` | `registry`, `fetch`, `linker` | Diagnostics stay free of PM engine |
@@ -18,8 +18,8 @@ Enforced by [`internal/archcheck`](../../internal/archcheck/) tests.
 
 `cmd/m` and `cmd/mx` may import only:
 
-- `github.com/mewisme/m/internal/app`
-- `github.com/mewisme/m/internal/cli`
+- `github.com/mewisme/mew/internal/app`
+- `github.com/mewisme/mew/internal/cli`
 - Go standard library
 - Module root packages that are not under `internal/` (none today)
 

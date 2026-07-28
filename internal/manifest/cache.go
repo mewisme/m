@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 type cacheEntry struct {

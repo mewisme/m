@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mewisme/m/internal/process"
+	"github.com/mewisme/mew/internal/process"
 )
 
 type fakeSupervisor struct{}

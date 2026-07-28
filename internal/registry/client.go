@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // ponytail: packument cap is a fixed constant; upgrade = Options.MaxPackumentBytes only.

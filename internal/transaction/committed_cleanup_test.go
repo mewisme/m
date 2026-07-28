@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func writeCommittedTxnWithCurrent(t *testing.T, root, id string) {

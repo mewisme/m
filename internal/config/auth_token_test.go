@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestAuthTokenFromSnapshot(t *testing.T) {

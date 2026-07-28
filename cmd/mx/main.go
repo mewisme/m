@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/mewisme/m/internal/cli"
+	"github.com/mewisme/mew/internal/cli"
 )
 
 // Overridden via -ldflags "-X main.version=… -X main.commit=… -X main.buildDate=…".

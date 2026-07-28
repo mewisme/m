@@ -3,8 +3,8 @@ package manifest_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 func FuzzParseJSON(f *testing.F) {

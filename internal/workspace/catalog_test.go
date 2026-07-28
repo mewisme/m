@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/workspace"
+	"github.com/mewisme/mew/internal/workspace"
 )
 
 func TestLoadCatalogMergeYAML(t *testing.T) {

@@ -3,7 +3,7 @@ package workspace
 import (
 	"os"
 
-	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/mew/internal/config"
 )
 
 // Enabled reports whether workspace install/filter features are turned on.

@@ -1,7 +1,7 @@
 package manifest
 
 import (
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // ToNormalized flattens npm dependency maps into the resolver Manifest.

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func setupLifecycleProject(t *testing.T, dep string) (projDir, cfgPath string) {

@@ -3,7 +3,7 @@ package manifest
 import (
 	"encoding/json"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // WorkspacePatterns extracts workspace glob patterns from the workspaces field.

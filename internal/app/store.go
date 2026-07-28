@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/store"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/store"
 )
 
 // StoreStatus summarizes the global package store.

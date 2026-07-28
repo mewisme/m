@@ -3,8 +3,8 @@ package store_test
 import (
 	"context"
 
-	"github.com/mewisme/m/internal/contentid"
-	"github.com/mewisme/m/internal/store"
+	"github.com/mewisme/mew/internal/contentid"
+	"github.com/mewisme/mew/internal/store"
 )
 
 func importIntegrity(ctx context.Context, ps *store.PackageStore, tgz, sri string) (store.PackageKey, error) {

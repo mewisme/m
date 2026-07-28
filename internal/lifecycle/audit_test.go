@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/lifecycle"
+	"github.com/mewisme/mew/internal/lifecycle"
 )
 
 func TestAppendAuditRoundTrip(t *testing.T) {

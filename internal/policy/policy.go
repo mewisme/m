@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // SchemaVersion versions serialized Policy documents.

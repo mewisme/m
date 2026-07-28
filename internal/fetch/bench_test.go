@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mewisme/m/internal/fetch"
-	"github.com/mewisme/m/internal/store"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/fetch"
+	"github.com/mewisme/mew/internal/store"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func BenchmarkDownloadVerify(b *testing.B) {

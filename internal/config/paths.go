@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // ResolveConfigPath resolves a --config path against the invocation working directory.
@@ -187,13 +187,13 @@ func StoreRoot(eff *Effective) (string, error) {
 		return validateStorePath(filepath.Join(base, "mew", "store"), "default")
 	}
 	if goos == "darwin" {
-		return validateStorePath(filepath.Join(userHomeFromSnap(snap), "Library", "Application Support", "github.com", "mewisme", "m", "store"), "default")
+		return validateStorePath(filepath.Join(userHomeFromSnap(snap), "Library", "Application Support", "github.com", "mewisme", "mew", "store"), "default")
 	}
 	xdg, ok := snap.Lookup("XDG_DATA_HOME")
 	if !ok || xdg == "" {
 		xdg = filepath.Join(userHomeFromSnap(snap), ".local", "share")
 	}
-	return validateStorePath(filepath.Join(xdg, "github.com", "mewisme", "m", "store"), "default")
+	return validateStorePath(filepath.Join(xdg, "github.com", "mewisme", "mew", "store"), "default")
 }
 
 func validateStorePath(p, subject string) (string, error) {

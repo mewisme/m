@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // cacheMeta is persisted beside packument.json.

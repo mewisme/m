@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/linker/hoisted"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/linker/hoisted"
 )
 
 func BenchmarkHoistedPlan(b *testing.B) {

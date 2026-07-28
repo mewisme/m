@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // Protocol identifies how a dependency specifier resolves.

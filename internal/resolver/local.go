@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/lockfile"
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/lockfile"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 // LocalExtensionKey is the m.lock extensions key for workspace/file/link/portal sources.

@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/fetch"
-	"github.com/mewisme/m/internal/project"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/fetch"
+	"github.com/mewisme/mew/internal/project"
 )
 
 // NewFromApp builds a Client from effective config and project identity.

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/snapshot"
+	"github.com/mewisme/mew/internal/snapshot"
 )
 
 func TestStoreCreateListPrune(t *testing.T) {

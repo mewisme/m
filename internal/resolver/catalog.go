@@ -1,8 +1,8 @@
 package resolver
 
 import (
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 func (s *resolveState) rewriteCatalog(displayName, spec string, protocol manifest.Protocol, rng string) (string, manifest.Protocol, error) {

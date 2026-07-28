@@ -1,7 +1,7 @@
 package resolver
 
 import (
-	"github.com/mewisme/m/internal/registry"
+	"github.com/mewisme/mew/internal/registry"
 )
 
 // platformSkipsOptional reports whether an optional dependency should be skipped

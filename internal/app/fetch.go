@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/archive"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/fetch"
-	"github.com/mewisme/m/internal/store"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/archive"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/fetch"
+	"github.com/mewisme/mew/internal/store"
 )
 
 // FetchPackage is one package entry in a fetch plan.

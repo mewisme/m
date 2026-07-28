@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/testkit"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/testkit"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func TestTransactionRecoverInterruptedCommit(t *testing.T) {

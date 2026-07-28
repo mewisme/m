@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/manifest"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/manifest"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func TestIncrementalUpdatePreservesUnrelated(t *testing.T) {

@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/resolver"
-	"github.com/mewisme/m/internal/store"
-	"github.com/mewisme/m/internal/testkit"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/resolver"
+	"github.com/mewisme/mew/internal/store"
+	"github.com/mewisme/mew/internal/testkit"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func testStoreInstallContext(t *testing.T) (*Context, string, func()) {

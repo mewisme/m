@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/contentid"
-	"github.com/mewisme/m/internal/diagnostics"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/contentid"
+	"github.com/mewisme/mew/internal/diagnostics"
 )
 
 // PackageKey identifies an immutable unpacked package under packages/<algo>/<hex>/.

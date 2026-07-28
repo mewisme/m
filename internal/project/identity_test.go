@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestDetectIdentityFixtures(t *testing.T) {

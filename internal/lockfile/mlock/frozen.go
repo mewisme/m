@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 // DriftKind classifies manifest vs lock specifier drift.

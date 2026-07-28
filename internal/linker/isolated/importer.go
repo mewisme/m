@@ -3,7 +3,7 @@ package isolated
 import (
 	"path/filepath"
 
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 // PrivateNMForEdgeFrom returns the virtual-store private node_modules dir for an edge source.

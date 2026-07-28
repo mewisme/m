@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 // LoadCatalog loads the merged default catalog from root package.json and optional pnpm-workspace.yaml.

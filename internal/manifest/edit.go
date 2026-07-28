@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"unicode"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/fsx"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
 // SetField sets a top-level JSON string field, preserving surrounding source layout.

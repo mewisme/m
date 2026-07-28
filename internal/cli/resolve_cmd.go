@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func newResolveCmd() *cobra.Command {

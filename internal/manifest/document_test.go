@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/manifest"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/manifest"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestParseRoundTripPreservesSource(t *testing.T) {

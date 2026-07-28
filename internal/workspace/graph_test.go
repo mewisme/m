@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/workspace"
+	"github.com/mewisme/mew/internal/workspace"
 )
 
 func writeWS(t *testing.T, layout map[string]string) string {

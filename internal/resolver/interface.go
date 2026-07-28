@@ -4,10 +4,10 @@ package resolver
 import (
 	"context"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/lockfile"
-	"github.com/mewisme/m/internal/manifest"
-	"github.com/mewisme/m/internal/policy"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lockfile"
+	"github.com/mewisme/mew/internal/manifest"
+	"github.com/mewisme/mew/internal/policy"
 )
 
 // PriorFingerprints captures lockfile settings fingerprints for incremental update comparison.

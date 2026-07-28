@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/lockfile"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lockfile"
 )
 
 type fakeAdapter struct{}

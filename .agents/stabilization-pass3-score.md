@@ -33,7 +33,7 @@
 
 ## CI jobs — green run `30291154930` (`4be6354`)
 
-Workflow URL: https://github.com/mewisme/m/actions/runs/30291154930
+Workflow URL: https://github.com/mewisme/mew/actions/runs/30291154930
 
 | Job | Result |
 |-----|--------|
@@ -136,7 +136,7 @@ Score **9.90** ≥ 9.0; run `30291154930` confirms green `test`, `crash-integrat
 
 ## CI jobs — green run `30297084653` (`d148750`)
 
-Workflow URL: https://github.com/mewisme/m/actions/runs/30297084653
+Workflow URL: https://github.com/mewisme/mew/actions/runs/30297084653
 
 | Job | Result |
 |-----|--------|
@@ -184,7 +184,7 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30297084653
 **Session:** Stabilization Pass 10 (config path resolution + CLI output + abort severity)  
 **Baseline:** `ec2f4110031d5b12577ebf010156b2956946c735`  
 **Branch:** `stabilization-pass-10`  
-**PR:** https://github.com/mewisme/m/pull/7  
+**PR:** https://github.com/mewisme/mew/pull/7  
 **Final SHA:** `3a164d8680ce8a3b5c2603b1577dee03657aba71`  
 **Final verification:** 2026-07-28 (Windows local + GitHub Actions `30308833823`)  
 **Gate:** ≥ 9.0 to unblock MVP 0021 — **met (local + CI)**
@@ -242,7 +242,7 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30297084653
 
 ## CI jobs — run `30308833823` (`3a164d8`)
 
-Workflow URL: https://github.com/mewisme/m/actions/runs/30308833823
+Workflow URL: https://github.com/mewisme/mew/actions/runs/30308833823
 
 **All 21 jobs passed.**
 
@@ -257,7 +257,7 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30308833823
 
 ## CI jobs — run `30304689171` (`479864f`) — superseded
 
-Workflow URL: https://github.com/mewisme/m/actions/runs/30304689171
+Workflow URL: https://github.com/mewisme/mew/actions/runs/30304689171
 
 **All jobs failed immediately with `runner_id: 0` (GitHub Actions billing/spending limit).** No test execution occurred.
 
@@ -351,7 +351,7 @@ Workflow URL: https://github.com/mewisme/m/actions/runs/30304689171
 
 ## CI jobs — run `30310739645` (`67a0ed7`)
 
-Workflow URL: https://github.com/mewisme/m/actions/runs/30310739645
+Workflow URL: https://github.com/mewisme/mew/actions/runs/30310739645
 
 **All 21 jobs passed.**
 

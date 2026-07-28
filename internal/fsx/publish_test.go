@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/fsx"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
 func TestPublishFilePriorGenerationSurvivesFailedRename(t *testing.T) {

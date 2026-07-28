@@ -3,11 +3,11 @@ package mlock
 import (
 	"path/filepath"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/fsx"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 // FromResolution builds a lock document from a resolve result.

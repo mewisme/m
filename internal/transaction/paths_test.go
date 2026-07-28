@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func TestGuardPathRejectsEscape(t *testing.T) {

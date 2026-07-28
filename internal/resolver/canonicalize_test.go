@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/registry"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/registry"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func dualWrapperPluginPackuments() map[string]registry.Packument {

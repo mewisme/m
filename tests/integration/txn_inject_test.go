@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/testkit"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/testkit"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func TestTxnInjectMidCommitPreservesPriorState(t *testing.T) {
@@ -110,8 +110,8 @@ package main
 import (
   "context"
   "os"
-  "github.com/mewisme/m/internal/app"
-  "github.com/mewisme/m/internal/transaction"
+  "github.com/mewisme/mew/internal/app"
+  "github.com/mewisme/mew/internal/transaction"
 )
 func main() {
   transaction.SetTestHook(func(phase string, opIndex int) error {

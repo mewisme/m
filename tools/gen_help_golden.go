@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mewisme/m/internal/cli"
+	"github.com/mewisme/mew/internal/cli"
 )
 
 func main() {

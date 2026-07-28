@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/fsx"
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 const (

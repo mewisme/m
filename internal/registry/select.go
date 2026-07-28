@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/semver"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/semver"
 )
 
 // SelectMaxSatisfying resolves a version or dist-tag, else the highest

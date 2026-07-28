@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mewisme/m/internal/app"
+	"github.com/mewisme/mew/internal/app"
 )
 
 func decodeSingleJSON(t *testing.T, out string) map[string]json.RawMessage {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/mew/internal/config"
 )
 
 func TestResolveConfigPathRelative(t *testing.T) {

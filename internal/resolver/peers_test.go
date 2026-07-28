@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/policy"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/registry"
-	"github.com/mewisme/m/internal/resolver"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/policy"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/registry"
+	"github.com/mewisme/mew/internal/resolver"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func engineWithPackuments(t testing.TB, packs map[string]registry.Packument) (*resolver.Engine, string) {

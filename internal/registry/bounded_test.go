@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/registry"
+	"github.com/mewisme/mew/internal/registry"
 )
 
 func TestPackumentRejectsHugeBody(t *testing.T) {

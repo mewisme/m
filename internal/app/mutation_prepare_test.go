@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/mew/internal/config"
 )
 
 func TestPrepareAddDependencySetsRange(t *testing.T) {

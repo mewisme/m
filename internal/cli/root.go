@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mewisme/m/internal/app"
+	"github.com/mewisme/mew/internal/app"
 )
 
 // NewMRoot returns the root Cobra command for the m binary.

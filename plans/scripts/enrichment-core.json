@@ -63,7 +63,7 @@
       "Global flag semantics | parity"
     ],
     "openDecisions": [
-      "Whether github.com/mewisme/m/mewx alias binaries ship in v1 installers",
+      "Whether github.com/mewisme/mew/mewx alias binaries ship in v1 installers",
       "Default --color behavior on Windows terminals without ANSI"
     ],
     "todoSummaries": [
@@ -168,7 +168,7 @@
     ],
     "dataFlowNodes": "cfg[config] --> reg[internal/registry] --> cache[MetadataCache] --> net[HTTPClient] --> pack[Packument]",
     "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m cache dir` | — | Show registry cache location (stub ok) |\n| Env | `NPM_CONFIG_REGISTRY`, auth tokens | Redacted in logs |\n| Offline | `--offline` | Serve from cache only |",
-    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Registry metadata cache | ~/.cache/github.com/mewisme/m/registry or XDG equivalent |\n| Packument normalized model | Input to resolver |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Registry metadata cache | ~/.cache/github.com/mewisme/mew/registry or XDG equivalent |\n| Packument normalized model | Input to resolver |",
     "scopeItems": [
       "Implement npm registry packument fetch with semver version index",
       "Support scoped registries via .npmrc and project config layering",
@@ -526,7 +526,7 @@
     ],
     "dataFlowNodes": "plan[InstallPlan] --> stage[StagingArea] --> journal[Journal] --> commit[Commit] --> rollback[RollbackOnFailure]",
     "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m install` | `--journal` | Enhanced diagnostics |\n| `m snapshot` | `list`, `restore <id>` | History management |\n| `m recover` | — | Resume interrupted transaction |",
-    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Transaction journal | ~/.cache/github.com/mewisme/m/journal or project-local |\n| Snapshot store | Manifest + lock + node_modules metadata |\n| Staging directories | Pre-commit install tree |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Transaction journal | ~/.cache/github.com/mewisme/mew/journal or project-local |\n| Snapshot store | Manifest + lock + node_modules metadata |\n| Staging directories | Pre-commit install tree |",
     "scopeItems": [
       "Define transaction phases: inspect, resolve, plan, fetch, stage, validate, commit",
       "Journal every filesystem mutation with inverse operations",
@@ -596,7 +596,7 @@
     ],
     "dataFlowNodes": "fetch[verified blob] --> store[internal/store] --> planner[linker/planner] --> link[hardlink|reflink|copy] --> nm[node_modules]",
     "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m store path` | — | Show global store location |\n| `m store prune` | `--dry-run` | Remove unreferenced blobs |\n| Env | `MEW_STORE_DIR` | Override store root |",
-    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Global content-addressed store | ~/.local/share/github.com/mewisme/m/store |\n| Link plan records | Per-install strategy audit |",
+    "artifacts": "| Artifact | Purpose |\n|---|---|\n| Global content-addressed store | ~/.local/share/github.com/mewisme/mew/store |\n| Link plan records | Per-install strategy audit |",
     "scopeItems": [
       "Implement content-addressed global store keyed by integrity hash",
       "Import verified tarballs into store without duplication",
@@ -1425,7 +1425,7 @@
       "| Org policy rules | Nub policy | Enforceable constraints | 0030 |"
     ],
     "dataFlowNodes": "lock[installed graph] --> audit[vuln DB] --> sbom[SBOM export] --> prov[provenance] --> policy[org rules]",
-    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m audit` | `--json`, `--fix` | Vulnerability scan |\n| `m sbom` | `--format cyclonedx` | SBOM generation |\n| `m trust verify` | — | Provenance checks |\n| Policy config | `.github.com/mewisme/m/policy.toml` | Org rule file |",
+    "commandsFlags": "| Surface | Flags | Notes |\n|---|---|---|\n| `m audit` | `--json`, `--fix` | Vulnerability scan |\n| `m sbom` | `--format cyclonedx` | SBOM generation |\n| `m trust verify` | — | Provenance checks |\n| Policy config | `.github.com/mewisme/mew/policy.toml` | Org rule file |",
     "artifacts": "| Artifact | Purpose |\n|---|---|\n| Audit report JSON | CI gate input |\n| SBOM document | cyclonedx.json or spdx.json |\n| Policy evaluation log | Deny/warn decisions |",
     "scopeItems": [
       "Implement m audit against OSV/npm advisory data",

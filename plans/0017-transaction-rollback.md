@@ -212,7 +212,7 @@ flowchart LR
 
 | Artifact | Purpose |
 |---|---|
-| Transaction journal | ~/.cache/github.com/mewisme/m/journal or project-local |
+| Transaction journal | ~/.cache/github.com/mewisme/mew/journal or project-local |
 | Snapshot store | Manifest + lock + node_modules metadata |
 | Staging directories | Pre-commit install tree |
 

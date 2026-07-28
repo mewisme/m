@@ -27,8 +27,8 @@ Frozen identifiers for Mew public surfaces. Changes require an ADR and compatibi
 | File / key | Scope | Notes |
 |---|---|---|
 | `m.jsonc` | Project | Neutral Mew project config (name subject to ADR) |
-| `.github.com/mewisme/m/` | Project | Mew-owned auxiliary data (policy, local state) |
-| Global config | User | `~/.config/github.com/mewisme/m/config.jsonc` (Linux/macOS); `%AppData%\mew\config.jsonc` (Windows) |
+| `.github.com/mewisme/mew/` | Project | Mew-owned auxiliary data (policy, local state) |
+| Global config | User | `~/.config/github.com/mewisme/mew/config.jsonc` (Linux/macOS); `%AppData%\mew\config.jsonc` (Windows) |
 | Pass-through | Project | `.npmrc`, incumbent manager configs via compatibility adapters only |
 
 Mew does not read another package manager's branded config as authority for an Mew-identity project unless explicitly importing.
@@ -40,7 +40,7 @@ Default roots (overridable; see environment variables):
 | Purpose | Linux | macOS | Windows |
 |---|---|---|---|
 | Global cache | `$XDG_CACHE_HOME/mew` or `~/.cache/mew` | `~/Library/Caches/mew` | `%LocalAppData%\mew\cache` |
-| Global content store | under cache or `~/.local/share/github.com/mewisme/m/store` | `~/Library/Application Support/github.com/mewisme/m/store` | `%LocalAppData%\mew\store` |
+| Global content store | under cache or `~/.local/share/github.com/mewisme/mew/store` | `~/Library/Application Support/github.com/mewisme/mew/store` | `%LocalAppData%\mew\store` |
 | Registry metadata cache | `<cache>/registry` | same | same |
 | Transaction journal | `<cache>/journal` | same | same |
 

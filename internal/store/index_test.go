@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/diagnostics"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/diagnostics"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 type captureReporter struct {

@@ -210,7 +210,7 @@ flowchart LR
 
 | Artifact | Purpose |
 |---|---|
-| Global content-addressed store | ~/.local/share/github.com/mewisme/m/store |
+| Global content-addressed store | ~/.local/share/github.com/mewisme/mew/store |
 | Link plan records | Per-install strategy audit |
 
 ## Concrete Test Fixtures

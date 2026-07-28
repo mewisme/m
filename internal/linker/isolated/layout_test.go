@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/linker"
-	"github.com/mewisme/m/internal/linker/isolated"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/linker"
+	"github.com/mewisme/mew/internal/linker/isolated"
 )
 
 func TestLayoutTransitive(t *testing.T) {

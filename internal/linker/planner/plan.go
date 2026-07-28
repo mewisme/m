@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/mewisme/m/internal/linker"
+	"github.com/mewisme/mew/internal/linker"
 )
 
 // Capabilities describes filesystem link support between two roots.

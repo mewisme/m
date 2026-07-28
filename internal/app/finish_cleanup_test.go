@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/testkit"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/testkit"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func TestFinishWarningOnlyTxnDirRemove(t *testing.T) {

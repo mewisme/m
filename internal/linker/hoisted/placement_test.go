@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/linker"
-	"github.com/mewisme/m/internal/linker/hoisted"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/linker"
+	"github.com/mewisme/mew/internal/linker/hoisted"
 )
 
 func testGraph(t *testing.T, build func(*graph.Builder) *graph.Builder) *graph.Graph {

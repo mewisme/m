@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/manifest"
-	"github.com/mewisme/m/internal/semver"
-	"github.com/mewisme/m/internal/workspace"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/manifest"
+	"github.com/mewisme/mew/internal/semver"
+	"github.com/mewisme/mew/internal/workspace"
 )
 
 type workspaceMember struct {

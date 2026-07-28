@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/mew/internal/config"
 )
 
 func effFromEnv(env []string, goos string) *config.Effective {

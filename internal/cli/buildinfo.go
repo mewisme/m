@@ -25,7 +25,7 @@ func InvokedBinary(argv0, fallback string) string {
 	}
 }
 
-// DisplayName returns the Use string for help (preserves github.com/mewisme/m/mewx aliases).
+// DisplayName returns the Use string for help (preserves github.com/mewisme/mew/mewx aliases).
 func DisplayName(invoked string) string {
 	switch invoked {
 	case "mew":

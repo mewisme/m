@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // Stable cleanup warning codes surfaced through ImportResult and install results.

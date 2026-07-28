@@ -1,9 +1,9 @@
 package resolver
 
 import (
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/registry"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/registry"
 )
 
 // NewFromApp builds an Engine from effective config and a loaded project.

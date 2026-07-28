@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/lockfile/mlock"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/lockfile/mlock"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func setupWorkspaceProject(t *testing.T, fixtureRel string) (projDir, cfgPath string) {

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 // canonicalizePeerInstances merges graph nodes that share the same canonical

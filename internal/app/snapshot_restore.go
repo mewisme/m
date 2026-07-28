@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/snapshot"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/snapshot"
 )
 
 // RestoreSnapshot restores manifest, lock, and node_modules in one transaction.

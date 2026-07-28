@@ -12,10 +12,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/resolver"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/resolver"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 type authRecord struct {

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mewisme/m/internal/store"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/store"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func BenchmarkStoreImport(b *testing.B) {

@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 // Member is one workspace package discovered under the project root.

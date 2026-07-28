@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestTxnCrashMatrixGreenfield(t *testing.T) {
@@ -77,7 +77,7 @@ package main
 import (
   "context"
   "os"
-  "github.com/mewisme/m/internal/app"
+  "github.com/mewisme/mew/internal/app"
 )
 func main() {
   ac, err := app.New(context.Background(), app.Options{CWD: os.Getenv("MEW_CWD"), ConfigPath: os.Getenv("MEW_CFG")})

@@ -8,8 +8,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/store"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/store"
 )
 
 const defaultWorkers = 8

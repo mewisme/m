@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/lockfile/mlock"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lockfile/mlock"
 )
 
 func moduleRoot(t testing.TB) string {

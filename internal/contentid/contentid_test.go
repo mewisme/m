@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/contentid"
+	"github.com/mewisme/mew/internal/contentid"
 )
 
 func TestParseSRIRealSHA512Base64(t *testing.T) {

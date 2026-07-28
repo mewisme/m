@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 // Adapter implements lockfile.LockfileAdapter for native m.lock.

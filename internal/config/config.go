@@ -14,7 +14,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // Source identifies which layer provided a value.

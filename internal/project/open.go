@@ -4,8 +4,8 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 // Open discovers the project root from cwd, detects identity, and loads package.json.

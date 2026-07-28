@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/linker"
-	"github.com/mewisme/m/internal/linker/planner"
+	"github.com/mewisme/mew/internal/linker"
+	"github.com/mewisme/mew/internal/linker/planner"
 )
 
 func TestProjectMutationDoesNotShareStoreInode(t *testing.T) {

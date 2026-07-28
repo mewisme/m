@@ -13,7 +13,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // Attr is a debug key/value pair.

@@ -3,10 +3,10 @@ package app
 import (
 	"path/filepath"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/resolver"
-	"github.com/mewisme/m/internal/workspace"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/resolver"
+	"github.com/mewisme/mew/internal/workspace"
 )
 
 func buildLocalExtractDirs(projRoot string, res *resolver.Resolution) (map[string]string, error) {

@@ -1,9 +1,9 @@
 package mlock
 
 import (
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/lockfile"
-	"github.com/mewisme/m/internal/policy"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lockfile"
+	"github.com/mewisme/mew/internal/policy"
 )
 
 // LockfileVersion is the current m.lock schema version.

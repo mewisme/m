@@ -7,7 +7,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/mewisme/m/internal/fsx"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
 var (

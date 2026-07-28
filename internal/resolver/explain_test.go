@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/policy"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/policy"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func TestBuildPeerConflictTree(t *testing.T) {

@@ -36,7 +36,7 @@
 
 ## CI jobs — green run `30342456729` (`b028e5f`)
 
-Workflow URL: https://github.com/mewisme/m/actions/runs/30342456729
+Workflow URL: https://github.com/mewisme/mew/actions/runs/30342456729
 
 | Job | Result |
 |-----|--------|

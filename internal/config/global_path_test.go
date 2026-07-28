@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/mew/internal/config"
 )
 
 func TestGlobalConfigPathFromEnvMewConfigDir(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/store"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/store"
 )
 
 func TestDirPutGet(t *testing.T) {

@@ -22,8 +22,8 @@ Default store roots follow [`naming.md`](naming.md):
 
 | OS | Default |
 |---|---|
-| Linux | `$XDG_DATA_HOME/github.com/mewisme/m/store` |
-| macOS | `~/Library/Application Support/github.com/mewisme/m/store` |
+| Linux | `$XDG_DATA_HOME/github.com/mewisme/mew/store` |
+| macOS | `~/Library/Application Support/github.com/mewisme/mew/store` |
 | Windows | `%LocalAppData%\mew\store` |
 
 Override with `store.dir`, `MEW_STORE_DIR`, or `MEW_HOME/store`.

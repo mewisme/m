@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/fsx"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func mklinkJunction(target, link string) error {

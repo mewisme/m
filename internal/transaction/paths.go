@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/fsx"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
 // GuardPath ensures rel is a safe path under projectRoot (no escapes via .. or symlinks).

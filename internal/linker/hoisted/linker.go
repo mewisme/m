@@ -3,7 +3,7 @@ package hoisted
 import (
 	"context"
 
-	"github.com/mewisme/m/internal/linker"
+	"github.com/mewisme/mew/internal/linker"
 )
 
 // Apply is a package-level helper for callers that already have a plan.

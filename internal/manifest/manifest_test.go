@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/mewisme/m/internal/manifest"
+	"github.com/mewisme/mew/internal/manifest"
 )
 
 func TestManifestNormalizeRoundTrip(t *testing.T) {

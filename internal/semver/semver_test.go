@@ -3,7 +3,7 @@ package semver_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/semver"
+	"github.com/mewisme/mew/internal/semver"
 )
 
 func TestSatisfies(t *testing.T) {

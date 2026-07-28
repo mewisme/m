@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // EncodeJSON validates, then encodes with sorted collections and trailing newline.

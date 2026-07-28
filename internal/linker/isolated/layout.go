@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/mew/internal/graph"
 )
 
 const virtualStoreDir = ".pnpm"

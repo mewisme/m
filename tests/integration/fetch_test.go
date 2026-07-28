@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/archive"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/fetch"
-	"github.com/mewisme/m/internal/store"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/archive"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/fetch"
+	"github.com/mewisme/mew/internal/store"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestFetchLodashFromFixtureRegistry(t *testing.T) {

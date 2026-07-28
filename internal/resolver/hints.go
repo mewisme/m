@@ -1,8 +1,8 @@
 package resolver
 
 import (
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/semver"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/semver"
 )
 
 // graphHints wraps an optional partial graph for lock-prep selection.

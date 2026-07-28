@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestValidateManifestPathHostile(t *testing.T) {

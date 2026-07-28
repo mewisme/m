@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // Validate normalizes ordering, checks identity uniqueness, and verifies edges.

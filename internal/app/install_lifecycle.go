@@ -3,12 +3,12 @@ package app
 import (
 	"context"
 
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/lifecycle"
-	"github.com/mewisme/m/internal/linker"
-	"github.com/mewisme/m/internal/process"
-	"github.com/mewisme/m/internal/project"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lifecycle"
+	"github.com/mewisme/mew/internal/linker"
+	"github.com/mewisme/mew/internal/process"
+	"github.com/mewisme/mew/internal/project"
 )
 
 func runLifecyclePhase(ctx context.Context, ac *Context, proj *project.Project, opts InstallOptions, stageNM string, g *graph.Graph, linkPlan *linker.Plan) error {

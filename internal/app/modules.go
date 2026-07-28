@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/linker/isolated"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/linker/isolated"
 )
 
 const modulesFileName = "modules.v1.json"

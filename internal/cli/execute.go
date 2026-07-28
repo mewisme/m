@@ -12,9 +12,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/diagnostics"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/diagnostics"
 )
 
 // globalFlags holds persistent CLI presentation options.

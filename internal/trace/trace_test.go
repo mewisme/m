@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mewisme/m/internal/trace"
+	"github.com/mewisme/mew/internal/trace"
 )
 
 func TestSpanLifecycle(t *testing.T) {

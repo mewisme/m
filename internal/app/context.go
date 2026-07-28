@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/diagnostics"
-	"github.com/mewisme/m/internal/project"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/diagnostics"
+	"github.com/mewisme/mew/internal/project"
 )
 
 // Context is the process-level application state for one CLI invocation.

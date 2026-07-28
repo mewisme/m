@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/lifecycle"
-	"github.com/mewisme/m/internal/process"
+	"github.com/mewisme/mew/internal/lifecycle"
+	"github.com/mewisme/mew/internal/process"
 )
 
 func envHost() process.EnvSource {

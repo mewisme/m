@@ -1,4 +1,4 @@
-module github.com/mewisme/m
+module github.com/mewisme/mew
 
 go 1.26.5
 

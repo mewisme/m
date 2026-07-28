@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/fsx"
-	"github.com/mewisme/m/internal/store"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/store"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 func TestTakeoverStaleFileLockABARace(t *testing.T) {

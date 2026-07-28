@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/lockfile"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/lockfile"
 )
 
 var knownTopLevel = map[string]struct{}{

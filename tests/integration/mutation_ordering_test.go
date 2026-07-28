@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/testkit"
-	"github.com/mewisme/m/internal/transaction"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/testkit"
+	"github.com/mewisme/mew/internal/transaction"
 )
 
 const mutationOrderingEnv = "MEW_MUTATION_ORDERING_PROC"

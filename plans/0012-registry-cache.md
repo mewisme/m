@@ -207,7 +207,7 @@ flowchart LR
 
 | Artifact | Purpose |
 |---|---|
-| Registry metadata cache | ~/.cache/github.com/mewisme/m/registry or XDG equivalent |
+| Registry metadata cache | ~/.cache/github.com/mewisme/mew/registry or XDG equivalent |
 | Packument normalized model | Input to resolver |
 
 ## Concrete Test Fixtures

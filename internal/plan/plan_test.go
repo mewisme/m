@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/mewisme/m/internal/plan"
+	"github.com/mewisme/mew/internal/plan"
 )
 
 func TestPlanEncodeStable(t *testing.T) {

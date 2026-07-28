@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // Normalize sorts loss items for deterministic encoding.

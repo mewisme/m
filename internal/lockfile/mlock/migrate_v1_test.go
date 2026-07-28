@@ -3,8 +3,8 @@ package mlock_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/lockfile/mlock"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/lockfile/mlock"
 )
 
 func TestMigrateRejectsV1PeerRangeLock(t *testing.T) {

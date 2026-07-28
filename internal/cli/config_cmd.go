@@ -9,10 +9,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/diagnostics"
-	"github.com/mewisme/m/internal/project"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/diagnostics"
+	"github.com/mewisme/mew/internal/project"
 )
 
 func newConfigCmd(g *globalFlags) *cobra.Command {

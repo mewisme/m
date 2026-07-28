@@ -237,7 +237,7 @@ Environment: none yet. Exit codes: document reserved ranges only.
 ## Open Decisions
 
 - Exact Node LTS floor for v1 (link 0084/0089)
-- Whether github.com/mewisme/m/mewx alias binaries ship in v1 installers
+- Whether github.com/mewisme/mew/mewx alias binaries ship in v1 installers
 
 <!-- ENRICHMENT:END -->
 

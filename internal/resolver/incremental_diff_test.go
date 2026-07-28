@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/policy"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/policy"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func TestIncrementalGraphDiffGolden(t *testing.T) {

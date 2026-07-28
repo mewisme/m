@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestCleanEnvSetsMEW(t *testing.T) {

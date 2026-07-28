@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestConformanceInventoryStub(t *testing.T) {

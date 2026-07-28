@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mewisme/m/internal/app"
+	"github.com/mewisme/mew/internal/app"
 )
 
 func newDevelopmentCmd() *cobra.Command {

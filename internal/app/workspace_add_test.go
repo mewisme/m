@@ -3,9 +3,9 @@ package app_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/resolver"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/resolver"
 )
 
 func TestUntouchedImporterIDs(t *testing.T) {

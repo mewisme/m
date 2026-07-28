@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/mewisme/m/internal/project"
+	"github.com/mewisme/mew/internal/project"
 )
 
 // OpenProject discovers and loads the project for the application CWD.

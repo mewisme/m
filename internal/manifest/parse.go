@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // Parse parses package.json bytes into a Document (strict JSON, duplicate keys rejected).

@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/lifecycle"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/lifecycle"
 )
 
 func TestScriptTimeoutDefault(t *testing.T) {

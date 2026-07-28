@@ -1313,7 +1313,7 @@
     ],
     "openDecisions": [
       "Default shim install location per OS",
-      "Whether github.com/mewisme/m/mewx alias shims ship in v1"
+      "Whether github.com/mewisme/mew/mewx alias shims ship in v1"
     ],
     "todoSummaries": [
       "protocol: Shim launcher design",

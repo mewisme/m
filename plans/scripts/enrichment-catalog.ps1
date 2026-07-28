@@ -122,7 +122,7 @@ Environment: none yet. Exit codes: document reserved ranges only.
     ) `
     -OpenDecisions @(
         'Exact Node LTS floor for v1 (link 0084/0089)',
-        'Whether github.com/mewisme/m/mewx alias binaries ship in v1 installers'
+        'Whether github.com/mewisme/mew/mewx alias binaries ship in v1 installers'
     ) `
     -TodoSummaries @(
         'contracts: Freeze charter and compatibility axes',
@@ -488,7 +488,7 @@ flowchart TB
     -Artifacts @'
 | Artifact | Purpose |
 |---|---|
-| User config file | `~/.config/github.com/mewisme/m/config.toml` (final path per naming doc) |
+| User config file | `~/.config/github.com/mewisme/mew/config.toml` (final path per naming doc) |
 | Project config | Neutral names where convention exists |
 | Effective config dump | Debug only |
 '@ `

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // SchemaVersion versions serialized Plan documents.

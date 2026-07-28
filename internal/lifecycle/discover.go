@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/linker"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/linker"
 )
 
 // Discover builds an ordered lifecycle plan from a staged link layout.

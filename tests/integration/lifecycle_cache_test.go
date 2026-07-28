@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/lifecycle"
+	"github.com/mewisme/mew/internal/lifecycle"
 )
 
 func TestLifecyclePrepareRerunsAfterNodeModulesRemoval(t *testing.T) {

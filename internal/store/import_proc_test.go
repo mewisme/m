@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/fsx"
-	"github.com/mewisme/m/internal/store"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/store"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 const importProcEnv = "MEW_STORE_IMPORT_PROC"

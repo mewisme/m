@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/mewisme/m/internal/policy"
+	"github.com/mewisme/mew/internal/policy"
 )
 
 func TestPolicyRoundTrip(t *testing.T) {

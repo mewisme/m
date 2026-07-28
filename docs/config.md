@@ -15,7 +15,7 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 
 | Layer | Path |
 |---|---|
-| Global | `$MEW_CONFIG_DIR/config.jsonc` or platform default (`~/.config/github.com/mewisme/m/…`, `%AppData%\mew\…`) |
+| Global | `$MEW_CONFIG_DIR/config.jsonc` or platform default (`~/.config/github.com/mewisme/mew/…`, `%AppData%\mew\…`) |
 | Project | `<project-root>/m.jsonc` |
 
 `MEW_HOME` influences derived dirs when specific overrides are unset.

@@ -9,10 +9,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/fetch"
-	"github.com/mewisme/m/internal/store"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fetch"
+	"github.com/mewisme/mew/internal/store"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestDownloaderFixtureTarball(t *testing.T) {

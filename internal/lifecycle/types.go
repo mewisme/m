@@ -1,10 +1,10 @@
 package lifecycle
 
 import (
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/linker"
-	"github.com/mewisme/m/internal/process"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/linker"
+	"github.com/mewisme/mew/internal/process"
 )
 
 // Script is one lifecycle script to run for an installed package.

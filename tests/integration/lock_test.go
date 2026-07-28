@@ -7,15 +7,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mewisme/m/internal/app"
-	"github.com/mewisme/m/internal/cli"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/graph"
-	"github.com/mewisme/m/internal/lockfile/mlock"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/registry"
-	"github.com/mewisme/m/internal/resolver"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/cli"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lockfile/mlock"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/registry"
+	"github.com/mewisme/mew/internal/resolver"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestLockResolveWriteRead(t *testing.T) {

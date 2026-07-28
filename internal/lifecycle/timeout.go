@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
 )
 
 const defaultScriptTimeout = 10 * time.Minute

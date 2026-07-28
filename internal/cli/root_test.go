@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/diagnostics"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/diagnostics"
 )
 
 func TestMRootHelp(t *testing.T) {

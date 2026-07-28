@@ -3,7 +3,7 @@ package lifecycle
 import (
 	"os"
 
-	"github.com/mewisme/m/internal/config"
+	"github.com/mewisme/mew/internal/config"
 )
 
 // Enabled reports whether lifecycle execution is turned on for this invocation.

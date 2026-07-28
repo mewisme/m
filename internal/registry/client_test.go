@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/diagnostics"
-	"github.com/mewisme/m/internal/project"
-	"github.com/mewisme/m/internal/registry"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/diagnostics"
+	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/registry"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestPackumentFetchAndCache304(t *testing.T) {

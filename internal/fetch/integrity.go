@@ -12,8 +12,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/contentid"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/contentid"
 )
 
 // ponytail: integrity parsing supports std SRI base64 and fixture hex digests; upgrade = strict SRI-only.

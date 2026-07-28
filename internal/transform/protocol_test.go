@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/mewisme/m/internal/transform"
+	"github.com/mewisme/mew/internal/transform"
 )
 
 func TestFrameRoundTrip(t *testing.T) {

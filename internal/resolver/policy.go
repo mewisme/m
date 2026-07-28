@@ -3,8 +3,8 @@ package resolver
 import (
 	"time"
 
-	"github.com/mewisme/m/internal/config"
-	"github.com/mewisme/m/internal/policy"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/policy"
 )
 
 // PolicyFromEffective returns resolver policy from effective config only.

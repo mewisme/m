@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mewisme/m/internal/registry"
+	"github.com/mewisme/mew/internal/registry"
 )
 
 type fakeRegistry struct{}

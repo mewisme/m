@@ -10,8 +10,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/archive"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/archive"
 )
 
 func TestExtractRejectsWindowsReservedName(t *testing.T) {

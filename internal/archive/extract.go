@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // ponytail: bomb limits are fixed constants; upgrade = config keys for body/members/expansion.

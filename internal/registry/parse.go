@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // ParsePackument validates and normalizes packument JSON.

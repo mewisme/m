@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/mewisme/m/internal/capsule"
+	"github.com/mewisme/mew/internal/capsule"
 )
 
 func TestCapsuleSortsPackages(t *testing.T) {

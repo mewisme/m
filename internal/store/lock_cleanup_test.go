@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/m/internal/apperr"
-	"github.com/mewisme/m/internal/contentid"
-	"github.com/mewisme/m/internal/fsx"
-	"github.com/mewisme/m/internal/testkit"
+	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/contentid"
+	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/testkit"
 )
 
 func TestImportFromTarballSurfacesReleaseFailure(t *testing.T) {

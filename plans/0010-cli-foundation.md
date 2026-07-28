@@ -246,7 +246,7 @@ flowchart LR
 
 ## Open Decisions
 
-- Whether github.com/mewisme/m/mewx alias binaries ship in v1 installers
+- Whether github.com/mewisme/mew/mewx alias binaries ship in v1 installers
 - Default --color behavior on Windows terminals without ANSI
 
 <!-- ENRICHMENT:END -->

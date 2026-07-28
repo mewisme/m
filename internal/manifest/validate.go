@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/mewisme/m/internal/apperr"
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // npm package name: optional @scope/ then name; no uppercase in modern npm — allow mixed for legacy.

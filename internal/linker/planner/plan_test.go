@@ -3,8 +3,8 @@ package planner_test
 import (
 	"testing"
 
-	"github.com/mewisme/m/internal/linker"
-	"github.com/mewisme/m/internal/linker/planner"
+	"github.com/mewisme/mew/internal/linker"
+	"github.com/mewisme/mew/internal/linker/planner"
 )
 
 func TestPlanFileCrossDeviceUsesCopy(t *testing.T) {

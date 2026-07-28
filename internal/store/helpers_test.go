@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/mewisme/m/internal/contentid"
+	"github.com/mewisme/mew/internal/contentid"
 )
 
 func importIntegrity(ctx context.Context, ps *PackageStore, tgz, sri string) (PackageKey, error) {
