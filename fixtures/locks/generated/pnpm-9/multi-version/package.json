@@ -4,6 +4,6 @@
   "private": true,
   "dependencies": {
     "debug": "4.3.7",
-    "follow-redirects": "1.15.9"
+    "follow-redirects": "1.16.0"
   }
 }
