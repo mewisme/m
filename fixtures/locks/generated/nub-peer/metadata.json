@@ -1,0 +1,19 @@
+{
+  "producer": "nub",
+  "producerVersion": "pnpm-9-shaped",
+  "producerMajor": 9,
+  "family": "nub-peer",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "lockfileVersion": "9.0",
+  "generationSignals": [
+    "pnpm-v9-shaped",
+    "nub.lock",
+    "derived-from=pnpm-9/peer-context"
+  ],
+  "confidence": "manual",
+  "command": "derived from fixtures/locks/generated/pnpm-9/peer-context pnpm-lock.yaml",
+  "timestamp": "2026-07-28T23:59:17.4739719+07:00",
+  "lockfileSha256": "cf992d5fcec562d8b490be901a55f732fed7ea9c26d205d769ae28d2be32a676"
+}

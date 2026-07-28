@@ -1,0 +1,12 @@
+{
+  "name": "fixture-platform",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "left-pad": "1.3.0"
+  },
+  "optionalDependencies": {
+    "fsevents": "2.3.3"
+  },
+  "os": ["linux", "darwin", "win32"]
+}

@@ -1,0 +1,19 @@
+{
+  "producer": "nub",
+  "producerVersion": "pnpm-9-shaped",
+  "producerMajor": 9,
+  "family": "nub-optional",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "lockfileVersion": "9.0",
+  "generationSignals": [
+    "pnpm-v9-shaped",
+    "nub.lock",
+    "derived-from=pnpm-9/optional"
+  ],
+  "confidence": "manual",
+  "command": "derived from fixtures/locks/generated/pnpm-9/optional pnpm-lock.yaml",
+  "timestamp": "2026-07-28T23:59:17.4973132+07:00",
+  "lockfileSha256": "35537b62f237294998f294b6dfb6e67aa3e058022d06b969ba3024f3b60039ee"
+}

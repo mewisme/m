@@ -4,12 +4,17 @@
   Regenerate committed lock bridge conformance fixtures from pinned pnpm binaries.
 
 .DESCRIPTION
-  Copies fixture families into fixtures/locks/generated/ and writes metadata.json
-  with producer version, command, and SHA-256 of the lockfile. Requires pnpm on PATH
-  matching tools/conformance/pnpm-versions.env when -Generate is set.
+  Reads family sources from fixtures/locks/sources/pnpm/<family>/ and writes
+  fixtures/locks/generated/pnpm-{9,10,11}/<family>/ with honest metadata.json.
+  Use -Generate to run isolated temp homes with exact pnpm@X.Y.Z via corepack.
 #>
 param(
-    [switch]$Generate
+    [switch]$Generate,
+    [string[]]$Families = @(
+        'basic', 'transitive', 'optional', 'peer-context', 'multi-version',
+        'scoped', 'workspace', 'catalog', 'override', 'platform', 'importer-meta'
+    ),
+    [int[]]$Majors = @(9, 10, 11)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,74 +25,129 @@ Get-Content $versions | ForEach-Object {
     if ($_ -match '^(PNPM\d+_VERSION)=(.+)$') { Set-Variable -Name $Matches[1] -Value $Matches[2].Trim() }
 }
 
-function Write-Metadata($dest, $major, $pnpmVersion, $command) {
+function Write-Metadata($dest, $major, $family, $pnpmVersion, $command) {
     $lock = Join-Path $dest 'pnpm-lock.yaml'
     if (-not (Test-Path $lock)) { throw "missing lock at $lock" }
     $hash = (Get-FileHash $lock -Algorithm SHA256).Hash.ToLower()
     $meta = [ordered]@{
-        producer         = 'pnpm'
-        producerVersion  = $pnpmVersion
-        producerMajor    = [int]$major
-        node             = (node -v 2>$null)
-        os               = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
-        arch             = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
-        lockfileVersion  = '9.0'
-        generationSignals = @("lockfileVersion=9.0")
-        confidence       = if ($major -eq '9') { 'inferred' } else { 'certain' }
-        command          = $command
-        timestamp        = (Get-Date -Format o)
-        lockfileSha256   = $hash
+        producer          = 'pnpm'
+        producerVersion   = $pnpmVersion
+        producerMajor     = [int]$major
+        family            = $family
+        node              = (node -v 2>$null)
+        os                = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+        arch              = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
+        lockfileVersion   = '9.0'
+        generationSignals = @("lockfileVersion=9.0", "family=$family")
+        confidence        = 'certain'
+        command           = $command
+        timestamp         = (Get-Date -Format o)
+        lockfileSha256    = $hash
     }
     $meta | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $dest 'metadata.json') -Encoding utf8NoBOM
 }
 
-foreach ($major in 9,10,11) {
-    $src = Join-Path $root "fixtures/locks/pnpm/v$major"
-    $dest = Join-Path $root "fixtures/locks/generated/pnpm-$major/basic"
+function Copy-FamilySource($src, $dest) {
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
-    if ($Generate) {
-        $ver = (Get-Variable "PNPM${major}_VERSION").Value
-        $work = Join-Path ([System.IO.Path]::GetTempPath()) "mew-lock-fix-$major"
-        if (Test-Path $work) { Remove-Item -Recurse -Force $work }
-        New-Item -ItemType Directory -Force -Path $work | Out-Null
-        Copy-Item (Join-Path $src 'package.json') $work
-        Push-Location $work
-        try {
-            corepack enable 2>$null | Out-Null
-            corepack prepare "pnpm@$ver" --activate | Out-Null
-            pnpm install --lockfile-only | Out-Null
-        } finally { Pop-Location }
-        Copy-Item (Join-Path $work 'package.json') $dest
-        Copy-Item (Join-Path $work 'pnpm-lock.yaml') $dest
-        $cmd = "corepack prepare pnpm@$ver --activate; pnpm install --lockfile-only"
-    } else {
-        Copy-Item (Join-Path $src 'package.json') $dest -Force
-        Copy-Item (Join-Path $src 'pnpm-lock.yaml') $dest -Force
-        $ver = (Get-Variable "PNPM${major}_VERSION").Value
-        $cmd = "committed from fixtures/locks/pnpm/v$major (pnpm@$ver reference)"
+    Get-ChildItem -Path $src -Recurse -File | ForEach-Object {
+        $rel = $_.FullName.Substring($src.Length).TrimStart('\', '/')
+        $out = Join-Path $dest $rel
+        $parent = Split-Path $out -Parent
+        if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+        Copy-Item $_.FullName $out -Force
     }
-    Write-Metadata $dest $major $ver $cmd
 }
 
-$nubSrc = Join-Path $root 'fixtures/locks/nub/v1-basic'
-$nubDest = Join-Path $root 'fixtures/locks/generated/nub-basic'
-New-Item -ItemType Directory -Force -Path $nubDest | Out-Null
-Copy-Item (Join-Path $nubSrc '*') $nubDest -Force
-$nubLock = Join-Path $nubDest 'nub.lock'
-$nubHash = (Get-FileHash $nubLock -Algorithm SHA256).Hash.ToLower()
-[ordered]@{
-    producer        = 'nub'
-    producerVersion = 'manual-evidence'
-    producerMajor   = 9
-    node            = (node -v 2>$null)
-    os              = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
-    arch            = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
-    lockfileVersion = '9.0'
-    generationSignals = @('pnpm-v9-shaped', 'nub.lock')
-    confidence      = 'manual'
-    command         = 'committed from fixtures/locks/nub/v1-basic'
-    timestamp       = (Get-Date -Format o)
-    lockfileSha256  = $nubHash
-} | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $nubDest 'metadata.json') -Encoding utf8NoBOM
+function Invoke-PnpmLockOnly($workDir, $pnpmVersion) {
+    Push-Location $workDir
+    try {
+        $env:COREPACK_ENABLE_DOWNLOAD_PROMPT = '0'
+        corepack enable 2>$null | Out-Null
+        corepack prepare "pnpm@$pnpmVersion" --activate | Out-Null
+        $pnpm = Get-Command pnpm -ErrorAction Stop
+        & $pnpm.Source install --lockfile-only --ignore-scripts 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "pnpm install failed in $workDir (exit $LASTEXITCODE)"
+        }
+    } finally { Pop-Location }
+}
 
-Write-Host "ok: fixtures/locks/generated refreshed"
+foreach ($major in $Majors) {
+    $ver = (Get-Variable "PNPM${major}_VERSION").Value
+    foreach ($family in $Families) {
+        $src = Join-Path $root "fixtures/locks/sources/pnpm/$family"
+        if (-not (Test-Path $src)) { throw "missing source family $src" }
+        $dest = Join-Path $root "fixtures/locks/generated/pnpm-$major/$family"
+        if ($Generate) {
+            $work = Join-Path ([System.IO.Path]::GetTempPath()) "mew-lock-fix-$major-$family"
+            if (Test-Path $work) { Remove-Item -Recurse -Force $work }
+            Copy-FamilySource $src $work
+            Invoke-PnpmLockOnly $work $ver
+            if (-not (Test-Path (Join-Path $work 'pnpm-lock.yaml'))) {
+                throw "pnpm did not write lockfile for $family major=$major"
+            }
+            Copy-FamilySource $work $dest
+            $cmd = "corepack prepare pnpm@$ver --activate; pnpm install --lockfile-only --ignore-scripts (family=$family)"
+        } else {
+            if (-not (Test-Path (Join-Path $dest 'pnpm-lock.yaml'))) {
+                Write-Warning "skip $dest — no committed lock; run with -Generate"
+                continue
+            }
+            $cmd = "committed generated fixture (family=$family, pnpm@$ver)"
+        }
+        Write-Metadata $dest $major $family $ver $cmd
+        Write-Host "ok: pnpm-$major/$family"
+    }
+}
+
+# Nub fixture families — derived from pnpm-9 generated locks (pnpm-v9-shaped nub.lock)
+$nubMap = [ordered]@{
+    'nub-basic'      = 'basic'
+    'nub-transitive' = 'transitive'
+    'nub-workspace'  = 'workspace'
+    'nub-catalog'    = 'catalog'
+    'nub-peer'       = 'peer-context'
+    'nub-optional'   = 'optional'
+}
+foreach ($entry in $nubMap.GetEnumerator()) {
+    $family = $entry.Value
+    $name = $entry.Key
+    $pnpmDir = Join-Path $root "fixtures/locks/generated/pnpm-9/$family"
+    $nubDest = Join-Path $root "fixtures/locks/generated/$name"
+    if (-not (Test-Path (Join-Path $pnpmDir 'pnpm-lock.yaml'))) {
+        Write-Warning "skip $name — missing pnpm-9/$family"
+        continue
+    }
+    New-Item -ItemType Directory -Force -Path $nubDest | Out-Null
+    Copy-Item (Join-Path $pnpmDir 'package.json') $nubDest -Force
+    if (Test-Path (Join-Path $pnpmDir 'pnpm-workspace.yaml')) {
+        Copy-Item (Join-Path $pnpmDir 'pnpm-workspace.yaml') $nubDest -Force
+    }
+    if (Test-Path (Join-Path $pnpmDir 'packages')) {
+        Copy-Item (Join-Path $pnpmDir 'packages') (Join-Path $nubDest 'packages') -Recurse -Force
+    }
+    $lock = Get-Content (Join-Path $pnpmDir 'pnpm-lock.yaml') -Raw
+    if ($lock -notmatch 'nubVersion:') {
+        $lock = $lock.TrimEnd() + "`nnubVersion: `"1.0.0`"`n"
+    }
+    Set-Content (Join-Path $nubDest 'nub.lock') $lock -Encoding utf8NoBOM -NoNewline
+    $nubHash = (Get-FileHash (Join-Path $nubDest 'nub.lock') -Algorithm SHA256).Hash.ToLower()
+    [ordered]@{
+        producer          = 'nub'
+        producerVersion   = 'pnpm-9-shaped'
+        producerMajor     = 9
+        family            = $name
+        node              = (node -v 2>$null)
+        os                = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+        arch              = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
+        lockfileVersion   = '9.0'
+        generationSignals = @('pnpm-v9-shaped', 'nub.lock', "derived-from=pnpm-9/$family")
+        confidence        = 'manual'
+        command           = "derived from fixtures/locks/generated/pnpm-9/$family pnpm-lock.yaml"
+        timestamp         = (Get-Date -Format o)
+        lockfileSha256    = $nubHash
+    } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $nubDest 'metadata.json') -Encoding utf8NoBOM
+    Write-Host "ok: $name"
+}
+
+Write-Host "done: fixtures/locks/generated refreshed"
