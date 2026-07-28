@@ -15,6 +15,7 @@ const (
 	maxPackageKeyLen = 4096
 	maxPeerSuffixLen = 2048
 	maxAliasChain    = 8
+	maxIndexKeys     = 200_000
 )
 
 func validateLockInput(data []byte) error {

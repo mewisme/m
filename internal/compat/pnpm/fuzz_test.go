@@ -14,6 +14,7 @@ func FuzzDecodePnpmLock(f *testing.F) {
 		filepath.Join(root, "fixtures", "locks", "pnpm", "v9", "pnpm-lock.yaml"),
 		filepath.Join(root, "fixtures", "locks", "pnpm", "v10", "pnpm-lock.yaml"),
 		filepath.Join(root, "fixtures", "locks", "pnpm", "v11", "pnpm-lock.yaml"),
+		filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "peer-context", "pnpm-lock.yaml"),
 		filepath.Join(root, "testdata", "lockfile", "fuzz", "duplicate-key.yaml"),
 		filepath.Join(root, "testdata", "lockfile", "fuzz", "oversize-marker.yaml"),
 	}
@@ -27,5 +28,40 @@ func FuzzDecodePnpmLock(f *testing.F) {
 			return
 		}
 		_, _ = Decode(data)
+	})
+}
+
+func FuzzValidatePackageKey(f *testing.F) {
+	for _, seed := range []string{
+		"lodash@4.17.21",
+		"acorn-jsx@5.3.2(acorn@8.18.0)",
+		"link:packages/pkg-a",
+		"file:../local",
+	} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, key string) {
+		if len(key) > maxPackageKeyLen+64 {
+			return
+		}
+		_ = validatePackageKey(key)
+	})
+}
+
+func FuzzFieldLossAudit(f *testing.F) {
+	root := testkit.ModuleRoot(f)
+	seed := filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "basic", "pnpm-lock.yaml")
+	if data, err := os.ReadFile(seed); err == nil {
+		f.Add(data)
+	}
+	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > maxLockBytes {
+			return
+		}
+		doc, err := Decode(data)
+		if err != nil {
+			return
+		}
+		_ = FieldLossAudit(doc)
 	})
 }

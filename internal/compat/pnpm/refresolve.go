@@ -27,6 +27,9 @@ type mapIndex struct {
 
 // NewPackageIndex builds an index from package map keys.
 func NewPackageIndex(keys []string) PackageIndex {
+	if len(keys) > maxIndexKeys {
+		return oversizeIndex{}
+	}
 	idx := &mapIndex{
 		keys:   make(map[string]struct{}, len(keys)),
 		byName: map[string][]string{},
@@ -68,6 +71,13 @@ func (idx *mapIndex) HasKey(key string) bool {
 func (idx *mapIndex) KeysForName(name string) []string {
 	return idx.byName[name]
 }
+
+// oversizeIndex rejects resolution when hostile inputs exceed index caps.
+type oversizeIndex struct{}
+
+func (oversizeIndex) HasKey(string) bool { return false }
+
+func (oversizeIndex) KeysForName(string) []string { return nil }
 
 // ResolveDependencyTarget resolves a pnpm dependency reference to a package key.
 func ResolveDependencyTarget(depName, resolutionRef string, idx PackageIndex) (Target, error) {

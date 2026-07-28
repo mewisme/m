@@ -110,11 +110,17 @@ snapshots:
 func FuzzResolveDependencyTarget(f *testing.F) {
 	f.Add("b", "2.0.0")
 	f.Add("@scope/x", "1.0.0")
+	f.Add("acorn-jsx", "5.3.2(acorn@8.18.0)")
 	f.Fuzz(func(t *testing.T, name, ref string) {
-		if len(name)+len(ref) > maxPackageKeyLen {
+		if len(name)+len(ref) > maxPackageKeyLen+maxPeerSuffixLen {
 			return
 		}
-		idx := NewPackageIndex([]string{name + "@" + ref, ref})
+		idx := NewPackageIndex([]string{
+			name + "@" + ref,
+			ref,
+			"acorn-jsx@5.3.2#acorn@8.18.0",
+			"acorn@8.18.0",
+		})
 		_, _ = ResolveDependencyTarget(name, ref, idx)
 	})
 }
