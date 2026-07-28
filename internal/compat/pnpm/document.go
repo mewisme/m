@@ -1,6 +1,8 @@
 package pnpm
 
 import (
+	"encoding/json"
+
 	"github.com/mewisme/mew/internal/lockfile"
 )
 
@@ -26,8 +28,12 @@ type Document struct {
 
 // ImporterSection mirrors pnpm importer blocks.
 type ImporterSection struct {
-	Dependencies    map[string]ImporterDep `yaml:"dependencies,omitempty"`
-	DevDependencies map[string]ImporterDep `yaml:"devDependencies,omitempty"`
+	Dependencies         map[string]ImporterDep `yaml:"dependencies,omitempty"`
+	DevDependencies      map[string]ImporterDep `yaml:"devDependencies,omitempty"`
+	OptionalDependencies map[string]ImporterDep `yaml:"optionalDependencies,omitempty"`
+	DependenciesMeta     map[string]any         `yaml:"dependenciesMeta,omitempty"`
+	PublishDirectory     string                 `yaml:"publishDirectory,omitempty"`
+	Extra                map[string]json.RawMessage
 }
 
 // ImporterDep is a single importer dependency entry.
@@ -81,6 +87,15 @@ func cloneImporters(in map[string]ImporterSection) map[string]ImporterSection {
 		sec := ImporterSection{}
 		sec.Dependencies = cloneDeps(v.Dependencies)
 		sec.DevDependencies = cloneDeps(v.DevDependencies)
+		sec.OptionalDependencies = cloneDeps(v.OptionalDependencies)
+		sec.DependenciesMeta = cloneMap(v.DependenciesMeta)
+		sec.PublishDirectory = v.PublishDirectory
+		if v.Extra != nil {
+			sec.Extra = make(map[string]json.RawMessage, len(v.Extra))
+			for ek, ev := range v.Extra {
+				sec.Extra[ek] = ev
+			}
+		}
 		out[k] = sec
 	}
 	return out

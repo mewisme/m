@@ -77,8 +77,32 @@ func importersToMap(importers map[string]ImporterSection) map[string]any {
 		if len(sec.DevDependencies) > 0 {
 			m["devDependencies"] = depsToMap(sec.DevDependencies)
 		}
+		if len(sec.OptionalDependencies) > 0 {
+			m["optionalDependencies"] = depsToMap(sec.OptionalDependencies)
+		}
+		if len(sec.DependenciesMeta) > 0 {
+			m["dependenciesMeta"] = sec.DependenciesMeta
+		}
+		if sec.PublishDirectory != "" {
+			m["publishDirectory"] = sec.PublishDirectory
+		}
+		for _, k := range sortedExtraKeys(sec.Extra) {
+			var decoded any
+			if err := json.Unmarshal(sec.Extra[k], &decoded); err == nil {
+				m[k] = decoded
+			}
+		}
 		out[id] = m
 	}
+	return out
+}
+
+func sortedExtraKeys(m map[string]json.RawMessage) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
 	return out
 }
 
@@ -105,12 +129,8 @@ func packagesToMap(packages map[string]PackageEntry, det lockfile.Detection) map
 			}
 			m["dependencies"] = depMap
 		}
-		if p.Checksum != "" && (det.Format == FormatV10 || det.ProducerMajor == 10) {
-			m["checksum"] = p.Checksum
-		}
-		if p.BuildPolicy != nil && (det.Format == FormatV11 || det.ProducerMajor == 11) {
-			m["buildPolicy"] = p.BuildPolicy
-		}
+		policy := SelectPolicy(det)
+		policy.ApplyPackageEncodeFields(p, m)
 		extraKeys := sortedStrings(mapAnyKeys(p.Extra))
 		for _, fk := range extraKeys {
 			m[fk] = p.Extra[fk]
