@@ -11,6 +11,12 @@ func IsLegacyUnsupported(doc *Document) bool {
 	if doc == nil {
 		return false
 	}
+	if len(doc.Importers) > 0 || len(doc.Snapshots) > 0 {
+		return false
+	}
+	if IsLegacyFlatVersion(doc.LockfileVersion) {
+		return true
+	}
 	return IsV6Layout(doc)
 }
 

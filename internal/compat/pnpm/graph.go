@@ -15,8 +15,8 @@ func ToGraph(doc *Document) (*graph.Graph, error) {
 	if doc == nil {
 		return nil, apperr.New(apperr.Lockfile, "pnpm.graph", "document", "nil document")
 	}
-	if IsLegacyUnsupported(doc) {
-		return nil, rejectLegacy(doc)
+	if err := ValidateSupportedPnpm(doc); err != nil {
+		return nil, err
 	}
 	return v9ShapeToGraph(doc)
 }
@@ -24,18 +24,29 @@ func ToGraph(doc *Document) (*graph.Graph, error) {
 func v9ShapeToGraph(doc *Document) (*graph.Graph, error) {
 	g := &graph.Graph{SchemaVersion: graph.SchemaVersion}
 
-	pkgKeys := sortedStrings(keys(doc.Packages))
-	packageKeys := make(map[string]struct{}, len(pkgKeys))
-	idx := NewPackageIndex(pkgKeys)
-	for _, key := range pkgKeys {
-		entry := doc.Packages[key]
-		name, version := KeyToNameVersion(key)
+	instanceKeys := buildInstanceSet(doc)
+	packageKeys := make(map[string]struct{}, len(instanceKeys))
+	graphKeys := make([]string, 0, len(instanceKeys))
+	for _, instanceKey := range instanceKeys {
+		pkgID, err := packageIDFromInstanceKey(instanceKey)
+		if err != nil {
+			return nil, err
+		}
+		baseKey := basePackageKeyFromInstance(instanceKey)
+		entry, hasBase := doc.Packages[baseKey]
+		if !hasBase && !isProtocolRef(instanceKey) {
+			return nil, apperr.New(apperr.Lockfile, "pnpm.graph", instanceKey,
+				"missing base package metadata for "+baseKey)
+		}
+		graphKey := pkgID.Key()
 		g.Packages = append(g.Packages, graph.Package{
-			ID:        graph.PackageID{Name: name, Version: version},
+			ID:        pkgID,
 			Integrity: integrityFromResolution(entry.Resolution),
 		})
-		packageKeys[key] = struct{}{}
+		packageKeys[graphKey] = struct{}{}
+		graphKeys = append(graphKeys, graphKey)
 	}
+	idx := NewPackageIndex(graphKeys)
 
 	importerIDs := sortedStrings(mapImporterSectionKeys(doc.Importers))
 	if len(importerIDs) == 0 {
@@ -52,16 +63,28 @@ func v9ShapeToGraph(doc *Document) (*graph.Graph, error) {
 
 	if len(doc.Snapshots) > 0 {
 		for _, snapKey := range sortedSnapshotKeys(doc.Snapshots) {
-			if err := appendSnapshotEdges(g, snapKey, doc.Snapshots[snapKey], packageKeys, idx); err != nil {
+			graphFrom, err := instanceKeyToGraphKey(snapKey)
+			if err != nil {
+				return nil, err
+			}
+			if err := appendSnapshotEdges(g, graphFrom, doc.Snapshots[snapKey], packageKeys, idx); err != nil {
 				return nil, err
 			}
 		}
 	} else {
-		for _, key := range pkgKeys {
-			entry := doc.Packages[key]
+		for _, instanceKey := range instanceKeys {
+			baseKey := basePackageKeyFromInstance(instanceKey)
+			entry, ok := doc.Packages[baseKey]
+			if !ok {
+				continue
+			}
+			graphFrom, err := instanceKeyToGraphKey(instanceKey)
+			if err != nil {
+				return nil, err
+			}
 			for depName, depVer := range entry.Dependencies {
 				g.Edges = append(g.Edges, graph.Edge{
-					From: key,
+					From: graphFrom,
 					Name: depName,
 					To:   depVer,
 					Kind: graph.DepProd,
@@ -137,9 +160,9 @@ func isAllowedEdgeTarget(to string, known map[string]struct{}) bool {
 }
 
 func validateImporterTargets(g *graph.Graph, doc *Document) error {
-	packageKeys := make(map[string]struct{}, len(doc.Packages))
-	for k := range doc.Packages {
-		packageKeys[k] = struct{}{}
+	packageKeys := make(map[string]struct{}, len(g.Packages))
+	for _, p := range g.Packages {
+		packageKeys[p.ID.Key()] = struct{}{}
 	}
 	for _, e := range g.Edges {
 		if _, ok := packageKeys[e.From]; ok {

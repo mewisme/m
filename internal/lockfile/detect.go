@@ -51,6 +51,11 @@ func DetectPnpmWithMajor(data []byte, producerMajor int) (Detection, error) {
 // DetectPnpmWithContext applies evidence order: packageManager, devEngines, explicit major,
 // adapter extension metadata, policy structural evidence, else ambiguous.
 func DetectPnpmWithContext(data []byte, hints ProjectHints, explicitMajor int) (Detection, error) {
+	if PnpmValidateSupported != nil {
+		if err := PnpmValidateSupported(data); err != nil {
+			return Detection{}, err
+		}
+	}
 	root, err := parseYAMLRoot(data)
 	if err != nil {
 		return Detection{}, err

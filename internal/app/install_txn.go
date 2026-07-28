@@ -162,6 +162,9 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	if err := requireWorkspacesGate(ac, opts); err != nil {
 		return res, err
 	}
+	if err := validatePnpmLockBeforeTxn(proj); err != nil {
+		return res, err
+	}
 
 	emitPhase(ac, "resolve", "")
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
@@ -388,6 +391,9 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 		}
 	}
 	if err := requireWorkspacesGate(ac, opts); err != nil {
+		return res, err
+	}
+	if err := validatePnpmLockBeforeTxn(proj); err != nil {
 		return res, err
 	}
 	emitPhase(ac, "resolve", "")

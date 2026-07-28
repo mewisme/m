@@ -23,7 +23,7 @@ func (Adapter) Read(ctx context.Context, path string) (*graph.Graph, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := rejectLegacy(doc); err != nil {
+	if err := ValidateSupportedPnpm(doc); err != nil {
 		return nil, err
 	}
 	return ToGraph(doc)
@@ -51,7 +51,7 @@ func (Adapter) ReadWithExtensions(ctx context.Context, path string) (*graph.Grap
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := rejectLegacy(doc); err != nil {
+	if err := ValidateSupportedPnpm(doc); err != nil {
 		return nil, nil, err
 	}
 	g, err := ToGraph(doc)
@@ -80,7 +80,7 @@ func (Adapter) EncodePreserving(ctx context.Context, path string, g *graph.Graph
 	if err != nil {
 		return lockfile.WriteResult{}, err
 	}
-	if err := rejectLegacy(doc); err != nil {
+	if err := ValidateSupportedPnpm(doc); err != nil {
 		return lockfile.WriteResult{}, err
 	}
 	if ext != nil {
@@ -141,7 +141,7 @@ func (Adapter) LossFromDocument(ctx context.Context, prior []byte) (lockfile.Los
 	if err != nil {
 		return lockfile.LossReport{}, err
 	}
-	if err := rejectLegacy(doc); err != nil {
+	if err := ValidateSupportedPnpm(doc); err != nil {
 		return lockfile.LossReport{}, err
 	}
 	report := FieldLossAudit(doc)

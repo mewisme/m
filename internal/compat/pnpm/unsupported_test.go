@@ -59,8 +59,71 @@ packages:
 	if !pnpm.IsLegacyUnsupported(doc) {
 		t.Fatal("expected legacy layout")
 	}
+	if err := pnpm.ValidateSupportedPnpm(doc); err == nil {
+		t.Fatal("expected ValidateSupportedPnpm rejection")
+	}
 	_, err = pnpm.ToGraph(doc)
 	if err == nil {
 		t.Fatal("expected ToGraph rejection")
+	}
+}
+
+func TestRejectUnsupportedFixtures(t *testing.T) {
+	root := moduleRoot(t)
+	cases := []struct {
+		dir    string
+		legacy bool
+	}{
+		{"v5.4", true},
+		{"v7", true},
+		{"v8", true},
+		{"unknown-version", false},
+		{"misleading-flat", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.dir, func(t *testing.T) {
+			path := filepath.Join(root, "fixtures", "locks", "pnpm", "unsupported", tc.dir, "pnpm-lock.yaml")
+			prior, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = lockfile.DetectPnpm(prior)
+			if err == nil {
+				t.Fatal("expected detection rejection")
+			}
+			if apperr.CodeOf(err) != apperr.LockUnsupported {
+				t.Fatalf("code=%s err=%v", apperr.CodeOf(err), err)
+			}
+			_, err = pnpm.Adapter{}.Read(context.Background(), path)
+			if err == nil {
+				t.Fatal("expected adapter read rejection")
+			}
+			doc, err := pnpm.Decode(prior)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.legacy && !pnpm.IsLegacyUnsupported(doc) {
+				t.Fatal("expected legacy classification")
+			}
+			if err := pnpm.ValidateSupportedPnpm(doc); err == nil {
+				t.Fatal("expected ValidateSupportedPnpm rejection")
+			}
+		})
+	}
+}
+
+func TestAdapterEncodeRejectsUnsupported(t *testing.T) {
+	root := moduleRoot(t)
+	path := filepath.Join(root, "fixtures", "locks", "pnpm", "unsupported", "v7", "pnpm-lock.yaml")
+	prior, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pnpm.Adapter{}.EncodePreserving(context.Background(), path, nil, prior, nil, lockfile.Detection{})
+	if err == nil {
+		t.Fatal("expected encode rejection")
+	}
+	if apperr.CodeOf(err) != apperr.LockUnsupported {
+		t.Fatalf("code=%s", apperr.CodeOf(err))
 	}
 }
