@@ -19,6 +19,9 @@ type UpdateOptions struct {
 
 // Update re-resolves with incremental hints and commits via install transaction.
 func Update(ctx context.Context, ac *Context, opts UpdateOptions) (InstallResult, error) {
+	if len(opts.Install.Filter) > 0 {
+		return InstallResult{}, apperr.New(apperr.Usage, "app.update", "--filter", "filtered update is not supported yet")
+	}
 	updateParams := &UpdateResolveOptions{Targets: opts.Targets}
 	edit := func(proj *project.Project) error {
 		norm, err := manifest.ToNormalized(proj.Doc)

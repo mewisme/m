@@ -25,15 +25,19 @@ func newUpdateCmd() *cobra.Command {
 			if ac == nil {
 				return apperr.New(apperr.Internal, "update", "", "missing app context")
 			}
+			install := installOptsFromGlobals(cmd, app.InstallOptions{
+				DryRun:        dryRun,
+				KeepJournal:   keepJournal,
+				Linker:        linkerMode,
+				IgnoreScripts: ignoreScripts,
+			})
+			if len(install.Filter) > 0 {
+				return apperr.New(apperr.Usage, "update", "--filter", "filtered update is not supported yet")
+			}
 			result, err := app.Update(cmd.Context(), ac, app.UpdateOptions{
 				Targets: args,
 				Latest:  latest,
-				Install: installOptsFromGlobals(cmd, app.InstallOptions{
-					DryRun:        dryRun,
-					KeepJournal:   keepJournal,
-					Linker:        linkerMode,
-					IgnoreScripts: ignoreScripts,
-				}),
+				Install: install,
 			})
 			if err != nil {
 				return err

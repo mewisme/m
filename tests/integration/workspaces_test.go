@@ -195,6 +195,18 @@ func TestWorkspaceRemoveFilterUpdatesMemberOnly(t *testing.T) {
 	}
 }
 
+func TestUpdateRejectsFilter(t *testing.T) {
+	projDir, cfgPath := setupWorkspaceProject(t, "projects/workspace-simple")
+	code, out := runM(t, projDir, cfgPath, "install", "-r")
+	if code != 0 {
+		t.Fatalf("install exit=%d out=%s", code, out)
+	}
+	code, out = runM(t, projDir, cfgPath, "--filter", "a", "update")
+	if code == 0 {
+		t.Fatalf("expected update --filter to fail, out=%s", out)
+	}
+}
+
 func TestCiRejectsFilter(t *testing.T) {
 	projDir, cfgPath := setupWorkspaceProject(t, "projects/workspace-simple")
 	code, out := runM(t, projDir, cfgPath, "install", "-r")
