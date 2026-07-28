@@ -9,9 +9,12 @@ import (
 
 // ponytail: O(n) scan caps; upgrade path is streaming YAML with early abort.
 const (
-	maxLockBytes    = 32 << 20 // 32 MiB
-	maxNestingDepth = 64
-	maxMapEntries   = 100_000
+	maxLockBytes     = 32 << 20 // 32 MiB
+	maxNestingDepth  = 64
+	maxMapEntries    = 100_000
+	maxPackageKeyLen = 4096
+	maxPeerSuffixLen = 2048
+	maxAliasChain    = 8
 )
 
 func validateLockInput(data []byte) error {
@@ -62,6 +65,22 @@ func validateYAMLStructure(node *yaml.Node, depth int, entries *int) error {
 		}
 	case yaml.AliasNode:
 		return apperr.New(apperr.Lockfile, "pnpm.decode", "pnpm-lock.yaml", "YAML aliases are not supported")
+	}
+	return nil
+}
+
+func validatePackageKey(key string) error {
+	if len(key) > maxPackageKeyLen {
+		return apperr.New(apperr.Lockfile, "pnpm.identity", key,
+			fmt.Sprintf("package key exceeds %d bytes", maxPackageKeyLen))
+	}
+	if isProtocolRef(key) {
+		return nil
+	}
+	_, ver := splitNameVersionKey(key)
+	if _, peer := splitPeerSuffix(ver); len(peer) > maxPeerSuffixLen {
+		return apperr.New(apperr.Lockfile, "pnpm.identity", key,
+			fmt.Sprintf("peer suffix exceeds %d bytes", maxPeerSuffixLen))
 	}
 	return nil
 }
