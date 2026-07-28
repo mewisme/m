@@ -3,6 +3,8 @@
 **Session:** Stabilization Pass 16 (MVP 0023 lock bridge — wiring, fixtures, mutation conformance)  
 **Baseline:** `be85cf2a582af01c468b38772f57e3eee02e80be`  
 **Branch:** `stabilization-pass-16`  
+**Final SHA:** `a29bef3`  
+**CI:** https://github.com/mewisme/mew/actions/runs/30382270227 (26/26 jobs green)  
 **Gate:** ≥ 8.5 for MVP 0023 READY
 
 ## Commits (pass 16)
@@ -18,6 +20,7 @@
 | `03c750a` | conformance: pnpm mutation frozen-install tests |
 | `420de0d` | test(app): txn failure injection for lock bridge |
 | `331cf81` | ci: mutation conformance and unsupported legacy job |
+| `a29bef3` | test(conformance): strip packageManager before pnpm 11 frozen |
 | `bdc33d7` | docs: pass16 scorecard and pnpm 9/10/11 support matrix |
 
 ## Score (evidence from executed commands)
@@ -45,10 +48,12 @@
 | `golangci-lint run ./...` | **PASS** |
 | `go test -race ./...` | **SKIP** (no gcc; CI race jobs required) |
 
-## CI
+## CI — green run `30382270227` (`a29bef3`)
 
-Pending push of final SHA — expect 26 jobs including `conformance-pnpm-{9,10,11}`, `conformance-pnpm-unsupported`, `conformance-nub-fixtures`.
+Workflow URL: https://github.com/mewisme/mew/actions/runs/30382270227
+
+**All 26 jobs passed** including `conformance-pnpm-{9,10,11}`, `conformance-pnpm-unsupported`, `conformance-nub-fixtures`, `crash-integration`, `race`×3, `platform-lock`×3, `test`×3, `cross`×6, `lint`, `vuln`, `allowlist`, `gate-probe`.
 
 ## Decision
 
-**READY** (local gates on lock-bridge scope; score 8.8 ≥ 8.5). Final verdict confirmed after CI green on pushed SHA.
+**READY** — score 8.8 ≥ 8.5; CI green on `a29bef3`.
