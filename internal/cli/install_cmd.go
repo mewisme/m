@@ -20,6 +20,7 @@ func newInstallCmd() *cobra.Command {
 		ignoreScripts bool
 		recursive     bool
 		asJSON        bool
+		pnpmMajor     int
 	)
 	cmd := &cobra.Command{
 		Use:     "install",
@@ -39,6 +40,7 @@ func newInstallCmd() *cobra.Command {
 				Linker:        linkerMode,
 				IgnoreScripts: ignoreScripts,
 				Recursive:     recursive,
+				PnpmMajor:     pnpmMajor,
 			})
 			result, err := app.Install(cmd.Context(), ac, opts)
 			outErr := writeInstallResult(cmd, result, asJSON, dryRun)
@@ -59,6 +61,7 @@ func newInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&ignoreScripts, "ignore-scripts", false, "skip lifecycle scripts")
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "install all workspace packages")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
+	cmd.Flags().IntVar(&pnpmMajor, "pnpm-major", 0, "disambiguate v9-shaped pnpm locks (9, 10, or 11)")
 	return cmd
 }
 
