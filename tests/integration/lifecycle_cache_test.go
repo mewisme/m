@@ -9,9 +9,9 @@ import (
 	"github.com/mewisme/m/internal/lifecycle"
 )
 
-func TestLifecyclePrepareCacheSkipsSecondRun(t *testing.T) {
+func TestLifecyclePrepareRerunsAfterNodeModulesRemoval(t *testing.T) {
 	if _, err := exec.LookPath("node"); err != nil {
-		t.Skip("node required for prepare cache test")
+		t.Skip("node required for prepare test")
 	}
 	projDir, cfgPath := setupLifecycleProject(t, "lifecycle-counter")
 	if code, out := runM(t, projDir, cfgPath, "trust", "lifecycle-counter"); code != 0 {
@@ -43,8 +43,8 @@ func TestLifecyclePrepareCacheSkipsSecondRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if countPrepare(second, "lifecycle-counter") != 1 {
-		t.Fatalf("prepare reran: audit=%+v", second)
+	if countPrepare(second, "lifecycle-counter") != 2 {
+		t.Fatalf("prepare must re-run when outputs are gone; audit=%+v", second)
 	}
 }
 

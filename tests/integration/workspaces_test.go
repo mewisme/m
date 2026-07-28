@@ -102,6 +102,70 @@ func TestWorkspaceFilterPreservesLock(t *testing.T) {
 	if len(before["packages/beta"].Specifiers) != len(after["packages/beta"].Specifiers) {
 		t.Fatalf("beta specifiers changed: before=%d after=%d", len(before["packages/beta"].Specifiers), len(after["packages/beta"].Specifiers))
 	}
+	lockData, err := os.ReadFile(filepath.Join(projDir, "m.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(lockData), "pkg-b@1.2.0") {
+		t.Fatalf("pkg-b missing from lock after filtered install: %s", string(lockData))
+	}
+	nm := filepath.Join(projDir, "node_modules")
+	found := false
+	_ = filepath.Walk(nm, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.Name() == "package.json" && filepath.Base(filepath.Dir(path)) == "pkg-b" {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if !found {
+		t.Fatal("pkg-b not linkable under node_modules after filtered install")
+	}
+}
+
+func TestWorkspaceAddFilterUpdatesMemberOnly(t *testing.T) {
+	projDir, cfgPath := setupWorkspaceProject(t, "projects/workspace-filter")
+	code, out := runM(t, projDir, cfgPath, "install", "-r")
+	if code != 0 {
+		t.Fatalf("install exit=%d out=%s", code, out)
+	}
+	rootBefore, _ := os.ReadFile(filepath.Join(projDir, "package.json"))
+	betaBefore, _ := os.ReadFile(filepath.Join(projDir, "packages", "beta", "package.json"))
+	code, out = runM(t, projDir, cfgPath, "--filter", "alpha", "add", "lodash")
+	if code != 0 {
+		t.Fatalf("add exit=%d out=%s", code, out)
+	}
+	rootAfter, _ := os.ReadFile(filepath.Join(projDir, "package.json"))
+	if string(rootBefore) != string(rootAfter) {
+		t.Fatal("root package.json changed on filtered add")
+	}
+	alphaData, err := os.ReadFile(filepath.Join(projDir, "packages", "alpha", "package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(alphaData), "lodash") {
+		t.Fatalf("alpha missing lodash: %s", string(alphaData))
+	}
+	betaAfter, _ := os.ReadFile(filepath.Join(projDir, "packages", "beta", "package.json"))
+	if string(betaBefore) != string(betaAfter) {
+		t.Fatal("beta package.json changed on filtered add to alpha")
+	}
+}
+
+func TestCiRejectsFilter(t *testing.T) {
+	projDir, cfgPath := setupWorkspaceProject(t, "projects/workspace-simple")
+	code, out := runM(t, projDir, cfgPath, "install", "-r")
+	if code != 0 {
+		t.Fatalf("install exit=%d out=%s", code, out)
+	}
+	code, out = runM(t, projDir, cfgPath, "--filter", "a", "ci")
+	if code == 0 {
+		t.Fatalf("expected ci --filter to fail, out=%s", out)
+	}
+	_ = out
 }
 
 func TestWorkspaceProtocolMissing(t *testing.T) {
