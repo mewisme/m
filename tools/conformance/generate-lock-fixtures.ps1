@@ -12,7 +12,8 @@ param(
     [switch]$Generate,
     [string[]]$Families = @(
         'basic', 'transitive', 'optional', 'peer-context', 'multi-version',
-        'scoped', 'workspace', 'catalog', 'override', 'platform', 'importer-meta'
+        'scoped', 'workspace', 'catalog', 'override', 'platform', 'importer-meta',
+        'alias', 'patch', 'binary'
     ),
     [int[]]$Majors = @(9, 10, 11)
 )

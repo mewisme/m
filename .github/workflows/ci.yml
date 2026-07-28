@@ -189,6 +189,18 @@ jobs:
       - name: Prove allowlist probe rejects banned module
         run: go test ./tools/check-deps -count=1 -run TestAllowlistRejectsUnknown
 
+  fixture-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Verify lock bridge fixtures
+        env:
+          CGO_ENABLED: "0"
+        run: go run ./tools/conformance/verify-fixtures
+
   conformance-pnpm-9:
     runs-on: ubuntu-latest
     steps:
@@ -196,13 +208,23 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
+      - name: Load pnpm versions
+        id: pnpm
+        run: |
+          set -a
+          # shellcheck disable=SC1091
+          source tools/conformance/pnpm-versions.env
+          set +a
+          echo "version=$PNPM9_VERSION" >> "$GITHUB_OUTPUT"
       - uses: pnpm/action-setup@v4
         with:
-          version: 9.15.9
+          version: ${{ steps.pnpm.outputs.version }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - name: pnpm 9 lock bridge conformance
+        env:
+          CGO_ENABLED: "0"
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpm9 -v
 
   conformance-pnpm-10:
@@ -212,13 +234,23 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
+      - name: Load pnpm versions
+        id: pnpm
+        run: |
+          set -a
+          # shellcheck disable=SC1091
+          source tools/conformance/pnpm-versions.env
+          set +a
+          echo "version=$PNPM10_VERSION" >> "$GITHUB_OUTPUT"
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.14.0
+          version: ${{ steps.pnpm.outputs.version }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - name: pnpm 10 lock bridge conformance
+        env:
+          CGO_ENABLED: "0"
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpm10 -v
 
   conformance-pnpm-11:
@@ -228,13 +260,23 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
+      - name: Load pnpm versions
+        id: pnpm
+        run: |
+          set -a
+          # shellcheck disable=SC1091
+          source tools/conformance/pnpm-versions.env
+          set +a
+          echo "version=$PNPM11_VERSION" >> "$GITHUB_OUTPUT"
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.0.2
+          version: ${{ steps.pnpm.outputs.version }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - name: pnpm 11 lock bridge conformance
+        env:
+          CGO_ENABLED: "0"
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpm11 -v
 
   conformance-pnpm-unsupported:
