@@ -1,5 +1,5 @@
 {
-  "name": "fixture-pnpm-v10",
+  "name": "fixture-basic",
   "version": "1.0.0",
   "private": true,
   "dependencies": {

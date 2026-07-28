@@ -45,6 +45,16 @@ func LockDiff(ctx context.Context, ac *Context, opts LockDiffOptions) (*lockfile
 	if err != nil {
 		return nil, err
 	}
+	hints := lockHintsFromProject(proj)
+	if proj.Identity == project.IdentityPNPM {
+		prior, readErr := project.ReadLockfileBytes(proj.Root, proj.Identity)
+		if readErr != nil {
+			return nil, readErr
+		}
+		if _, err := detectPnpmLock(prior, proj, opts.PnpmMajor); err != nil {
+			return nil, err
+		}
+	}
 	left, err := lockfile.ReadGraph(ctx, proj.Root, proj.Identity)
 	if err != nil {
 		return nil, err
@@ -56,6 +66,15 @@ func LockDiff(ctx context.Context, ac *Context, opts LockDiffOptions) (*lockfile
 	otherID, ok := lockIdentityFromBasename(filepath.Base(otherPath))
 	if !ok {
 		return nil, apperr.New(apperr.Usage, "lock.diff", otherPath, "unrecognized lockfile name")
+	}
+	if otherID == project.IdentityPNPM {
+		otherPrior, readErr := os.ReadFile(otherPath)
+		if readErr != nil {
+			return nil, apperr.Wrap(apperr.IO, "lock.diff", otherPath, readErr)
+		}
+		if _, err := detectPnpmLockBytes(otherPrior, hints, opts.PnpmMajor); err != nil {
+			return nil, err
+		}
 	}
 	adapter := lockfile.AdapterFor(otherID)
 	if adapter == nil {
@@ -112,12 +131,9 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 	}
 	det := lockfile.Detection{Format: "nub", ProducerMajor: 9, Confidence: lockfile.DetectionCertain}
 	if fromID == project.IdentityPNPM {
-		det, err = lockfile.DetectPnpmWithMajor(prior, opts.PnpmMajor)
+		det, err = detectPnpmLock(prior, proj, opts.PnpmMajor)
 		if err != nil {
 			return out, err
-		}
-		if opts.PnpmMajor != 0 {
-			det.ExplicitMajor = true
 		}
 	}
 	encodeRes, encErr := lockfile.EncodePreserving(ctx, mext, filepath.Join(proj.Root, "m.lock"), g, nil, nil, det)
@@ -136,7 +152,8 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 	out.SourceLockPath = lockPath
 	out.Detection = det
 	for _, item := range loss.Items {
-		if item.Reason == "top-level extension not mapped to canonical graph" ||
+		if item.Category == "extension" ||
+			item.Reason == "top-level extension not mapped to canonical graph" ||
 			item.Reason == "nub extension not mapped to canonical graph" {
 			out.PreservedUnknown++
 		}
@@ -148,7 +165,8 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 	if encErr != nil {
 		return out, encErr
 	}
-	if len(loss.Items) > 0 {
+	if semantic := lockfileSemanticLoss(loss); len(semantic) > 0 {
+		loss.Items = semantic
 		return out, lockfile.NewUnrepresentable("lock.migrate", "m.lock", "lossy migration", loss)
 	}
 	if err := commitMigratedLock(ctx, ac, proj, encodeRes.Bytes); err != nil {
@@ -186,6 +204,16 @@ func commitMigratedLock(ctx context.Context, ac *Context, proj *project.Project,
 	}
 	_, err = sess.Finish(ctx, false)
 	return err
+}
+
+func lockfileSemanticLoss(loss lockfile.LossReport) []lockfile.LossItem {
+	out := make([]lockfile.LossItem, 0, len(loss.Items))
+	for _, item := range loss.Items {
+		if item.Semantic {
+			out = append(out, item)
+		}
+	}
+	return out
 }
 
 func resolveMigrateFrom(proj *project.Project, from string) (project.Identity, error) {
@@ -257,16 +285,15 @@ func ValidateIncumbentLock(ctx context.Context, ac *Context, opts ValidateLockOp
 	if det, derr := detectIncumbentLock(proj); derr == nil {
 		out.Detection = det
 	}
-	if opts.PnpmMajor != 0 && proj.Identity == project.IdentityPNPM {
+	if proj.Identity == project.IdentityPNPM {
 		prior, readErr := project.ReadLockfileBytes(proj.Root, proj.Identity)
 		if readErr != nil {
 			return out, readErr
 		}
-		det, derr := lockfile.DetectPnpmWithMajor(prior, opts.PnpmMajor)
+		det, derr := detectPnpmLock(prior, proj, opts.PnpmMajor)
 		if derr != nil {
 			return out, derr
 		}
-		det.ExplicitMajor = true
 		out.Detection = det
 	}
 	if opts.Frozen {
@@ -284,9 +311,9 @@ func detectIncumbentLock(proj *project.Project) (lockfile.Detection, error) {
 	}
 	switch proj.Identity {
 	case project.IdentityPNPM:
-		return lockfile.DetectPnpm(prior)
+		return detectPnpmLock(prior, proj, 0)
 	case project.IdentityNub:
-		det, err := lockfile.DetectPnpm(prior)
+		det, err := detectPnpmLock(prior, proj, 0)
 		if err != nil {
 			return det, err
 		}

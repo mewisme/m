@@ -156,10 +156,15 @@ Install-family commands write the **incumbent** lockfile only (`nub.lock` or
 |---|---|---|---|
 | `mew` | `m.lock` | `internal/lockfile/mlock` | v3 JSON |
 | `nub` | `nub.lock` | `internal/compat/nub` | pnpm v9-shaped YAML |
-| `pnpm` | `pnpm-lock.yaml` | `internal/compat/pnpm` | v6, v9/v10/v11 (producer-major detection) |
+| `pnpm` | `pnpm-lock.yaml` | `internal/compat/pnpm` | **9, 10, 11 only** (v5–v8 rejected) |
 
-Detection for pnpm v9-shaped locks uses field heuristics plus optional
-`--pnpm-major` (9, 10, or 11). Do not trust `lockfileVersion: '9.0'` alone.
+pnpm **5–8** flat or legacy layouts are rejected with `ERR_M_LOCK_UNSUPPORTED` and
+remediation to regenerate with pnpm 9, 10, or 11. Unsupported fixtures:
+`fixtures/locks/pnpm/unsupported/`.
+
+Detection for pnpm v9-shaped locks uses `packageManager` / `devEngines`, extension
+metadata, observed root/settings field evidence, and optional `--pnpm-major` (9, 10,
+or 11). Do not trust `lockfileVersion: '9.0'` alone.
 
 CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
 --from nub|pnpm --to m` (`--dry-run` emits migration report JSON).
@@ -167,14 +172,14 @@ CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
 `--pnpm-major` (9, 10, or 11) applies to `m lock validate`, `m lock diff`,
 `m lock migrate`, and `m install`.
 
-## Support matrix (Pass 15)
+## Support matrix (Pass 16)
 
 | Generation | Read | Byte no-op | Semantic rewrite | Migrate to m.lock | Frozen pnpm CI |
 |---|---|---|---|---|---|
-| pnpm v6 | yes | yes | yes (certified) | yes (loss report) | deferred |
-| pnpm v9 | yes | yes | yes with `--pnpm-major` | yes | `conformance-pnpm-9` |
-| pnpm v10 | yes | yes | yes (checksum marker) | yes | `conformance-pnpm-10` |
-| pnpm v11 | yes | yes | yes (buildPolicy marker) | yes | `conformance-pnpm-11` |
+| pnpm v5–v8 | **rejected** | — | — | — | `conformance-pnpm-unsupported` |
+| pnpm v9 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-9` |
+| pnpm v10 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-10` |
+| pnpm v11 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-11` |
 | nub | yes | yes | policy from incumbent bytes | yes (loss report) | `conformance-nub-fixtures` |
 | m.lock v3 | yes | yes | yes | n/a | n/a |
 

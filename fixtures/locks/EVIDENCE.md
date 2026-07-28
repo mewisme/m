@@ -1,7 +1,7 @@
-# Lock bridge evidence — Stabilization Pass 15
+# Lock bridge evidence — Stabilization Pass 16
 
 **Fetched:** 2026-07-28  
-**Baseline:** `e79cebf0c8be7e3e3e1734dbb181fb29e5e8e40e`
+**Baseline:** `be85cf2a582af01c468b38772f57e3eee02e80be`
 
 ## pnpm references
 
@@ -11,12 +11,13 @@
 | 10 | 10.14.0 | https://pnpm.io/10.x | https://github.com/pnpm/pnpm/releases |
 | 11 | 11.0.2 | https://pnpm.io/11.x | https://github.com/pnpm/pnpm/releases |
 
-Generation command per family: see `fixtures/locks/generated/pnpm-*/basic/metadata.json`.
+Generation: `pwsh tools/conformance/generate-lock-fixtures.ps1 -Generate`  
+Pins: `tools/conformance/pnpm-versions.env`  
+Families per major: `basic`, `transitive`, `optional`, `peer-context`, `multi-version`, `scoped`, `workspace`, `catalog`, `override`, `platform`, `importer-meta`.
 
-Committed fixtures under `fixtures/locks/generated/` were seeded from
-`fixtures/locks/pnpm/v{9,10,11}` with honest metadata (not hand-edited YAML).
-Re-run `tools/conformance/generate-lock-fixtures.ps1 -Generate` when pnpm is
-available to refresh from live binaries.
+Each `fixtures/locks/generated/pnpm-{9,10,11}/{family}/metadata.json` records the exact `corepack prepare` + `pnpm install --lockfile-only` command.
+
+Legacy v5–v8 locks live under `fixtures/locks/pnpm/unsupported/` for rejection tests only.
 
 ## Nub references
 
@@ -24,26 +25,23 @@ available to refresh from live binaries.
 |------|--------|
 | Lock layout | pnpm v9-shaped YAML in `nub.lock` |
 | Site | https://nubjs.com |
-| Fixture | `fixtures/locks/generated/nub-basic/` (manual evidence; generation not automatable in CI) |
+| Fixtures | `fixtures/locks/generated/nub-{basic,transitive,workspace,catalog,peer,optional}/` derived from pnpm-9 binary output + `nubVersion` marker |
 
-Nub adapter delegates encode policy to pnpm detection inferred from incumbent
-`nub.lock` bytes (not a hardcoded v9 writer).
+Nub adapter selects pnpm encode policy from incumbent `nub.lock` bytes via `DetectPnpmWithContext`, not a hardcoded v9 writer.
 
-## Detection policy (Pass 15)
+## Detection policy (Pass 16)
 
-1. `package.json` `packageManager`
+1. `package.json` `packageManager` (majors 9/10/11 only; ranges/tags rejected)
 2. `devEngines.packageManager`
 3. `--pnpm-major` / `InstallOptions.PnpmMajor`
 4. Adapter-recorded metadata in lock extensions
 5. Generation-specific structural evidence (policy-owned)
 6. Else ambiguous (`DetectionInferred`, fail closed on write)
 
-Common settings keys (`patchedDependencies`, `configDependencies`,
-`onlyBuiltDependencies`) alone are **not** sufficient for certain detection
-when shared across generations; v10/v11 fixtures include generation-specific
-root/settings markers.
+Manifest vs flag conflict → `DetectionConflictError`.
 
 ## Conformance
 
-CI jobs `conformance-pnpm-{9,10,11}` and `conformance-nub-fixtures` run
-`tests/conformance/lock_bridge_*_test.go` against `fixtures/locks/generated/`.
+CI jobs: `conformance-pnpm-{9,10,11}` (parse + mutation + frozen), `conformance-pnpm-unsupported`, `conformance-nub-fixtures`.
+
+Mutation suite: Mew install txn add → lock bytes change → `m lock validate --frozen` → pnpm `--frozen-lockfile --lockfile-only` accepts Mew-written lock → repeat deterministic → commit interrupt restores incumbent.

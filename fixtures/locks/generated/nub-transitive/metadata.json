@@ -1,0 +1,19 @@
+{
+  "producer": "nub",
+  "producerVersion": "pnpm-9-shaped",
+  "producerMajor": 9,
+  "family": "nub-transitive",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "lockfileVersion": "9.0",
+  "generationSignals": [
+    "pnpm-v9-shaped",
+    "nub.lock",
+    "derived-from=pnpm-9/transitive"
+  ],
+  "confidence": "manual",
+  "command": "derived from fixtures/locks/generated/pnpm-9/transitive pnpm-lock.yaml",
+  "timestamp": "2026-07-28T23:59:17.3976254+07:00",
+  "lockfileSha256": "e6bdd924c43f5feba2159bf11d915ea07ce772bb318a11f6264cb17ed03f35ea"
+}

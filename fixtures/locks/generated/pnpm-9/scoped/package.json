@@ -1,0 +1,8 @@
+{
+  "name": "fixture-scoped",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@types/node": "20.14.15"
+  }
+}

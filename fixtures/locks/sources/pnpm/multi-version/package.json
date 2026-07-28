@@ -1,0 +1,9 @@
+{
+  "name": "fixture-multi-version",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "debug": "4.3.7",
+    "follow-redirects": "1.15.9"
+  }
+}

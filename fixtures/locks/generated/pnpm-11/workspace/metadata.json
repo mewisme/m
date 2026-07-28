@@ -1,0 +1,18 @@
+{
+  "producer": "pnpm",
+  "producerVersion": "11.0.2",
+  "producerMajor": 11,
+  "family": "workspace",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "lockfileVersion": "9.0",
+  "generationSignals": [
+    "lockfileVersion=9.0",
+    "family=workspace"
+  ],
+  "confidence": "certain",
+  "command": "committed generated fixture (family=workspace, pnpm@11.0.2)",
+  "timestamp": "2026-07-28T23:59:17.2560795+07:00",
+  "lockfileSha256": "e6dad7d315e392b01ac569fce019d3845ad33339b4137cf151bdcc984a901875"
+}

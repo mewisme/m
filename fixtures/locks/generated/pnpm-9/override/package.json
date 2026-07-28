@@ -1,0 +1,13 @@
+{
+  "name": "fixture-override",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "ms": "^2.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "ms": "2.1.3"
+    }
+  }
+}

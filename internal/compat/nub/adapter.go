@@ -47,7 +47,7 @@ func (a Adapter) EncodePreserving(ctx context.Context, path string, g *graph.Gra
 	pnpmDet := det
 	if pnpmDet.Format == "" || pnpmDet.Format == formatNub {
 		if len(prior) > 0 {
-			inferred, err := lockfile.DetectPnpmWithMajor(prior, det.ProducerMajor)
+			inferred, err := lockfile.DetectPnpmWithContext(prior, lockfile.ProjectHints{}, det.ProducerMajor)
 			if err != nil {
 				return lockfile.WriteResult{}, err
 			}

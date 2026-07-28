@@ -1,0 +1,18 @@
+{
+  "producer": "pnpm",
+  "producerVersion": "11.0.2",
+  "producerMajor": 11,
+  "family": "override",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "lockfileVersion": "9.0",
+  "generationSignals": [
+    "lockfileVersion=9.0",
+    "family=override"
+  ],
+  "confidence": "certain",
+  "command": "committed generated fixture (family=override, pnpm@11.0.2)",
+  "timestamp": "2026-07-28T23:59:17.2980503+07:00",
+  "lockfileSha256": "1b3070a04a37c73c3762b20db98fb1b1f9675d74aab37684dd48b670f21ee1ce"
+}

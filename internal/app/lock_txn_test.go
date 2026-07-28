@@ -197,3 +197,73 @@ func TestDetectIncumbentLockPnpm(t *testing.T) {
 	}
 	_ = ac
 }
+
+func TestInstallRejectsLegacyPnpmBeforeTxn(t *testing.T) {
+	testkit.CleanEnv(t)
+	home := t.TempDir()
+	proj := filepath.Join(home, "proj")
+	if err := os.MkdirAll(proj, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := os.ReadFile(filepath.Join(testkit.ModuleRoot(t), "fixtures", "locks", "pnpm", "unsupported", "v6", "pnpm-lock.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(proj, "package.json"), []byte(`{"name":"legacy","version":"1.0.0","packageManager":"pnpm@9.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(proj, "pnpm-lock.yaml"), legacy, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loadOpts := config.LoadOptions{CWD: proj, ProjectRoot: proj}
+	eff, err := config.Load(context.Background(), loadOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ac := &Context{CWD: proj, Config: eff, ConfigLoadSpec: config.LoadSpecFromOptions(loadOpts)}
+	before := append([]byte(nil), legacy...)
+	_, err = Install(context.Background(), ac, InstallOptions{PnpmMajor: 9})
+	if err == nil {
+		t.Fatal("expected legacy rejection before txn commit")
+	}
+	if apperr.CodeOf(err) != apperr.LockUnsupported {
+		t.Fatalf("code=%s err=%v", apperr.CodeOf(err), err)
+	}
+	after, err := os.ReadFile(filepath.Join(proj, "pnpm-lock.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatal("legacy rejection must not mutate incumbent lock")
+	}
+	if _, err := os.Stat(filepath.Join(proj, "m.lock")); err == nil {
+		t.Fatal("legacy rejection must not create m.lock")
+	}
+}
+
+func TestMigratePublicationInterruptPreservesSource(t *testing.T) {
+	ac, proj := testIncumbentProject(t, "nub.lock")
+	before, err := os.ReadFile(filepath.Join(proj, "nub.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	transaction.SetTestHook(func(phase string, _ int) error {
+		if phase == "commit" {
+			return apperr.New(apperr.Transaction, "test.hook", "", "injected migration commit failure")
+		}
+		return nil
+	})
+	t.Cleanup(func() { transaction.SetTestHook(nil) })
+
+	_, err = MigrateLock(context.Background(), ac, MigrateLockOptions{From: "nub", DryRun: false})
+	if err == nil {
+		t.Skip("migration succeeded without loss; interrupt test needs lossy nub fixture")
+	}
+	after, err := os.ReadFile(filepath.Join(proj, "nub.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatal("failed migration publication must preserve source lock")
+	}
+}

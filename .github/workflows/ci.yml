@@ -237,6 +237,16 @@ jobs:
       - name: pnpm 11 lock bridge conformance
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpm11 -v
 
+  conformance-pnpm-unsupported:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: pnpm legacy lock rejection
+        run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpmUnsupported -v
+
   conformance-nub-fixtures:
     runs-on: ubuntu-latest
     steps:

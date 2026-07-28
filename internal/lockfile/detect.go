@@ -49,7 +49,7 @@ func DetectPnpmWithMajor(data []byte, producerMajor int) (Detection, error) {
 }
 
 // DetectPnpmWithContext applies evidence order: packageManager, devEngines, explicit major,
-// adapter extension metadata, generation-specific structural evidence, else ambiguous.
+// adapter extension metadata, policy structural evidence, else ambiguous.
 func DetectPnpmWithContext(data []byte, hints ProjectHints, explicitMajor int) (Detection, error) {
 	root, err := parseYAMLRoot(data)
 	if err != nil {
@@ -59,31 +59,31 @@ func DetectPnpmWithContext(data []byte, hints ProjectHints, explicitMajor int) (
 	if hasKey(root, "importers") || hasKey(root, "snapshots") {
 		return detectPnpmV9Family(root, data, hints, explicitMajor)
 	}
-	return detectPnpmV6(root)
+	return detectPnpmLegacyFlat(root)
 }
 
-func detectPnpmV6(root map[string]*yaml.Node) (Detection, error) {
+func detectPnpmLegacyFlat(root map[string]*yaml.Node) (Detection, error) {
 	ver, ok := lockfileVersionString(root)
 	if !ok {
 		return Detection{}, NewUnsupported("lock.detect", "pnpm-lock.yaml", "missing lockfileVersion")
 	}
-	if !isV6Version(ver) {
+	if !isLegacyFlatVersion(ver) {
 		return Detection{}, NewUnsupported("lock.detect", "pnpm-lock.yaml",
 			fmt.Sprintf("unsupported lockfileVersion %q", ver))
 	}
-	return Detection{
-		Format:        "pnpm-v6",
-		ProducerMajor: 0,
-		Confidence:    DetectionCertain,
-		Evidence:      []string{"lockfileVersion=" + ver, "layout=v6-flat"},
-	}, nil
+	legacy := NewPnpmLegacyUnsupported(ver, legacyLayoutForVersion(ver))
+	return Detection{}, NewUnsupported("lock.detect", "pnpm-lock.yaml", legacy.Error())
 }
 
 func detectPnpmV9Family(root map[string]*yaml.Node, data []byte, hints ProjectHints, explicitMajor int) (Detection, error) {
 	ver, ok := lockfileVersionString(root)
 	if !ok || ver != "9.0" {
+		if ok && isLegacyFlatVersion(ver) {
+			legacy := NewPnpmLegacyUnsupported(ver, legacyLayoutForVersion(ver))
+			return Detection{}, NewUnsupported("lock.detect", "pnpm-lock.yaml", legacy.Error())
+		}
 		return Detection{}, NewUnsupported("lock.detect", "pnpm-lock.yaml",
-			fmt.Sprintf("unsupported 9.x-shaped lockfileVersion %q", ver))
+			fmt.Sprintf("unsupported 9.x-shaped lockfileVersion %q (only pnpm 9/10/11 with lockfileVersion 9.0 are supported)", ver))
 	}
 
 	evidence := []string{"lockfileVersion=9.0", "layout=importers-snapshots"}
@@ -109,9 +109,9 @@ func detectPnpmV9Family(root map[string]*yaml.Node, data []byte, hints ProjectHi
 			format: pnpmFormatForMajor(major), major: major, source: DetectionExtensionKey, cert: true,
 		})
 	}
-	if major, ok := structuralMajorFromLock(data); ok {
+	if det, ok := pnpmStructureDetect(data); ok {
 		candidates = append(candidates, detectionCandidate{
-			format: pnpmFormatForMajor(major), major: major, source: "structural evidence", cert: true,
+			format: det.Format, major: det.ProducerMajor, source: "structural evidence", cert: det.Confidence == DetectionCertain,
 		})
 	}
 
@@ -147,6 +147,13 @@ func detectPnpmV9Family(root map[string]*yaml.Node, data []byte, hints ProjectHi
 	}, nil
 }
 
+func pnpmStructureDetect(data []byte) (Detection, bool) {
+	if PnpmStructureDetect == nil {
+		return Detection{}, false
+	}
+	return PnpmStructureDetect(data)
+}
+
 func pnpmFormatForMajor(major int) string {
 	switch major {
 	case 10:
@@ -175,8 +182,11 @@ func majorFromPackageManager(pm string) (int, bool) {
 		if dot := strings.IndexByte(ver, '.'); dot > 0 {
 			ver = ver[:dot]
 		}
-		if n, err := strconv.Atoi(ver); err == nil && n >= 6 && n <= 11 {
-			return n, true
+		if n, err := strconv.Atoi(ver); err == nil {
+			if n >= 9 && n <= 11 {
+				return n, true
+			}
+			return 0, false
 		}
 	}
 	return 9, true
@@ -203,40 +213,6 @@ func majorFromExtension(root map[string]*yaml.Node) (int, bool) {
 	return 0, false
 }
 
-func structuralMajorFromLock(data []byte) (int, bool) {
-	// ponytail: delegates to compat/pnpm policy via minimal structural scan to avoid import cycle.
-	root, err := parseYAMLRoot(data)
-	if err != nil {
-		return 0, false
-	}
-	if packageFieldPresent(root, "buildPolicy") {
-		return 11, true
-	}
-	if packageFieldPresent(root, "checksum") {
-		return 10, true
-	}
-	return 0, false
-}
-
-func packageFieldPresent(root map[string]*yaml.Node, field string) bool {
-	pkgs, ok := root["packages"]
-	if !ok || pkgs.Kind != yaml.MappingNode {
-		return false
-	}
-	for i := 0; i < len(pkgs.Content); i += 2 {
-		entry := pkgs.Content[i+1]
-		if entry.Kind != yaml.MappingNode {
-			continue
-		}
-		for j := 0; j < len(entry.Content); j += 2 {
-			if entry.Content[j].Value == field {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func yamlNodeToJSON(node *yaml.Node) ([]byte, error) {
 	var v any
 	if err := node.Decode(&v); err != nil {
@@ -245,11 +221,31 @@ func yamlNodeToJSON(node *yaml.Node) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func isV6Version(ver string) bool {
+func isLegacyFlatVersion(ver string) bool {
 	if strings.HasPrefix(ver, "5.") {
 		return true
 	}
-	return ver == "6.0" || ver == "6"
+	switch ver {
+	case "6", "6.0", "7", "7.0", "8", "8.0":
+		return true
+	}
+	if strings.HasPrefix(ver, "7.") || strings.HasPrefix(ver, "8.") {
+		return true
+	}
+	return false
+}
+
+func legacyLayoutForVersion(ver string) string {
+	if strings.HasPrefix(ver, "5.") {
+		return "v5-flat"
+	}
+	if ver == "6" || ver == "6.0" || strings.HasPrefix(ver, "6.") {
+		return "v6-flat"
+	}
+	if strings.HasPrefix(ver, "7.") || ver == "7" || ver == "7.0" {
+		return "v7-flat"
+	}
+	return "v8-flat"
 }
 
 func lockfileVersionString(root map[string]*yaml.Node) (string, bool) {

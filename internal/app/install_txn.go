@@ -687,12 +687,9 @@ func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.R
 	}
 	det := lockfile.Detection{}
 	if proj.Identity == project.IdentityPNPM {
-		det, err = lockfile.DetectPnpmWithMajor(prior, opts.PnpmMajor)
+		det, err = detectPnpmLock(prior, proj, opts.PnpmMajor)
 		if err != nil {
 			return err
-		}
-		if opts.PnpmMajor != 0 {
-			det.ExplicitMajor = true
 		}
 	}
 	out, err := lockfile.EncodePreserving(context.Background(), ext, livePath, res.Graph, prior, extensions, det)

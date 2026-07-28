@@ -43,10 +43,9 @@ func TestDetectPnpmFixtures(t *testing.T) {
 		major  int
 		conf   lockfile.DetectionConfidence
 	}{
-		{"v6", "pnpm-v6", 0, lockfile.DetectionCertain},
 		{"v9", "pnpm-v9", 9, lockfile.DetectionInferred},
-		{"v10", "pnpm-v10", 10, lockfile.DetectionCertain},
-		{"v11", "pnpm-v11", 11, lockfile.DetectionCertain},
+		{"v10", "pnpm-v10", 10, lockfile.DetectionInferred},
+		{"v11", "pnpm-v11", 11, lockfile.DetectionInferred},
 	}
 	for _, tc := range cases {
 		data, err := os.ReadFile(filepath.Join(root, tc.dir, "pnpm-lock.yaml"))
@@ -66,6 +65,20 @@ func TestDetectPnpmFixtures(t *testing.T) {
 		if det.Confidence != tc.conf {
 			t.Fatalf("%s: confidence=%s want %s", tc.dir, det.Confidence, tc.conf)
 		}
+	}
+}
+
+func TestDetectPnpmRejectsUnsupportedV6Fixture(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "fixtures", "locks", "pnpm", "unsupported", "v6", "pnpm-lock.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = lockfile.DetectPnpm(data)
+	if err == nil {
+		t.Fatal("expected legacy rejection")
+	}
+	if apperr.CodeOf(err) != apperr.LockUnsupported {
+		t.Fatalf("code=%s", apperr.CodeOf(err))
 	}
 }
 
