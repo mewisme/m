@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/mewisme/m/internal/apperr"
@@ -16,17 +18,19 @@ import (
 )
 
 const (
-	indexName        = "index.json"
-	manifestFileName = "package.json"
-	lockFileName     = "m.lock"
-	metaFileName     = "meta.json"
+	indexName         = "index.json"
+	manifestFileName  = "package.json"
+	lockFileName      = "m.lock"
+	metaFileName      = "meta.json"
+	memberManifestDir = "manifests"
 )
 
 // Record is a loaded snapshot with manifest and lock bytes.
 type Record struct {
-	Meta     *Snapshot
-	Manifest []byte
-	Lock     []byte
+	Meta            *Snapshot
+	Manifest        []byte
+	Lock            []byte
+	MemberManifests map[string][]byte
 }
 
 type indexDoc struct {
@@ -57,7 +61,7 @@ func GraphDigest(g *graph.Graph) (string, error) {
 }
 
 // StageCreate writes snapshot payload under stageRoot without touching the live index.
-func (s *Store) StageCreate(stageRoot, id string, manifest, lock []byte, graphDigest string) error {
+func (s *Store) StageCreate(stageRoot, id string, manifest, lock []byte, graphDigest string, members map[string][]byte) error {
 	if s == nil || stageRoot == "" {
 		return apperr.New(apperr.Internal, "snapshot.stage", id, "nil store or stage root")
 	}
@@ -68,29 +72,7 @@ func (s *Store) StageCreate(stageRoot, id string, manifest, lock []byte, graphDi
 		return apperr.New(apperr.Internal, "snapshot.stage", "", "empty id")
 	}
 	dir := filepath.Join(stageRoot, id)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return apperr.Wrap(apperr.IO, "snapshot.stage", dir, err)
-	}
-	meta := &Snapshot{
-		SchemaVersion: SchemaVersion,
-		ID:            id,
-		CreatedAt:     time.Now().UTC(),
-		GraphDigest:   graphDigest,
-	}
-	metaBytes, err := EncodeJSON(meta)
-	if err != nil {
-		return err
-	}
-	for name, data := range map[string][]byte{
-		metaFileName:     metaBytes,
-		manifestFileName: manifest,
-		lockFileName:     lock,
-	} {
-		if err := writeAtomic(filepath.Join(dir, name), data); err != nil {
-			return err
-		}
-	}
-	return nil
+	return s.writeSnapshotPayload(dir, id, manifest, lock, graphDigest, members)
 }
 
 // StageIndex writes the snapshot index document under stageRoot.
@@ -122,7 +104,7 @@ func (s *Store) PlannedIndex() (ids []string, nextID string, nextSeq int, err er
 }
 
 // Create writes manifest, lock, and metadata for id.
-func (s *Store) Create(id string, manifest, lock []byte, graphDigest string) error {
+func (s *Store) Create(id string, manifest, lock []byte, graphDigest string, members map[string][]byte) error {
 	if s == nil || s.Root == "" {
 		return apperr.New(apperr.Internal, "snapshot.create", "", "nil store")
 	}
@@ -133,27 +115,8 @@ func (s *Store) Create(id string, manifest, lock []byte, graphDigest string) err
 		return apperr.New(apperr.Internal, "snapshot.create", "", "empty id")
 	}
 	dir := filepath.Join(s.Root, id)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return apperr.Wrap(apperr.IO, "snapshot.create", dir, err)
-	}
-	meta := &Snapshot{
-		SchemaVersion: SchemaVersion,
-		ID:            id,
-		CreatedAt:     time.Now().UTC(),
-		GraphDigest:   graphDigest,
-	}
-	metaBytes, err := EncodeJSON(meta)
-	if err != nil {
+	if err := s.writeSnapshotPayload(dir, id, manifest, lock, graphDigest, members); err != nil {
 		return err
-	}
-	for name, data := range map[string][]byte{
-		metaFileName:     metaBytes,
-		manifestFileName: manifest,
-		lockFileName:     lock,
-	} {
-		if err := writeAtomic(filepath.Join(dir, name), data); err != nil {
-			return err
-		}
 	}
 	return s.appendID(id)
 }
@@ -203,7 +166,11 @@ func (s *Store) Load(id string) (*Record, error) {
 	if err != nil {
 		return nil, apperr.Wrap(apperr.IO, "snapshot.load", id, err)
 	}
-	return &Record{Meta: meta, Manifest: manifest, Lock: lock}, nil
+	members, err := s.loadMemberManifests(dir, meta)
+	if err != nil {
+		return nil, err
+	}
+	return &Record{Meta: meta, Manifest: manifest, Lock: lock, MemberManifests: members}, nil
 }
 
 // Prune retains the newest retain snapshots and removes older dirs.
@@ -312,4 +279,92 @@ func (s *Store) guardPaths(rel string) error {
 		return apperr.Wrap(apperr.IO, "snapshot.guard", rel, err)
 	}
 	return fsx.GuardAncestors(absRoot, target)
+}
+
+func (s *Store) guardMemberManifest(rel string) error {
+	rel = filepath.ToSlash(rel)
+	if filepath.IsAbs(rel) || strings.Contains(rel, "..") {
+		return apperr.New(apperr.IO, "snapshot.guard", rel, "invalid member manifest path")
+	}
+	return s.guardPaths(rel)
+}
+
+func (s *Store) writeSnapshotPayload(dir, id string, manifest, lock []byte, graphDigest string, members map[string][]byte) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return apperr.Wrap(apperr.IO, "snapshot.write", dir, err)
+	}
+	meta := &Snapshot{
+		SchemaVersion: SchemaVersion,
+		ID:            id,
+		CreatedAt:     time.Now().UTC(),
+		GraphDigest:   graphDigest,
+	}
+	if len(members) > 0 {
+		meta.MemberManifests = memberManifestPaths(members)
+	}
+	metaBytes, err := EncodeJSON(meta)
+	if err != nil {
+		return err
+	}
+	for name, data := range map[string][]byte{
+		metaFileName:     metaBytes,
+		manifestFileName: manifest,
+		lockFileName:     lock,
+	} {
+		if err := writeAtomic(filepath.Join(dir, name), data); err != nil {
+			return err
+		}
+	}
+	return s.writeMemberManifests(dir, members)
+}
+
+func (s *Store) writeMemberManifests(dir string, members map[string][]byte) error {
+	if len(members) == 0 {
+		return nil
+	}
+	for rel, data := range members {
+		if err := s.guardMemberManifest(rel); err != nil {
+			return err
+		}
+		dest := filepath.Join(dir, memberManifestDir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return apperr.Wrap(apperr.IO, "snapshot.write", dest, err)
+		}
+		if err := writeAtomic(dest, data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) loadMemberManifests(dir string, meta *Snapshot) (map[string][]byte, error) {
+	if meta == nil || len(meta.MemberManifests) == 0 {
+		return nil, nil
+	}
+	out := make(map[string][]byte, len(meta.MemberManifests))
+	for _, rel := range meta.MemberManifests {
+		rel = filepath.ToSlash(rel)
+		if err := s.guardMemberManifest(rel); err != nil {
+			return nil, err
+		}
+		path := filepath.Join(dir, memberManifestDir, filepath.FromSlash(rel))
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, apperr.Wrap(apperr.IO, "snapshot.load", rel, err)
+		}
+		out[rel] = data
+	}
+	return out, nil
+}
+
+func memberManifestPaths(members map[string][]byte) []string {
+	if len(members) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(members))
+	for rel := range members {
+		out = append(out, filepath.ToSlash(rel))
+	}
+	sort.Strings(out)
+	return out
 }

@@ -29,6 +29,8 @@ type InstallOptions struct {
 	StagedManifest []byte
 	// StagedLock writes these bytes to staged m.lock (snapshot restore).
 	StagedLock []byte
+	// StagedMemberManifests maps member package.json relative paths to staged bytes (snapshot restore).
+	StagedMemberManifests map[string][]byte
 	// SkipSnapshot omits staging a new install snapshot in the txn (snapshot restore).
 	SkipSnapshot bool
 	// AddSpec is set by m add; packument fetch runs under mutation ownership via prepareAddDependency.

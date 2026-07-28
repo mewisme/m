@@ -64,12 +64,13 @@ func restoreSnapshotInSession(ctx context.Context, sess *MutationSession, id str
 		return abortMutation(ctx, sess, sess.Runner(), err)
 	}
 	res, err = runInstallInSession(ctx, sess, InstallOptions{
-		Frozen:           true,
-		WriteManifest:    true,
-		PreResolvedGraph: g,
-		StagedManifest:   manifestBytes,
-		StagedLock:       rec.Lock,
-		SkipSnapshot:     true,
+		Frozen:                true,
+		WriteManifest:         true,
+		PreResolvedGraph:      g,
+		StagedManifest:        manifestBytes,
+		StagedLock:            rec.Lock,
+		StagedMemberManifests: rec.MemberManifests,
+		SkipSnapshot:          true,
 	}, nil, nil)
 	if err != nil {
 		abortRes, abortErr := abortMutation(ctx, sess, sess.Runner(), err)

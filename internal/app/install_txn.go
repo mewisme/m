@@ -163,7 +163,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 
 	emitPhase(ac, "resolve", "")
-	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0
+	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
 	if edit != nil {
 		if err := edit(proj); err != nil {
 			return res, err
@@ -173,6 +173,11 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	var resolution *resolver.Resolution
 	if opts.PreResolvedGraph != nil {
 		resolution = &resolver.Resolution{Graph: opts.PreResolvedGraph}
+		if len(opts.StagedLock) > 0 {
+			if lockDoc, decodeErr := mlock.Decode(opts.StagedLock); decodeErr == nil {
+				resolution.Extensions = lockDoc.Extensions
+			}
+		}
 	} else {
 		resolution, err = resolveForInstall(ctx, ac, proj, opts, manifestChanged)
 		if err != nil {
@@ -216,6 +221,15 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		if err := writeStagedManifests(stage, proj, opts); err != nil {
 			return res, err
 		}
+	}
+	if len(opts.StagedMemberManifests) > 0 {
+		if err := writeStagedMemberManifests(stage, opts.StagedMemberManifests); err != nil {
+			return res, err
+		}
+		if err := writeLiveMemberManifests(proj.Root, opts.StagedMemberManifests); err != nil {
+			return res, err
+		}
+		manifestChanged = true
 	}
 
 	emitPhase(ac, "fetch", "")
@@ -287,7 +301,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 
 	snapID := ""
 	if !opts.SkipSnapshot {
-		snapID, err = stageSnapshot(ctx, stage, proj, resolution)
+		snapID, err = stageSnapshot(ctx, stage, proj, resolution, opts)
 		if err != nil {
 			return res, err
 		}
@@ -312,7 +326,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		manifestChanged: manifestChanged,
 		useStore:        useStore,
 		snapshotID:      snapID,
-		memberManifests: memberManifestPaths(opts),
+		memberManifests: allMemberManifestPaths(opts),
 	})
 	if err := txn.SetPlan(plan); err != nil {
 		return res, err
@@ -370,7 +384,7 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 		return res, err
 	}
 	emitPhase(ac, "resolve", "")
-	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0
+	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
 	if edit != nil {
 		if err := edit(proj); err != nil {
 			return res, err
@@ -380,6 +394,11 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 	var resolution *resolver.Resolution
 	if opts.PreResolvedGraph != nil {
 		resolution = &resolver.Resolution{Graph: opts.PreResolvedGraph}
+		if len(opts.StagedLock) > 0 {
+			if lockDoc, decodeErr := mlock.Decode(opts.StagedLock); decodeErr == nil {
+				resolution.Extensions = lockDoc.Extensions
+			}
+		}
 	} else {
 		resolution, err = resolveForInstall(ctx, ac, proj, opts, manifestChanged)
 		if err != nil {
@@ -428,7 +447,7 @@ func buildCommitPlan(in commitPlanInput) []transaction.Op {
 	return ops
 }
 
-func stageSnapshot(ctx context.Context, stage string, proj *project.Project, res *resolver.Resolution) (string, error) {
+func stageSnapshot(ctx context.Context, stage string, proj *project.Project, res *resolver.Resolution, opts InstallOptions) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
@@ -449,12 +468,16 @@ func stageSnapshot(ctx context.Context, stage string, proj *project.Project, res
 	if err != nil {
 		return "", apperr.Wrap(apperr.IO, "app.snapshot", lockFileName, err)
 	}
+	members, err := collectSnapshotMemberManifests(stage, proj.Root, opts, lockBytes)
+	if err != nil {
+		return "", err
+	}
 	digest, err := snapshot.GraphDigest(res.Graph)
 	if err != nil {
 		return "", err
 	}
 	stageSnap := filepath.Join(stage, "snapshots")
-	if err := store.StageCreate(stageSnap, id, manifest, lockBytes, digest); err != nil {
+	if err := store.StageCreate(stageSnap, id, manifest, lockBytes, digest, members); err != nil {
 		return "", err
 	}
 	if err := store.StageIndex(stageSnap, ids, nextSeq); err != nil {
@@ -520,6 +543,99 @@ func memberManifestPaths(opts InstallOptions) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func allMemberManifestPaths(opts InstallOptions) []string {
+	seen := map[string]struct{}{}
+	var out []string
+	for _, rel := range memberManifestPaths(opts) {
+		if _, ok := seen[rel]; ok {
+			continue
+		}
+		seen[rel] = struct{}{}
+		out = append(out, rel)
+	}
+	for rel := range opts.StagedMemberManifests {
+		if _, ok := seen[rel]; ok {
+			continue
+		}
+		seen[rel] = struct{}{}
+		out = append(out, rel)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func writeStagedMemberManifests(stage string, members map[string][]byte) error {
+	for rel, data := range members {
+		dest := filepath.Join(stage, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return apperr.Wrap(apperr.IO, "app.install", dest, err)
+		}
+		if err := os.WriteFile(dest, data, 0o644); err != nil {
+			return apperr.Wrap(apperr.IO, "app.install", dest, err)
+		}
+	}
+	return nil
+}
+
+func writeLiveMemberManifests(projRoot string, members map[string][]byte) error {
+	for rel, data := range members {
+		dest := filepath.Join(projRoot, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return apperr.Wrap(apperr.IO, "app.install", dest, err)
+		}
+		if err := os.WriteFile(dest, data, 0o644); err != nil {
+			return apperr.Wrap(apperr.IO, "app.install", dest, err)
+		}
+	}
+	return nil
+}
+
+func collectSnapshotMemberManifests(stage, projRoot string, opts InstallOptions, lockBytes []byte) (map[string][]byte, error) {
+	out := map[string][]byte{}
+	add := func(rel string) error {
+		if _, ok := out[rel]; ok {
+			return nil
+		}
+		staged := filepath.Join(stage, filepath.FromSlash(rel))
+		if data, err := os.ReadFile(staged); err == nil {
+			out[rel] = data
+			return nil
+		}
+		live := filepath.Join(projRoot, filepath.FromSlash(rel))
+		data, err := os.ReadFile(live)
+		if err != nil {
+			return apperr.Wrap(apperr.IO, "app.snapshot", rel, err)
+		}
+		out[filepath.ToSlash(rel)] = data
+		return nil
+	}
+	for _, rel := range memberManifestPaths(opts) {
+		if err := add(rel); err != nil {
+			return nil, err
+		}
+	}
+	doc, err := mlock.Decode(lockBytes)
+	if err != nil {
+		return nil, err
+	}
+	for _, im := range doc.Importers {
+		if im.ID == graph.RootImporter {
+			continue
+		}
+		rel := filepath.Join(string(im.ID), "package.json")
+		if err := add(rel); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return nil, err
+		}
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return out, nil
 }
 
 func writeStagedLock(stage string, ac *Context, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {

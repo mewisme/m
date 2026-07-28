@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/graph"
@@ -44,6 +45,18 @@ func ValidateRestorePair(rec Record) (*graph.Graph, []byte, error) {
 
 	manifestSpecs := map[graph.ImporterID][]mlock.Specifier{
 		graph.RootImporter: mlock.SpecifiersFromManifest(norm),
+	}
+	for rel, raw := range rec.MemberManifests {
+		memDoc, err := manifest.Parse(raw)
+		if err != nil {
+			return nil, nil, err
+		}
+		memNorm, err := manifest.ToNormalized(memDoc)
+		if err != nil {
+			return nil, nil, err
+		}
+		id := graph.ImporterID(filepath.ToSlash(filepath.Dir(rel)))
+		manifestSpecs[id] = mlock.SpecifiersFromManifest(memNorm)
 	}
 	if drift := mlock.ValidateFrozen(lockDoc, manifestSpecs); len(drift) > 0 {
 		return nil, nil, apperr.New(apperr.Lockfile, "snapshot.validate", "m.lock",

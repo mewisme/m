@@ -10,16 +10,20 @@ import (
 	"github.com/mewisme/m/internal/apperr"
 )
 
-// SchemaVersion versions serialized Snapshot documents.
-const SchemaVersion = 1
+// SchemaVersion is the current on-disk snapshot metadata version.
+const SchemaVersion = 2
+
+// SchemaVersionV1 is the root-only snapshot format.
+const SchemaVersionV1 = 1
 
 // Snapshot describes an immutable historical install state.
 type Snapshot struct {
-	SchemaVersion int       `json:"schemaVersion"`
-	ID            string    `json:"id"`
-	CreatedAt     time.Time `json:"createdAt"`
-	GraphDigest   string    `json:"graphDigest"`
-	PolicyDigest  string    `json:"policyDigest,omitempty"`
+	SchemaVersion   int       `json:"schemaVersion"`
+	ID              string    `json:"id"`
+	CreatedAt       time.Time `json:"createdAt"`
+	GraphDigest     string    `json:"graphDigest"`
+	PolicyDigest    string    `json:"policyDigest,omitempty"`
+	MemberManifests []string  `json:"memberManifests,omitempty"`
 }
 
 // Normalize fills schema version and checks required fields.
@@ -28,9 +32,9 @@ func (s *Snapshot) Normalize() error {
 		return apperr.New(apperr.Internal, "snapshot.normalize", "snapshot", "nil snapshot")
 	}
 	if s.SchemaVersion == 0 {
-		s.SchemaVersion = SchemaVersion
+		s.SchemaVersion = SchemaVersionV1
 	}
-	if s.SchemaVersion != SchemaVersion {
+	if s.SchemaVersion != SchemaVersion && s.SchemaVersion != SchemaVersionV1 {
 		return apperr.New(apperr.Internal, "snapshot.normalize", "snapshot",
 			fmt.Sprintf("unsupported schemaVersion %d", s.SchemaVersion))
 	}
