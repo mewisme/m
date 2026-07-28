@@ -25,6 +25,15 @@ pnpm 9, 10, and 11 share `lockfileVersion: '9.0'`. Distinguish via field presenc
 Ambiguous 9.0-shaped locks without resolvable markers require explicit
 `--pnpm-major` before encode/write (fail closed otherwise).
 
+## Generated corpus (`generated/`)
+
+Binary-generated (or honestly metadata-tagged committed) families live under
+`fixtures/locks/generated/` with full `metadata.json` per family. Refresh via
+`tools/conformance/generate-lock-fixtures.ps1` (use `-Generate` when pnpm is
+available). Evidence log: `fixtures/locks/EVIDENCE.md`.
+
+CI conformance: `conformance-pnpm-{9,10,11}`, `conformance-nub-fixtures`.
+
 ## Nub
 
 `nub.lock` uses the pnpm v9-shaped YAML layout; identity and filename differ only.

@@ -1,0 +1,16 @@
+{
+  "producer": "pnpm",
+  "producerVersion": "11.0.2",
+  "producerMajor": 11,
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "lockfileVersion": "9.0",
+  "generationSignals": [
+    "lockfileVersion=9.0"
+  ],
+  "confidence": "certain",
+  "command": "committed from fixtures/locks/pnpm/v11 (pnpm@11.0.2 reference)",
+  "timestamp": "2026-07-28T23:05:04.3328671+07:00",
+  "lockfileSha256": "805c0c50b8f04d6d4aa0846a20620c796a27f6ad9d19a15ddfecc0563f78cfc4"
+}

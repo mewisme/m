@@ -1,0 +1,17 @@
+{
+  "producer": "nub",
+  "producerVersion": "manual-evidence",
+  "producerMajor": 9,
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "lockfileVersion": "9.0",
+  "generationSignals": [
+    "pnpm-v9-shaped",
+    "nub.lock"
+  ],
+  "confidence": "manual",
+  "command": "committed from fixtures/locks/nub/v1-basic",
+  "timestamp": "2026-07-28T23:05:04.3580888+07:00",
+  "lockfileSha256": "d2b83c6179b2612342adbadee0479b343dac2d3ddfeaee1201477ac3907ecf88"
+}

@@ -1,51 +1,49 @@
-# Lock fixture evidence (Pass 15)
+# Lock bridge evidence — Stabilization Pass 15
 
-**Fetch date:** 2026-07-28  
-**Host:** Windows 10 (win32), amd64  
-**Node:** stock Node from CI/dev (see per-fixture `metadata.json` when present)
+**Fetched:** 2026-07-28  
+**Baseline:** `e79cebf0c8be7e3e3e1734dbb181fb29e5e8e40e`
 
-## pnpm
+## pnpm references
 
-| Major | Pinned version | Source |
-|-------|----------------|--------|
-| 9 | 9.15.9 | [pnpm releases](https://github.com/pnpm/pnpm/releases), [npm `pnpm@9`](https://www.npmjs.com/package/pnpm/v/9.15.9) |
-| 10 | 10.34.5 | [pnpm releases](https://github.com/pnpm/pnpm/releases), [npm `pnpm@10`](https://www.npmjs.com/package/pnpm/v/10.34.5) |
-| 11 | 11.17.0 | [pnpm releases](https://github.com/pnpm/pnpm/releases), [npm `pnpm@11`](https://www.npmjs.com/package/pnpm/v/11.17.0) |
+| Major | Pinned version | Docs | Releases |
+|-------|----------------|------|----------|
+| 9 | 9.15.9 | https://pnpm.io/9.x | https://github.com/pnpm/pnpm/releases |
+| 10 | 10.14.0 | https://pnpm.io/10.x | https://github.com/pnpm/pnpm/releases |
+| 11 | 11.0.2 | https://pnpm.io/11.x | https://github.com/pnpm/pnpm/releases |
 
-Pins live in [`tools/conformance/pnpm-versions.env`](../../tools/conformance/pnpm-versions.env).
+Generation command per family: see `fixtures/locks/generated/pnpm-*/basic/metadata.json`.
 
-### Generation commands (fixture script)
+Committed fixtures under `fixtures/locks/generated/` were seeded from
+`fixtures/locks/pnpm/v{9,10,11}` with honest metadata (not hand-edited YAML).
+Re-run `tools/conformance/generate-lock-fixtures.ps1 -Generate` when pnpm is
+available to refresh from live binaries.
 
-```powershell
-.\tools\conformance\generate-lock-fixtures.ps1
-```
+## Nub references
 
-Per family (after `pnpm` is on PATH at the pinned version):
+| Item | Source |
+|------|--------|
+| Lock layout | pnpm v9-shaped YAML in `nub.lock` |
+| Site | https://nubjs.com |
+| Fixture | `fixtures/locks/generated/nub-basic/` (manual evidence; generation not automatable in CI) |
 
-```text
-pnpm@9.15.9  install   → fixtures/locks/pnpm/generated/v9-basic/
-pnpm@10.34.5 install   → fixtures/locks/pnpm/generated/v10-basic/
-pnpm@11.17.0 install   → fixtures/locks/pnpm/generated/v11-basic/
-```
+Nub adapter delegates encode policy to pnpm detection inferred from incumbent
+`nub.lock` bytes (not a hardcoded v9 writer).
 
-**Do not** infer producer major from `lockfileVersion: '9.0'` alone. Use structural evidence
-(package `checksum` for v10, `buildPolicy` for v11) or explicit `--pnpm-major`.
+## Detection policy (Pass 15)
 
-### Docs
+1. `package.json` `packageManager`
+2. `devEngines.packageManager`
+3. `--pnpm-major` / `InstallOptions.PnpmMajor`
+4. Adapter-recorded metadata in lock extensions
+5. Generation-specific structural evidence (policy-owned)
+6. Else ambiguous (`DetectionInferred`, fail closed on write)
 
-- [pnpm lockfile](https://pnpm.io/git#lockfile)
-- [pnpm 11 releases blog](https://pnpm.io/blog/releases/11.11-11.14)
+Common settings keys (`patchedDependencies`, `configDependencies`,
+`onlyBuiltDependencies`) alone are **not** sufficient for certain detection
+when shared across generations; v10/v11 fixtures include generation-specific
+root/settings markers.
 
-## Nub
+## Conformance
 
-| Artifact | Source |
-|----------|--------|
-| `nub.lock` layout | [nubjs.com](https://nubjs.com) — pnpm v9-shaped YAML, distinct filename |
-
-Existing hand-maintained fixture: `fixtures/locks/nub/v1-basic/`. Binary-generated Nub
-families are deferred to Pass 15 Phase 9/10.
-
-## Mew detection extension
-
-Adapter-recorded metadata may appear under top-level extension key `mew.lockfile/detection`
-(JSON: `format`, `producerMajor`). Used as evidence rank 4 in detection order.
+CI jobs `conformance-pnpm-{9,10,11}` and `conformance-nub-fixtures` run
+`tests/conformance/lock_bridge_*_test.go` against `fixtures/locks/generated/`.

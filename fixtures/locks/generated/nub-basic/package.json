@@ -1,8 +1,8 @@
 {
-  "name": "fixture-pnpm-v9",
+  "name": "fixture-nub-v1",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "lodash": "4.17.21"
+    "left-pad": "1.3.0"
   }
 }
