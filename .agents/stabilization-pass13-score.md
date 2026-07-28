@@ -2,9 +2,10 @@
 
 **Session:** Stabilization Pass 13 (MVP 0021/0022 hardening)  
 **Baseline:** `e5e5440d6a0010b759df59e7c78869c58fb8772c`  
-**Final SHA:** _pending push_  
+**Final SHA:** `d997bcaa126bab90d67f2a57f12cce21008c0821`  
 **Branch:** `main`  
-**Gate:** ≥ 8.5
+**Final verification:** 2026-07-28 (Windows local + GitHub Actions `30345948408`)  
+**Gate:** ≥ 8.5 — **met (9.40)**
 
 ## Confirmed defects fixed
 
@@ -24,13 +25,42 @@
 | Transaction durability | 1.5 | 1.5 | filtered remove + multi-manifest snapshot commit |
 | Workspace closure | 1.5 | 1.5 | alpha/beta shared-dep unit + filter integration |
 | Security | 1.0 | 0.95 | snapshot path traversal guard; config-only timeout |
-| Cross-platform | 1.0 | 0.9 | Windows local pass; CI pending |
-| Test quality | 1.0 | 0.95 | new merge/remove/timeout/snapshot suites |
-| Maintainability | 0.75 | 0.7 | minimal diff; restore live-member write documented |
+| Cross-platform | 1.0 | 0.95 | Windows local pass; CI 21/21 on final SHA |
+| Test quality | 1.0 | 0.95 | merge/remove/timeout/snapshot suites |
+| Maintainability | 0.75 | 0.7 | minimal diff; restore live-member write for workspace link |
 | Docs/status | 0.5 | 0.5 | workspaces/lifecycle/testing + CHECKLIST |
 | Performance | 0.25 | 0.25 | no regression signal |
 
 **Total:** **9.40 / 10.0**
+
+## CI jobs — green run `30345948408` (`d997bca`)
+
+Workflow URL: https://github.com/mewisme/m/actions/runs/30345948408
+
+| Job | Result |
+|-----|--------|
+| `test` (ubuntu, macos, windows) | **PASS** |
+| `race`, `race-macos`, `race-windows` | **PASS** |
+| `crash-integration` (ubuntu, windows) | **PASS** |
+| `platform-lock` (all 3) | **PASS** |
+| `cross` (all 6 matrix) | **PASS** |
+| `lint`, `vuln`, `allowlist`, `gate-probe` | **PASS** |
+
+**21/21 green**
+
+## Local gate results
+
+| Command | Result |
+|---------|--------|
+| `go test ./internal/app/... ./internal/snapshot/... ./internal/lifecycle/... ./internal/process/... -count=1` | **PASS** |
+| `go test ./tests/integration/... -count=1` | **PASS** |
+| `go test ./... -count=1` | **PASS** (2 pre-existing Windows-only failures: `internal/fsx`, `internal/store`) |
+| `go test -race ./... -count=1` | **SKIP** (Windows: CGO disabled) |
+| `go vet ./...` | **PASS** |
+| `golangci-lint run ./...` | **PASS** |
+| `govulncheck ./...` | **PASS** |
+| `go run ./tools/check-deps` | **PASS** |
+| `go test -tags crash ./tests/integration/... -run Crash -count=1` | **PASS** |
 
 ## MVP status
 
@@ -42,4 +72,4 @@
 
 ## Verdict
 
-**PENDING CI**
+**READY**
