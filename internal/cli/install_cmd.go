@@ -120,7 +120,7 @@ func newRemoveCmd() *cobra.Command {
 			if ac == nil {
 				return apperr.New(apperr.Internal, "remove", "", "missing app context")
 			}
-			result, err := app.Remove(cmd.Context(), ac, args[0], app.InstallOptions{Linker: linkerMode})
+			result, err := app.Remove(cmd.Context(), ac, args[0], installOptsFromGlobals(cmd, app.InstallOptions{Linker: linkerMode}))
 			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {
 				if outErr != nil {
@@ -152,12 +152,16 @@ func newCiCmd() *cobra.Command {
 			if ac == nil {
 				return apperr.New(apperr.Internal, "ci", "", "missing app context")
 			}
-			result, err := app.Install(cmd.Context(), ac, app.InstallOptions{
+			opts := installOptsFromGlobals(cmd, app.InstallOptions{
 				Prod:          prod,
 				Frozen:        true,
 				Linker:        linkerMode,
 				IgnoreScripts: ignoreScripts,
 			})
+			if len(opts.Filter) > 0 {
+				return apperr.New(apperr.Usage, "ci", "--filter", "--filter is not supported with ci (frozen full-tree install)")
+			}
+			result, err := app.Install(cmd.Context(), ac, opts)
 			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {
 				if outErr != nil {

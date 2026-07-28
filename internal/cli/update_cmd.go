@@ -28,12 +28,12 @@ func newUpdateCmd() *cobra.Command {
 			result, err := app.Update(cmd.Context(), ac, app.UpdateOptions{
 				Targets: args,
 				Latest:  latest,
-				Install: app.InstallOptions{
+				Install: installOptsFromGlobals(cmd, app.InstallOptions{
 					DryRun:        dryRun,
 					KeepJournal:   keepJournal,
 					Linker:        linkerMode,
 					IgnoreScripts: ignoreScripts,
-				},
+				}),
 			})
 			if err != nil {
 				return err
