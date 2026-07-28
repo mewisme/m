@@ -188,3 +188,64 @@ jobs:
           echo "ok: go vet rejected bad input"
       - name: Prove allowlist probe rejects banned module
         run: go test ./tools/check-deps -count=1 -run TestAllowlistRejectsUnknown
+
+  conformance-pnpm-9:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: pnpm 9 lock bridge conformance
+        run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpm9 -v
+
+  conformance-pnpm-10:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: pnpm 10 lock bridge conformance
+        run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpm10 -v
+
+  conformance-pnpm-11:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: pnpm 11 lock bridge conformance
+        run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpm11 -v
+
+  conformance-nub-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Nub lock fixture validation
+        run: go test ./tests/conformance/... -count=1 -run TestLockBridgeNubFixtures -v
