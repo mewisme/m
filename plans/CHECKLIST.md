@@ -13,6 +13,8 @@
 
 MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/m/actions/runs/30310739645 (21/21 green).
 
+**Stabilization pass 12 (2026-07-28):** explicit-empty lifecycle env, honest restricted-execution contract, prepare cache disabled, transactional `add --filter`, filtered-install closure merge, install-family `--filter` audit. Scorecard: `.agents/stabilization-pass12-score.md`.
+
 Stabilization pass 10 merged to `main` at `d980e12`.
 
 Stabilization pass 9 (`stabilization-pass-9` from `fae9b48`): `ConfigLoadSpec` preserves load inputs across mutation reload; `CriticalCleanupError`/`WarningErrors` split; custom-config lock-wait proc test.

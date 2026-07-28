@@ -31,24 +31,36 @@ Config: `lifecycle.ignore_scripts: true`
 
 Dry-run installs never execute lifecycle scripts.
 
-## Sandbox v1 (path-restricted)
+## Restricted execution environment
 
-Scripts run with:
+Scripts run under a **restricted execution environment** (not a filesystem or network sandbox):
 
-- **CWD** — package root under staged `node_modules`
-- **PATH** — `node_modules/.bin` prepended
-- **Env** — invocation snapshot with registry tokens and common secrets stripped (`NPM_TOKEN`, `NODE_AUTH_TOKEN`, `AWS_*`, …)
+| Capability | Enforced |
+|------------|----------|
+| Package CWD | yes |
+| Controlled PATH (`node_modules/.bin` prepended) | yes |
+| Stripped env (explicit snapshot; secrets removed) | yes |
+| Timeout (`lifecycle.script_timeout`, default `10m`) | yes |
+| Process-tree kill on timeout/cancel | best-effort |
+| Filesystem isolation | **no** |
+| Network isolation | **no** |
 
-Shell dispatch: `sh -c` on Unix, `ComSpec /c` on Windows.
+Env rules:
 
-OS-level sandboxing (namespaces, job objects) is deferred; see MVP plan deferrals.
+- Production lifecycle always passes an **explicit** env snapshot from the app context (`Explicit: true`).
+- `Explicit` + empty vars → only controlled `PATH`/`Path` (no host inheritance).
+- Secrets stripped include `NPM_TOKEN`, `GH_TOKEN`, `GITLAB_TOKEN`, `AWS_*`, `AZURE_*`, `GOOGLE_*`, and keys containing `TOKEN`, `SECRET`, `PASSWORD`, `PRIVATE_KEY`.
+
+Shell dispatch: `sh -c` on Unix, `ComSpec /c` on Windows (resolved from script env, not ambient `os.Getenv`).
+
+Audit entries include a `capabilities` field reporting the honest contract above.
 
 ## Audit log
 
 Each executed script appends one JSON line to `.mew/lifecycle-audit.jsonl`:
 
 ```json
-{"ts":"…","package":"lodash","script":"postinstall","exitCode":0,"durationMs":42}
+{"ts":"…","package":"lodash","script":"postinstall","exitCode":0,"durationMs":42,"cached":false,"restored":false,"capabilities":{"packageCWD":true,"controlledPATH":true,"strippedEnv":true,"timeout":true,"processTreeKill":true,"filesystemIsolation":false,"networkIsolation":false}}
 ```
 
 ```sh
@@ -58,7 +70,7 @@ m builds list --json
 
 ## Prepare build cache
 
-`prepare` script results are keyed by package integrity, script name, platform, and policy version under `<cache>/lifecycle/`. Cache hits skip re-execution (ponytail: marker files only; full output capture deferred).
+`prepare` scripts always execute. Marker files under `<cache>/lifecycle/` are **diagnostic metadata only** — they do not skip execution until output capture/restore exists.
 
 ## Integration point
 
@@ -77,7 +89,4 @@ m builds list --json
 | `fixtures/lifecycle/postinstall-write-file` | postinstall writes `marker.txt` |
 | `fixtures/lifecycle/failing-script` | postinstall exits non-zero |
 | `fixtures/lifecycle/native-addon-build-stub` | prepare stub |
-| `fixtures/lifecycle/prepare-counter` | prepare cache counter |
-| `fixtures/lifecycle/registry` | hermetic registry for integration tests |
-
-Tests set `MEW_EXPERIMENTAL_LIFECYCLE=1` via `testkit.EnableLifecycle`.
+| `fixtures/lifecycle/prepare-counter` | prepare counter (re-runs after marker present) |

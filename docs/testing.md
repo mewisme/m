@@ -96,6 +96,21 @@ Node.js is required for script fixtures that invoke `node`; trust/policy tests r
 
 See [`docs/lifecycle.md`](lifecycle.md).
 
+Unit coverage for restricted execution and explicit-empty env:
+
+```powershell
+go test ./internal/process/... ./internal/lifecycle/... -count=1
+```
+
+## Workspace stabilization (0022 pass 12)
+
+```powershell
+go test ./internal/app/... -run "Untouched|MergeFiltered" -count=1
+go test ./tests/integration/... -run Workspace -count=1
+```
+
+See [`docs/workspaces.md`](workspaces.md).
+
 ## Fuzz smoke
 
 | Target | Package | Notes |

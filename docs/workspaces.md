@@ -67,6 +67,17 @@ entries under a `catalog:` block (merged over `package.json`).
 install runs. Filtered installs merge untouched importer sections from the prior
 lock so unrelated members are not dropped.
 
+Filtered installs also merge the **package closure** for untouched importers from
+the prior lock graph before fetch/link, so registry packages (for example a
+sibling member's `pkg-b`) remain installed and linkable.
+
+## Filtered add
+
+`m add <pkg> --filter <pattern>` edits matched member `package.json` files in
+memory, stages them under the transaction `stage/` tree, and commits atomically
+with the lock and `node_modules`. Root `package.json` is unchanged unless `.` is
+in the filter match set.
+
 ## Out of scope (v1)
 
 - `file:`, `link:`, and `portal:` install (resolve-only)

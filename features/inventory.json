@@ -849,13 +849,13 @@
     },
     {
       "id": "lifecycle.sandbox",
-      "name": "script sandbox",
+      "name": "restricted execution environment",
       "module": "lifecycle",
       "nub_status": "shipped",
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0021",
-      "tests": ["tests/integration/lifecycle_test.go", "tests/integration/lifecycle_rollback_test.go"]
+      "tests": ["tests/integration/lifecycle_test.go", "tests/integration/lifecycle_rollback_test.go", "internal/process/exec_test.go", "internal/lifecycle/run_test.go"]
     },
     {
       "id": "lifecycle.build-cache",
