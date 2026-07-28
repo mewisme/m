@@ -429,7 +429,10 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	dir, _ := loadGeneratedFixture(t, rel)
 	validateFixtureLock(t, dir, major)
 	proj := copyFixtureProject(t, dir, major)
-	registryURL := setupTestRegistry(t, proj)
+	testkit.CleanEnv(t)
+	t.Setenv("NO_PROXY", "*")
+	home := t.TempDir()
+	t.Setenv("MEW_HOME", home)
 	setupIsolatedPnpmHome(t)
 
 	if family == "peer-context" {
@@ -438,19 +441,19 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 
 	before := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
 
-	// add mutation
-	runMewAdd(t, proj, major, "pkg-a", "1.0.0")
+	// add mutation (public registry package; incumbent deps resolved from lock + npmjs)
+	runMewAdd(t, proj, major, "ms", "2.1.3")
 	afterAdd := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
 	if afterAdd == before {
 		t.Fatal("add mutation must change lock bytes")
 	}
 	runLockValidateCLI(t, proj, major)
 	stripPackageManager(t, proj)
-	runPnpmFrozen(t, proj, major, registryURL, true)
+	runPnpmFrozen(t, proj, major, "", true)
 	verifyNodeModulesGraph(t, proj, family)
 
 	// update mutation
-	mutateUpdateDependency(t, proj, "pkg-a", "1.0.1")
+	mutateUpdateDependency(t, proj, "ms", "2.1.2")
 	runMewInstall(t, proj, major)
 	afterUpdate := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
 	if afterUpdate == afterAdd {
@@ -458,10 +461,10 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	}
 	runLockValidateCLI(t, proj, major)
 	stripPackageManager(t, proj)
-	runPnpmFrozen(t, proj, major, registryURL, true)
+	runPnpmFrozen(t, proj, major, "", true)
 
 	// remove mutation
-	mutateRemoveDependency(t, proj, "pkg-a")
+	mutateRemoveDependency(t, proj, "ms")
 	runMewInstall(t, proj, major)
 	afterRemove := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
 	if afterRemove == afterUpdate {
