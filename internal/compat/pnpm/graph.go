@@ -210,21 +210,6 @@ func appendImporterEdges(g *graph.Graph, from graph.ImporterID, deps map[string]
 	return nil
 }
 
-func keyToDepVersion(name, key string) string {
-	if isProtocolRef(key) {
-		return key
-	}
-	id, err := ParsePackageIdentity(key)
-	if err == nil && id.Name == name {
-		return id.BaseVersion + id.PeerSuffix
-	}
-	prefix := name + "@"
-	if strings.HasPrefix(key, prefix) {
-		return strings.TrimPrefix(key, prefix)
-	}
-	return key
-}
-
 // FromGraph builds a pnpm document from a validated graph and prior template.
 func FromGraph(g *graph.Graph, prior *Document, det lockfile.Detection) (*Document, error) {
 	if g == nil {
@@ -282,7 +267,12 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 		if !ok {
 			continue
 		}
-		dep := ImporterDep{Specifier: e.Range, Version: keyToDepVersion(e.Name, e.To)}
+		dep := ImporterDep{Specifier: e.Range}
+		var err error
+		dep.Version, err = EncodeDependencyRef(e.Name, e.To)
+		if err != nil {
+			return nil, apperr.Wrap(apperr.Lockfile, "pnpm.graph", string(id)+"."+e.Name, err)
+		}
 		switch e.Kind {
 		case graph.DepDev:
 			sec.DevDependencies[e.Name] = dep
@@ -302,13 +292,18 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 		priorSnaps = prior.Snapshots
 	}
 	for _, p := range g.Packages {
-		key := p.ID.Key()
+		graphKey := p.ID.Key()
+		instanceKey, err := graphKeyToInstanceKey(graphKey)
+		if err != nil {
+			return nil, err
+		}
+		baseKey := basePackageKeyFromInstance(instanceKey)
 		entry := PackageEntry{
 			Resolution: map[string]any{},
 			Engines:    map[string]any{},
 			Extra:      map[string]any{},
 		}
-		if prev, ok := priorPkgs[key]; ok {
+		if prev, ok := priorPkgs[baseKey]; ok {
 			entry = prev
 			if entry.Resolution == nil {
 				entry.Resolution = map[string]any{}
@@ -317,8 +312,12 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 		if p.Integrity != "" {
 			entry.Resolution["integrity"] = p.Integrity
 		}
-		doc.Packages[key] = entry
-		doc.Snapshots[key] = snapshotFromGraphEdges(key, g, priorSnaps[key])
+		doc.Packages[baseKey] = entry
+		priorSnap := priorSnaps[instanceKey]
+		if priorSnap == nil {
+			priorSnap = priorSnaps[baseKey]
+		}
+		doc.Snapshots[instanceKey] = snapshotFromGraphEdges(graphKey, g, priorSnap)
 	}
 	return doc, nil
 }
@@ -337,13 +336,17 @@ func snapshotFromGraphEdges(pkgKey string, g *graph.Graph, prior map[string]any)
 		if e.From != pkgKey {
 			continue
 		}
+		ref, err := EncodeDependencyRef(e.Name, e.To)
+		if err != nil {
+			continue
+		}
 		switch e.Kind {
 		case graph.DepOptional:
-			opt[e.Name] = e.To
+			opt[e.Name] = ref
 		case graph.DepPeer:
-			peer[e.Name] = e.To
+			peer[e.Name] = ref
 		default:
-			deps[e.Name] = e.To
+			deps[e.Name] = ref
 		}
 	}
 	if len(deps) > 0 {

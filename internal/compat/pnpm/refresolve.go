@@ -141,26 +141,11 @@ func matchKeysForRef(idx PackageIndex, depName, ref string) []string {
 			matches = append(matches, key)
 			continue
 		}
-		if enc, err := dependencyRefFromGraphKey(depName, key); err == nil && enc == ref {
+		if enc, err := EncodeDependencyRef(depName, key); err == nil && enc == ref {
 			matches = append(matches, key)
 		}
 	}
 	return matches
-}
-
-func dependencyRefFromGraphKey(depName, graphKey string) (string, error) {
-	if isProtocolRef(graphKey) {
-		return graphKey, nil
-	}
-	base, peerPart, hasPeer := strings.Cut(graphKey, "#")
-	name, ver := splitNameVersionKey(base)
-	if name != depName {
-		return "", fmt.Errorf("graph key %q name mismatch for %q", graphKey, depName)
-	}
-	if !hasPeer {
-		return ver, nil
-	}
-	return ver + "(" + peerPart + ")", nil
 }
 
 func danglingTarget(depName, ref string, idx PackageIndex) error {
@@ -178,7 +163,7 @@ func ambiguousTarget(depName, ref string, matches []string) error {
 		fmt.Sprintf("ambiguous dependency reference %q matches %v", ref, matches))
 }
 
-var protocolPrefixes = []string{"link:", "workspace:", "file:", "patch:", "git+", "git://", "http://", "https://"}
+var protocolPrefixes = []string{"link:", "workspace:", "file:", "patch:", "git+", "git://", "http://", "https://", "npm:"}
 
 func isProtocolRef(ref string) bool {
 	for _, p := range protocolPrefixes {

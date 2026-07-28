@@ -62,6 +62,17 @@ func instanceKeyToGraphKey(instanceKey string) (string, error) {
 	return id.Key(), nil
 }
 
+func graphKeyToInstanceKey(graphKey string) (string, error) {
+	if isProtocolRef(graphKey) {
+		return graphKey, nil
+	}
+	base, peerPart, hasPeer := strings.Cut(graphKey, "#")
+	if !hasPeer {
+		return graphKey, nil
+	}
+	return base + "(" + peerPart + ")", nil
+}
+
 func peerSuffixToProviders(suffix string) (graph.PeerProviderContext, error) {
 	if suffix == "" {
 		return nil, nil
