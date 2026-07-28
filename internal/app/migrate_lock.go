@@ -24,9 +24,13 @@ type MigrateLockOptions struct {
 
 // MigrateLockResult summarizes migrate output.
 type MigrateLockResult struct {
-	DryRun     bool
-	LossReport lockfile.LossReport
-	Path       string
+	DryRun           bool
+	LossReport       lockfile.LossReport
+	Path             string
+	SourceIdentity   string
+	SourceLockPath   string
+	Detection        lockfile.Detection
+	PreservedUnknown int
 }
 
 // LockDiffOptions compares incumbent lock graph to another lock path.
@@ -106,7 +110,7 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 	if !ok {
 		return out, lockfile.NewUnsupported("lock.migrate", "m.lock", "m.lock adapter not registered")
 	}
-	det := lockfile.Detection{Confidence: lockfile.DetectionCertain}
+	det := lockfile.Detection{Format: "nub", ProducerMajor: 9, Confidence: lockfile.DetectionCertain}
 	if fromID == project.IdentityPNPM {
 		det, err = lockfile.DetectPnpmWithMajor(prior, opts.PnpmMajor)
 		if err != nil {
@@ -128,6 +132,15 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 	_ = loss.Normalize()
 	out.LossReport = loss
 	out.Path = filepath.Join(proj.Root, "m.lock")
+	out.SourceIdentity = string(fromID)
+	out.SourceLockPath = lockPath
+	out.Detection = det
+	for _, item := range loss.Items {
+		if item.Reason == "top-level extension not mapped to canonical graph" ||
+			item.Reason == "nub extension not mapped to canonical graph" {
+			out.PreservedUnknown++
+		}
+	}
 	if opts.DryRun {
 		out.DryRun = true
 		return out, nil
@@ -206,33 +219,82 @@ func lockIdentityFromBasename(name string) (project.Identity, bool) {
 	}
 }
 
+// ValidateLockOptions controls incumbent lock validation.
+type ValidateLockOptions struct {
+	Frozen    bool
+	PnpmMajor int
+}
+
+// ValidateLockResult reports incumbent lock validation outcome.
+type ValidateLockResult struct {
+	Path      string
+	Detection lockfile.Detection
+}
+
 // ValidateIncumbentLock parses the incumbent lock and optionally checks frozen drift.
-func ValidateIncumbentLock(ctx context.Context, ac *Context, frozen bool) (string, error) {
+func ValidateIncumbentLock(ctx context.Context, ac *Context, opts ValidateLockOptions) (ValidateLockResult, error) {
+	var out ValidateLockResult
 	proj, err := OpenProject(ctx, ac)
 	if err != nil {
-		return "", err
+		return out, err
 	}
 	path := LockPath(proj)
+	out.Path = path
 	ext, ok := lockfile.ExtAdapterFor(proj.Identity)
 	if !ok {
 		adapter := lockfile.AdapterFor(proj.Identity)
 		if adapter == nil {
-			return "", lockfile.NewUnsupported("lock.validate", path, "adapter not registered")
+			return out, lockfile.NewUnsupported("lock.validate", path, "adapter not registered")
 		}
 		if _, err := adapter.Read(ctx, path); err != nil {
-			return "", err
+			return out, err
 		}
 	} else {
 		if _, _, err := ext.ReadWithExtensions(ctx, path); err != nil {
-			return "", err
+			return out, err
 		}
 	}
-	if frozen {
+	if det, derr := detectIncumbentLock(proj); derr == nil {
+		out.Detection = det
+	}
+	if opts.PnpmMajor != 0 && proj.Identity == project.IdentityPNPM {
+		prior, readErr := project.ReadLockfileBytes(proj.Root, proj.Identity)
+		if readErr != nil {
+			return out, readErr
+		}
+		det, derr := lockfile.DetectPnpmWithMajor(prior, opts.PnpmMajor)
+		if derr != nil {
+			return out, derr
+		}
+		det.ExplicitMajor = true
+		out.Detection = det
+	}
+	if opts.Frozen {
 		if err := validateFrozenLockForProject(ctx, ac, proj); err != nil {
-			return "", err
+			return out, err
 		}
 	}
-	return path, nil
+	return out, nil
+}
+
+func detectIncumbentLock(proj *project.Project) (lockfile.Detection, error) {
+	prior, err := project.ReadLockfileBytes(proj.Root, proj.Identity)
+	if err != nil {
+		return lockfile.Detection{}, err
+	}
+	switch proj.Identity {
+	case project.IdentityPNPM:
+		return lockfile.DetectPnpm(prior)
+	case project.IdentityNub:
+		det, err := lockfile.DetectPnpm(prior)
+		if err != nil {
+			return det, err
+		}
+		det.Format = "nub"
+		return det, nil
+	default:
+		return lockfile.Detection{Format: "mew", Confidence: lockfile.DetectionCertain}, nil
+	}
 }
 
 // EncodeLossReportJSON returns a stable JSON loss report.

@@ -658,7 +658,20 @@ func writeStagedLock(stage string, ac *Context, proj *project.Project, res *reso
 	}
 }
 
+// writeStagedExtLockTestHook simulates encode/stage failures in tests.
+var writeStagedExtLockTestHook func() error
+
+// SetWriteStagedExtLockTestHook installs a test-only failure hook.
+func SetWriteStagedExtLockTestHook(fn func() error) {
+	writeStagedExtLockTestHook = fn
+}
+
 func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {
+	if writeStagedExtLockTestHook != nil {
+		if err := writeStagedExtLockTestHook(); err != nil {
+			return err
+		}
+	}
 	prior, err := project.ReadLockfileBytes(proj.Root, proj.Identity)
 	if err != nil {
 		return err

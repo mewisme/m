@@ -63,29 +63,8 @@ func WriteLock(ctx context.Context, ac *Context, res *resolver.Resolution) error
 		}
 		return mlock.WriteAtomic(LockPath(proj), doc)
 	case project.IdentityNub, project.IdentityPNPM:
-		ext, ok := lockfile.ExtAdapterFor(proj.Identity)
-		if !ok {
-			return lockfile.NewUnsupported("lock.write", project.LockFilename(proj.Identity), "adapter not registered")
-		}
-		prior, err := project.ReadLockfileBytes(proj.Root, proj.Identity)
-		if err != nil {
-			return err
-		}
-		det := lockfile.Detection{}
-		if proj.Identity == project.IdentityPNPM {
-			det, err = lockfile.DetectPnpm(prior)
-			if err != nil {
-				return err
-			}
-		}
-		out, err := lockfile.EncodePreserving(ctx, ext, LockPath(proj), res.Graph, prior, nil, det)
-		if err != nil {
-			return err
-		}
-		if out.Unchanged {
-			return nil
-		}
-		return os.WriteFile(LockPath(proj), out.Bytes, 0o644)
+		return lockfile.NewUnsupported("lock.write", project.LockFilename(proj.Identity),
+			"incumbent nub/pnpm locks must be written via install transaction; use m install")
 	default:
 		return lockfile.NewUnsupported("lock.write", string(proj.Identity), "lock adapter not implemented")
 	}
