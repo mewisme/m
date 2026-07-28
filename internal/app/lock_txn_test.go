@@ -8,6 +8,7 @@ import (
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/fsx"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/testkit"
 	"github.com/mewisme/mew/internal/transaction"
@@ -72,6 +73,156 @@ func testIncumbentProject(t *testing.T, lockName string) (*Context, string) {
 		t.Fatal(err)
 	}
 	return &Context{CWD: proj, Config: eff, ConfigLoadSpec: config.LoadSpecFromOptions(loadOpts)}, proj
+}
+
+func assertIncumbentLockBytes(t *testing.T, proj, lockName string, before []byte) {
+	t.Helper()
+	after, err := os.ReadFile(filepath.Join(proj, lockName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatal("incumbent lock bytes changed")
+	}
+	if _, err := os.Stat(filepath.Join(proj, "m.lock")); err == nil {
+		t.Fatal("must not create m.lock")
+	}
+}
+
+func TestInstallTxnBackupInterruptPreservesIncumbent(t *testing.T) {
+	ac, proj := testIncumbentProject(t, "pnpm-lock.yaml")
+	before, err := os.ReadFile(filepath.Join(proj, "pnpm-lock.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	transaction.SetTestHook(func(phase string, _ int) error {
+		if phase == "backup" {
+			return apperr.New(apperr.Transaction, "test.hook", "", "injected backup failure")
+		}
+		return nil
+	})
+	t.Cleanup(func() { transaction.SetTestHook(nil) })
+
+	_, err = Install(context.Background(), ac, InstallOptions{Frozen: true, PnpmMajor: 9})
+	if err == nil {
+		t.Fatal("expected backup failure")
+	}
+	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
+}
+
+func TestInstallTxnPublishInterruptPreservesIncumbent(t *testing.T) {
+	ac, proj := testIncumbentProject(t, "pnpm-lock.yaml")
+	before, err := os.ReadFile(filepath.Join(proj, "pnpm-lock.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	transaction.SetTestHook(func(phase string, _ int) error {
+		if phase == "publish" {
+			return apperr.New(apperr.Transaction, "test.hook", "", "injected publish failure")
+		}
+		return nil
+	})
+	t.Cleanup(func() { transaction.SetTestHook(nil) })
+
+	_, err = Install(context.Background(), ac, InstallOptions{Frozen: true, PnpmMajor: 9})
+	if err == nil {
+		t.Fatal("expected publish failure")
+	}
+	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
+}
+
+func TestInstallTxnPostLockfileFailurePreservesIncumbent(t *testing.T) {
+	ac, proj := testIncumbentProject(t, "pnpm-lock.yaml")
+	before, err := os.ReadFile(filepath.Join(proj, "pnpm-lock.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	transaction.SetTestHook(func(phase string, _ int) error {
+		if phase == "post_lockfile" {
+			return apperr.New(apperr.Transaction, "test.hook", "", "injected post_lockfile failure")
+		}
+		return nil
+	})
+	t.Cleanup(func() { transaction.SetTestHook(nil) })
+
+	_, err = Install(context.Background(), ac, InstallOptions{PnpmMajor: 9})
+	if err == nil {
+		t.Fatal("expected post_lockfile failure")
+	}
+	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
+}
+
+func TestInstallTxnPostValidateFailurePreservesIncumbent(t *testing.T) {
+	ac, proj := testIncumbentProject(t, "pnpm-lock.yaml")
+	before, err := os.ReadFile(filepath.Join(proj, "pnpm-lock.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	transaction.SetTestHook(func(phase string, _ int) error {
+		if phase == "post_validate" {
+			return apperr.New(apperr.Transaction, "test.hook", "", "injected post_validate failure")
+		}
+		return nil
+	})
+	t.Cleanup(func() { transaction.SetTestHook(nil) })
+
+	_, err = Install(context.Background(), ac, InstallOptions{PnpmMajor: 9})
+	if err == nil {
+		t.Fatal("expected post_validate failure")
+	}
+	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
+}
+
+func TestInstallTxnStagingDurabilityFailurePreservesIncumbent(t *testing.T) {
+	ac, proj := testIncumbentProject(t, "pnpm-lock.yaml")
+	before, err := os.ReadFile(filepath.Join(proj, "pnpm-lock.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fsx.SetDurabilityTestHook(func(phase, _ string) error {
+		if phase == "pre_rename" {
+			return apperr.New(apperr.IO, "test.durable", "pnpm-lock.yaml", "injected staging failure")
+		}
+		return nil
+	})
+	t.Cleanup(func() { fsx.SetDurabilityTestHook(nil) })
+
+	_, err = Install(context.Background(), ac, InstallOptions{Frozen: true, PnpmMajor: 9})
+	if err == nil {
+		t.Fatal("expected staging durability failure")
+	}
+	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
+}
+
+func TestInstallTxnUnsupportedLockUntouched(t *testing.T) {
+	testkit.CleanEnv(t)
+	home := t.TempDir()
+	proj := filepath.Join(home, "proj")
+	if err := os.MkdirAll(proj, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	unsupported, err := os.ReadFile(filepath.Join(testkit.ModuleRoot(t), "fixtures", "locks", "pnpm", "unsupported", "v7", "pnpm-lock.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(proj, "package.json"), []byte(`{"name":"legacy","version":"1.0.0","packageManager":"pnpm@9.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(proj, "pnpm-lock.yaml"), unsupported, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loadOpts := config.LoadOptions{CWD: proj, ProjectRoot: proj}
+	eff, err := config.Load(context.Background(), loadOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ac := &Context{CWD: proj, Config: eff, ConfigLoadSpec: config.LoadSpecFromOptions(loadOpts)}
+	before := append([]byte(nil), unsupported...)
+	_, err = Install(context.Background(), ac, InstallOptions{PnpmMajor: 9})
+	if err == nil {
+		t.Fatal("expected unsupported lock rejection")
+	}
+	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
 }
 
 func TestWriteLockRejectsIncumbentNubPnpm(t *testing.T) {
