@@ -29,7 +29,7 @@ type InstallInput struct {
 	Graph       *graph.Graph
 	LinkPlan    *linker.Plan
 	Config      *config.Effective
-	Env         []string
+	Env         process.EnvSource
 	Trusted     *TrustStore
 	Interactive bool
 	Supervisor  process.ProcessSupervisor

@@ -12,7 +12,7 @@ import (
 
 const cachePolicyVersion = 1
 
-// ponytail: prepare-only cache marker files; upgrade path is output-dir capture.
+// ponytail: prepare-only cache marker files; diagnostic metadata only — not a skip signal.
 func cacheKey(script Script) string {
 	h := sha256.New()
 	_, _ = h.Write([]byte(script.Integrity))
@@ -27,21 +27,6 @@ func cacheKey(script Script) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func cacheHit(dir string, script Script) (bool, error) {
-	if dir == "" || script.Name != "prepare" {
-		return false, nil
-	}
-	path := filepath.Join(dir, cacheKey(script))
-	_, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, apperr.Wrap(apperr.IO, "lifecycle.cache", path, err)
-	}
-	return true, nil
-}
-
 func markCache(dir string, script Script) error {
 	if dir == "" || script.Name != "prepare" {
 		return nil
@@ -51,6 +36,11 @@ func markCache(dir string, script Script) error {
 	}
 	path := filepath.Join(dir, cacheKey(script))
 	return os.WriteFile(path, []byte("1\n"), 0o644)
+}
+
+// MarkCacheForTest writes a prepare cache marker (tests only).
+func MarkCacheForTest(dir string, script Script) error {
+	return markCache(dir, script)
 }
 
 func itoa(n int) string {

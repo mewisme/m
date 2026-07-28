@@ -6,10 +6,15 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/mewisme/m/internal/lifecycle"
 	"github.com/mewisme/m/internal/process"
 )
+
+func envHost() process.EnvSource {
+	return process.EnvSource{Vars: os.Environ(), Explicit: true}
+}
 
 func TestRunScriptBenign(t *testing.T) {
 	dir := t.TempDir()
@@ -32,7 +37,8 @@ func TestRunScriptBenign(t *testing.T) {
 	code, err := lifecycle.RunScript(context.Background(), process.NewExecSupervisor(), lifecycle.RunSpec{
 		Script:      script,
 		NodeModules: filepath.Join(dir, "node_modules"),
-		Env:         os.Environ(),
+		Env:         envHost(),
+		Timeout:     time.Minute,
 	})
 	if err != nil {
 		t.Fatalf("code=%d err=%v", code, err)
@@ -55,8 +61,9 @@ func TestRunScriptFailure(t *testing.T) {
 		script.Command = "false"
 	}
 	code, err := lifecycle.RunScript(context.Background(), process.NewExecSupervisor(), lifecycle.RunSpec{
-		Script: script,
-		Env:    os.Environ(),
+		Script:  script,
+		Env:     envHost(),
+		Timeout: time.Minute,
 	})
 	if err == nil {
 		t.Fatal("expected error")
@@ -67,10 +74,60 @@ func TestRunScriptFailure(t *testing.T) {
 }
 
 func TestRestrictedEnvStripsToken(t *testing.T) {
-	env := process.RestrictedEnv([]string{"NPM_TOKEN=secret", "HOME=/tmp", "PATH=/bin"}, "/nm/.bin")
+	env := process.RestrictedEnv(process.EnvSource{
+		Vars:     []string{"NPM_TOKEN=secret", "HOME=/tmp", "PATH=/bin"},
+		Explicit: true,
+	}, "/nm/.bin")
 	for _, kv := range env {
 		if kv == "NPM_TOKEN=secret" {
 			t.Fatal("token not stripped")
 		}
+	}
+}
+
+func TestDefaultCapabilitiesHonest(t *testing.T) {
+	caps := lifecycle.DefaultCapabilities()
+	if !caps.PackageCWD || !caps.ControlledPATH || !caps.StrippedEnv || !caps.Timeout {
+		t.Fatal("expected enforced capabilities")
+	}
+	if caps.FilesystemIsolation || caps.NetworkIsolation {
+		t.Fatal("must not claim filesystem/network isolation")
+	}
+}
+
+func TestScriptTimeoutDefault(t *testing.T) {
+	if got := lifecycle.ScriptTimeout(nil); got != 10*time.Minute {
+		t.Fatalf("default timeout=%v", got)
+	}
+}
+
+func TestPrepareMarkerDoesNotSkipExecution(t *testing.T) {
+	dir := t.TempDir()
+	cacheDir := filepath.Join(dir, "cache")
+	script := lifecycle.Script{
+		PackageName: "counter",
+		PackageKey:  "counter@1.0.0",
+		PackageDir:  dir,
+		Name:        "prepare",
+		Integrity:   "sha256-deadbeef",
+	}
+	if runtime.GOOS == "windows" {
+		script.Command = "echo ran>marker.txt"
+	} else {
+		script.Command = "touch marker.txt"
+	}
+	if err := lifecycle.MarkCacheForTest(cacheDir, script); err != nil {
+		t.Fatal(err)
+	}
+	code, err := lifecycle.RunScript(context.Background(), process.NewExecSupervisor(), lifecycle.RunSpec{
+		Script:  script,
+		Env:     envHost(),
+		Timeout: time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("code=%d err=%v", code, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "marker.txt")); err != nil {
+		t.Fatal("marker file must not skip prepare execution")
 	}
 }

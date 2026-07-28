@@ -85,6 +85,7 @@ var ownedKeys = map[string]string{
 	"lifecycle.enabled":              "bool",
 	"lifecycle.ignore_scripts":       "bool",
 	"lifecycle.script_trust":         "string",
+	"lifecycle.script_timeout":       "string",
 	"workspaces.enabled":             "bool",
 }
 
@@ -119,6 +120,7 @@ func defaults() map[string]any {
 		"lifecycle.enabled":              false,
 		"lifecycle.ignore_scripts":       false,
 		"lifecycle.script_trust":         "deny",
+		"lifecycle.script_timeout":       "10m",
 		"workspaces.enabled":             false,
 	}
 }
@@ -260,6 +262,7 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) {
 	set("registry", "MEW_REGISTRY", func(s string) (any, error) { return s, nil })
 	set("registry.auth_token_env", "MEW_REGISTRY_AUTH_TOKEN_ENV", func(s string) (any, error) { return s, nil })
 	set("lifecycle.enabled", "MEW_EXPERIMENTAL_LIFECYCLE", parseBool)
+	set("lifecycle.script_timeout", "MEW_LIFECYCLE_SCRIPT_TIMEOUT", func(s string) (any, error) { return s, nil })
 	set("workspaces.enabled", "MEW_EXPERIMENTAL_WORKSPACES", parseBool)
 }
 

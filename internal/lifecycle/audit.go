@@ -11,11 +11,14 @@ import (
 
 // AuditEntry is one lifecycle script execution record.
 type AuditEntry struct {
-	TS         string `json:"ts"`
-	Package    string `json:"package"`
-	Script     string `json:"script"`
-	ExitCode   int    `json:"exitCode"`
-	DurationMs int64  `json:"durationMs"`
+	TS           string                 `json:"ts"`
+	Package      string                 `json:"package"`
+	Script       string                 `json:"script"`
+	ExitCode     int                    `json:"exitCode"`
+	DurationMs   int64                  `json:"durationMs"`
+	Cached       bool                   `json:"cached,omitempty"`
+	Restored     bool                   `json:"restored,omitempty"`
+	Capabilities *ExecutionCapabilities `json:"capabilities,omitempty"`
 }
 
 // AppendAudit appends one redacted audit record.
