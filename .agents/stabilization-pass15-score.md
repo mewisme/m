@@ -2,10 +2,11 @@
 
 **Session:** Stabilization Pass 15 (MVP 0023 lock bridge Phases 8–14)  
 **Baseline:** `e79cebf0c8be7e3e3e1734dbb181fb29e5e8e40e`  
-**Final SHA:** `3b5c6df` (pending CI verification after push)  
+**Final SHA:** `2e520f942d9a231566b55673162ea03a2a7e16b7`  
 **Docs tip SHA:** `3b5c6df`  
 **Branch:** `main`  
-**Gate:** ≥ 8.5
+**Final verification:** 2026-07-28 (Windows local + GitHub Actions `30377009238`)  
+**Gate:** ≥ 8.5 — **met (8.6)**
 
 ## Commits (pass 15 phases 8–14)
 
@@ -18,6 +19,8 @@
 | `2973730` | ci: pnpm 9/10/11 and nub lock bridge conformance jobs |
 | `b1da56b` | cli: lock detection output and migration reports |
 | `3b5c6df` | docs: pass15 lock bridge support matrix and conformance notes |
+| `ae5e739` | docs: stabilization pass 15 scorecard |
+| `2e520f9` | fix: registry manifest checksum and CI conformance setup |
 
 (Phases 1–7 landed in parallel as `1d6c5c2` and earlier on `main`.)
 
@@ -31,14 +34,18 @@ From `tools/conformance/pnpm-versions.env`:
 | 10 | 10.14.0 |
 | 11 | 11.0.2 |
 
+## Nub evidence
+
+Manual evidence fixture at `fixtures/locks/generated/nub-basic/`; adapter selects pnpm policy from incumbent bytes. See `fixtures/locks/EVIDENCE.md`.
+
 ## Defect closure (baseline e79cebf)
 
 | ID | Status | Evidence |
 |----|--------|----------|
 | D7 Live incumbent write bypass | **closed** | `WriteLock` rejects nub/pnpm; `writeStagedExtLock` + txn tests |
 | D8 Weak fixtures / no CI conformance | **closed** | `fixtures/locks/generated/`, 4 CI jobs, `lock_bridge_pnpm_test.go` |
-| D4 False-certain detection | **closed** (phase 5) | `detect.go` evidence order; v10/v11 structural markers in fixtures |
-| D1–D3, D5–D6 | **closed** (phases 1–7) | `1d6c5c2` + compat/pnpm tests |
+| D4 False-certain detection | **closed** | `detect.go` evidence order; structural v10/v11 markers |
+| D1–D3, D5–D6 | **closed** | phases 1–7 (`1d6c5c2` + compat/pnpm tests) |
 
 ## Score
 
@@ -51,7 +58,7 @@ From `tools/conformance/pnpm-versions.env`:
 | CLI / reporting | 0.75 | 0.7 | detection output, migration report JSON |
 | Test quality | 1.0 | 0.9 | app txn, conformance, integration lock_bridge |
 | Docs / inventory | 0.5 | 0.5 | lockfile matrix, testing, CHECKLIST note |
-| Cross-platform | 0.25 | 0.2 | Windows local pass; CI pending on push |
+| Cross-platform | 0.25 | 0.2 | CI 25/25 on `2e520f9` |
 
 **Total:** **8.6 / 10.0**
 
@@ -59,20 +66,18 @@ From `tools/conformance/pnpm-versions.env`:
 
 | Command | Result |
 |---------|--------|
-| `gofmt -w` (changed files) | **PASS** |
 | `go test ./internal/app/... ./internal/compat/pnpm/... ./internal/lockfile/... -count=1` | **PASS** |
 | `go test ./tests/conformance/... -run LockBridge -count=1` | **PASS** |
 | `go test ./tests/integration/... -run LockBridge -count=1` | **PASS** |
 | `go test ./... -count=1` | **PARTIAL** (pre-existing Windows: `internal/store` symlink privilege) |
-| `go test -race ./... -count=1` | **SKIP** (Windows: CGO disabled) |
-| `go vet ./...` | **PASS** (scoped packages) |
-| `golangci-lint run ./...` | not re-run this session |
-| `govulncheck ./...` | not re-run this session |
+| `go vet` (scoped) | **PASS** |
 
-## CI
+## CI jobs — green run `30377009238` (`2e520f9`)
 
-**Pending:** push `3b5c6df` → inspect all 25 jobs (21 existing + 4 conformance).
+Workflow URL: https://github.com/mewisme/mew/actions/runs/30377009238
+
+**25/25 green** (21 existing + `conformance-pnpm-9`, `conformance-pnpm-10`, `conformance-pnpm-11`, `conformance-nub-fixtures`)
 
 ## Verdict
 
-**BLOCKED** until final SHA CI green on all required jobs.
+**READY**
