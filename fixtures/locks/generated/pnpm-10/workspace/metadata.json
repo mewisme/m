@@ -12,7 +12,7 @@
     "family=workspace"
   ],
   "confidence": "certain",
-  "command": "corepack prepare pnpm@10.34.5 --activate; pnpm install --lockfile-only --ignore-scripts (family=workspace)",
-  "timestamp": "2026-07-29T01:06:19.6289622+07:00",
+  "command": "committed generated fixture (family=workspace, pnpm@10.34.5)",
+  "timestamp": "2026-07-29T01:08:04.8307993+07:00",
   "lockfileSha256": "e6dad7d315e392b01ac569fce019d3845ad33339b4137cf151bdcc984a901875"
 }

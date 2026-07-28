@@ -12,7 +12,7 @@
     "family=transitive"
   ],
   "confidence": "certain",
-  "command": "corepack prepare pnpm@10.34.5 --activate; pnpm install --lockfile-only --ignore-scripts (family=transitive)",
-  "timestamp": "2026-07-29T01:06:15.5743569+07:00",
+  "command": "committed generated fixture (family=transitive, pnpm@10.34.5)",
+  "timestamp": "2026-07-29T01:08:04.7192813+07:00",
   "lockfileSha256": "cfe2171f0923d3f2e58f8602d788eab7e7c471591a3a401b1aa2d7830aab760d"
 }

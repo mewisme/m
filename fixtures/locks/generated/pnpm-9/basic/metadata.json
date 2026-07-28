@@ -12,7 +12,7 @@
     "family=basic"
   ],
   "confidence": "certain",
-  "command": "corepack prepare pnpm@9.15.9 --activate; pnpm install --lockfile-only --ignore-scripts (family=basic)",
-  "timestamp": "2026-07-29T01:06:03.4534504+07:00",
+  "command": "committed generated fixture (family=basic, pnpm@9.15.9)",
+  "timestamp": "2026-07-29T01:08:04.3722944+07:00",
   "lockfileSha256": "9a20507c8492338bf54cc7ffa7c90f844936a98460696a429655e38e2ea2d5a9"
 }

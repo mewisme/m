@@ -12,7 +12,7 @@
     "family=multi-version"
   ],
   "confidence": "certain",
-  "command": "corepack prepare pnpm@10.34.5 --activate; pnpm install --lockfile-only --ignore-scripts (family=multi-version)",
-  "timestamp": "2026-07-29T01:06:18.5230053+07:00",
+  "command": "committed generated fixture (family=multi-version, pnpm@10.34.5)",
+  "timestamp": "2026-07-29T01:08:04.7858210+07:00",
   "lockfileSha256": "54c3c880278edc85c44a3f7fa255015ece0e207574f0507a3ff4a0c867ced8e2"
 }

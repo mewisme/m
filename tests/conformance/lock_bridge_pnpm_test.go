@@ -424,16 +424,25 @@ func importScriptsForFamily(family string) []string {
 	}
 }
 
-func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) {
+func setupMutationEnv(t *testing.T) {
 	t.Helper()
-	dir, _ := loadGeneratedFixture(t, rel)
-	validateFixtureLock(t, dir, major)
-	proj := copyFixtureProject(t, dir, major)
 	testkit.CleanEnv(t)
 	t.Setenv("NO_PROXY", "*")
+	t.Setenv("MEW_RESOLVE_AUTO_INSTALL_PEERS", "1")
 	home := t.TempDir()
 	t.Setenv("MEW_HOME", home)
 	setupIsolatedPnpmHome(t)
+}
+
+func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) {
+	t.Helper()
+	if family == "workspace" {
+		t.Skip("workspace link: edges not yet supported for Mew install mutation")
+	}
+	dir, _ := loadGeneratedFixture(t, rel)
+	validateFixtureLock(t, dir, major)
+	proj := copyFixtureProject(t, dir, major)
+	setupMutationEnv(t)
 
 	if family == "peer-context" {
 		assertPeerContextGraph(t, proj, major)

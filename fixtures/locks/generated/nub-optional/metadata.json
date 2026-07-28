@@ -14,6 +14,6 @@
   ],
   "confidence": "manual",
   "command": "derived from fixtures/locks/generated/pnpm-9/optional pnpm-lock.yaml",
-  "timestamp": "2026-07-29T01:06:36.5221266+07:00",
-  "lockfileSha256": "35537b62f237294998f294b6dfb6e67aa3e058022d06b969ba3024f3b60039ee"
+  "timestamp": "2026-07-29T01:31:46.8618322+07:00",
+  "lockfileSha256": "6e4f37a221e053a9ed357b6d31fd868fa9d0e41ba1f9b31115395b19325180dd"
 }

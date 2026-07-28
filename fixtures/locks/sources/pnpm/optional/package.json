@@ -6,6 +6,6 @@
     "left-pad": "1.3.0"
   },
   "optionalDependencies": {
-    "fsevents": "2.3.3"
+    "abort-controller": "3.0.0"
   }
 }

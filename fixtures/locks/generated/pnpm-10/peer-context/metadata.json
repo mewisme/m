@@ -12,7 +12,7 @@
     "family=peer-context"
   ],
   "confidence": "certain",
-  "command": "corepack prepare pnpm@10.34.5 --activate; pnpm install --lockfile-only --ignore-scripts (family=peer-context)",
-  "timestamp": "2026-07-29T01:06:17.9104106+07:00",
+  "command": "committed generated fixture (family=peer-context, pnpm@10.34.5)",
+  "timestamp": "2026-07-29T01:08:04.7640607+07:00",
   "lockfileSha256": "9b2572caa229dc24b5251a30e46cc549d7967e69a96b821093d063a50ae19a53"
 }
