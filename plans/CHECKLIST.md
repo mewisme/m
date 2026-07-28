@@ -15,6 +15,8 @@ MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on 
 
 **Stabilization pass 12 (2026-07-28):** explicit-empty lifecycle env, honest restricted-execution contract, prepare cache disabled, transactional `add --filter`, filtered-install closure merge, install-family `--filter` audit. Scorecard: `.agents/stabilization-pass12-score.md`.
 
+**Stabilization pass 13 (2026-07-28):** directed workspace closure merge, transactional `remove --filter`, `update --filter` rejection, config-only lifecycle timeout, snapshot schema v2 member manifests. Scorecard: `.agents/stabilization-pass13-score.md`.
+
 Stabilization pass 10 merged to `main` at `d980e12`.
 
 Stabilization pass 9 (`stabilization-pass-9` from `fae9b48`): `ConfigLoadSpec` preserves load inputs across mutation reload; `CriticalCleanupError`/`WarningErrors` split; custom-config lock-wait proc test.

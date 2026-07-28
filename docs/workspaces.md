@@ -21,6 +21,7 @@ Isolated linking is selected automatically for workspace projects when
 | `m install --filter <pattern>` | Install matched members (+ closure semantics) |
 | `m --filter <pattern> install` | Global filter (pnpm-style) |
 | `m add <pkg> --filter <pattern>` | Add a dependency scoped to filtered importers |
+| `m remove <pkg> --filter <pattern>` | Remove a dependency from filtered members only |
 | `m ls` / `m list` | List workspace packages |
 | `m ls -r` | List all members (requires workspaces gate) |
 
@@ -67,9 +68,17 @@ entries under a `catalog:` block (merged over `package.json`).
 install runs. Filtered installs merge untouched importer sections from the prior
 lock so unrelated members are not dropped.
 
-Filtered installs also merge the **package closure** for untouched importers from
-the prior lock graph before fetch/link, so registry packages (for example a
-sibling member's `pkg-b`) remain installed and linkable.
+Filtered installs also merge the **directed package closure** (`From → To` edges only)
+for untouched importers from the prior lock graph before fetch/link. Shared
+transitive dependencies owned by an untouched member (for example `pkg-b` when
+filtering `alpha`) are preserved; beta-only packages are not dropped.
+
+`m remove <pkg> --filter <pattern>` mirrors filtered add: member `package.json`
+files are edited in memory, staged under `stage/`, and committed atomically with
+the lock. Root `package.json` is unchanged unless `.` is in the filter.
+
+`m update --filter` and `m ci --filter` return `ERR_M_USAGE` (filtered update
+deferred; `ci` is always a frozen full-tree install).
 
 ## Filtered add
 

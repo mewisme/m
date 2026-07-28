@@ -126,6 +126,16 @@ ranges (`internal/semver`).
 make fuzz-smoke
 ```
 
+## Stabilization pass 13 suites (workspace / lifecycle / snapshot)
+
+| Area | Tests | What it proves |
+|------|-------|----------------|
+| Directed closure merge | `internal/app/workspace_merge_test.go` | Filtered install keeps untouched importer packages; deterministic merge |
+| Filtered remove | `internal/app/workspace_remove_test.go`, `tests/integration/workspaces_test.go` | Transactional member-only remove; `ERR_M_NOT_FOUND` |
+| Update filter rejection | `internal/app/update_test.go`, `tests/integration/workspaces_test.go` | `update --filter` → `ERR_M_USAGE` |
+| Lifecycle timeout source | `internal/lifecycle/timeout_test.go` | Config-only timeout; no ambient `os.Getenv` |
+| Snapshot v2 members | `internal/snapshot/store_test.go`, `tests/integration/snapshot_workspace_test.go` | `manifests/` capture, v1 compat, workspace member restore |
+
 ## Stabilization pass 11 suites (invocation snapshot completeness)
 
 | Area | Package / path | What it proves |

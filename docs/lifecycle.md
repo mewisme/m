@@ -41,6 +41,12 @@ Scripts run under a **restricted execution environment** (not a filesystem or ne
 | Controlled PATH (`node_modules/.bin` prepended) | yes |
 | Stripped env (explicit snapshot; secrets removed) | yes |
 | Timeout (`lifecycle.script_timeout`, default `10m`) | yes |
+
+`lifecycle.script_timeout` is read only from the **effective config** loaded at
+invocation (`m.jsonc`, frozen env snapshot, CLI). Ambient `MEW_LIFECYCLE_SCRIPT_TIMEOUT`
+after `app.New` does not override project config. Invalid values surface
+`ERR_M_CONFIG`.
+
 | Process-tree kill on timeout/cancel | best-effort |
 | Filesystem isolation | **no** |
 | Network isolation | **no** |

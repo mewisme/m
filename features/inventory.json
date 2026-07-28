@@ -932,6 +932,9 @@
       "primary_mvp": "0022",
       "tests": [
         "tests/integration/workspaces_test.go",
+        "tests/integration/snapshot_workspace_test.go",
+        "internal/app/workspace_merge_test.go",
+        "internal/app/workspace_remove_test.go",
         "fixtures/projects/workspace-filter"
       ]
     },
