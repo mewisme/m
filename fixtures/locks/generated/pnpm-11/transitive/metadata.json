@@ -1,6 +1,6 @@
 {
   "producer": "pnpm",
-  "producerVersion": "11.0.2",
+  "producerVersion": "11.17.0",
   "producerMajor": 11,
   "family": "transitive",
   "node": "v24.14.0",
@@ -12,7 +12,7 @@
     "family=transitive"
   ],
   "confidence": "certain",
-  "command": "committed generated fixture (family=transitive, pnpm@11.0.2)",
-  "timestamp": "2026-07-28T23:59:17.1444240+07:00",
-  "lockfileSha256": "fd5cb2a0f70f8e262378677d7a02a6ef710c25c61188cc0bb6854d1b86a128f0"
+  "command": "corepack prepare pnpm@11.17.0 --activate; pnpm install --lockfile-only --ignore-scripts (family=transitive)",
+  "timestamp": "2026-07-29T01:06:25.6327314+07:00",
+  "lockfileSha256": "cfe2171f0923d3f2e58f8602d788eab7e7c471591a3a401b1aa2d7830aab760d"
 }

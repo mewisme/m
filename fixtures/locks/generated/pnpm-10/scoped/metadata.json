@@ -1,6 +1,6 @@
 {
   "producer": "pnpm",
-  "producerVersion": "10.14.0",
+  "producerVersion": "10.34.5",
   "producerMajor": 10,
   "family": "scoped",
   "node": "v24.14.0",
@@ -12,7 +12,7 @@
     "family=scoped"
   ],
   "confidence": "certain",
-  "command": "committed generated fixture (family=scoped, pnpm@10.14.0)",
-  "timestamp": "2026-07-28T23:59:16.9920630+07:00",
+  "command": "corepack prepare pnpm@10.34.5 --activate; pnpm install --lockfile-only --ignore-scripts (family=scoped)",
+  "timestamp": "2026-07-29T01:06:19.1609256+07:00",
   "lockfileSha256": "7439c21cd3bae827b828442bf1b2f8fe557523c15e8162252c328ba88c649564"
 }

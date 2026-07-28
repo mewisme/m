@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "semver": "7.6.3"
+    "chalk": "4.1.2"
   }
 }

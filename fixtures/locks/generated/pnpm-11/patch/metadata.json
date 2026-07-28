@@ -1,0 +1,18 @@
+{
+  "producer": "pnpm",
+  "producerVersion": "11.17.0",
+  "producerMajor": 11,
+  "family": "patch",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "lockfileVersion": "9.0",
+  "generationSignals": [
+    "lockfileVersion=9.0",
+    "family=patch"
+  ],
+  "confidence": "certain",
+  "command": "corepack prepare pnpm@11.17.0 --activate; pnpm install --lockfile-only --ignore-scripts (family=patch)",
+  "timestamp": "2026-07-29T01:06:34.9937719+07:00",
+  "lockfileSha256": "7a4639d12cd8979034c5d1a89d063efdf6d33263f17fec615352201df0c6d432"
+}

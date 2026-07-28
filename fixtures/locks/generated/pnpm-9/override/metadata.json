@@ -12,7 +12,7 @@
     "family=override"
   ],
   "confidence": "certain",
-  "command": "committed generated fixture (family=override, pnpm@9.15.9)",
-  "timestamp": "2026-07-28T23:59:16.8118042+07:00",
+  "command": "corepack prepare pnpm@9.15.9 --activate; pnpm install --lockfile-only --ignore-scripts (family=override)",
+  "timestamp": "2026-07-29T01:06:08.2838887+07:00",
   "lockfileSha256": "ee15a2be8c99c5a984858c80af9f4746beb6a76af3a029ea71c920817e55e577"
 }

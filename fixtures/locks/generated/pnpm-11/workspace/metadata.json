@@ -1,6 +1,6 @@
 {
   "producer": "pnpm",
-  "producerVersion": "11.0.2",
+  "producerVersion": "11.17.0",
   "producerMajor": 11,
   "family": "workspace",
   "node": "v24.14.0",
@@ -12,7 +12,7 @@
     "family=workspace"
   ],
   "confidence": "certain",
-  "command": "committed generated fixture (family=workspace, pnpm@11.0.2)",
-  "timestamp": "2026-07-28T23:59:17.2560795+07:00",
+  "command": "corepack prepare pnpm@11.17.0 --activate; pnpm install --lockfile-only --ignore-scripts (family=workspace)",
+  "timestamp": "2026-07-29T01:06:29.8951421+07:00",
   "lockfileSha256": "e6dad7d315e392b01ac569fce019d3845ad33339b4137cf151bdcc984a901875"
 }

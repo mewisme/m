@@ -1,6 +1,6 @@
 {
   "producer": "pnpm",
-  "producerVersion": "11.0.2",
+  "producerVersion": "11.17.0",
   "producerMajor": 11,
   "family": "peer-context",
   "node": "v24.14.0",
@@ -12,7 +12,7 @@
     "family=peer-context"
   ],
   "confidence": "certain",
-  "command": "committed generated fixture (family=peer-context, pnpm@11.0.2)",
-  "timestamp": "2026-07-28T23:59:17.1925297+07:00",
+  "command": "corepack prepare pnpm@11.17.0 --activate; pnpm install --lockfile-only --ignore-scripts (family=peer-context)",
+  "timestamp": "2026-07-29T01:06:27.8946786+07:00",
   "lockfileSha256": "b1170ae808017987c6ee7fc4647815c9df01f5337a19d8a9ed493a06d3253abe"
 }
