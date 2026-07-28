@@ -32,6 +32,40 @@ func beginTestSession(t *testing.T, root string) (*MutationSession, context.Cont
 	return sess, ctx
 }
 
+func TestAbortMutationNubLockRollbackOK(t *testing.T) {
+	root := t.TempDir()
+	writeMinimalProject(t, root)
+	sess, ctx := beginTestSession(t, root)
+	txn := sess.Runner()
+
+	liveLock := filepath.Join(root, "nub.lock")
+	if err := os.WriteFile(liveLock, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := txn.RecordBackup("nub.lock"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(liveLock, []byte("partial"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	fetchErr := apperr.New(apperr.Network, "app.install.fetch", "pkg", "fetch failed")
+	res, err := abortMutation(ctx, sess, txn, fetchErr)
+	if !errors.Is(err, fetchErr) {
+		t.Fatalf("expected fetch err, got %v", err)
+	}
+	if !res.RolledBack {
+		t.Fatal("expected RolledBack")
+	}
+	data, readErr := os.ReadFile(liveLock)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(data) != "old" {
+		t.Fatalf("nub.lock not restored: %q", data)
+	}
+}
+
 func TestAbortMutationFetchFailRollbackOK(t *testing.T) {
 	root := t.TempDir()
 	writeMinimalProject(t, root)

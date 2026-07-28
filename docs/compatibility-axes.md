@@ -18,9 +18,9 @@ Mew evaluates compatibility on five **independent axes**. A feature may be at pa
 |---|---|---|---|---|---|---|
 | `m install` / `m add` / `m remove` | deferred | deferred | deferred | n/a | deferred | deferred |
 | `m.lock` native format | n/a | deferred | deferred | n/a | deferred | deferred |
-| `nub.lock` preserve on install | n/a | deferred | deferred | n/a | deferred | deferred |
+| `nub.lock` preserve on install | n/a | **parity** | deferred | n/a | deferred | **parity** |
 | `package-lock.json` preserve | n/a | deferred | deferred | n/a | deferred | deferred |
-| `pnpm-lock.yaml` preserve | n/a | deferred | deferred | n/a | deferred | deferred |
+| `pnpm-lock.yaml` preserve | n/a | **parity** | deferred | n/a | deferred | **parity** |
 | Identity detection order | deferred | deferred | deferred | n/a | n/a | deferred |
 | Transactional install + rollback | deferred | n/a | n/a | n/a | deferred | deferred |
 | Isolated linker (pnpm/Nub style) | n/a | n/a | deferred | n/a | deferred | deferred |
@@ -49,7 +49,7 @@ Mew evaluates compatibility on five **independent axes**. A feature may be at pa
 |---|---|---|
 | Product positioning (`nub` / `nubx`) | `m` / `mx` identity | parity (intent) |
 | Stock Node augmentation | No libnode fork | parity (intent) |
-| `nub.lock` round-trip | Preserve when Nub identity | deferred (0023) |
+| `nub.lock` round-trip | Preserve when Nub identity | **parity** (0023) |
 | Direct `m <script>` | Not in Nub | **extension** |
 | MIT / repo conventions | Process alignment | deferred |
 

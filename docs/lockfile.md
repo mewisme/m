@@ -132,9 +132,43 @@ m lock validate [--frozen] [--json]
 |---|---|
 | `internal/lockfile/mlock` | Codec, checksum, frozen drift, v2→v3 migration |
 | `mlock.Adapter` | `lockfile.LockfileAdapter` for `m.lock` |
-| `app.WriteLock` | Resolve (if needed) and write `m.lock` |
-| `app.ReadLockGraph` | Read lock into `*graph.Graph` (hints / validate) |
-| `app.ValidateFrozenLock` | Manifest vs lock specifier drift |
+| `app.WriteLock` | Resolve (if needed) and write incumbent lock |
+| `app.ReadLockGraph` | Read incumbent lock into `*graph.Graph` (hints / validate) |
+| `app.ValidateFrozenLock` | Manifest vs lock specifier drift (identity-aware) |
+
+## Incumbent write policy (0023)
+
+Install-family commands write the **incumbent** lockfile only (`nub.lock` or
+`pnpm-lock.yaml` when identity is Nub or pnpm). `m.lock` is created only via
+`m lock migrate --to m`.
+
+| Condition | Behavior |
+|---|---|
+| Graph unchanged | Stage prior bytes unchanged (byte-identical after commit) |
+| Graph changed + certified generation | Encode incumbent format inside transaction stage |
+| Ambiguous v9-shaped pnpm lock | Fail closed (`ERR_M_LOCK_AMBIGUOUS`) unless `--pnpm-major` |
+| Lossy / unsupported encode | Fail closed with `LossReport` (`ERR_M_LOCK_UNREPRESENTABLE`) |
+| Persistence | All incumbent writes go through `install_txn` staging → commit |
+
+## Adapter matrix
+
+| Identity | Incumbent file | Adapter package | Generations |
+|---|---|---|---|
+| `mew` | `m.lock` | `internal/lockfile/mlock` | v3 JSON |
+| `nub` | `nub.lock` | `internal/compat/nub` | pnpm v9-shaped YAML |
+| `pnpm` | `pnpm-lock.yaml` | `internal/compat/pnpm` | v6, v9/v10/v11 (producer-major detection) |
+
+Detection for pnpm v9-shaped locks uses field heuristics plus optional
+`--pnpm-major` (9, 10, or 11). Do not trust `lockfileVersion: '9.0'` alone.
+
+CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
+--from nub|pnpm --to m` (`--dry-run` emits `LossReport` JSON).
+
+## Loss report
+
+`LossReport` (`schemaVersion: 1`) lists fields that cannot round-trip to the
+target format. Returned on `m lock migrate --dry-run` and on
+`ERR_M_LOCK_UNREPRESENTABLE` encode failures.
 
 ## Write safety
 
@@ -156,9 +190,8 @@ extensions and loss reports.
 | `testdata/lockfile/mlock/corrupt/` | Parse/checksum/version failures |
 | `internal/lockfile/mlock/migrate_v2_test.go` | v2→v3 edge name migration |
 | `fixtures/projects/mlock-greenfield/` | Greenfield project + `m.lock` |
+| `fixtures/locks/nub/`, `fixtures/locks/pnpm/` | Per-generation lock bridge fixtures |
 
 ## Out of scope (0015)
 
-- `m install` / add / remove lock writes (0016)
-- Foreign lockfile adapters (0023+)
-- `m lock migrate` (0028)
+- Foreign lockfile adapters beyond Nub/pnpm (0024+)

@@ -2,14 +2,14 @@
 
 ## Program status
 
-- Current MVP: **0023** — Nub and pnpm lockfile bridge
+- Current MVP: **0024** — npm Lockfile and Shrinkwrap Compatibility
 - Last updated: 2026-07-28
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0023 - Nub and pnpm Lockfile Bridge](0023-nub-pnpm-lock-bridge.md)
+**Next:** [0024 - npm Lockfile and Shrinkwrap Compatibility](0024-npm-locks.md)
 
 MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/mew/actions/runs/30310739645 (21/21 green).
 
@@ -51,7 +51,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 | 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [x] | [0020](0020-advanced-resolver.md) | [0020-advanced-resolver](cursor/0020-advanced-resolver.plan.md) |
 | 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [x] | [0021](0021-lifecycle-sandbox.md) | [0021-lifecycle-sandbox](cursor/0021-lifecycle-sandbox.plan.md) |
 | 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [x] | [0022](0022-workspaces-catalogs.md) | [0022-workspaces-catalogs](cursor/0022-workspaces-catalogs.plan.md) |
-| 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [ ] | [0023](0023-nub-pnpm-lock-bridge.md) | [0023-nub-pnpm-lock-bridge](cursor/0023-nub-pnpm-lock-bridge.plan.md) |
+| 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [x] | [0023](0023-nub-pnpm-lock-bridge.md) | [0023-nub-pnpm-lock-bridge](cursor/0023-nub-pnpm-lock-bridge.plan.md) |
 | 0024 | Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility | Core / MVP 15 | 0023 | [ ] | [0024](0024-npm-locks.md) | [0024-npm-locks](cursor/0024-npm-locks.plan.md) |
 | 0025 | Core MVP 16 — Bun and Yarn Lockfile Compatibility | Core / MVP 16 | 0023, 0024 | [ ] | [0025](0025-bun-yarn-locks.md) | [0025-bun-yarn-locks](cursor/0025-bun-yarn-locks.plan.md) |
 | 0026 | Core MVP 17 — Complete Package-Manager Command Surface | Core / MVP 17 | 0021, 0022, 0023, 0024, 0025 | [ ] | [0026](0026-pm-command-surface.md) | [0026-pm-command-surface](cursor/0026-pm-command-surface.plan.md) |
@@ -828,36 +828,36 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0023 - Core MVP 14 — Nub and pnpm Lockfile Bridge
 
-- status: planned
+- status: done
 - plan: [0023-nub-pnpm-lock-bridge.md](0023-nub-pnpm-lock-bridge.md)
 - cursor: [cursor/0023-nub-pnpm-lock-bridge.plan.md](cursor/0023-nub-pnpm-lock-bridge.plan.md)
 
-- [ ] Detect nub.lock and pnpm-lock.yaml per identity rules from 0006
-- [ ] Implement nub.lock reader adapter to canonical graph
-- [ ] Implement pnpm-lock.yaml reader for supported major generations
-- [ ] Preserve incumbent lockfile on install without user migrate
-- [ ] Write round-trip safe nub.lock when project identity is Nub
-- [ ] Write round-trip safe pnpm-lock when identity is pnpm
-- [ ] Implement m migrate lock --to m.lock with dry-run report
-- [ ] Document lossy conversions explicitly in migration output
-- [ ] Validate adapter output against resolver for drift detection
-- [ ] Add golden tests per lockfile generation fixture
-- [ ] Add diff tool comparing canonical graph from two lock sources
-- [ ] Support peer/importer metadata required for isolated layout
-- [ ] Never overwrite incumbent lock without explicit migrate
-- [ ] Handle lockfile version unsupported with upgrade guidance
-- [ ] Integrate with transaction commit for lock writes
-- [ ] Fuzz parser smoke on lockfile corpora
-- [ ] Record adapter version in migration report
-- [ ] Acceptance: Install on nub.lock project preserves nub.lock format
-- [ ] Acceptance: pnpm-lock.yaml project installs without silent m.lock conversion
-- [ ] Acceptance: m migrate lock --dry-run lists lossy fields
-- [ ] Acceptance: Adapter round-trip nub.lock golden matches source
-- [ ] Acceptance: Unsupported lock version returns actionable error
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Detect nub.lock and pnpm-lock.yaml per identity rules from 0006
+- [x] Implement nub.lock reader adapter to canonical graph
+- [x] Implement pnpm-lock.yaml reader for supported major generations
+- [x] Preserve incumbent lockfile on install without user migrate
+- [x] Write round-trip safe nub.lock when project identity is Nub
+- [x] Write round-trip safe pnpm-lock when identity is pnpm
+- [x] Implement m lock migrate --to m.lock with dry-run report
+- [x] Document lossy conversions explicitly in migration output
+- [x] Validate adapter output against resolver for drift detection
+- [x] Add golden tests per lockfile generation fixture
+- [x] Add diff tool comparing canonical graph from two lock sources
+- [x] Support peer/importer metadata required for isolated layout
+- [x] Never overwrite incumbent lock without explicit migrate
+- [x] Handle lockfile version unsupported with upgrade guidance
+- [x] Integrate with transaction commit for lock writes
+- [ ] Fuzz parser smoke on lockfile corpora (deferred: follow-up CI hook)
+- [x] Record adapter version in migration report
+- [x] Acceptance: Install on nub.lock project preserves nub.lock format
+- [x] Acceptance: pnpm-lock.yaml project installs without silent m.lock conversion
+- [x] Acceptance: m lock migrate --dry-run lists lossy fields
+- [x] Acceptance: Adapter round-trip nub.lock golden matches source
+- [x] Acceptance: Unsupported lock version returns actionable error
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0024 - Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility
 
