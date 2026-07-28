@@ -3,7 +3,6 @@ package lockfile
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -122,7 +121,7 @@ func detectPnpmV9Family(root map[string]*yaml.Node, data []byte, hints ProjectHi
 
 	if len(candidates) == 0 {
 		return Detection{
-			Format: "pnpm-v9", ProducerMajor: 9, Confidence: DetectionInferred,
+			Format: "pnpm-v9", ProducerMajor: 0, Confidence: DetectionInferred,
 			Evidence: append(evidence, "marker=ambiguous-v9-shaped"),
 		}, nil
 	}
@@ -171,30 +170,11 @@ func pnpmFormatForMajor(major int) string {
 }
 
 func majorFromPackageManager(pm string) (int, bool) {
-	pm = strings.TrimSpace(pm)
-	if pm == "" {
+	decl, err := ParsePMDeclaration("packageManager", pm)
+	if err != nil || decl.ProducerMajor < 9 || decl.ProducerMajor > 11 {
 		return 0, false
 	}
-	name := pm
-	if i := strings.IndexByte(pm, '@'); i >= 0 {
-		name = pm[:i]
-	}
-	if name != "pnpm" {
-		return 0, false
-	}
-	if i := strings.LastIndexByte(pm, '@'); i >= 0 && i < len(pm)-1 {
-		ver := pm[i+1:]
-		if dot := strings.IndexByte(ver, '.'); dot > 0 {
-			ver = ver[:dot]
-		}
-		if n, err := strconv.Atoi(ver); err == nil {
-			if n >= 9 && n <= 11 {
-				return n, true
-			}
-			return 0, false
-		}
-	}
-	return 9, true
+	return decl.ProducerMajor, true
 }
 
 func majorFromExtension(root map[string]*yaml.Node) (int, bool) {

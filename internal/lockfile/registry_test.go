@@ -43,7 +43,7 @@ func TestDetectPnpmFixtures(t *testing.T) {
 		major  int
 		conf   lockfile.DetectionConfidence
 	}{
-		{"v9", "pnpm-v9", 9, lockfile.DetectionInferred},
+		{"v9", "pnpm-v9", 0, lockfile.DetectionInferred},
 		{"v10", "pnpm-v10", 10, lockfile.DetectionInferred},
 		{"v11", "pnpm-v11", 11, lockfile.DetectionInferred},
 	}

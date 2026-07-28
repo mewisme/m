@@ -79,6 +79,9 @@ func TestDetectPnpmAmbiguousWithoutHints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if det.ProducerMajor != 0 {
+		t.Fatalf("ProducerMajor=%d want 0 for ambiguous v9-shaped lock", det.ProducerMajor)
+	}
 	if det.Certified() {
 		t.Fatal("v9-shaped lock without markers must not be certified")
 	}

@@ -1,7 +1,6 @@
 package lockfile
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -34,13 +33,8 @@ func ValidatePnpmHints(hints ProjectHints, explicitMajor int) error {
 		if strings.TrimSpace(field.value) == "" {
 			continue
 		}
-		major, err := parsePnpmMajorField(field.value)
-		if err != nil {
+		if _, err := ParsePMDeclaration(field.name, field.value); err != nil {
 			return apperr.New(apperr.Usage, "pnpm.major", field.name, err.Error())
-		}
-		if major != 0 && (major < 9 || major > 11) {
-			return apperr.New(apperr.Usage, "pnpm.major", field.name,
-				fmt.Sprintf("pnpm@%d is unsupported; regenerate with pnpm 9, 10, or 11", major))
 		}
 	}
 	return nil
@@ -48,37 +42,11 @@ func ValidatePnpmHints(hints ProjectHints, explicitMajor int) error {
 
 // parsePnpmMajorField extracts the pnpm major from a packageManager field value.
 func parsePnpmMajorField(pm string) (int, error) {
-	pm = strings.TrimSpace(pm)
-	if pm == "" {
-		return 0, nil
-	}
-	name := pm
-	if i := strings.IndexByte(pm, '@'); i >= 0 {
-		name = pm[:i]
-	}
-	if strings.ToLower(strings.TrimSpace(name)) != "pnpm" {
-		return 0, fmt.Errorf("expected pnpm@<major>, got %q", pm)
-	}
-	at := strings.LastIndexByte(pm, '@')
-	if at < 0 || at >= len(pm)-1 {
-		return 0, nil
-	}
-	ver := strings.TrimSpace(pm[at+1:])
-	if ver == "" {
-		return 0, nil
-	}
-	if strings.ContainsAny(ver, "^~>=< *xX") {
-		return 0, fmt.Errorf("version ranges and tags are not supported in %q", pm)
-	}
-	dot := strings.IndexByte(ver, '.')
-	if dot > 0 {
-		ver = ver[:dot]
-	}
-	n, err := strconv.Atoi(ver)
+	decl, err := ParsePMDeclaration("packageManager", pm)
 	if err != nil {
-		return 0, fmt.Errorf("unrecognized pnpm version %q", pm)
+		return 0, err
 	}
-	return n, nil
+	return decl.ProducerMajor, nil
 }
 
 // DetectPnpmForProject runs detection with manifest hints and explicit major validation.
