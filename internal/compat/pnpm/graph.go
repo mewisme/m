@@ -15,8 +15,8 @@ func ToGraph(doc *Document) (*graph.Graph, error) {
 	if doc == nil {
 		return nil, apperr.New(apperr.Lockfile, "pnpm.graph", "document", "nil document")
 	}
-	if IsV6Layout(doc) {
-		return v6ToGraph(doc)
+	if IsLegacyUnsupported(doc) {
+		return nil, rejectLegacy(doc)
 	}
 	return v9ShapeToGraph(doc)
 }
@@ -76,9 +76,10 @@ func v9ShapeToGraph(doc *Document) (*graph.Graph, error) {
 
 	pkgKeys := sortedStrings(keys(doc.Packages))
 	packageKeys := make(map[string]struct{}, len(pkgKeys))
+	idx := NewPackageIndex(pkgKeys)
 	for _, key := range pkgKeys {
 		entry := doc.Packages[key]
-		name, version := keyToNameVersion(key)
+		name, version := KeyToNameVersion(key)
 		g.Packages = append(g.Packages, graph.Package{
 			ID:        graph.PackageID{Name: name, Version: version},
 			Integrity: integrityFromResolution(entry.Resolution),
@@ -94,14 +95,14 @@ func v9ShapeToGraph(doc *Document) (*graph.Graph, error) {
 	for _, id := range importerIDs {
 		im := doc.Importers[id]
 		g.Importers = append(g.Importers, graph.Importer{ID: graph.ImporterID(id), Path: id})
-		appendImporterEdges(g, graph.ImporterID(id), im.Dependencies, graph.DepProd)
-		appendImporterEdges(g, graph.ImporterID(id), im.DevDependencies, graph.DepDev)
-		appendImporterEdges(g, graph.ImporterID(id), im.OptionalDependencies, graph.DepOptional)
+		appendImporterEdges(g, graph.ImporterID(id), im.Dependencies, graph.DepProd, idx)
+		appendImporterEdges(g, graph.ImporterID(id), im.DevDependencies, graph.DepDev, idx)
+		appendImporterEdges(g, graph.ImporterID(id), im.OptionalDependencies, graph.DepOptional, idx)
 	}
 
 	if len(doc.Snapshots) > 0 {
 		for _, snapKey := range sortedSnapshotKeys(doc.Snapshots) {
-			if err := appendSnapshotEdges(g, snapKey, doc.Snapshots[snapKey], packageKeys); err != nil {
+			if err := appendSnapshotEdges(g, snapKey, doc.Snapshots[snapKey], packageKeys, idx); err != nil {
 				return nil, err
 			}
 		}
@@ -128,20 +129,20 @@ func v9ShapeToGraph(doc *Document) (*graph.Graph, error) {
 	return g, nil
 }
 
-func appendSnapshotEdges(g *graph.Graph, from string, snap map[string]any, known map[string]struct{}) error {
-	if err := appendSnapshotDepField(g, from, snap, "dependencies", graph.DepProd, false, known); err != nil {
+func appendSnapshotEdges(g *graph.Graph, from string, snap map[string]any, known map[string]struct{}, idx PackageIndex) error {
+	if err := appendSnapshotDepField(g, from, snap, "dependencies", graph.DepProd, false, known, idx); err != nil {
 		return err
 	}
-	if err := appendSnapshotDepField(g, from, snap, "optionalDependencies", graph.DepOptional, true, known); err != nil {
+	if err := appendSnapshotDepField(g, from, snap, "optionalDependencies", graph.DepOptional, true, known, idx); err != nil {
 		return err
 	}
-	if err := appendSnapshotDepField(g, from, snap, "peerDependencies", graph.DepPeer, false, known); err != nil {
+	if err := appendSnapshotDepField(g, from, snap, "peerDependencies", graph.DepPeer, false, known, idx); err != nil {
 		return err
 	}
 	return nil
 }
 
-func appendSnapshotDepField(g *graph.Graph, from string, snap map[string]any, field string, kind graph.DepKind, optional bool, known map[string]struct{}) error {
+func appendSnapshotDepField(g *graph.Graph, from string, snap map[string]any, field string, kind graph.DepKind, optional bool, known map[string]struct{}, idx PackageIndex) error {
 	raw, ok := snap[field]
 	if !ok {
 		return nil
@@ -160,13 +161,17 @@ func appendSnapshotDepField(g *graph.Graph, from string, snap map[string]any, fi
 		if !ok || to == "" {
 			return apperr.New(apperr.Lockfile, "pnpm.graph", from+"."+field+"."+name, "expected version key")
 		}
-		if !isAllowedEdgeTarget(to, known) {
-			return apperr.New(apperr.Lockfile, "pnpm.graph", from, "snapshot edge target not found: "+to)
+		target, err := ResolveDependencyTarget(name, to, idx)
+		if err != nil {
+			return err
+		}
+		if !isAllowedEdgeTarget(target.Key, known) {
+			return apperr.New(apperr.Lockfile, "pnpm.graph", from, "snapshot edge target not found: "+target.Key)
 		}
 		g.Edges = append(g.Edges, graph.Edge{
 			From:     from,
 			Name:     name,
-			To:       to,
+			To:       target.Key,
 			Kind:     kind,
 			Optional: optional,
 		})
@@ -208,13 +213,17 @@ func sortedSnapshotKeys(m map[string]map[string]any) []string {
 	return out
 }
 
-func appendImporterEdges(g *graph.Graph, from graph.ImporterID, deps map[string]ImporterDep, kind graph.DepKind) {
+func appendImporterEdges(g *graph.Graph, from graph.ImporterID, deps map[string]ImporterDep, kind graph.DepKind, idx PackageIndex) {
 	for _, name := range sortedStrings(mapStringKeys(deps)) {
 		dep := deps[name]
+		target, err := ResolveDependencyTarget(name, dep.Version, idx)
+		if err != nil {
+			target = Target{Key: depVersionToKey(name, dep.Version)}
+		}
 		g.Edges = append(g.Edges, graph.Edge{
 			From:  string(from),
 			Name:  name,
-			To:    depVersionToKey(name, dep.Version),
+			To:    target.Key,
 			Kind:  kind,
 			Range: dep.Specifier,
 		})
@@ -222,7 +231,7 @@ func appendImporterEdges(g *graph.Graph, from graph.ImporterID, deps map[string]
 }
 
 func depVersionToKey(name, version string) string {
-	if strings.Contains(version, "@") {
+	if strings.Contains(version, "@") || isProtocolRef(version) {
 		return version
 	}
 	return name + "@" + version
@@ -239,6 +248,13 @@ func v6DepVersionToKey(name, version string) string {
 }
 
 func keyToDepVersion(name, key string) string {
+	if isProtocolRef(key) {
+		return key
+	}
+	id, err := ParsePackageIdentity(key)
+	if err == nil && id.Name == name {
+		return id.BaseVersion + id.PeerSuffix
+	}
 	prefix := name + "@"
 	if strings.HasPrefix(key, prefix) {
 		return strings.TrimPrefix(key, prefix)
@@ -270,9 +286,6 @@ func FromGraph(g *graph.Graph, prior *Document, det lockfile.Detection) (*Docume
 	}
 	if doc.LockfileVersion == "" {
 		doc.LockfileVersion = defaultLockfileVersion(det)
-	}
-	if det.Format == FormatV6 {
-		return fromGraphV6(g, doc)
 	}
 	return fromGraphV9Shape(g, doc, prior)
 }
@@ -436,7 +449,7 @@ func v6PathToNameVersion(pathKey string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	n, v := keyToNameVersion(key)
+	n, v := KeyToNameVersion(key)
 	return n, v, nil
 }
 
@@ -452,30 +465,16 @@ func v6PathToKey(pathKey string) (string, error) {
 }
 
 func v6KeyToPath(key string) string {
-	name, version := keyToNameVersion(key)
+	name, version := KeyToNameVersion(key)
 	if strings.HasPrefix(name, "@") {
 		return "/" + name + "/" + version
 	}
 	return "/" + name + "/" + version
 }
 
+// keyToNameVersion is deprecated; use KeyToNameVersion.
 func keyToNameVersion(key string) (string, string) {
-	if strings.HasPrefix(key, "@") {
-		slash := strings.IndexByte(key, '/')
-		if slash < 0 {
-			return key, ""
-		}
-		at := strings.LastIndexByte(key[slash:], '@')
-		if at < 0 {
-			return key, ""
-		}
-		return key[:slash+at], key[slash+at+1:]
-	}
-	at := strings.LastIndexByte(key, '@')
-	if at < 0 {
-		return key, ""
-	}
-	return key[:at], key[at+1:]
+	return KeyToNameVersion(key)
 }
 
 // GraphsEqual compares two graphs for lock write decisions, ignoring fetch-only metadata.
