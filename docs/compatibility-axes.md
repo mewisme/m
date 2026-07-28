@@ -20,7 +20,7 @@ Mew evaluates compatibility on five **independent axes**. A feature may be at pa
 | `m.lock` native format | n/a | deferred | deferred | n/a | deferred | deferred |
 | `nub.lock` preserve on install | n/a | **parity** | deferred | n/a | deferred | **parity** |
 | `package-lock.json` preserve | n/a | deferred | deferred | n/a | deferred | deferred |
-| `pnpm-lock.yaml` preserve | n/a | **parity** | deferred | n/a | deferred | **parity** |
+| `pnpm-lock.yaml` preserve | n/a | **parity** | deferred | n/a | deferred | **parity** (pass 15: pnpm 9/10/11 frozen CI) |
 | Identity detection order | deferred | deferred | deferred | n/a | n/a | deferred |
 | Transactional install + rollback | deferred | n/a | n/a | n/a | deferred | deferred |
 | Isolated linker (pnpm/Nub style) | n/a | n/a | deferred | n/a | deferred | deferred |

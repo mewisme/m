@@ -19,6 +19,8 @@ MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on 
 
 **Stabilization pass 14 (2026-07-28):** module rename to `github.com/mewisme/mew`, untouched workspace subgraph edge preservation, transactional snapshot member restore, typed lifecycle timeouts, strict member manifest paths, v2 restore consistency validation. Scorecard: `.agents/stabilization-pass14-score.md`.
 
+**Stabilization pass 15 (2026-07-28):** MVP 0023 lock bridge hardening — txn-only incumbent writes, detection evidence order, generated conformance fixtures, pnpm 9/10/11 + nub CI jobs, input limits/fuzz, migration reports. Scorecard: `.agents/stabilization-pass15-score.md`.
+
 Stabilization pass 10 merged to `main` at `d980e12`.
 
 Stabilization pass 9 (`stabilization-pass-9` from `fae9b48`): `ConfigLoadSpec` preserves load inputs across mutation reload; `CriticalCleanupError`/`WarningErrors` split; custom-config lock-wait proc test.

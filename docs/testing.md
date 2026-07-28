@@ -117,6 +117,7 @@ See [`docs/workspaces.md`](workspaces.md).
 |---|---|---|
 | `FuzzParseJSON` | `internal/manifest` | malformed package.json |
 | `FuzzDecodeGraph` | `internal/graph` | truncated/garbage graphs |
+| `FuzzDecodePnpmLock` | `internal/compat/pnpm` | hostile YAML; corpus `testdata/lockfile/fuzz/` |
 | `FuzzLoadConfig` | `internal/config` | hostile JSONC |
 
 Deferred until packages exist: archive path fuzz (`internal/archive`), semver
@@ -137,6 +138,18 @@ Go module path is `github.com/mewisme/mew` (renamed from `github.com/mewisme/m`)
 | Member manifest paths | `internal/snapshot/member_path_test.go` | Strict `ParseMemberManifestPath` contract |
 | Restore consistency | `internal/snapshot/validate.go` | v2 member/lock/importer consistency before restore |
 | Lifecycle timeout typing | `internal/lifecycle/run_test.go` | `DeadlineExceeded` / `Canceled` preserved |
+
+## Stabilization pass 15 suites (lock bridge / MVP 0023)
+
+| Area | Tests | What it proves |
+|------|-------|----------------|
+| Txn-only incumbent writes | `internal/app/lock_txn_test.go` | No live `nub.lock`/`pnpm-lock.yaml` writes outside install txn |
+| Migration fail-closed | `internal/app/lock_txn_test.go`, `tests/integration/lock_bridge_test.go` | Loss report + no incumbent overwrite |
+| pnpm conformance | `tests/conformance/lock_bridge_pnpm_test.go` | Parse, Mew validate, byte no-op, pnpm frozen against local registry |
+| Nub fixtures | `tests/conformance/lock_bridge_pnpm_test.go` | Deterministic parse/validate |
+| Input limits / fuzz | `internal/compat/pnpm/limits_test.go`, `fuzz_test.go` | Size/depth/duplicate-key rejection |
+
+CI jobs: `conformance-pnpm-9`, `conformance-pnpm-10`, `conformance-pnpm-11`, `conformance-nub-fixtures`.
 
 ```powershell
 go test ./internal/app/... -run Merge -count=1

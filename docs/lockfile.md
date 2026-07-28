@@ -162,7 +162,24 @@ Detection for pnpm v9-shaped locks uses field heuristics plus optional
 `--pnpm-major` (9, 10, or 11). Do not trust `lockfileVersion: '9.0'` alone.
 
 CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
---from nub|pnpm --to m` (`--dry-run` emits `LossReport` JSON).
+--from nub|pnpm --to m` (`--dry-run` emits migration report JSON).
+
+`--pnpm-major` (9, 10, or 11) applies to `m lock validate`, `m lock diff`,
+`m lock migrate`, and `m install`.
+
+## Support matrix (Pass 15)
+
+| Generation | Read | Byte no-op | Semantic rewrite | Migrate to m.lock | Frozen pnpm CI |
+|---|---|---|---|---|---|
+| pnpm v6 | yes | yes | yes (certified) | yes (loss report) | deferred |
+| pnpm v9 | yes | yes | yes with `--pnpm-major` | yes | `conformance-pnpm-9` |
+| pnpm v10 | yes | yes | yes (checksum marker) | yes | `conformance-pnpm-10` |
+| pnpm v11 | yes | yes | yes (buildPolicy marker) | yes | `conformance-pnpm-11` |
+| nub | yes | yes | policy from incumbent bytes | yes (loss report) | `conformance-nub-fixtures` |
+| m.lock v3 | yes | yes | yes | n/a | n/a |
+
+Fixtures: `fixtures/locks/generated/` with `metadata.json` (SHA-256, producer,
+command). Evidence: `fixtures/locks/EVIDENCE.md`.
 
 ## Loss report
 

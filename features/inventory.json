@@ -636,7 +636,8 @@
       "primary_mvp": "0023",
       "tests": [
         "internal/compat/nub",
-        "tests/integration"
+        "tests/integration",
+        "tests/conformance"
       ]
     },
     {
@@ -649,7 +650,8 @@
       "primary_mvp": "0023",
       "tests": [
         "internal/compat/pnpm",
-        "tests/integration"
+        "tests/integration",
+        "tests/conformance"
       ]
     },
     {
