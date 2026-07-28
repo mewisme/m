@@ -1,0 +1,7 @@
+# Marker file: fuzz harness skips inputs larger than maxLockBytes (32 MiB).
+# This file is intentionally tiny; oversize cases are generated at runtime.
+
+lockfileVersion: '9.0'
+
+importers:
+  .: {}
