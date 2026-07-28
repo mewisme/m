@@ -2,9 +2,11 @@ package lifecycle_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +16,17 @@ import (
 
 func envHost() process.EnvSource {
 	return process.EnvSource{Vars: os.Environ(), Explicit: true}
+}
+
+type stallSupervisor struct{}
+
+func (stallSupervisor) Start(context.Context, process.Spec) (*process.Handle, error) {
+	return &process.Handle{PID: 1}, nil
+}
+
+func (stallSupervisor) Wait(ctx context.Context, _ *process.Handle) error {
+	<-ctx.Done()
+	return ctx.Err()
 }
 
 func TestRunScriptBenign(t *testing.T) {
@@ -70,6 +83,74 @@ func TestRunScriptFailure(t *testing.T) {
 	}
 	if code == 0 {
 		t.Fatalf("want non-zero exit, got %d", code)
+	}
+}
+
+func TestRunScriptTimeoutPreservesDeadlineExceeded(t *testing.T) {
+	dir := t.TempDir()
+	script := lifecycle.Script{
+		PackageName: "slowpkg",
+		PackageDir:  dir,
+		Name:        "postinstall",
+		Command:     "ignored",
+	}
+	_, err := lifecycle.RunScript(context.Background(), stallSupervisor{}, lifecycle.RunSpec{
+		Script:  script,
+		Env:     envHost(),
+		Timeout: 50 * time.Millisecond,
+	})
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected DeadlineExceeded, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "slowpkg") || !strings.Contains(err.Error(), "postinstall") {
+		t.Fatalf("error missing context: %v", err)
+	}
+}
+
+func TestRunScriptCancelPreservesCanceled(t *testing.T) {
+	dir := t.TempDir()
+	script := lifecycle.Script{
+		PackageName: "cancelpkg",
+		PackageDir:  dir,
+		Name:        "postinstall",
+		Command:     "ignored",
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := lifecycle.RunScript(ctx, stallSupervisor{}, lifecycle.RunSpec{
+		Script:  script,
+		Env:     envHost(),
+		Timeout: time.Minute,
+	})
+	if err == nil {
+		t.Fatal("expected cancel error")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected Canceled, got %v", err)
+	}
+}
+
+func TestRunScriptTimeoutAudit(t *testing.T) {
+	dir := t.TempDir()
+	auditPath := filepath.Join(dir, "audit.jsonl")
+	if err := lifecycle.AppendAudit(auditPath, lifecycle.AuditEntry{
+		Package:  "auditpkg",
+		Script:   "postinstall",
+		ExitCode: 1,
+		TimedOut: true,
+		Status:   "timeout",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := lifecycle.ReadAudit(auditPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || !entries[0].TimedOut || entries[0].Status != "timeout" {
+		t.Fatalf("audit=%v", entries)
 	}
 }
 

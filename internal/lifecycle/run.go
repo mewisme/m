@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -45,7 +46,7 @@ func RunInstallScripts(ctx context.Context, in InstallInput) (Result, error) {
 		})
 		dur := time.Since(start)
 		if in.AuditPath != "" {
-			if err := AppendAudit(in.AuditPath, AuditEntry{
+			entry := AuditEntry{
 				Package:      script.PackageName,
 				Script:       script.Name,
 				ExitCode:     exitCode,
@@ -53,7 +54,18 @@ func RunInstallScripts(ctx context.Context, in InstallInput) (Result, error) {
 				Cached:       false,
 				Restored:     false,
 				Capabilities: &caps,
-			}); err != nil {
+			}
+			if runErr != nil {
+				if errors.Is(runErr, context.DeadlineExceeded) {
+					entry.TimedOut = true
+					entry.Status = "timeout"
+				} else if errors.Is(runErr, context.Canceled) {
+					entry.Status = "canceled"
+				} else if exitCode != 0 {
+					entry.Status = "exit"
+				}
+			}
+			if err := AppendAudit(in.AuditPath, entry); err != nil {
 				return res, err
 			}
 		}
@@ -109,6 +121,13 @@ func RunScript(ctx context.Context, sup process.ProcessSupervisor, spec RunSpec)
 		return 1, apperr.Wrap(apperr.Install, "lifecycle.run", spec.Script.PackageName, err)
 	}
 	waitErr := sup.Wait(runCtx, h)
+	if errors.Is(waitErr, context.DeadlineExceeded) || errors.Is(runCtx.Err(), context.DeadlineExceeded) {
+		return 1, apperr.Wrap(apperr.Install, "lifecycle.run", spec.Script.PackageName,
+			fmt.Errorf("%s script %s timed out after %s: %w", spec.Script.PackageName, spec.Script.Name, spec.Timeout, context.DeadlineExceeded))
+	}
+	if errors.Is(ctx.Err(), context.Canceled) && !errors.Is(waitErr, context.DeadlineExceeded) {
+		return 1, apperr.Wrap(apperr.Install, "lifecycle.run", spec.Script.PackageName, context.Canceled)
+	}
 	code := process.ExitCode(waitErr)
 	if waitErr != nil && code == 0 {
 		code = 1

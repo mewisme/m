@@ -18,6 +18,8 @@ type AuditEntry struct {
 	DurationMs   int64                  `json:"durationMs"`
 	Cached       bool                   `json:"cached,omitempty"`
 	Restored     bool                   `json:"restored,omitempty"`
+	TimedOut     bool                   `json:"timedOut,omitempty"`
+	Status       string                 `json:"status,omitempty"`
 	Capabilities *ExecutionCapabilities `json:"capabilities,omitempty"`
 }
 
