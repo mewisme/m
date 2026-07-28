@@ -9,7 +9,17 @@ permissions:
   contents: read
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.skip.outputs.value }}
+    steps:
+      - id: skip
+        run: echo "value=${{ github.event_name == 'push' && startsWith(github.event.head_commit.message, 'docs:') }}" >> "$GITHUB_OUTPUT"
+
   no-cgo-gate:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -27,6 +37,8 @@ jobs:
           go build ./cmd/mx
 
   test:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     env:
@@ -52,6 +64,8 @@ jobs:
         run: go run ./cmd/m development doctor
 
   race:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -62,6 +76,8 @@ jobs:
         run: go test -race ./... -count=1
 
   race-windows:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -72,6 +88,8 @@ jobs:
         run: go test -race ./internal/transaction/... ./internal/store/... ./internal/fsx/... -count=1
 
   crash-integration:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     name: crash-integration (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     env:
@@ -89,6 +107,8 @@ jobs:
         run: go test -tags crash ./tests/integration/... -count=1 -run 'Crash' -timeout 30m
 
   race-macos:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -99,6 +119,8 @@ jobs:
         run: go test -race ./internal/transaction/... ./internal/store/... ./internal/resolver/... -count=1
 
   platform-lock:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     name: platform-lock (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     env:
@@ -116,6 +138,8 @@ jobs:
         run: go test ./internal/transaction/... ./internal/store/... ./internal/fsx/... -count=1 -run 'Proc|Identity|Takeover|Import|ABA'
 
   cross:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -140,6 +164,8 @@ jobs:
           go build -o "/tmp/mx-${GOOS}-${GOARCH}${ext}" ./cmd/mx
 
   lint:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -161,6 +187,8 @@ jobs:
           version: ${{ steps.ver.outputs.golangci }}
 
   vuln:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -179,6 +207,8 @@ jobs:
           govulncheck ./...
 
   allowlist:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -194,6 +224,8 @@ jobs:
           go test ./tools/check-deps -count=1
 
   gate-probe:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -222,6 +254,8 @@ jobs:
         run: go test ./tools/check-deps -count=1 -run TestAllowlistRejectsUnknown
 
   fixture-verify:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -234,6 +268,8 @@ jobs:
         run: go run ./tools/conformance/verify-fixtures
 
   conformance-pnpm-9:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -260,6 +296,8 @@ jobs:
         run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm9($|MutationSuite|PeerContext)' -v
 
   conformance-pnpm-10:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -286,6 +324,8 @@ jobs:
         run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm10($|MutationSuite|PeerContext)' -v
 
   conformance-pnpm-11:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -312,6 +352,8 @@ jobs:
         run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm11($|MutationSuite|PeerContext)' -v
 
   conformance-pnpm-unsupported:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -324,6 +366,8 @@ jobs:
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpmUnsupported -v
 
   conformance-nub-fixtures:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
