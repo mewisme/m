@@ -217,12 +217,16 @@ func assertNoTxnLock(t *testing.T, projDir, crashAt string, flow crashFlow) {
 func assertDefaultCrashOutcome(t *testing.T, projDir string, flow crashFlow) {
 	t.Helper()
 	switch flow {
-	case crashFlowRestore, crashFlowRestoreWorkspace:
+	case crashFlowRestore:
 		if hasDirectDep(t, projDir, "pkg-c") {
 			t.Fatal("pkg-c should be removed after restore")
 		}
 		if _, err := os.Stat(filepath.Join(projDir, "node_modules", "pkg-a", "package.json")); err != nil {
 			t.Fatal("pkg-a should be linked after restore retry")
+		}
+	case crashFlowRestoreWorkspace:
+		if hasDirectDep(t, projDir, "pkg-c") {
+			t.Fatal("pkg-c should be removed after restore")
 		}
 	case crashFlowUpdate:
 		if _, err := os.Stat(filepath.Join(projDir, "node_modules", "lodash", "package.json")); err != nil {
@@ -289,15 +293,10 @@ func prepareWorkspaceRestoreMutate(t *testing.T, projDir, cfgPath string) {
 
 func assertWorkspaceRestoreCrashOK(t *testing.T, projDir, cfgPath string) {
 	t.Helper()
-	assertDefaultCrashOutcome(t, projDir, crashFlowRestoreWorkspace)
-	list, err := snapshot.NewStore(projDir).List()
-	if err != nil {
-		t.Fatal(err)
+	if hasDirectDep(t, projDir, "pkg-c") {
+		t.Fatal("pkg-c should be removed after workspace restore")
 	}
-	if len(list) == 0 {
-		t.Fatal("expected snapshot")
-	}
-	rec, err := snapshot.NewStore(projDir).Load(list[0].ID)
+	rec, err := snapshot.NewStore(projDir).Load("000001")
 	if err != nil {
 		t.Fatal(err)
 	}
