@@ -44,5 +44,8 @@ func prepareAddDependency(ctx context.Context, ac *Context, proj *project.Projec
 	if opts.AddDev {
 		field = "devDependencies"
 	}
+	if len(opts.Filter) > 0 {
+		return prepareFilteredAdd(ctx, ac, proj, opts, name, rng, field)
+	}
 	return proj.Doc.SetDependency(field, name, rng)
 }

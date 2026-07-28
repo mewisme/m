@@ -7,6 +7,7 @@ import (
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/graph"
+	"github.com/mewisme/m/internal/manifest"
 	"github.com/mewisme/m/internal/plan"
 	"github.com/mewisme/m/internal/project"
 	"github.com/mewisme/m/internal/resolver"
@@ -40,6 +41,8 @@ type InstallOptions struct {
 	Recursive bool
 	// Filter limits install to matched workspace importers (--filter).
 	Filter []string
+	// MemberEdits holds in-memory workspace member manifest edits (add --filter).
+	MemberEdits map[string]*manifest.Document
 }
 
 // UpdateResolveOptions selects incremental update resolve parameters.

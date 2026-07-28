@@ -17,6 +17,7 @@ import (
 	"github.com/mewisme/m/internal/linker"
 	"github.com/mewisme/m/internal/linker/isolated"
 	"github.com/mewisme/m/internal/linker/planner"
+	"github.com/mewisme/m/internal/lockfile"
 	"github.com/mewisme/m/internal/lockfile/mlock"
 	"github.com/mewisme/m/internal/manifest"
 	"github.com/mewisme/m/internal/project"
@@ -33,6 +34,7 @@ type commitPlanInput struct {
 	manifestChanged bool
 	useStore        bool
 	snapshotID      string
+	memberManifests []string
 }
 
 // runInstallTxn resolves, stages, validates, and commits install-family mutations.
@@ -161,7 +163,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 
 	emitPhase(ac, "resolve", "")
-	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0
+	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0
 	if edit != nil {
 		if err := edit(proj); err != nil {
 			return res, err
@@ -180,6 +182,24 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	if err := guardLocalInstall(ac, resolution); err != nil {
 		return res, err
 	}
+	if workspace.Enabled(ac.Config) && len(opts.Filter) > 0 {
+		prior, priorErr := readLockHints(ctx, ac, proj)
+		if priorErr != nil {
+			return res, priorErr
+		}
+		if prior != nil {
+			var priorExt lockfile.Extensions
+			if priorDoc, readErr := readLockDocument(proj.Root); readErr == nil && priorDoc != nil {
+				priorExt = priorDoc.Extensions
+			}
+			untouched := untouchedImporterIDs(prior, resolution.Graph)
+			merged, mergeErr := mergeFilteredWorkspaceResolution(prior, priorExt, resolution, untouched)
+			if mergeErr != nil {
+				return res, mergeErr
+			}
+			resolution = merged
+		}
+	}
 	if err := transaction.InvokeTestHook("post_resolve", 0); err != nil {
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "resolve", err)
 	}
@@ -193,7 +213,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		}
 		manifestChanged = true
 	} else if manifestChanged {
-		if err := writeStagedManifest(stage, proj); err != nil {
+		if err := writeStagedManifests(stage, proj, opts); err != nil {
 			return res, err
 		}
 	}
@@ -288,7 +308,12 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "validate", err)
 	}
 
-	plan := buildCommitPlan(commitPlanInput{manifestChanged: manifestChanged, useStore: useStore, snapshotID: snapID})
+	plan := buildCommitPlan(commitPlanInput{
+		manifestChanged: manifestChanged,
+		useStore:        useStore,
+		snapshotID:      snapID,
+		memberManifests: memberManifestPaths(opts),
+	})
 	if err := txn.SetPlan(plan); err != nil {
 		return res, err
 	}
@@ -296,6 +321,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	backupPaths := []string{lockFileName, "node_modules"}
 	if manifestChanged {
 		backupPaths = append([]string{"package.json"}, backupPaths...)
+		backupPaths = append(backupPaths, memberManifestPaths(opts)...)
 	}
 	if useStore {
 		backupPaths = append(backupPaths, filepath.Join(".mew", "store-manifest.json"))
@@ -344,7 +370,7 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 		return res, err
 	}
 	emitPhase(ac, "resolve", "")
-	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0
+	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0
 	if edit != nil {
 		if err := edit(proj); err != nil {
 			return res, err
@@ -374,6 +400,13 @@ func buildCommitPlan(in commitPlanInput) []transaction.Op {
 	var ops []transaction.Op
 	if in.manifestChanged {
 		ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: "package.json", Backup: "stage/package.json"})
+		for _, rel := range in.memberManifests {
+			ops = append(ops, transaction.Op{
+				Kind:   transaction.OpRename,
+				Path:   rel,
+				Backup: filepath.Join("stage", rel),
+			})
+		}
 	}
 	ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: lockFileName, Backup: "stage/m.lock"})
 	ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: "node_modules", Backup: "stage/node_modules"})
@@ -461,12 +494,40 @@ func writeStagedManifest(stage string, proj *project.Project) error {
 	return proj.Doc.Write(filepath.Join(stage, "package.json"))
 }
 
+func writeStagedManifests(stage string, proj *project.Project, opts InstallOptions) error {
+	if err := writeStagedManifest(stage, proj); err != nil {
+		return err
+	}
+	for memPath, doc := range opts.MemberEdits {
+		dest := filepath.Join(stage, filepath.FromSlash(memPath), "package.json")
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return apperr.Wrap(apperr.IO, "app.install", dest, err)
+		}
+		if err := doc.Write(dest); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func memberManifestPaths(opts InstallOptions) []string {
+	if len(opts.MemberEdits) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(opts.MemberEdits))
+	for memPath := range opts.MemberEdits {
+		out = append(out, filepath.Join(memPath, "package.json"))
+	}
+	sort.Strings(out)
+	return out
+}
+
 func writeStagedLock(stage string, ac *Context, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {
 	settings, err := mlock.SettingsWithFingerprints(ac.Config, proj.Normalized.Overrides)
 	if err != nil {
 		return err
 	}
-	specs, err := buildImporterSpecifiers(proj, res)
+	specs, err := buildImporterSpecifiers(proj, res, opts.MemberEdits)
 	if err != nil {
 		return err
 	}
@@ -505,7 +566,7 @@ func mergePriorImporterSections(doc *mlock.Document, prior *mlock.Document, acti
 	sort.Slice(doc.Importers, func(i, j int) bool { return doc.Importers[i].ID < doc.Importers[j].ID })
 }
 
-func buildImporterSpecifiers(proj *project.Project, res *resolver.Resolution) (map[graph.ImporterID][]mlock.Specifier, error) {
+func buildImporterSpecifiers(proj *project.Project, res *resolver.Resolution, memberEdits map[string]*manifest.Document) (map[graph.ImporterID][]mlock.Specifier, error) {
 	specs := map[graph.ImporterID][]mlock.Specifier{
 		graph.RootImporter: mlock.SpecifiersFromManifest(proj.Normalized),
 	}
@@ -517,6 +578,14 @@ func buildImporterSpecifiers(proj *project.Project, res *resolver.Resolution) (m
 			continue
 		}
 		memPath := string(im.ID)
+		if doc, ok := memberEdits[memPath]; ok {
+			norm, err := manifest.ToNormalized(doc)
+			if err != nil {
+				return nil, err
+			}
+			specs[im.ID] = mlock.SpecifiersFromManifest(norm)
+			continue
+		}
 		doc, err := manifest.Load(filepath.Join(proj.Root, filepath.FromSlash(memPath), "package.json"))
 		if err != nil {
 			return nil, apperr.Wrap(apperr.Manifest, "app.install", memPath, err)

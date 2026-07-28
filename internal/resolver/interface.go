@@ -6,6 +6,7 @@ import (
 
 	"github.com/mewisme/m/internal/graph"
 	"github.com/mewisme/m/internal/lockfile"
+	"github.com/mewisme/m/internal/manifest"
 	"github.com/mewisme/m/internal/policy"
 )
 
@@ -44,6 +45,8 @@ type ResolveOptions struct {
 	Recursive bool
 	// Filter limits seeded importers to --filter pattern matches.
 	Filter []string
+	// MemberManifests supplies in-memory member package.json docs (add --filter).
+	MemberManifests map[string]*manifest.Document
 }
 
 // ResolutionDecision records candidate filtering and version selection for 0028.

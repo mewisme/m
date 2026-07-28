@@ -53,24 +53,33 @@ func (s *resolveState) seedWorkspaceMembers(opts ResolveOptions) error {
 	}
 	if workspace.Enabled(s.e.Effective) {
 		if len(opts.Filter) > 0 {
-			return s.seedFilteredMembers(opts.Filter)
+			return s.seedFilteredMembers(opts.Filter, opts)
 		}
 		if opts.Recursive {
-			return s.seedAllMembers()
+			return s.seedAllMembers(opts)
 		}
 		return nil
 	}
-	return s.seedMembersWithDeps()
+	return s.seedMembersWithDeps(opts)
 }
 
-func (s *resolveState) seedMembersWithDeps() error {
+func (s *resolveState) loadMemberManifest(memPath string, opts ResolveOptions) (*manifest.Document, error) {
+	if opts.MemberManifests != nil {
+		if doc, ok := opts.MemberManifests[memPath]; ok && doc != nil {
+			return doc, nil
+		}
+	}
+	return manifest.Load(filepath.Join(s.proj.Root, filepath.FromSlash(memPath), "package.json"))
+}
+
+func (s *resolveState) seedMembersWithDeps(opts ResolveOptions) error {
 	paths := append([]string(nil), s.wsIndex.Members...)
 	sort.Strings(paths)
 	for _, memPath := range paths {
 		if memPath == "." || memPath == string(graph.RootImporter) {
 			continue
 		}
-		doc, err := manifest.Load(filepath.Join(s.proj.Root, filepath.FromSlash(memPath), "package.json"))
+		doc, err := s.loadMemberManifest(memPath, opts)
 		if err != nil {
 			return err
 		}
@@ -84,14 +93,14 @@ func (s *resolveState) seedMembersWithDeps() error {
 	return nil
 }
 
-func (s *resolveState) seedAllMembers() error {
+func (s *resolveState) seedAllMembers(opts ResolveOptions) error {
 	paths := append([]string(nil), s.wsIndex.Members...)
 	sort.Strings(paths)
 	for _, memPath := range paths {
 		if memPath == "." || memPath == string(graph.RootImporter) {
 			continue
 		}
-		doc, err := manifest.Load(filepath.Join(s.proj.Root, filepath.FromSlash(memPath), "package.json"))
+		doc, err := s.loadMemberManifest(memPath, opts)
 		if err != nil {
 			return err
 		}
@@ -102,7 +111,7 @@ func (s *resolveState) seedAllMembers() error {
 	return nil
 }
 
-func (s *resolveState) seedFilteredMembers(patterns []string) error {
+func (s *resolveState) seedFilteredMembers(patterns []string, opts ResolveOptions) error {
 	if s.wsGraph == nil {
 		return apperr.New(apperr.Internal, "resolver.workspace", "", "missing workspace graph")
 	}
@@ -112,7 +121,7 @@ func (s *resolveState) seedFilteredMembers(patterns []string) error {
 	}
 	for _, id := range ids {
 		memPath := string(id)
-		doc, err := manifest.Load(filepath.Join(s.proj.Root, filepath.FromSlash(memPath), "package.json"))
+		doc, err := s.loadMemberManifest(memPath, opts)
 		if err != nil {
 			return err
 		}
