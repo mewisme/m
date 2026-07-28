@@ -21,56 +21,6 @@ func ToGraph(doc *Document) (*graph.Graph, error) {
 	return v9ShapeToGraph(doc)
 }
 
-func v6ToGraph(doc *Document) (*graph.Graph, error) {
-	g := &graph.Graph{SchemaVersion: graph.SchemaVersion}
-	g.Importers = []graph.Importer{{ID: graph.RootImporter, Path: "."}}
-
-	pkgs := make([]graph.Package, 0, len(doc.Packages))
-	pkgKeys := sortedStrings(keys(doc.Packages))
-	for _, pathKey := range pkgKeys {
-		entry := doc.Packages[pathKey]
-		name, version, err := v6PathToNameVersion(pathKey)
-		if err != nil {
-			return nil, err
-		}
-		pkgs = append(pkgs, graph.Package{
-			ID:        graph.PackageID{Name: name, Version: version},
-			Integrity: integrityFromResolution(entry.Resolution),
-		})
-	}
-	g.Packages = pkgs
-
-	for name, dep := range doc.Dependencies {
-		kind := graph.DepProd
-		g.Edges = append(g.Edges, graph.Edge{
-			From:  string(graph.RootImporter),
-			Name:  name,
-			To:    v6DepVersionToKey(name, dep.Version),
-			Kind:  kind,
-			Range: dep.Specifier,
-		})
-	}
-	for _, pathKey := range pkgKeys {
-		entry := doc.Packages[pathKey]
-		fromKey, err := v6PathToKey(pathKey)
-		if err != nil {
-			return nil, err
-		}
-		for depName, depVer := range entry.Dependencies {
-			g.Edges = append(g.Edges, graph.Edge{
-				From: fromKey,
-				Name: depName,
-				To:   depVer,
-				Kind: graph.DepProd,
-			})
-		}
-	}
-	if err := g.Validate(); err != nil {
-		return nil, err
-	}
-	return g, nil
-}
-
 func v9ShapeToGraph(doc *Document) (*graph.Graph, error) {
 	g := &graph.Graph{SchemaVersion: graph.SchemaVersion}
 
@@ -237,16 +187,6 @@ func depVersionToKey(name, version string) string {
 	return name + "@" + version
 }
 
-func v6DepVersionToKey(name, version string) string {
-	if strings.Contains(version, "/") {
-		parts := strings.Split(version, "/")
-		if len(parts) >= 2 {
-			return name + "@" + parts[len(parts)-1]
-		}
-	}
-	return depVersionToKey(name, version)
-}
-
 func keyToDepVersion(name, key string) string {
 	if isProtocolRef(key) {
 		return key
@@ -288,41 +228,6 @@ func FromGraph(g *graph.Graph, prior *Document, det lockfile.Detection) (*Docume
 		doc.LockfileVersion = defaultLockfileVersion(det)
 	}
 	return fromGraphV9Shape(g, doc, prior)
-}
-
-func fromGraphV6(g *graph.Graph, doc *Document) (*Document, error) {
-	doc.Dependencies = map[string]ImporterDep{}
-	for _, e := range g.Edges {
-		if graph.ImporterID(e.From) != graph.RootImporter {
-			continue
-		}
-		doc.Dependencies[e.Name] = ImporterDep{Specifier: e.Range, Version: e.To}
-	}
-	for _, p := range g.Packages {
-		pathKey := v6KeyToPath(p.ID.Key())
-		entry := PackageEntry{
-			Resolution: map[string]any{},
-			Engines:    map[string]any{"node": ">=0.10.0"},
-			Extra:      map[string]any{},
-		}
-		if p.Integrity != "" {
-			entry.Resolution["integrity"] = p.Integrity
-		}
-		doc.Packages[pathKey] = entry
-	}
-	for _, e := range g.Edges {
-		if graph.ImporterID(e.From) == graph.RootImporter {
-			continue
-		}
-		pathKey := v6KeyToPath(e.From)
-		entry := doc.Packages[pathKey]
-		if entry.Dependencies == nil {
-			entry.Dependencies = map[string]string{}
-		}
-		entry.Dependencies[e.Name] = e.To
-		doc.Packages[pathKey] = entry
-	}
-	return doc, nil
 }
 
 func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document, error) {
@@ -442,39 +347,6 @@ func integrityFromResolution(res map[string]any) string {
 		return v
 	}
 	return ""
-}
-
-func v6PathToNameVersion(pathKey string) (string, string, error) {
-	key, err := v6PathToKey(pathKey)
-	if err != nil {
-		return "", "", err
-	}
-	n, v := KeyToNameVersion(key)
-	return n, v, nil
-}
-
-func v6PathToKey(pathKey string) (string, error) {
-	pathKey = strings.TrimPrefix(pathKey, "/")
-	parts := strings.Split(pathKey, "/")
-	if len(parts) < 2 {
-		return "", apperr.New(apperr.Lockfile, "pnpm.graph", pathKey, "invalid v6 package path")
-	}
-	version := parts[len(parts)-1]
-	name := strings.Join(parts[:len(parts)-1], "/")
-	return name + "@" + version, nil
-}
-
-func v6KeyToPath(key string) string {
-	name, version := KeyToNameVersion(key)
-	if strings.HasPrefix(name, "@") {
-		return "/" + name + "/" + version
-	}
-	return "/" + name + "/" + version
-}
-
-// keyToNameVersion is deprecated; use KeyToNameVersion.
-func keyToNameVersion(key string) (string, string) {
-	return KeyToNameVersion(key)
 }
 
 // GraphsEqual compares two graphs for lock write decisions, ignoring fetch-only metadata.

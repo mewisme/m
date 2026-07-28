@@ -6,8 +6,6 @@ import (
 	"github.com/mewisme/mew/internal/lockfile"
 )
 
-const legacyRemediation = "regenerate pnpm-lock.yaml with pnpm 9, 10, or 11"
-
 // IsLegacyUnsupported reports v5–v8 flat layouts that are no longer supported.
 func IsLegacyUnsupported(doc *Document) bool {
 	if doc == nil {
