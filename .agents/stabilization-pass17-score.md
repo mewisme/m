@@ -4,7 +4,7 @@
 **Baseline:** `073b1f1153113b909422b195b00b43f50c51c7b1`  
 **Starting SHA (phases 1–7):** `abeda61`  
 **Branch:** `main`  
-**Final SHA:** `dfaeba3` (pending docs commit)  
+**Final SHA:** `f73054c`  
 **Gate:** ≥ 8.5 for MVP 0023 READY
 
 ## Commits (phases 8–14)
