@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
@@ -282,9 +281,8 @@ func (s *Store) guardPaths(rel string) error {
 }
 
 func (s *Store) guardMemberManifest(rel string) error {
-	rel = filepath.ToSlash(rel)
-	if filepath.IsAbs(rel) || strings.Contains(rel, "..") {
-		return apperr.New(apperr.IO, "snapshot.guard", rel, "invalid member manifest path")
+	if _, err := ParseMemberManifestPath(rel); err != nil {
+		return err
 	}
 	return s.guardPaths(rel)
 }
