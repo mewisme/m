@@ -226,9 +226,6 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		if err := writeStagedMemberManifests(stage, opts.StagedMemberManifests); err != nil {
 			return res, err
 		}
-		if err := writeLiveMemberManifests(proj.Root, opts.StagedMemberManifests); err != nil {
-			return res, err
-		}
 		manifestChanged = true
 	}
 
@@ -240,7 +237,12 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		return res, err
 	}
 	useStore := config.UseGlobalStore(ac.Config)
-	localExtracts, err := buildLocalExtractDirs(proj.Root, resolution)
+	localRoot := proj.Root
+	if len(opts.StagedManifest) > 0 || len(opts.StagedMemberManifests) > 0 {
+		// ponytail: stage overlay supplies workspace locals until commit publishes manifests.
+		localRoot = stage
+	}
+	localExtracts, err := buildLocalExtractDirs(localRoot, resolution)
 	if err != nil {
 		return res, err
 	}
@@ -335,7 +337,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	backupPaths := []string{lockFileName, "node_modules"}
 	if manifestChanged {
 		backupPaths = append([]string{"package.json"}, backupPaths...)
-		backupPaths = append(backupPaths, memberManifestPaths(opts)...)
+		backupPaths = append(backupPaths, allMemberManifestPaths(opts)...)
 	}
 	if useStore {
 		backupPaths = append(backupPaths, filepath.Join(".mew", "store-manifest.json"))
@@ -568,20 +570,10 @@ func allMemberManifestPaths(opts InstallOptions) []string {
 
 func writeStagedMemberManifests(stage string, members map[string][]byte) error {
 	for rel, data := range members {
+		if _, err := snapshot.ParseMemberManifestPath(rel); err != nil {
+			return err
+		}
 		dest := filepath.Join(stage, filepath.FromSlash(rel))
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return apperr.Wrap(apperr.IO, "app.install", dest, err)
-		}
-		if err := os.WriteFile(dest, data, 0o644); err != nil {
-			return apperr.Wrap(apperr.IO, "app.install", dest, err)
-		}
-	}
-	return nil
-}
-
-func writeLiveMemberManifests(projRoot string, members map[string][]byte) error {
-	for rel, data := range members {
-		dest := filepath.Join(projRoot, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return apperr.Wrap(apperr.IO, "app.install", dest, err)
 		}
@@ -595,6 +587,9 @@ func writeLiveMemberManifests(projRoot string, members map[string][]byte) error 
 func collectSnapshotMemberManifests(stage, projRoot string, opts InstallOptions, lockBytes []byte) (map[string][]byte, error) {
 	out := map[string][]byte{}
 	add := func(rel string) error {
+		if _, err := snapshot.ParseMemberManifestPath(rel); err != nil {
+			return err
+		}
 		if _, ok := out[rel]; ok {
 			return nil
 		}

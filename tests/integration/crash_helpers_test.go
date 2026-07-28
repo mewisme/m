@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mewisme/mew/internal/snapshot"
 	"github.com/mewisme/mew/internal/testkit"
 )
 
@@ -36,9 +37,10 @@ var installCrashBoundaries = []string{
 type crashFlow string
 
 const (
-	crashFlowInstall crashFlow = "install"
-	crashFlowUpdate  crashFlow = "update"
-	crashFlowRestore crashFlow = "restore"
+	crashFlowInstall          crashFlow = "install"
+	crashFlowUpdate           crashFlow = "update"
+	crashFlowRestore          crashFlow = "restore"
+	crashFlowRestoreWorkspace crashFlow = "restore-workspace"
 )
 
 type crashScenario struct {
@@ -68,7 +70,7 @@ func runCrashScenario(t *testing.T, sc crashScenario) {
 	}
 
 	switch sc.flow {
-	case crashFlowRestore:
+	case crashFlowRestore, crashFlowRestoreWorkspace:
 		code, out := runM(t, projDir, cfgPath, "snapshot", "restore", "000001")
 		if code != 0 {
 			t.Fatalf("retry restore exit=%d out=%s crashAt=%s", code, out, sc.crashAt)
@@ -93,6 +95,20 @@ func runCrashScenario(t *testing.T, sc crashScenario) {
 
 func prepareCrashProject(t *testing.T, flow crashFlow, prepare func(t *testing.T, projDir, cfgPath string)) (projDir, cfgPath string) {
 	t.Helper()
+	switch flow {
+	case crashFlowRestoreWorkspace:
+		projDir, cfgPath = setupWorkspaceProject(t, "projects/workspace-filter")
+		if code, out := runM(t, projDir, cfgPath, "install", "-r"); code != 0 {
+			t.Fatalf("workspace seed install exit=%d out=%s", code, out)
+		}
+		if code, out := runM(t, projDir, cfgPath, "add", "pkg-c"); code != 0 {
+			t.Fatalf("workspace seed add exit=%d out=%s", code, out)
+		}
+		if prepare != nil {
+			prepare(t, projDir, cfgPath)
+		}
+		return projDir, cfgPath
+	}
 	projDir, cfgPath, _ = setupRegistryProject(t, `{
   "name": "crash-matrix",
   "version": "1.0.0",
@@ -158,7 +174,7 @@ func main() {
   if err != nil { os.Exit(2) }
 }
 `
-	case crashFlowRestore:
+	case crashFlowRestore, crashFlowRestoreWorkspace:
 		return `
 package main
 import (
@@ -201,7 +217,7 @@ func assertNoTxnLock(t *testing.T, projDir, crashAt string, flow crashFlow) {
 func assertDefaultCrashOutcome(t *testing.T, projDir string, flow crashFlow) {
 	t.Helper()
 	switch flow {
-	case crashFlowRestore:
+	case crashFlowRestore, crashFlowRestoreWorkspace:
 		if hasDirectDep(t, projDir, "pkg-c") {
 			t.Fatal("pkg-c should be removed after restore")
 		}
@@ -256,6 +272,52 @@ func runGreenfieldCrashAt(t *testing.T, crashAt string, skipRecover bool) {
 	}
 	if _, err := os.Stat(filepath.Join(projDir, "node_modules", "lodash", "package.json")); err != nil {
 		t.Fatalf("expected lodash after retry crashAt=%s", crashAt)
+	}
+}
+
+func prepareWorkspaceRestoreMutate(t *testing.T, projDir, cfgPath string) {
+	t.Helper()
+	alphaPath := filepath.Join(projDir, "packages", "alpha", "package.json")
+	betaPath := filepath.Join(projDir, "packages", "beta", "package.json")
+	if err := os.WriteFile(alphaPath, []byte(`{"name":"alpha","version":"8.8.8"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(betaPath, []byte(`{"name":"beta","version":"8.8.8"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertWorkspaceRestoreCrashOK(t *testing.T, projDir, cfgPath string) {
+	t.Helper()
+	assertDefaultCrashOutcome(t, projDir, crashFlowRestoreWorkspace)
+	list, err := snapshot.NewStore(projDir).List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) == 0 {
+		t.Fatal("expected snapshot")
+	}
+	rec, err := snapshot.NewStore(projDir).Load(list[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alphaPath := filepath.Join(projDir, "packages", "alpha", "package.json")
+	betaPath := filepath.Join(projDir, "packages", "beta", "package.json")
+	alphaLive, err := os.ReadFile(alphaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	betaLive, err := os.ReadFile(betaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alphaSnap := rec.MemberManifests[filepath.ToSlash(filepath.Join("packages", "alpha", "package.json"))]
+	betaSnap := rec.MemberManifests[filepath.ToSlash(filepath.Join("packages", "beta", "package.json"))]
+	if string(alphaLive) != string(alphaSnap) {
+		t.Fatal("alpha package.json does not match snapshot after restore retry")
+	}
+	if string(betaLive) != string(betaSnap) {
+		t.Fatal("beta package.json does not match snapshot after restore retry")
 	}
 }
 

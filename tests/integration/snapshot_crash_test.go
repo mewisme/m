@@ -25,3 +25,17 @@ func TestSnapshotCrashInstallWithoutManualRecover(t *testing.T) {
 		skipRecover: true,
 	})
 }
+
+func TestWorkspaceSnapshotRestoreCrashMatrix(t *testing.T) {
+	for _, crashAt := range installCrashBoundaries {
+		crashAt := crashAt
+		t.Run(crashAt, func(t *testing.T) {
+			runCrashScenario(t, crashScenario{
+				flow:     crashFlowRestoreWorkspace,
+				crashAt:  crashAt,
+				prepare:  prepareWorkspaceRestoreMutate,
+				assertOK: assertWorkspaceRestoreCrashOK,
+			})
+		})
+	}
+}
