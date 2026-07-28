@@ -68,14 +68,29 @@ func ResolveDependencyTarget(depName, resolutionRef string, idx PackageIndex) (T
 	}
 	if !strings.Contains(ref, "@") {
 		candidate := depName + "@" + ref
-		if idx != nil && idx.HasKey(candidate) {
-			return Target{Key: candidate}, nil
+		if idx != nil {
+			if gk, err := instanceKeyToGraphKey(candidate); err == nil && idx.HasKey(gk) {
+				return Target{Key: gk}, nil
+			}
+			if idx.HasKey(candidate) {
+				return Target{Key: candidate}, nil
+			}
 		}
 		return Target{}, danglingTarget(depName, ref)
 	}
 	if id, err := ParsePackageIdentity(ref); err == nil && id.Name == depName {
-		if idx != nil && idx.HasKey(ref) {
-			return Target{Key: ref}, nil
+		if idx != nil {
+			if gk, err := instanceKeyToGraphKey(ref); err == nil && idx.HasKey(gk) {
+				return Target{Key: gk}, nil
+			}
+			if idx.HasKey(ref) {
+				return Target{Key: ref}, nil
+			}
+		}
+	}
+	if idx != nil {
+		if gk, err := instanceKeyToGraphKey(depName + "@" + ref); err == nil && idx.HasKey(gk) {
+			return Target{Key: gk}, nil
 		}
 	}
 	if idx == nil {
