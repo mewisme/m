@@ -152,7 +152,8 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 	out.SourceLockPath = lockPath
 	out.Detection = det
 	for _, item := range loss.Items {
-		if item.Reason == "top-level extension not mapped to canonical graph" ||
+		if item.Category == "extension" ||
+			item.Reason == "top-level extension not mapped to canonical graph" ||
 			item.Reason == "nub extension not mapped to canonical graph" {
 			out.PreservedUnknown++
 		}
@@ -164,7 +165,8 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 	if encErr != nil {
 		return out, encErr
 	}
-	if len(loss.Items) > 0 {
+	if semantic := lockfileSemanticLoss(loss); len(semantic) > 0 {
+		loss.Items = semantic
 		return out, lockfile.NewUnrepresentable("lock.migrate", "m.lock", "lossy migration", loss)
 	}
 	if err := commitMigratedLock(ctx, ac, proj, encodeRes.Bytes); err != nil {
@@ -202,6 +204,16 @@ func commitMigratedLock(ctx context.Context, ac *Context, proj *project.Project,
 	}
 	_, err = sess.Finish(ctx, false)
 	return err
+}
+
+func lockfileSemanticLoss(loss lockfile.LossReport) []lockfile.LossItem {
+	out := make([]lockfile.LossItem, 0, len(loss.Items))
+	for _, item := range loss.Items {
+		if item.Semantic {
+			out = append(out, item)
+		}
+	}
+	return out
 }
 
 func resolveMigrateFrom(proj *project.Project, from string) (project.Identity, error) {

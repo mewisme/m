@@ -17,10 +17,14 @@ type Extensions map[string]json.RawMessage
 
 // LossItem records data that cannot be represented in a target lockfile format.
 type LossItem struct {
-	Field        string `json:"field"`
-	Reason       string `json:"reason"`
-	SourceFormat string `json:"sourceFormat,omitempty"`
-	Value        string `json:"value,omitempty"`
+	Field         string `json:"field"`
+	Reason        string `json:"reason"`
+	SourceFormat  string `json:"sourceFormat,omitempty"`
+	Value         string `json:"value,omitempty"`
+	SourcePath    string `json:"sourcePath,omitempty"`
+	Semantic      bool   `json:"semantic,omitempty"`
+	ProducerMajor int    `json:"producerMajor,omitempty"`
+	Category      string `json:"category,omitempty"`
 }
 
 // LossReportSchemaVersion versions LossReport documents.
@@ -43,8 +47,8 @@ const (
 
 // Detection records incumbent lock format and producer generation.
 type Detection struct {
-	Format        string // pnpm-v6 | pnpm-v9 | pnpm-v10 | pnpm-v11 | nub
-	ProducerMajor int    // 0 for v6/nub when not tied to a pnpm major
+	Format        string // pnpm-v9 | pnpm-v10 | pnpm-v11 | nub
+	ProducerMajor int    // 9–11 for pnpm; 0 for nub when not tied to a pnpm major
 	Confidence    DetectionConfidence
 	Evidence      []string
 	ExplicitMajor bool // true when --pnpm-major disambiguates v9-shaped locks
@@ -52,7 +56,7 @@ type Detection struct {
 
 // Certified reports whether detection is strong enough for incumbent encode/write.
 func (d Detection) Certified() bool {
-	if d.Format == "nub" || d.Format == "pnpm-v6" {
+	if d.Format == "nub" {
 		return true
 	}
 	if d.ExplicitMajor && d.ProducerMajor >= 9 && d.ProducerMajor <= 11 {
