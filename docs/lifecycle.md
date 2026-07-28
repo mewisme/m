@@ -48,6 +48,11 @@ after `app.New` does not override project config. Invalid values surface
 `ERR_M_CONFIG`.
 
 | Process-tree kill on timeout/cancel | best-effort |
+
+Script timeouts return `ERR_M_INSTALL` with `errors.Is(err, context.DeadlineExceeded)`.
+Parent cancellation preserves `context.Canceled`. Non-zero exits keep distinct
+exit codes and messages. Audit entries may include `timedOut` and `status`
+(`timeout`, `canceled`, `exit`).
 | Filesystem isolation | **no** |
 | Network isolation | **no** |
 
@@ -66,7 +71,7 @@ Audit entries include a `capabilities` field reporting the honest contract above
 Each executed script appends one JSON line to `.mew/lifecycle-audit.jsonl`:
 
 ```json
-{"ts":"…","package":"lodash","script":"postinstall","exitCode":0,"durationMs":42,"cached":false,"restored":false,"capabilities":{"packageCWD":true,"controlledPATH":true,"strippedEnv":true,"timeout":true,"processTreeKill":true,"filesystemIsolation":false,"networkIsolation":false}}
+{"ts":"…","package":"lodash","script":"postinstall","exitCode":0,"durationMs":42,"cached":false,"restored":false,"timedOut":false,"status":"","capabilities":{"packageCWD":true,"controlledPATH":true,"strippedEnv":true,"timeout":true,"processTreeKill":true,"filesystemIsolation":false,"networkIsolation":false}}
 ```
 
 ```sh

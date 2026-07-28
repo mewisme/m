@@ -69,9 +69,10 @@ install runs. Filtered installs merge untouched importer sections from the prior
 lock so unrelated members are not dropped.
 
 Filtered installs also merge the **directed package closure** (`From → To` edges only)
-for untouched importers from the prior lock graph before fetch/link. Shared
-transitive dependencies owned by an untouched member (for example `pkg-b` when
-filtering `alpha`) are preserved; beta-only packages are not dropped.
+for untouched importers from the prior lock graph before fetch/link. This includes
+**package-to-package** edges inside each untouched member's subgraph (for example
+`pkg-b@1.2.0 → pkg-c` when filtering `alpha`). Shared transitive dependencies
+owned by an untouched member are preserved; beta-only packages are not dropped.
 
 `m remove <pkg> --filter <pattern>` mirrors filtered add: member `package.json`
 files are edited in memory, staged under `stage/`, and committed atomically with

@@ -126,6 +126,26 @@ ranges (`internal/semver`).
 make fuzz-smoke
 ```
 
+## Stabilization pass 14 suites (module rename / workspace / snapshot / lifecycle)
+
+Go module path is `github.com/mewisme/mew` (renamed from `github.com/mewisme/m`).
+
+| Area | Tests | What it proves |
+|------|-------|----------------|
+| Untouched subgraph edges | `internal/app/workspace_merge_test.go`, `tests/integration/workspaces_test.go` | Package-to-package edges preserved for filtered install |
+| Transactional member restore | `tests/integration/snapshot_workspace_test.go`, `tests/integration/snapshot_crash_test.go` | No live member writes before commit; workspace restore crash matrix |
+| Member manifest paths | `internal/snapshot/member_path_test.go` | Strict `ParseMemberManifestPath` contract |
+| Restore consistency | `internal/snapshot/validate.go` | v2 member/lock/importer consistency before restore |
+| Lifecycle timeout typing | `internal/lifecycle/run_test.go` | `DeadlineExceeded` / `Canceled` preserved |
+
+```powershell
+go test ./internal/app/... -run Merge -count=1
+go test ./internal/snapshot/... -count=1
+go test ./internal/lifecycle/... -count=1
+go test ./tests/integration/... -run "WorkspaceFilter|SnapshotWorkspace" -count=1
+go test -tags crash ./tests/integration/... -run WorkspaceSnapshotRestoreCrash -count=1 -timeout 30m
+```
+
 ## Stabilization pass 13 suites (workspace / lifecycle / snapshot)
 
 | Area | Tests | What it proves |
