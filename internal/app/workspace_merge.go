@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"sort"
 
 	"github.com/mewisme/m/internal/apperr"
 	"github.com/mewisme/m/internal/graph"
@@ -19,15 +20,18 @@ func mergeFilteredWorkspaceResolution(
 		return active, nil
 	}
 	activeIDs := importerIDsInGraph(active.Graph)
-	removeKeys := map[string]struct{}{}
+	var activeImporterIDs []graph.ImporterID
 	for id := range activeIDs {
 		if id == graph.RootImporter {
 			continue
 		}
-		for k := range importerPackageClosure(prior, string(id)) {
-			removeKeys[k] = struct{}{}
-		}
+		activeImporterIDs = append(activeImporterIDs, id)
 	}
+	sort.Slice(activeImporterIDs, func(i, j int) bool { return activeImporterIDs[i] < activeImporterIDs[j] })
+
+	activeClosure := dependencyClosureUnion(prior, activeImporterIDs)
+	preservedClosure := dependencyClosureUnion(prior, untouched)
+	removeKeys := computeRemoveKeys(activeClosure, preservedClosure)
 
 	b := graph.NewBuilder()
 	importerSeen := map[graph.ImporterID]bool{}
@@ -64,6 +68,10 @@ func mergeFilteredWorkspaceResolution(
 		b.EdgeEx(e.From, e.Name, e.To, e.Kind, e.Range, e.Optional)
 		activeEdge[edgeKey(e)] = struct{}{}
 	}
+	untouchedSet := map[graph.ImporterID]bool{}
+	for _, id := range untouched {
+		untouchedSet[id] = true
+	}
 	for _, e := range prior.Edges {
 		if _, ok := activeEdge[edgeKey(e)]; ok {
 			continue
@@ -77,6 +85,9 @@ func mergeFilteredWorkspaceResolution(
 		if activeIDs[graph.ImporterID(e.From)] {
 			continue
 		}
+		if !untouchedSet[graph.ImporterID(e.From)] {
+			continue
+		}
 		b.EdgeEx(e.From, e.Name, e.To, e.Kind, e.Range, e.Optional)
 	}
 
@@ -84,11 +95,14 @@ func mergeFilteredWorkspaceResolution(
 	if err != nil {
 		return nil, err
 	}
-	if err := validateMergedGraph(g); err != nil {
+	if err := validateMergedWorkspaceGraph(g, prior, untouched, nil); err != nil {
 		return nil, err
 	}
 	ext, err := mergePriorExtensions(active.Extensions, priorExt, removeKeys, activeKeys)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateMergedWorkspaceGraph(g, prior, untouched, ext); err != nil {
 		return nil, err
 	}
 	return &resolver.Resolution{
@@ -99,43 +113,55 @@ func mergeFilteredWorkspaceResolution(
 	}, nil
 }
 
-func importerPackageClosure(g *graph.Graph, importerID string) map[string]struct{} {
+func dependencyClosure(g *graph.Graph, importerID graph.ImporterID) map[string]struct{} {
+	return dependencyClosureUnion(g, []graph.ImporterID{importerID})
+}
+
+func dependencyClosureUnion(g *graph.Graph, importerIDs []graph.ImporterID) map[string]struct{} {
 	out := map[string]struct{}{}
-	if g == nil {
+	if g == nil || len(importerIDs) == 0 {
 		return out
 	}
-	nodes := map[string]struct{}{importerID: {}, string(graph.RootImporter): {}}
+	importerKeys := map[string]struct{}{}
+	for _, id := range importerIDs {
+		importerKeys[string(id)] = struct{}{}
+	}
+	nodes := map[string]struct{}{string(graph.RootImporter): {}}
+	for k := range importerKeys {
+		nodes[k] = struct{}{}
+	}
 	changed := true
 	for changed {
 		changed = false
 		for _, e := range g.Edges {
-			fromIn := false
-			toIn := false
-			if _, ok := nodes[e.From]; ok {
-				fromIn = true
+			if _, ok := nodes[e.From]; !ok {
+				continue
 			}
 			if _, ok := nodes[e.To]; ok {
-				toIn = true
+				continue
 			}
-			if fromIn {
-				if _, ok := nodes[e.To]; !ok {
-					nodes[e.To] = struct{}{}
-					changed = true
-				}
-			}
-			if toIn {
-				if _, ok := nodes[e.From]; !ok {
-					nodes[e.From] = struct{}{}
-					changed = true
-				}
-			}
+			nodes[e.To] = struct{}{}
+			changed = true
 		}
 	}
 	for k := range nodes {
-		if k == importerID || k == string(graph.RootImporter) {
+		if k == string(graph.RootImporter) {
+			continue
+		}
+		if _, isImporter := importerKeys[k]; isImporter {
 			continue
 		}
 		out[k] = struct{}{}
+	}
+	return out
+}
+
+func computeRemoveKeys(active, preserved map[string]struct{}) map[string]struct{} {
+	out := map[string]struct{}{}
+	for k := range active {
+		if _, keep := preserved[k]; !keep {
+			out[k] = struct{}{}
+		}
 	}
 	return out
 }
@@ -144,7 +170,7 @@ func edgeKey(e graph.Edge) string {
 	return e.From + "\x00" + e.Name + "\x00" + e.To
 }
 
-func validateMergedGraph(g *graph.Graph) error {
+func validateMergedWorkspaceGraph(g *graph.Graph, prior *graph.Graph, untouched []graph.ImporterID, ext lockfile.Extensions) error {
 	if g == nil {
 		return nil
 	}
@@ -155,6 +181,25 @@ func validateMergedGraph(g *graph.Graph) error {
 	for _, e := range g.Edges {
 		if _, ok := pkgs[e.To]; !ok {
 			return apperr.New(apperr.Lockfile, "app.install.merge", e.To, "dangling edge in merged graph")
+		}
+	}
+	for _, id := range untouched {
+		for k := range dependencyClosure(prior, id) {
+			if _, ok := pkgs[k]; !ok {
+				return apperr.New(apperr.Lockfile, "app.install.merge", k, "missing package from untouched importer closure")
+			}
+		}
+	}
+	if len(ext) == 0 {
+		return nil
+	}
+	locals, err := resolver.DecodeLocalSources(ext)
+	if err != nil {
+		return err
+	}
+	for key := range locals {
+		if _, ok := pkgs[key]; !ok {
+			return apperr.New(apperr.Lockfile, "app.install.merge", key, "extension references missing package")
 		}
 	}
 	return nil

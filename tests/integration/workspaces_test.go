@@ -124,6 +124,21 @@ func TestWorkspaceFilterPreservesLock(t *testing.T) {
 	if !found {
 		t.Fatal("pkg-b not linkable under node_modules after filtered install")
 	}
+	lockBefore, err := os.ReadFile(filepath.Join(projDir, "m.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out = runM(t, projDir, cfgPath, "--filter", "alpha", "install")
+	if code != 0 {
+		t.Fatalf("repeat filter install exit=%d out=%s", code, out)
+	}
+	lockAfter, err := os.ReadFile(filepath.Join(projDir, "m.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(lockBefore) != string(lockAfter) {
+		t.Fatal("filtered install changed lock on second run")
+	}
 }
 
 func TestWorkspaceAddFilterUpdatesMemberOnly(t *testing.T) {
