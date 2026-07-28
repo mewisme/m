@@ -9,9 +9,28 @@ permissions:
   contents: read
 
 jobs:
+  no-cgo-gate:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: No-CGO test, vet, and build
+        run: |
+          go test ./internal/archcheck/... -count=1 -run TestProduction
+          go test ./... -count=1
+          go vet ./...
+          go build ./cmd/m
+          go build ./cmd/mx
+
   test:
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      CGO_ENABLED: "0"
     strategy:
       fail-fast: false
       matrix:
@@ -55,6 +74,8 @@ jobs:
   crash-integration:
     name: crash-integration (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      CGO_ENABLED: "0"
     strategy:
       fail-fast: false
       matrix:
@@ -80,6 +101,8 @@ jobs:
   platform-lock:
     name: platform-lock (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      CGO_ENABLED: "0"
     strategy:
       fail-fast: false
       matrix:
@@ -94,6 +117,8 @@ jobs:
 
   cross:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     strategy:
       fail-fast: false
       matrix:
@@ -108,7 +133,6 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: "0"
         run: |
           ext=""
           if [ "$GOOS" = "windows" ]; then ext=".exe"; fi
@@ -117,6 +141,8 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -136,6 +162,8 @@ jobs:
 
   vuln:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -152,6 +180,8 @@ jobs:
 
   allowlist:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -165,6 +195,8 @@ jobs:
 
   gate-probe:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -191,18 +223,20 @@ jobs:
 
   fixture-verify:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
       - name: Verify lock bridge fixtures
-        env:
-          CGO_ENABLED: "0"
         run: go run ./tools/conformance/verify-fixtures
 
   conformance-pnpm-9:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -223,12 +257,12 @@ jobs:
         with:
           node-version: "22"
       - name: pnpm 9 lock bridge conformance
-        env:
-          CGO_ENABLED: "0"
         run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm9($|MutationSuite)' -v
 
   conformance-pnpm-10:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -249,12 +283,12 @@ jobs:
         with:
           node-version: "22"
       - name: pnpm 10 lock bridge conformance
-        env:
-          CGO_ENABLED: "0"
         run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm10($|MutationSuite)' -v
 
   conformance-pnpm-11:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -275,12 +309,12 @@ jobs:
         with:
           node-version: "22"
       - name: pnpm 11 lock bridge conformance
-        env:
-          CGO_ENABLED: "0"
         run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm11($|MutationSuite)' -v
 
   conformance-pnpm-unsupported:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -291,6 +325,8 @@ jobs:
 
   conformance-nub-fixtures:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
