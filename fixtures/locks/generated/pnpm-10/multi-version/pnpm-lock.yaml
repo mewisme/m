@@ -12,8 +12,8 @@ importers:
         specifier: 4.3.7
         version: 4.3.7
       follow-redirects:
-        specifier: 1.15.9
-        version: 1.15.9(debug@4.3.7)
+        specifier: 1.16.0
+        version: 1.16.0(debug@4.3.7)
 
 packages:
 
@@ -26,8 +26,8 @@ packages:
       supports-color:
         optional: true
 
-  follow-redirects@1.15.9:
-    resolution: {integrity: sha512-gew4GsXizNgdoRyqmyfMHyAmXsZDk6mHkSxZFCzW9gwlbtOW44CDtYavM+y+72qD/Vq2l550kMF52DT8fOLJqQ==}
+  follow-redirects@1.16.0:
+    resolution: {integrity: sha512-y5rN/uOsadFT/JfYwhxRS5R7Qce+g3zG97+JrtFZlC9klX/W5hD7iiLzScI4nZqUS7DNUdhPgw4xI8W2LuXlUw==}
     engines: {node: '>=4.0'}
     peerDependencies:
       debug: '*'
@@ -44,7 +44,7 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
-  follow-redirects@1.15.9(debug@4.3.7):
+  follow-redirects@1.16.0(debug@4.3.7):
     optionalDependencies:
       debug: 4.3.7
 
