@@ -23,6 +23,9 @@ func (Adapter) Read(ctx context.Context, path string) (*graph.Graph, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := rejectLegacy(doc); err != nil {
+		return nil, err
+	}
 	return ToGraph(doc)
 }
 
@@ -46,6 +49,9 @@ func (Adapter) ReadWithExtensions(ctx context.Context, path string) (*graph.Grap
 	}
 	doc, err := Decode(data)
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := rejectLegacy(doc); err != nil {
 		return nil, nil, err
 	}
 	g, err := ToGraph(doc)
@@ -72,6 +78,9 @@ func (Adapter) EncodePreserving(ctx context.Context, path string, g *graph.Graph
 
 	doc, err := Decode(prior)
 	if err != nil {
+		return lockfile.WriteResult{}, err
+	}
+	if err := rejectLegacy(doc); err != nil {
 		return lockfile.WriteResult{}, err
 	}
 	if ext != nil {
@@ -106,9 +115,9 @@ func (Adapter) EncodePreserving(ctx context.Context, path string, g *graph.Graph
 	}
 
 	switch det.Format {
-	case FormatV6, FormatV9, FormatV10, FormatV11:
+	case FormatV9, FormatV10, FormatV11:
 	default:
-		return lockfile.WriteResult{}, lockfile.NewUnsupported("pnpm.write", "pnpm-lock.yaml", "unsupported generation")
+		return lockfile.WriteResult{}, lockfile.NewUnsupported("pnpm.write", "pnpm-lock.yaml", "unsupported generation (only pnpm 9/10/11)")
 	}
 
 	outDoc, err := FromGraph(g, doc, det)
@@ -132,26 +141,10 @@ func (Adapter) LossFromDocument(ctx context.Context, prior []byte) (lockfile.Los
 	if err != nil {
 		return lockfile.LossReport{}, err
 	}
-	report := lockfile.LossReport{SchemaVersion: lockfile.LossReportSchemaVersion, Items: []lockfile.LossItem{}}
-	for k := range doc.Extensions {
-		report.Items = append(report.Items, lockfile.LossItem{
-			Field:        k,
-			Reason:       "top-level extension not mapped to canonical graph",
-			SourceFormat: doc.Detection.Format,
-		})
+	if err := rejectLegacy(doc); err != nil {
+		return lockfile.LossReport{}, err
 	}
-	for k, snap := range doc.Snapshots {
-		if snapHasOnlyTopology(snap) {
-			continue
-		}
-		if len(stripSnapshotTopology(snap)) > 0 {
-			report.Items = append(report.Items, lockfile.LossItem{
-				Field:        "snapshots." + k,
-				Reason:       "snapshot metadata not represented in canonical graph",
-				SourceFormat: doc.Detection.Format,
-			})
-		}
-	}
+	report := FieldLossAudit(doc)
 	_ = report.Normalize()
 	return report, nil
 }

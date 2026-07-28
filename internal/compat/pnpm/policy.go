@@ -1,6 +1,9 @@
 package pnpm
 
 import (
+	"github.com/mewisme/mew/internal/compat/pnpm/v10"
+	"github.com/mewisme/mew/internal/compat/pnpm/v11"
+	"github.com/mewisme/mew/internal/compat/pnpm/v9"
 	"github.com/mewisme/mew/internal/lockfile"
 )
 
@@ -9,19 +12,14 @@ type Policy interface {
 	Format() string
 	ProducerMajor() int
 	DefaultLockfileVersion() string
-	// StructuralEvidence returns generation-specific markers found in doc.
 	StructuralEvidence(doc *Document) []string
-	// DetectFromStructure returns detection when structural evidence is definitive.
 	DetectFromStructure(doc *Document) (lockfile.Detection, bool)
-	// ApplyPackageEncodeFields adds generation-specific package fields during encode.
 	ApplyPackageEncodeFields(entry PackageEntry, m map[string]any)
 }
 
-// SelectPolicy returns the generation policy for a detection result.
+// SelectPolicy returns the generation policy for a detection result (9/10/11 only).
 func SelectPolicy(det lockfile.Detection) Policy {
 	switch det.Format {
-	case FormatV6:
-		return v6Policy{}
 	case FormatV10:
 		return v10Policy{}
 	case FormatV11:
@@ -36,8 +34,11 @@ func DetectFromDocument(doc *Document) (lockfile.Detection, bool) {
 	if doc == nil {
 		return lockfile.Detection{}, false
 	}
-	if IsV6Layout(doc) {
-		return v6Policy{}.DetectFromStructure(doc)
+	if IsLegacyUnsupported(doc) {
+		return LegacyClassifier(doc)
+	}
+	if !hasV9Shape(doc) {
+		return lockfile.Detection{}, false
 	}
 	for _, p := range []Policy{v11Policy{}, v10Policy{}, v9Policy{}} {
 		if det, ok := p.DetectFromStructure(doc); ok {
@@ -47,31 +48,14 @@ func DetectFromDocument(doc *Document) (lockfile.Detection, bool) {
 	return lockfile.Detection{}, false
 }
 
-type v6Policy struct{}
-
-func (v6Policy) Format() string                          { return FormatV6 }
-func (v6Policy) ProducerMajor() int                      { return 0 }
-func (v6Policy) DefaultLockfileVersion() string          { return "5.4" }
-func (v6Policy) StructuralEvidence(_ *Document) []string { return nil }
-func (v6Policy) DetectFromStructure(doc *Document) (lockfile.Detection, bool) {
-	if !IsV6Layout(doc) {
-		return lockfile.Detection{}, false
-	}
-	return lockfile.Detection{
-		Format: FormatV6, Confidence: lockfile.DetectionCertain,
-		Evidence: []string{"lockfileVersion=" + doc.LockfileVersion, "layout=v6-flat"},
-	}, true
-}
-func (v6Policy) ApplyPackageEncodeFields(_ PackageEntry, _ map[string]any) {}
-
 type v9Policy struct{}
 
 func (v9Policy) Format() string                 { return FormatV9 }
-func (v9Policy) ProducerMajor() int             { return 9 }
-func (v9Policy) DefaultLockfileVersion() string { return "9.0" }
+func (v9Policy) ProducerMajor() int             { return v9.Major }
+func (v9Policy) DefaultLockfileVersion() string { return v9.LockfileVersion }
 func (v9Policy) StructuralEvidence(doc *Document) []string {
-	if hasV9ShapeWithoutNewerMarkers(doc) {
-		return []string{"layout=importers-snapshots", "no-v10-v11-package-markers"}
+	if hasV9Shape(doc) {
+		return []string{"layout=importers-snapshots", "lockfileVersion=" + v9.LockfileVersion}
 	}
 	return nil
 }
@@ -83,76 +67,112 @@ func (v9Policy) ApplyPackageEncodeFields(_ PackageEntry, _ map[string]any) {}
 type v10Policy struct{}
 
 func (v10Policy) Format() string                 { return FormatV10 }
-func (v10Policy) ProducerMajor() int             { return 10 }
-func (v10Policy) DefaultLockfileVersion() string { return "9.0" }
+func (v10Policy) ProducerMajor() int             { return v10.Major }
+func (v10Policy) DefaultLockfileVersion() string { return v10.LockfileVersion }
 func (v10Policy) StructuralEvidence(doc *Document) []string {
-	if packageHasChecksum(doc) {
-		return []string{"package.checksum"}
+	if !hasV9Shape(doc) {
+		return nil
 	}
-	return nil
+	var out []string
+	if docHasRootField(doc, v10.PatchedDependenciesField) {
+		out = append(out, "root."+v10.PatchedDependenciesField)
+	}
+	if docHasRootField(doc, v10.ConfigDependenciesField) {
+		out = append(out, "root."+v10.ConfigDependenciesField)
+	}
+	return out
 }
 func (v10Policy) DetectFromStructure(doc *Document) (lockfile.Detection, bool) {
-	if doc.LockfileVersion != "9.0" || !packageHasChecksum(doc) {
+	if !hasV9Shape(doc) {
+		return lockfile.Detection{}, false
+	}
+	ev := v10Policy{}.StructuralEvidence(doc)
+	if len(ev) == 0 {
 		return lockfile.Detection{}, false
 	}
 	return lockfile.Detection{
-		Format: FormatV10, ProducerMajor: 10, Confidence: lockfile.DetectionCertain,
-		Evidence: []string{"lockfileVersion=9.0", "marker=package-checksum"},
+		Format: FormatV10, ProducerMajor: v10.Major, Confidence: lockfile.DetectionInferred,
+		Evidence: append([]string{"lockfileVersion=" + v10.LockfileVersion}, ev...),
 	}, true
 }
 func (v10Policy) ApplyPackageEncodeFields(entry PackageEntry, m map[string]any) {
 	if entry.Checksum != "" {
-		m["checksum"] = entry.Checksum
+		m[v10.PackageChecksumField] = entry.Checksum
 	}
 }
 
 type v11Policy struct{}
 
 func (v11Policy) Format() string                 { return FormatV11 }
-func (v11Policy) ProducerMajor() int             { return 11 }
-func (v11Policy) DefaultLockfileVersion() string { return "9.0" }
+func (v11Policy) ProducerMajor() int             { return v11.Major }
+func (v11Policy) DefaultLockfileVersion() string { return v11.LockfileVersion }
 func (v11Policy) StructuralEvidence(doc *Document) []string {
-	if packageHasBuildPolicy(doc) {
-		return []string{"package.buildPolicy"}
+	if !hasV9Shape(doc) {
+		return nil
+	}
+	if onlyBuilt, ok := settingListPresent(doc, v11.OnlyBuiltDependenciesSetting); ok {
+		return []string{"settings." + v11.OnlyBuiltDependenciesSetting + "=" + onlyBuilt}
+	}
+	if ignored, ok := settingListPresent(doc, v11.IgnoredBuiltDependenciesSetting); ok {
+		return []string{"settings." + v11.IgnoredBuiltDependenciesSetting + "=" + ignored}
 	}
 	return nil
 }
 func (v11Policy) DetectFromStructure(doc *Document) (lockfile.Detection, bool) {
-	if doc.LockfileVersion != "9.0" || !packageHasBuildPolicy(doc) {
+	if !hasV9Shape(doc) {
+		return lockfile.Detection{}, false
+	}
+	ev := v11Policy{}.StructuralEvidence(doc)
+	if len(ev) == 0 {
 		return lockfile.Detection{}, false
 	}
 	return lockfile.Detection{
-		Format: FormatV11, ProducerMajor: 11, Confidence: lockfile.DetectionCertain,
-		Evidence: []string{"lockfileVersion=9.0", "marker=package-buildPolicy"},
+		Format: FormatV11, ProducerMajor: v11.Major, Confidence: lockfile.DetectionInferred,
+		Evidence: append([]string{"lockfileVersion=" + v11.LockfileVersion}, ev...),
 	}, true
 }
 func (v11Policy) ApplyPackageEncodeFields(entry PackageEntry, m map[string]any) {
 	if entry.BuildPolicy != nil {
-		m["buildPolicy"] = entry.BuildPolicy
+		m[v11.BuildPolicyField] = entry.BuildPolicy
 	}
 }
 
-func hasV9ShapeWithoutNewerMarkers(doc *Document) bool {
-	return len(doc.Importers) > 0 || len(doc.Snapshots) > 0
-}
-
-func packageHasChecksum(doc *Document) bool {
-	for _, p := range doc.Packages {
-		if p.Checksum != "" {
-			return true
-		}
+func hasV9Shape(doc *Document) bool {
+	if doc == nil || doc.LockfileVersion != v9.LockfileVersion {
+		return false
 	}
-	return false
+	return len(doc.Importers) > 0 || len(doc.Snapshots) > 0 || len(doc.Packages) > 0
 }
 
-func packageHasBuildPolicy(doc *Document) bool {
-	for _, p := range doc.Packages {
-		if p.BuildPolicy != nil {
-			return true
-		}
+func docHasRootField(doc *Document, field string) bool {
+	if doc == nil {
+		return false
+	}
+	if _, ok := doc.Extensions[field]; ok {
+		return true
 	}
 	return false
 }
 
-// ponytail: policy structs are zero-size; upgrade path is per-generation files under v6/v9/v10/v11.
+func settingListPresent(doc *Document, key string) (string, bool) {
+	if doc == nil || doc.Settings == nil {
+		return "", false
+	}
+	v, ok := doc.Settings[key]
+	if !ok {
+		return "", false
+	}
+	switch t := v.(type) {
+	case []any:
+		if len(t) > 0 {
+			return "non-empty", true
+		}
+	case []string:
+		if len(t) > 0 {
+			return "non-empty", true
+		}
+	}
+	return "", false
+}
+
 var _ Policy = v9Policy{}

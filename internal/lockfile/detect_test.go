@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mewisme/mew/internal/apperr"
+	_ "github.com/mewisme/mew/internal/compat/pnpm"
 	"github.com/mewisme/mew/internal/lockfile"
 )
 
@@ -82,9 +84,8 @@ func TestDetectPnpmAmbiguousWithoutHints(t *testing.T) {
 	}
 }
 
-func TestDetectPnpmCommonFieldsNotIdentifiers(t *testing.T) {
+func TestDetectPnpmV10StructuralEvidence(t *testing.T) {
 	data := readFixture(t, "pnpm", "v10", "pnpm-lock.yaml")
-	// v10 fixture has patchedDependencies but detection must use checksum marker.
 	det, err := lockfile.DetectPnpm(data)
 	if err != nil {
 		t.Fatal(err)
@@ -92,18 +93,26 @@ func TestDetectPnpmCommonFieldsNotIdentifiers(t *testing.T) {
 	if det.Format != "pnpm-v10" {
 		t.Fatalf("format=%s", det.Format)
 	}
-	if det.Confidence != lockfile.DetectionCertain {
-		t.Fatalf("expected certain from checksum, got %s", det.Confidence)
-	}
 }
 
-func TestDetectPnpmStructuralV11(t *testing.T) {
+func TestDetectPnpmV11StructuralEvidence(t *testing.T) {
 	data := readFixture(t, "pnpm", "v11", "pnpm-lock.yaml")
 	det, err := lockfile.DetectPnpm(data)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if det.Format != "pnpm-v11" || det.Confidence != lockfile.DetectionCertain {
-		t.Fatalf("got %+v", det)
+	if det.Format != "pnpm-v11" {
+		t.Fatalf("format=%s", det.Format)
+	}
+}
+
+func TestDetectPnpmRejectsLegacyV6(t *testing.T) {
+	data := readFixture(t, "pnpm", "unsupported", "v6", "pnpm-lock.yaml")
+	_, err := lockfile.DetectPnpm(data)
+	if err == nil {
+		t.Fatal("expected rejection")
+	}
+	if apperr.CodeOf(err) != apperr.LockUnsupported {
+		t.Fatalf("code=%s", apperr.CodeOf(err))
 	}
 }

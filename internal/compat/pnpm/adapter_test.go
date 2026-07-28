@@ -41,7 +41,6 @@ func TestGoldenRoundTrip(t *testing.T) {
 		gen   string
 		major int
 	}{
-		{"v6", 0},
 		{"v9", 9},
 		{"v10", 10},
 		{"v11", 11},

@@ -1,7 +1,7 @@
 package v6
 
-// LockfileVersion is the default lockfileVersion for v6-shaped locks.
-const LockfileVersion = "5.4"
+// UnsupportedLegacy marks pnpm 5–6 flat layouts rejected by the lock bridge.
+const UnsupportedLegacy = true
 
-// ConformanceTarget is the pinned pnpm major-6 line for CI (see tools/conformance/pnpm-versions.env).
-const ConformanceTarget = "6"
+// LockfileVersion is the default lockfileVersion for legacy v6-shaped locks.
+const LockfileVersion = "5.4"

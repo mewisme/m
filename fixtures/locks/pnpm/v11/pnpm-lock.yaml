@@ -2,7 +2,8 @@ lockfileVersion: '9.0'
 
 settings:
   autoInstallPeers: true
-  onlyBuiltDependencies: []
+  onlyBuiltDependencies:
+    - lodash
 
 importers:
   .:

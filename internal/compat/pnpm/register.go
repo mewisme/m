@@ -7,4 +7,11 @@ import (
 
 func init() {
 	lockfile.RegisterExtAdapter(project.IdentityPNPM, Adapter{})
+	lockfile.RegisterPnpmStructureDetect(func(data []byte) (lockfile.Detection, bool) {
+		doc, err := Decode(data)
+		if err != nil {
+			return lockfile.Detection{}, false
+		}
+		return DetectFromDocument(doc)
+	})
 }
