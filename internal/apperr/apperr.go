@@ -10,53 +10,59 @@ import (
 type Code string
 
 const (
-	OK            Code = "ERR_M_OK"
-	Usage         Code = "ERR_M_USAGE"
-	Cancelled     Code = "ERR_M_CANCELLED"
-	Internal      Code = "ERR_M_INTERNAL"
-	InternalPanic Code = "ERR_M_INTERNAL_PANIC"
-	IO            Code = "ERR_M_IO"
-	Config        Code = "ERR_M_CONFIG"
-	Network       Code = "ERR_M_NETWORK"
-	Integrity     Code = "ERR_M_INTEGRITY"
-	Lockfile      Code = "ERR_M_LOCKFILE"
-	Unimplemented Code = "ERR_M_UNIMPLEMENTED"
-	Manifest      Code = "ERR_M_MANIFEST"
-	NotFound      Code = "ERR_M_NOT_FOUND"
-	Resolve       Code = "ERR_M_RESOLVE"
-	Install       Code = "ERR_M_INSTALL"
-	Transaction   Code = "ERR_M_TRANSACTION"
-	Store         Code = "ERR_M_STORE"
-	Policy        Code = "ERR_M_POLICY"
+	OK                  Code = "ERR_M_OK"
+	Usage               Code = "ERR_M_USAGE"
+	Cancelled           Code = "ERR_M_CANCELLED"
+	Internal            Code = "ERR_M_INTERNAL"
+	InternalPanic       Code = "ERR_M_INTERNAL_PANIC"
+	IO                  Code = "ERR_M_IO"
+	Config              Code = "ERR_M_CONFIG"
+	Network             Code = "ERR_M_NETWORK"
+	Integrity           Code = "ERR_M_INTEGRITY"
+	Lockfile            Code = "ERR_M_LOCKFILE"
+	LockUnsupported     Code = "ERR_M_LOCK_UNSUPPORTED"
+	LockAmbiguous       Code = "ERR_M_LOCK_AMBIGUOUS"
+	LockUnrepresentable Code = "ERR_M_LOCK_UNREPRESENTABLE"
+	Unimplemented       Code = "ERR_M_UNIMPLEMENTED"
+	Manifest            Code = "ERR_M_MANIFEST"
+	NotFound            Code = "ERR_M_NOT_FOUND"
+	Resolve             Code = "ERR_M_RESOLVE"
+	Install             Code = "ERR_M_INSTALL"
+	Transaction         Code = "ERR_M_TRANSACTION"
+	Store               Code = "ERR_M_STORE"
+	Policy              Code = "ERR_M_POLICY"
 )
 
 // registry maps every published code to a process exit status.
 var registry = map[Code]int{
-	OK:            0,
-	Usage:         2,
-	Cancelled:     130,
-	Internal:      1,
-	InternalPanic: 1,
-	IO:            1,
-	Config:        1,
-	Network:       1,
-	Integrity:     1,
-	Lockfile:      1,
-	Unimplemented: 1,
-	Manifest:      1,
-	NotFound:      1,
-	Resolve:       1,
-	Install:       1,
-	Transaction:   1,
-	Store:         1,
-	Policy:        1,
+	OK:                  0,
+	Usage:               2,
+	Cancelled:           130,
+	Internal:            1,
+	InternalPanic:       1,
+	IO:                  1,
+	Config:              1,
+	Network:             1,
+	Integrity:           1,
+	Lockfile:            1,
+	LockUnsupported:     1,
+	LockAmbiguous:       1,
+	LockUnrepresentable: 1,
+	Unimplemented:       1,
+	Manifest:            1,
+	NotFound:            1,
+	Resolve:             1,
+	Install:             1,
+	Transaction:         1,
+	Store:               1,
+	Policy:              1,
 }
 
 // AllCodes returns registered codes in a stable order for docs and tests.
 func AllCodes() []Code {
 	return []Code{
 		OK, Usage, Cancelled, Internal, InternalPanic,
-		IO, Config, Network, Integrity, Lockfile, Unimplemented,
+		IO, Config, Network, Integrity, Lockfile, LockUnsupported, LockAmbiguous, LockUnrepresentable, Unimplemented,
 		Manifest, NotFound, Resolve, Install, Transaction, Store, Policy,
 	}
 }

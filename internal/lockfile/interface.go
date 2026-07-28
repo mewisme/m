@@ -33,8 +33,57 @@ type LossReport struct {
 	Extensions    Extensions `json:"extensions,omitempty"`
 }
 
+// DetectionConfidence classifies producer-major certainty.
+type DetectionConfidence string
+
+const (
+	DetectionCertain  DetectionConfidence = "certain"
+	DetectionInferred DetectionConfidence = "inferred"
+)
+
+// Detection records incumbent lock format and producer generation.
+type Detection struct {
+	Format        string // pnpm-v6 | pnpm-v9 | pnpm-v10 | pnpm-v11 | nub
+	ProducerMajor int    // 0 for v6/nub when not tied to a pnpm major
+	Confidence    DetectionConfidence
+	Evidence      []string
+	ExplicitMajor bool // true when --pnpm-major disambiguates v9-shaped locks
+}
+
+// Certified reports whether detection is strong enough for incumbent encode/write.
+func (d Detection) Certified() bool {
+	if d.Format == "nub" || d.Format == "pnpm-v6" {
+		return true
+	}
+	if d.ExplicitMajor && d.ProducerMajor >= 9 && d.ProducerMajor <= 11 {
+		return true
+	}
+	return d.Confidence == DetectionCertain
+}
+
+// WriteResult is the outcome of EncodePreserving. Adapters never touch live paths.
+type WriteResult struct {
+	Unchanged bool
+	Bytes     []byte
+}
+
 // LockfileAdapter reads and writes lockfiles via the canonical graph.
 type LockfileAdapter interface {
 	Read(ctx context.Context, path string) (*graph.Graph, error)
 	Write(ctx context.Context, path string, g *graph.Graph) error
+}
+
+// ExtensibleAdapter preserves format-specific extensions and supports byte-preserving writes.
+type ExtensibleAdapter interface {
+	LockfileAdapter
+	ReadWithExtensions(ctx context.Context, path string) (*graph.Graph, Extensions, error)
+	// WritePreserving returns nil without writing when the graph is unchanged (caller stages prior bytes).
+	// Returns RepresentabilityError (+ LossReport) when mutation is lossy or unsupported.
+	WritePreserving(ctx context.Context, path string, g *graph.Graph, prior []byte, ext Extensions, det Detection) error
+	LossFromDocument(ctx context.Context, prior []byte) (LossReport, error)
+}
+
+// PreservingEncoder encodes incumbent locks without writing live paths (install txn staging).
+type PreservingEncoder interface {
+	EncodePreserving(ctx context.Context, path string, g *graph.Graph, prior []byte, ext Extensions, det Detection) (WriteResult, error)
 }
