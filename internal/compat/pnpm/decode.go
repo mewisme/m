@@ -23,9 +23,16 @@ var knownTopLevel = map[string]struct{}{
 
 // Decode parses pnpm lock YAML into a Document.
 func Decode(data []byte) (*Document, error) {
+	if err := validateLockInput(data); err != nil {
+		return nil, err
+	}
 	var root yaml.Node
 	if err := yaml.Unmarshal(data, &root); err != nil {
 		return nil, apperr.Wrap(apperr.Lockfile, "pnpm.decode", "pnpm-lock.yaml", err)
+	}
+	entries := 0
+	if err := validateYAMLStructure(&root, 0, &entries); err != nil {
+		return nil, err
 	}
 	if root.Kind != yaml.DocumentNode || len(root.Content) == 0 {
 		return nil, apperr.New(apperr.Lockfile, "pnpm.decode", "pnpm-lock.yaml", "empty document")
@@ -33,6 +40,9 @@ func Decode(data []byte) (*Document, error) {
 	mapNode := root.Content[0]
 	if mapNode.Kind != yaml.MappingNode {
 		return nil, apperr.New(apperr.Lockfile, "pnpm.decode", "pnpm-lock.yaml", "expected mapping")
+	}
+	if err := checkMappingKeys(mapNode, "pnpm-lock.yaml"); err != nil {
+		return nil, err
 	}
 
 	doc := &Document{
@@ -96,6 +106,23 @@ func decodeImporters(node *yaml.Node, doc *Document) error {
 				sec.Dependencies = decodeDepMap(depNode)
 			case "devDependencies":
 				sec.DevDependencies = decodeDepMap(depNode)
+			case "optionalDependencies":
+				sec.OptionalDependencies = decodeDepMap(depNode)
+			case "dependenciesMeta":
+				sec.DependenciesMeta = nodeToMap(depNode)
+			case "publishDirectory":
+				if depNode.Kind == yaml.ScalarNode {
+					sec.PublishDirectory = depNode.Value
+				}
+			default:
+				raw, err := nodeToRawJSON(depNode)
+				if err != nil {
+					return apperr.Wrap(apperr.Lockfile, "pnpm.decode", "importers."+id+"."+depKind, err)
+				}
+				if sec.Extra == nil {
+					sec.Extra = map[string]json.RawMessage{}
+				}
+				sec.Extra[depKind] = raw
 			}
 		}
 		doc.Importers[id] = sec
@@ -198,9 +225,12 @@ func nodeToAny(node *yaml.Node) any {
 	if node == nil {
 		return nil
 	}
+	if node.Kind == yaml.AliasNode {
+		return nil
+	}
 	switch node.Kind {
 	case yaml.ScalarNode:
-		return node.Value
+		return scalarToAny(node)
 	case yaml.MappingNode:
 		return nodeToMap(node)
 	case yaml.SequenceNode:
