@@ -30,20 +30,13 @@ func SelectPolicy(det lockfile.Detection) Policy {
 }
 
 // DetectFromDocument applies policy-owned structural detection to a parsed document.
+// ponytail: structural fields are encode-only hints; they never certify producer major.
 func DetectFromDocument(doc *Document) (lockfile.Detection, bool) {
 	if doc == nil {
 		return lockfile.Detection{}, false
 	}
 	if IsLegacyUnsupported(doc) {
 		return LegacyClassifier(doc)
-	}
-	if !hasV9Shape(doc) {
-		return lockfile.Detection{}, false
-	}
-	for _, p := range []Policy{v11Policy{}, v10Policy{}, v9Policy{}} {
-		if det, ok := p.DetectFromStructure(doc); ok {
-			return det, true
-		}
 	}
 	return lockfile.Detection{}, false
 }
@@ -82,18 +75,8 @@ func (v10Policy) StructuralEvidence(doc *Document) []string {
 	}
 	return out
 }
-func (v10Policy) DetectFromStructure(doc *Document) (lockfile.Detection, bool) {
-	if !hasV9Shape(doc) {
-		return lockfile.Detection{}, false
-	}
-	ev := v10Policy{}.StructuralEvidence(doc)
-	if len(ev) == 0 {
-		return lockfile.Detection{}, false
-	}
-	return lockfile.Detection{
-		Format: FormatV10, ProducerMajor: v10.Major, Confidence: lockfile.DetectionInferred,
-		Evidence: append([]string{"lockfileVersion=" + v10.LockfileVersion}, ev...),
-	}, true
+func (v10Policy) DetectFromStructure(_ *Document) (lockfile.Detection, bool) {
+	return lockfile.Detection{}, false
 }
 func (v10Policy) ApplyPackageEncodeFields(entry PackageEntry, m map[string]any) {
 	if entry.Checksum != "" {
@@ -118,18 +101,8 @@ func (v11Policy) StructuralEvidence(doc *Document) []string {
 	}
 	return nil
 }
-func (v11Policy) DetectFromStructure(doc *Document) (lockfile.Detection, bool) {
-	if !hasV9Shape(doc) {
-		return lockfile.Detection{}, false
-	}
-	ev := v11Policy{}.StructuralEvidence(doc)
-	if len(ev) == 0 {
-		return lockfile.Detection{}, false
-	}
-	return lockfile.Detection{
-		Format: FormatV11, ProducerMajor: v11.Major, Confidence: lockfile.DetectionInferred,
-		Evidence: append([]string{"lockfileVersion=" + v11.LockfileVersion}, ev...),
-	}, true
+func (v11Policy) DetectFromStructure(_ *Document) (lockfile.Detection, bool) {
+	return lockfile.Detection{}, false
 }
 func (v11Policy) ApplyPackageEncodeFields(entry PackageEntry, m map[string]any) {
 	if entry.BuildPolicy != nil {

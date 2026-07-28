@@ -44,8 +44,8 @@ func TestDetectPnpmFixtures(t *testing.T) {
 		conf   lockfile.DetectionConfidence
 	}{
 		{"v9", "pnpm-v9", 0, lockfile.DetectionInferred},
-		{"v10", "pnpm-v10", 10, lockfile.DetectionInferred},
-		{"v11", "pnpm-v11", 11, lockfile.DetectionInferred},
+		{"v10", "pnpm-v9", 0, lockfile.DetectionInferred},
+		{"v11", "pnpm-v9", 0, lockfile.DetectionInferred},
 	}
 	for _, tc := range cases {
 		data, err := os.ReadFile(filepath.Join(root, tc.dir, "pnpm-lock.yaml"))

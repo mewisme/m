@@ -93,8 +93,8 @@ func TestDetectPnpmV10StructuralEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if det.Format != "pnpm-v10" {
-		t.Fatalf("format=%s", det.Format)
+	if det.ProducerMajor != 0 {
+		t.Fatalf("structural fields must not certify major; got %+v", det)
 	}
 }
 
@@ -104,8 +104,8 @@ func TestDetectPnpmV11StructuralEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if det.Format != "pnpm-v11" {
-		t.Fatalf("format=%s", det.Format)
+	if det.ProducerMajor != 0 {
+		t.Fatalf("structural fields must not certify major; got %+v", det)
 	}
 }
 
