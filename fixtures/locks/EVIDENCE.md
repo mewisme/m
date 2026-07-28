@@ -1,21 +1,26 @@
-# Lock bridge evidence — Stabilization Pass 16
+# Lock bridge evidence — Stabilization Pass 17
 
-**Fetched:** 2026-07-28  
-**Baseline:** `be85cf2a582af01c468b38772f57e3eee02e80be`
+**Fetched:** 2026-07-29  
+**Baseline:** `073b1f1153113b909422b195b00b43f50c51c7b1`
 
 ## pnpm references
 
 | Major | Pinned version | Docs | Releases |
 |-------|----------------|------|----------|
 | 9 | 9.15.9 | https://pnpm.io/9.x | https://github.com/pnpm/pnpm/releases |
-| 10 | 10.14.0 | https://pnpm.io/10.x | https://github.com/pnpm/pnpm/releases |
-| 11 | 11.0.2 | https://pnpm.io/11.x | https://github.com/pnpm/pnpm/releases |
+| 10 | 10.34.5 | https://pnpm.io/10.x | https://github.com/pnpm/pnpm/releases |
+| 11 | 11.17.0 | https://pnpm.io/11.x | https://github.com/pnpm/pnpm/releases |
 
+Pins resolved at generation time via `npm view pnpm@{9,10,11} version`.  
 Generation: `pwsh tools/conformance/generate-lock-fixtures.ps1 -Generate`  
-Pins: `tools/conformance/pnpm-versions.env`  
-Families per major: `basic`, `transitive`, `optional`, `peer-context`, `multi-version`, `scoped`, `workspace`, `catalog`, `override`, `platform`, `importer-meta`.
+Verification: `go run ./tools/conformance/verify-fixtures` (CI job `fixture-verify`)  
+Pins file: `tools/conformance/pnpm-versions.env` (CI sources versions from here, not hardcoded YAML)
 
-Each `fixtures/locks/generated/pnpm-{9,10,11}/{family}/metadata.json` records the exact `corepack prepare` + `pnpm install --lockfile-only` command.
+Families per major: `basic`, `transitive`, `optional`, `peer-context`, `multi-version`, `scoped`, `workspace`, `catalog`, `override`, `platform`, `importer-meta`, `alias`, `patch`, `binary`.
+
+`transitive` uses `chalk@4.1.2` so snapshot edges include real transitive deps (`ansi-styles`, etc.).
+
+Each `fixtures/locks/generated/pnpm-{9,10,11}/{family}/metadata.json` records the exact `corepack prepare` + `pnpm install --lockfile-only` command and SHA-256 of the committed lockfile.
 
 Legacy v5–v8 locks live under `fixtures/locks/pnpm/unsupported/` for rejection tests only.
 
@@ -24,24 +29,43 @@ Legacy v5–v8 locks live under `fixtures/locks/pnpm/unsupported/` for rejection
 | Item | Source |
 |------|--------|
 | Lock layout | pnpm v9-shaped YAML in `nub.lock` |
-| Site | https://nubjs.com |
-| Fixtures | `fixtures/locks/generated/nub-{basic,transitive,workspace,catalog,peer,optional}/` derived from pnpm-9 binary output + `nubVersion` marker |
+| Site | https://nubjs.com (fetched 2026-07-29) |
+| Upstream engine | aube (Rust resolver/linker per nubjs.com docs) |
+| Frozen behavior | `nub install --frozen-lockfile` documented as pnpm-flag-compatible |
+| Fixtures | `fixtures/locks/generated/nub-{basic,transitive,workspace,catalog,peer,optional}/` |
 
 Nub adapter selects pnpm encode policy from incumbent `nub.lock` bytes via `DetectPnpmWithContext`, not a hardcoded v9 writer.
 
-## Detection policy (Pass 16)
+### Evidence levels
 
-1. `package.json` `packageManager` (majors 9/10/11 only; ranges/tags rejected)
+| Level | Families | What CI proves |
+|-------|----------|----------------|
+| **Derived-format** | `nub-workspace` | Metadata + lock bytes present; workspace `link:` edges not yet graph-validated |
+| **Parse + validate** | `nub-basic`, `nub-transitive`, `nub-catalog`, `nub-peer`, `nub-optional` | `ReadWithExtensions` + `m lock validate --json` |
+| **Executable (deferred)** | all | `conformance-nub-exec` not wired — requires `nub` binary in CI; residual risk documented |
+
+## Detection policy (Pass 17)
+
+1. `package.json` `packageManager` (exact majors 9/10/11 only; bare `pnpm` → no major evidence)
 2. `devEngines.packageManager`
 3. `--pnpm-major` / `InstallOptions.PnpmMajor`
 4. Adapter-recorded metadata in lock extensions
-5. Generation-specific structural evidence (policy-owned)
+5. Structural evidence at `DetectionInferred` at best (no certain major from lock shape alone)
 6. Else ambiguous (`DetectionInferred`, fail closed on write)
 
 Manifest vs flag conflict → `DetectionConflictError`.
 
 ## Conformance
 
-CI jobs: `conformance-pnpm-{9,10,11}` (parse + mutation + frozen), `conformance-pnpm-unsupported`, `conformance-nub-fixtures`.
+CI jobs: `fixture-verify`, `conformance-pnpm-{9,10,11}` (parse + `MutationSuite`), `conformance-pnpm-unsupported`, `conformance-nub-fixtures`.
 
-Mutation suite: Mew install txn add → lock bytes change → `m lock validate --frozen` → pnpm `--frozen-lockfile --lockfile-only` accepts Mew-written lock → repeat deterministic → commit interrupt restores incumbent.
+Mutation suite (per major × `basic|transitive|optional|peer-context|workspace`):
+
+1. Mew add/update/remove via install txn
+2. `m lock validate --frozen`
+3. Pinned pnpm `install --frozen-lockfile --ignore-scripts` (full install, **no** `--lockfile-only`) — strict byte hash
+4. `node_modules` + Node `require()` import script
+5. Repeat Mew frozen install → deterministic bytes
+6. Commit-interrupt → incumbent bytes restored
+
+All non-race CI jobs run with `CGO_ENABLED=0`.
