@@ -24,6 +24,7 @@ const (
 	LockAmbiguous       Code = "ERR_M_LOCK_AMBIGUOUS"
 	LockUnrepresentable Code = "ERR_M_LOCK_UNREPRESENTABLE"
 	Unimplemented       Code = "ERR_M_UNIMPLEMENTED"
+	Unsupported         Code = "ERR_M_UNSUPPORTED"
 	Manifest            Code = "ERR_M_MANIFEST"
 	NotFound            Code = "ERR_M_NOT_FOUND"
 	Resolve             Code = "ERR_M_RESOLVE"
@@ -50,6 +51,7 @@ var registry = map[Code]int{
 	LockAmbiguous:       1,
 	LockUnrepresentable: 1,
 	Unimplemented:       1,
+	Unsupported:         1,
 	Manifest:            1,
 	NotFound:            1,
 	Resolve:             1,
@@ -64,7 +66,7 @@ var registry = map[Code]int{
 func AllCodes() []Code {
 	return []Code{
 		OK, Usage, Cancelled, Internal, InternalPanic,
-		IO, Config, Network, Integrity, Lockfile, LockUnsupported, LockAmbiguous, LockUnrepresentable, Unimplemented,
+		IO, Config, Network, Integrity, Lockfile, LockUnsupported, LockAmbiguous, LockUnrepresentable, Unimplemented, Unsupported,
 		Manifest, NotFound, Resolve, Install, Transaction, Store, Policy, PNPUnsupported,
 	}
 }

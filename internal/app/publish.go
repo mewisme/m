@@ -16,7 +16,7 @@ import (
 	"github.com/mewisme/mew/internal/registry"
 )
 
-// ProvenanceAttest is an optional publish provenance hook (no-op when nil).
+// ProvenanceAttest is the publish provenance provider hook; required when --provenance is set.
 type ProvenanceAttest func(ctx context.Context, meta PublishMeta) ([]byte, error)
 
 // PublishMeta is input to the provenance hook.
@@ -104,6 +104,9 @@ func Publish(ctx context.Context, ac *Context, opts PublishOptions) (PublishResu
 	access := opts.Access
 	if access != "" && access != "public" && access != "restricted" {
 		return PublishResult{}, apperr.New(apperr.Usage, "app.publish", "access", `must be "public" or "restricted"`)
+	}
+	if opts.Provenance && opts.ProvenanceAttest == nil {
+		return PublishResult{}, apperr.New(apperr.Unsupported, "app.publish", "provenance", "no provenance provider configured")
 	}
 
 	tarball, err := pack.TarballBytes(tgzPath)
