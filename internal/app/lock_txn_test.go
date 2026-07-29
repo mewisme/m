@@ -418,3 +418,92 @@ func TestMigratePublicationInterruptPreservesSource(t *testing.T) {
 		t.Fatal("failed migration publication must preserve source lock")
 	}
 }
+
+func TestInstallTxnAliasLockPreservesIncumbentOnEncodeFailure(t *testing.T) {
+	ac, proj := testIncumbentProject(t, "pnpm-lock.yaml")
+	const aliasLock = `lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      my-lodash:
+        specifier: npm:lodash@4.17.21
+        version: lodash@4.17.21
+packages:
+  lodash@4.17.21:
+    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+snapshots:
+  lodash@4.17.21: {}
+`
+	if err := os.WriteFile(filepath.Join(proj, "pnpm-lock.yaml"), []byte(aliasLock), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before := []byte(aliasLock)
+	SetWriteStagedExtLockTestHook(func() error {
+		return apperr.New(apperr.Lockfile, "test.encode", "pnpm-lock.yaml", "injected alias encode failure")
+	})
+	t.Cleanup(func() { SetWriteStagedExtLockTestHook(nil) })
+	_, err := Install(context.Background(), ac, InstallOptions{PnpmMajor: 9})
+	if err == nil {
+		t.Fatal("expected encode failure")
+	}
+	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
+}
+
+func TestInstallTxnWorkspaceLockPreservesIncumbentOnCommitFailure(t *testing.T) {
+	testkit.CleanEnv(t)
+	home := t.TempDir()
+	proj := filepath.Join(home, "proj")
+	pkgA := filepath.Join(proj, "packages", "pkg-a")
+	if err := os.MkdirAll(pkgA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	wsLock := `lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      pkg-a:
+        specifier: workspace:*
+        version: link:packages/pkg-a
+  packages/pkg-a:
+    dependencies:
+      ms:
+        specifier: 2.1.3
+        version: 2.1.3
+packages:
+  ms@2.1.3:
+    resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+snapshots:
+  ms@2.1.3: {}
+`
+	if err := os.WriteFile(filepath.Join(proj, "package.json"), []byte(`{"name":"ws","version":"1.0.0","private":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(proj, "pnpm-workspace.yaml"), []byte("packages:\n  - packages/*\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgA, "package.json"), []byte(`{"name":"pkg-a","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(proj, "pnpm-lock.yaml"), []byte(wsLock), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loadOpts := config.LoadOptions{CWD: proj, ProjectRoot: proj}
+	eff, err := config.Load(context.Background(), loadOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ac := &Context{CWD: proj, Config: eff, ConfigLoadSpec: config.LoadSpecFromOptions(loadOpts)}
+	before := []byte(wsLock)
+	transaction.SetTestHook(func(phase string, _ int) error {
+		if phase == "commit" {
+			return apperr.New(apperr.Transaction, "test.hook", "", "injected commit failure")
+		}
+		return nil
+	})
+	t.Cleanup(func() { transaction.SetTestHook(nil) })
+	_, err = Install(context.Background(), ac, InstallOptions{Frozen: true, PnpmMajor: 9})
+	if err == nil {
+		t.Fatal("expected commit failure")
+	}
+	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
+}
