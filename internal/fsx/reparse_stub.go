@@ -4,8 +4,8 @@ package fsx
 
 import "errors"
 
-const IOReparseTagMountPoint = 0
-const IOReparseTagSymlink = 0
+const IOReparseTagMountPoint = 1
+const IOReparseTagSymlink = 2
 
 // ReparseTag reports no reparse tag on non-Windows platforms.
 func ReparseTag(path string) uint32 {
