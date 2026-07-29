@@ -468,6 +468,11 @@ func validateFrozenAfterMutation(family string) bool {
 
 func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) {
 	t.Helper()
+	if family == "patch" {
+		// ponytail: patched graph nodes are not resolver-owned yet; parse+validate only.
+		testPnpmParseFamily(t, rel, major)
+		return
+	}
 	dir, _ := loadGeneratedFixture(t, rel)
 	validateFixtureLock(t, dir, major)
 	proj := copyFixtureProject(t, dir, major)

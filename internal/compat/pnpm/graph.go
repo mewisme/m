@@ -334,6 +334,7 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 		}
 		doc.Snapshots[instanceKey] = snap
 	}
+	reconcilePriorPatchSnapshots(doc, prior)
 	return doc, nil
 }
 
@@ -549,4 +550,33 @@ func priorPatchSnapshotKey(prior *Document, baseKey string) string {
 		}
 	}
 	return ""
+}
+
+func reconcilePriorPatchSnapshots(doc, prior *Document) {
+	if prior == nil || doc == nil {
+		return
+	}
+	for _, im := range doc.Importers {
+		for _, deps := range []map[string]ImporterDep{im.Dependencies, im.DevDependencies, im.OptionalDependencies} {
+			for name, dep := range deps {
+				if !strings.Contains(dep.Version, "patch_hash=") {
+					continue
+				}
+				instanceKey := name + "@" + dep.Version
+				if _, ok := doc.Snapshots[instanceKey]; !ok {
+					if priorSnap, ok := prior.Snapshots[instanceKey]; ok {
+						doc.Snapshots[instanceKey] = priorSnap
+					} else {
+						doc.Snapshots[instanceKey] = map[string]any{}
+					}
+				}
+				baseKey := basePackageKeyFromInstance(instanceKey)
+				if _, ok := doc.Packages[baseKey]; !ok {
+					if prev, ok := prior.Packages[baseKey]; ok {
+						doc.Packages[baseKey] = prev
+					}
+				}
+			}
+		}
+	}
 }
