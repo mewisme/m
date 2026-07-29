@@ -17,6 +17,7 @@ func FuzzDecodePnpmLock(f *testing.F) {
 		filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "peer-context", "pnpm-lock.yaml"),
 		filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "alias", "pnpm-lock.yaml"),
 		filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "workspace", "pnpm-lock.yaml"),
+		filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "patch", "pnpm-lock.yaml"),
 		filepath.Join(root, "testdata", "lockfile", "fuzz", "duplicate-key.yaml"),
 		filepath.Join(root, "testdata", "lockfile", "fuzz", "oversize-marker.yaml"),
 	}
@@ -37,6 +38,8 @@ func FuzzValidatePackageKey(f *testing.F) {
 	for _, seed := range []string{
 		"lodash@4.17.21",
 		"acorn-jsx@5.3.2(acorn@8.18.0)",
+		"ms@2.1.3(patch_hash=abc)",
+		"react-dom@18.2.0(react@18.2.0)",
 		"link:packages/pkg-a",
 		"file:../local",
 	} {

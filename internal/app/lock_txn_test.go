@@ -449,6 +449,40 @@ snapshots:
 	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
 }
 
+func TestInstallTxnPatchLockPreservesIncumbentOnEncodeFailure(t *testing.T) {
+	ac, proj := testIncumbentProject(t, "pnpm-lock.yaml")
+	patchLock := `lockfileVersion: '9.0'
+patchedDependencies:
+  ms@2.1.3:
+    hash: ts3vzsn6djz7ihcowyzjb4qjla
+    path: patches/ms@2.1.3.patch
+importers:
+  .:
+    dependencies:
+      ms:
+        specifier: 2.1.3
+        version: 2.1.3(patch_hash=ts3vzsn6djz7ihcowyzjb4qjla)
+packages:
+  ms@2.1.3:
+    resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+snapshots:
+  ms@2.1.3(patch_hash=ts3vzsn6djz7ihcowyzjb4qjla): {}
+`
+	if err := os.WriteFile(filepath.Join(proj, "pnpm-lock.yaml"), []byte(patchLock), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before := []byte(patchLock)
+	SetWriteStagedExtLockTestHook(func() error {
+		return apperr.New(apperr.Lockfile, "test.encode", "pnpm-lock.yaml", "injected patch encode failure")
+	})
+	t.Cleanup(func() { SetWriteStagedExtLockTestHook(nil) })
+	_, err := Install(context.Background(), ac, InstallOptions{PnpmMajor: 9})
+	if err == nil {
+		t.Fatal("expected encode failure")
+	}
+	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
+}
+
 func TestInstallTxnWorkspaceLockPreservesIncumbentOnCommitFailure(t *testing.T) {
 	testkit.CleanEnv(t)
 	home := t.TempDir()
