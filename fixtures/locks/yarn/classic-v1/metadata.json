@@ -1,0 +1,22 @@
+{
+  "producer": "yarn",
+  "producerVersion": "1.22.22",
+  "producerMajor": 1,
+  "family": "classic-v1",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "executablePath": "yarn",
+  "executableArgs": [
+    "install",
+    "--ignore-scripts"
+  ],
+  "registry": "https://registry.yarnpkg.com",
+  "timestamp": "2026-07-29T23:15:00+07:00",
+  "classification": "generated",
+  "lockfileVersion": "1",
+  "lockfileSha256": "9889f238f7150083b00a879c97e042105d34d8fcccfefc36baaef77df84edf87",
+  "packageJsonSha256": "bd3047fb6796d9aae20f1d4eb0f303609b374f2776da87314e84e7ff19470a54",
+  "command": "yarn install --ignore-scripts",
+  "invocationId": "mvp0025-yarn-classic-v1"
+}

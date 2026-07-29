@@ -1,0 +1,22 @@
+{
+  "producer": "yarn",
+  "producerVersion": "4.9.2",
+  "producerMajor": 4,
+  "family": "berry-pnp-readonly",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "executablePath": "yarn",
+  "executableArgs": [
+    "install"
+  ],
+  "registry": "https://registry.yarnpkg.com",
+  "timestamp": "2026-07-29T23:15:00+07:00",
+  "classification": "generated",
+  "lockfileVersion": "8",
+  "lockfileSha256": "3e485c5ef4638ceb929bdef4c7a307109f8bd863dec2e5d4347486464b163cc5",
+  "packageJsonSha256": "8bdd36b28120bc1b089cff083fcf586cddf60fb8157723d4120176e3754c8dcb",
+  "command": "yarn install",
+  "invocationId": "mvp0025-yarn-berry-pnp-readonly",
+  "nodeLinker": "pnp"
+}

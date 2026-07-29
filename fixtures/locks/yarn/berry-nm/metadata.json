@@ -1,0 +1,22 @@
+{
+  "producer": "yarn",
+  "producerVersion": "4.9.2",
+  "producerMajor": 4,
+  "family": "berry-nm",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "executablePath": "yarn",
+  "executableArgs": [
+    "install"
+  ],
+  "registry": "https://registry.yarnpkg.com",
+  "timestamp": "2026-07-29T23:15:00+07:00",
+  "classification": "generated",
+  "lockfileVersion": "8",
+  "lockfileSha256": "b3cb0e9cb9e91420545db08e31f5c953768d8b3a6463ca3b631454b47d4e0c47",
+  "packageJsonSha256": "8985b681c66558d6b071ab095c5ce222ad1c6a08d031ef08023aba25f3e3c215",
+  "command": "yarn install",
+  "invocationId": "mvp0025-yarn-berry-nm",
+  "nodeLinker": "node-modules"
+}
