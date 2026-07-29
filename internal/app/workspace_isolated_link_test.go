@@ -101,3 +101,111 @@ func TestWorkspaceMutationAddIsolatedLink(t *testing.T) {
 		t.Fatalf("install: %v", err)
 	}
 }
+
+func TestWorkspaceMutationSecondInstallAfterBaseline(t *testing.T) {
+	testkit.CleanEnv(t)
+	testkit.EnableWorkspaces(t)
+	t.Setenv("MEW_RESOLVE_AUTO_INSTALL_PEERS", "1")
+
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Join(filepath.Dir(file), "..", "..")
+	src := filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "workspace")
+	proj := t.TempDir()
+	copyTree(t, src, proj)
+
+	pkgPath := filepath.Join(proj, "package.json")
+	if err := os.WriteFile(pkgPath, []byte(`{
+  "name": "fixture-workspace-root",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "dependencies": {
+    "pkg-a": "workspace:*"
+  }
+}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	loadOpts := config.LoadOptions{CWD: proj, ProjectRoot: proj}
+	eff, err := config.Load(context.Background(), loadOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ac := &app.Context{CWD: proj, Config: eff, ConfigLoadSpec: config.LoadSpecFromOptions(loadOpts)}
+
+	if _, err := app.Install(context.Background(), ac, app.InstallOptions{PnpmMajor: 9}); err != nil {
+		t.Fatalf("baseline install: %v", err)
+	}
+
+	if err := os.WriteFile(pkgPath, []byte(`{
+  "name": "fixture-workspace-root",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "dependencies": {
+    "pkg-a": "workspace:*",
+    "ms": "2.1.3"
+  }
+}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.Install(context.Background(), ac, app.InstallOptions{PnpmMajor: 9}); err != nil {
+		t.Fatalf("second install: %v", err)
+	}
+}
+
+func TestWorkspaceMutationUpdateMs(t *testing.T) {
+	testkit.CleanEnv(t)
+	testkit.EnableWorkspaces(t)
+	t.Setenv("MEW_RESOLVE_AUTO_INSTALL_PEERS", "1")
+
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Join(filepath.Dir(file), "..", "..")
+	src := filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "workspace")
+	proj := t.TempDir()
+	copyTree(t, src, proj)
+
+	pkgPath := filepath.Join(proj, "package.json")
+	if err := os.WriteFile(pkgPath, []byte(`{
+  "name": "fixture-workspace-root",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "dependencies": {
+    "pkg-a": "workspace:*",
+    "ms": "2.1.3"
+  }
+}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	loadOpts := config.LoadOptions{CWD: proj, ProjectRoot: proj}
+	eff, err := config.Load(context.Background(), loadOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ac := &app.Context{CWD: proj, Config: eff, ConfigLoadSpec: config.LoadSpecFromOptions(loadOpts)}
+
+	if _, err := app.Install(context.Background(), ac, app.InstallOptions{PnpmMajor: 9}); err != nil {
+		t.Fatalf("add install: %v", err)
+	}
+	if err := os.WriteFile(pkgPath, []byte(`{
+  "name": "fixture-workspace-root",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "dependencies": {
+    "pkg-a": "workspace:*",
+    "ms": "2.1.2"
+  }
+}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.Install(context.Background(), ac, app.InstallOptions{PnpmMajor: 9}); err != nil {
+		t.Fatalf("update install: %v", err)
+	}
+}

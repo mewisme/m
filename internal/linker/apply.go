@@ -69,6 +69,9 @@ func applyTree(src, dest string, fn fileApplyFn) error {
 	if src == "" || dest == "" {
 		return apperr.New(apperr.Internal, "linker.apply", "tree", "missing src or dest")
 	}
+	if err := os.RemoveAll(dest); err != nil {
+		return apperr.Wrap(apperr.IO, "linker.apply", dest, err)
+	}
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return apperr.Wrap(apperr.IO, "linker.apply", dest, err)
 	}
