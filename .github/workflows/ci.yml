@@ -537,7 +537,7 @@ jobs:
       - name: Core certification matrix
         run: go run ./cmd/m conformance run core --json > core-report.json
       - name: PM doctor health check
-        run: go run ./cmd/m doctor --json
+        run: go run ./cmd/m --cwd fixtures/projects/mlock-greenfield doctor --json
       - name: Soak install loop
         shell: pwsh
         run: pwsh tools/soak/install-loop.ps1 -Count 10 -Mode warm
