@@ -1,6 +1,7 @@
 # Direct and transitive modules allowed in go.mod / go.sum (one path per line).
 # Update this file in the same PR when adding a dependency.
 github.com/Masterminds/semver/v3
+github.com/bluekeyes/go-gitdiff
 github.com/cpuguy83/go-md2man/v2
 github.com/inconshreveable/mousetrap
 github.com/russross/blackfriday/v2
