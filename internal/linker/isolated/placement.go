@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
@@ -53,6 +54,9 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 	rootDeps := rootDependencyKeys(g)
 
 	for _, pl := range layout.Packages {
+		if strings.HasPrefix(pl.Key, "link:") {
+			continue
+		}
 		src, ok := extracts[pl.Key]
 		if !ok || src == "" {
 			return nil, apperr.New(apperr.Internal, "linker.isolated.plan", pl.Key, "missing extract dir")
@@ -94,6 +98,22 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 	for _, link := range layout.Aliases {
 		ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: filepath.Dir(link.Dest)})
 		ops = append(ops, planner.PlanDirAlias(link.Src, link.Dest, caps))
+	}
+	for _, e := range g.Edges {
+		if e.From != string(graph.RootImporter) || !strings.HasPrefix(e.To, "link:") {
+			continue
+		}
+		src, ok := extracts[e.To]
+		if !ok || src == "" {
+			return nil, apperr.New(apperr.Internal, "linker.isolated.plan", e.To, "missing extract dir for link protocol")
+		}
+		name := e.Name
+		if name == "" {
+			name = graph.TargetNameFromKey(e.To)
+		}
+		dest := filepath.Join(append([]string{nmRoot}, installSegments(name)...)...)
+		ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: filepath.Dir(dest)})
+		ops = append(ops, planner.PlanDirAlias(src, dest, caps))
 	}
 	sort.SliceStable(bins, func(i, j int) bool { return bins[i].Cmd < bins[j].Cmd })
 

@@ -450,25 +450,6 @@ func verifyStage(t *testing.T, proj, family, stage, addName, wantVersion string,
 	}
 }
 
-func peerContextMajor(proj string) int {
-	data, err := os.ReadFile(filepath.Join(proj, "package.json"))
-	if err != nil {
-		return 9
-	}
-	var doc map[string]any
-	if json.Unmarshal(data, &doc) != nil {
-		return 9
-	}
-	pm, _ := doc["packageManager"].(string)
-	if strings.HasPrefix(pm, "pnpm@11") {
-		return 11
-	}
-	if strings.HasPrefix(pm, "pnpm@10") {
-		return 10
-	}
-	return 9
-}
-
 func assertInstalledVersion(t *testing.T, proj, name, want string) {
 	t.Helper()
 	node, err := exec.LookPath("node")
@@ -621,9 +602,6 @@ func testPnpmParseFamily(t *testing.T, rel string, major int) {
 	validateFixtureLock(t, dir, major)
 	proj := copyFixtureProject(t, dir, major)
 	runLockValidateCLI(t, proj, major, true)
-	if strings.HasSuffix(rel, "/patch") {
-		return
-	}
 	setupIsolatedPnpmHome(t)
 	runPnpmFrozen(t, proj, major, "", true)
 }

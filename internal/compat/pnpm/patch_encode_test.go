@@ -45,7 +45,7 @@ func TestPatchFixtureSurvivesExtraDepEncode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const patchSnap = "ms@2.1.3(patch_hash=ts3vzsn6djz7ihcowyzjb4qjla)"
+	const patchSnap = "ms@2.1.3(patch_hash=qbeutzo35bwf2d244a4luocaf4)"
 	if _, ok := outDoc.Snapshots[patchSnap]; !ok {
 		t.Fatalf("missing patch snapshot; keys=%v", sortedSnapKeys(outDoc.Snapshots))
 	}

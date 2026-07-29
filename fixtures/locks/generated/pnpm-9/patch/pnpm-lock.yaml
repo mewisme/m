@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   ms@2.1.3:
-    hash: ts3vzsn6djz7ihcowyzjb4qjla
+    hash: qbeutzo35bwf2d244a4luocaf4
     path: patches/ms@2.1.3.patch
 
 importers:
@@ -15,7 +15,7 @@ importers:
     dependencies:
       ms:
         specifier: 2.1.3
-        version: 2.1.3(patch_hash=ts3vzsn6djz7ihcowyzjb4qjla)
+        version: 2.1.3(patch_hash=qbeutzo35bwf2d244a4luocaf4)
 
 packages:
 
@@ -24,4 +24,4 @@ packages:
 
 snapshots:
 
-  ms@2.1.3(patch_hash=ts3vzsn6djz7ihcowyzjb4qjla): {}
+  ms@2.1.3(patch_hash=qbeutzo35bwf2d244a4luocaf4): {}
