@@ -1,0 +1,22 @@
+{
+  "producer": "npm",
+  "producerVersion": "11.9.0",
+  "producerMajor": 11,
+  "family": "v3-workspaces",
+  "node": "v22",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "executablePath": "npm",
+  "executableArgs": [
+    "install",
+    "--package-lock-only"
+  ],
+  "registry": "https://registry.npmjs.org",
+  "timestamp": "2026-07-29T22:45:00+07:00",
+  "classification": "generated",
+  "lockfileVersion": "3",
+  "lockfileSha256": "08aa15d7cd0728fc04711a0b04bf5aabed351dad1ac2ee794ff0238f72df959c",
+  "packageJsonSha256": "573939a778d5d19ab0bf484af36efc9cecb2eb1a7050446295de83c2b85ae32b",
+  "command": "npm install --package-lock-only",
+  "invocationId": "mvp0024-v3-workspaces"
+}

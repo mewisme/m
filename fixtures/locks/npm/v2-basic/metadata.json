@@ -1,0 +1,23 @@
+{
+  "producer": "npm",
+  "producerVersion": "11.9.0",
+  "producerMajor": 11,
+  "family": "v2-basic",
+  "node": "v22",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "executablePath": "npm",
+  "executableArgs": [
+    "install",
+    "--package-lock-only",
+    "--lockfile-version=2"
+  ],
+  "registry": "https://registry.npmjs.org",
+  "timestamp": "2026-07-29T22:45:00+07:00",
+  "classification": "generated",
+  "lockfileVersion": "2",
+  "lockfileSha256": "baeb9f8589e744c98dec1fa173c870b26ce38035c2d5e5040abba2632a157cee",
+  "packageJsonSha256": "4f73c2f7511bd89defea7b74d645b7b85b4b61d2aeac5a9fdf13c382953d76c7",
+  "command": "npm install --package-lock-only --lockfile-version=2",
+  "invocationId": "mvp0024-v2-basic"
+}

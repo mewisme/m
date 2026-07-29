@@ -1,0 +1,1 @@
+{"name":"v3-workspaces","version":"1.0.0","private":true,"workspaces":["packages/*"],"dependencies":{"left-pad":"^1.0.0"}}
