@@ -17,7 +17,7 @@ import (
 
 // LockPath returns the incumbent lockfile path for a project.
 func LockPath(proj *project.Project) string {
-	name := project.LockFilename(proj.Identity)
+	name := project.IncumbentLockBasename(proj.Root, proj.Identity)
 	if name == "" {
 		return filepath.Join(proj.Root, "m.lock")
 	}
@@ -26,7 +26,7 @@ func LockPath(proj *project.Project) string {
 
 // IncumbentLockBasename returns the lockfile basename for project identity.
 func IncumbentLockBasename(proj *project.Project) string {
-	name := project.LockFilename(proj.Identity)
+	name := project.IncumbentLockBasename(proj.Root, proj.Identity)
 	if name == "" {
 		return "m.lock"
 	}
@@ -63,9 +63,9 @@ func WriteLock(ctx context.Context, ac *Context, res *resolver.Resolution) error
 			return err
 		}
 		return mlock.WriteAtomic(LockPath(proj), doc)
-	case project.IdentityNub, project.IdentityPNPM:
-		return lockfile.NewUnsupported("lock.write", project.LockFilename(proj.Identity),
-			"incumbent nub/pnpm locks must be written via install transaction; use m install")
+	case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM:
+		return lockfile.NewUnsupported("lock.write", project.IncumbentLockBasename(proj.Root, proj.Identity),
+			"incumbent lock must be written via install transaction; use m install")
 	default:
 		return lockfile.NewUnsupported("lock.write", string(proj.Identity), "lock adapter not implemented")
 	}

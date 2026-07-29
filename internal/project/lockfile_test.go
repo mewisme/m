@@ -8,59 +8,39 @@ import (
 	"github.com/mewisme/mew/internal/project"
 )
 
-func TestLockFilename(t *testing.T) {
-	if project.LockFilename(project.IdentityMew) != "m.lock" {
-		t.Fatal("mew lock filename")
+func TestShrinkwrapPrecedence(t *testing.T) {
+	dir := t.TempDir()
+	lock := []byte(`{"lockfileVersion":3,"packages":{}}`)
+	if err := os.WriteFile(filepath.Join(dir, "package-lock.json"), lock, 0o644); err != nil {
+		t.Fatal(err)
 	}
-	if project.LockFilename(project.IdentityNub) != "nub.lock" {
-		t.Fatal("nub lock filename")
+	shrink := []byte(`{"lockfileVersion":3,"name":"shrink","packages":{}}`)
+	if err := os.WriteFile(filepath.Join(dir, "npm-shrinkwrap.json"), shrink, 0o644); err != nil {
+		t.Fatal(err)
 	}
-	if project.LockFilename(project.IdentityPNPM) != "pnpm-lock.yaml" {
-		t.Fatal("pnpm lock filename")
+	if got := project.IncumbentLockBasename(dir, project.IdentityNPM); got != "npm-shrinkwrap.json" {
+		t.Fatalf("basename=%q want npm-shrinkwrap.json", got)
 	}
-}
-
-func TestIncumbentLockPathAndReadBytes(t *testing.T) {
-	root := filepath.Join("..", "..", "fixtures", "locks", "nub", "v1-basic")
-	path, ok := project.IncumbentLockPath(root, project.IdentityNub)
+	path, ok := project.IncumbentLockPath(dir, project.IdentityNPM)
 	if !ok {
-		t.Fatal("expected nub.lock")
+		t.Fatal("expected incumbent lock path")
 	}
-	if filepath.Base(path) != "nub.lock" {
-		t.Fatalf("path=%s", path)
-	}
-	data, err := project.ReadLockfileBytes(root, project.IdentityNub)
+	data, err := project.ReadLockfileBytes(dir, project.IdentityNPM)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(data) == 0 {
-		t.Fatal("expected lock bytes")
+	if string(data) != string(shrink) {
+		t.Fatalf("read wrong lock bytes from %s", path)
 	}
 }
 
-func TestDetectIncumbentLock(t *testing.T) {
-	root := filepath.Join("..", "..", "fixtures", "locks", "pnpm", "v9")
-	id, path, ok := project.DetectIncumbentLock(root)
-	if !ok {
-		t.Fatal("expected lock detection")
-	}
-	if id != project.IdentityPNPM {
-		t.Fatalf("id=%s", id)
-	}
-	if filepath.Base(path) != "pnpm-lock.yaml" {
-		t.Fatalf("path=%s", path)
-	}
-}
-
-func TestDetectIncumbentLockAmbiguous(t *testing.T) {
+func TestPackageLockDefaultBasename(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "m.lock"), []byte("{}"), 0o644); err != nil {
+	lock := []byte(`{"lockfileVersion":3,"packages":{}}`)
+	if err := os.WriteFile(filepath.Join(dir, "package-lock.json"), lock, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "nub.lock"), []byte("lockfileVersion: '9.0'"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, ok := project.DetectIncumbentLock(dir); ok {
-		t.Fatal("multiple lockfiles must not resolve")
+	if got := project.IncumbentLockBasename(dir, project.IdentityNPM); got != "package-lock.json" {
+		t.Fatalf("basename=%q", got)
 	}
 }

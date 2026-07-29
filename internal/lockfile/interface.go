@@ -47,7 +47,7 @@ const (
 
 // Detection records incumbent lock format and producer generation.
 type Detection struct {
-	Format        string // pnpm-v9 | pnpm-v10 | pnpm-v11 | nub
+	Format        string // pnpm-v9 | pnpm-v10 | pnpm-v11 | npm-v2 | npm-v3 | nub
 	ProducerMajor int    // 9–11 for pnpm; 0 for nub when not tied to a pnpm major
 	Confidence    DetectionConfidence
 	Evidence      []string

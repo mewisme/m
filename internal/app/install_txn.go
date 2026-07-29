@@ -165,6 +165,9 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	if err := validatePnpmLockBeforeTxn(proj); err != nil {
 		return res, err
 	}
+	if err := validateNpmLockBeforeTxn(proj); err != nil {
+		return res, err
+	}
 
 	emitPhase(ac, "resolve", "")
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
@@ -421,6 +424,9 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 		return res, err
 	}
 	if err := validatePnpmLockBeforeTxn(proj); err != nil {
+		return res, err
+	}
+	if err := validateNpmLockBeforeTxn(proj); err != nil {
 		return res, err
 	}
 	emitPhase(ac, "resolve", "")
@@ -693,7 +699,7 @@ func writeStagedLock(stage string, ac *Context, proj *project.Project, res *reso
 	switch proj.Identity {
 	case project.IdentityMew:
 		return writeStagedMlock(stagePath, ac, proj, res, opts)
-	case project.IdentityNub, project.IdentityPNPM:
+	case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM:
 		return writeStagedExtLock(stagePath, proj, res, opts)
 	default:
 		return lockfile.NewUnsupported("app.install", lockName, "lock adapter not implemented for identity")
@@ -714,13 +720,13 @@ func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.R
 			return err
 		}
 	}
-	prior, err := project.ReadLockfileBytes(proj.Root, proj.Identity)
+	prior, err := readExtLockPrior(proj)
 	if err != nil {
 		return err
 	}
 	ext, ok := lockfile.ExtAdapterFor(proj.Identity)
 	if !ok {
-		return lockfile.NewUnsupported("app.install", project.LockFilename(proj.Identity), "adapter not registered")
+		return lockfile.NewUnsupported("app.install", project.IncumbentLockBasename(proj.Root, proj.Identity), "adapter not registered")
 	}
 	livePath := LockPath(proj)
 	var extensions lockfile.Extensions
@@ -738,6 +744,12 @@ func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.R
 	det := lockfile.Detection{}
 	if proj.Identity == project.IdentityPNPM {
 		det, err = detectPnpmLock(prior, proj, opts.PnpmMajor)
+		if err != nil {
+			return err
+		}
+	}
+	if proj.Identity == project.IdentityNPM {
+		det, err = detectNpmLock(prior)
 		if err != nil {
 			return err
 		}

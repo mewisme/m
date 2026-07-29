@@ -16,7 +16,7 @@ import (
 
 // MigrateLockOptions controls explicit lock migration to m.lock.
 type MigrateLockOptions struct {
-	From      string // nub|pnpm; empty uses project identity
+	From      string // nub|pnpm|npm; empty uses project identity
 	To        string // m
 	DryRun    bool
 	PnpmMajor int
@@ -136,6 +136,12 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 			return out, err
 		}
 	}
+	if fromID == project.IdentityNPM {
+		det, err = detectNpmLock(prior)
+		if err != nil {
+			return out, err
+		}
+	}
 	encodeRes, encErr := lockfile.EncodePreserving(ctx, mext, filepath.Join(proj.Root, "m.lock"), g, nil, nil, det)
 	if encErr != nil {
 		var rep *lockfile.RepresentabilityError
@@ -220,17 +226,19 @@ func resolveMigrateFrom(proj *project.Project, from string) (project.Identity, e
 	switch from {
 	case "":
 		switch proj.Identity {
-		case project.IdentityNub, project.IdentityPNPM:
+		case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM:
 			return proj.Identity, nil
 		default:
-			return "", apperr.New(apperr.Usage, "lock.migrate", string(proj.Identity), "project identity is not nub or pnpm")
+			return "", apperr.New(apperr.Usage, "lock.migrate", string(proj.Identity), "project identity is not nub, pnpm, or npm")
 		}
 	case "nub":
 		return project.IdentityNub, nil
 	case "pnpm":
 		return project.IdentityPNPM, nil
+	case "npm":
+		return project.IdentityNPM, nil
 	default:
-		return "", apperr.New(apperr.Usage, "lock.migrate", from, "expected --from nub or pnpm")
+		return "", apperr.New(apperr.Usage, "lock.migrate", from, "expected --from nub, pnpm, or npm")
 	}
 }
 
@@ -242,6 +250,8 @@ func lockIdentityFromBasename(name string) (project.Identity, bool) {
 		return project.IdentityNub, true
 	case "pnpm-lock.yaml":
 		return project.IdentityPNPM, true
+	case "package-lock.json", "npm-shrinkwrap.json":
+		return project.IdentityNPM, true
 	default:
 		return "", false
 	}
@@ -296,6 +306,17 @@ func ValidateIncumbentLock(ctx context.Context, ac *Context, opts ValidateLockOp
 		}
 		out.Detection = det
 	}
+	if proj.Identity == project.IdentityNPM {
+		prior, readErr := project.ReadLockfileBytes(proj.Root, proj.Identity)
+		if readErr != nil {
+			return out, readErr
+		}
+		det, derr := detectNpmLock(prior)
+		if derr != nil {
+			return out, derr
+		}
+		out.Detection = det
+	}
 	if opts.Frozen {
 		if err := validateFrozenLockForProject(ctx, ac, proj); err != nil {
 			return out, err
@@ -312,6 +333,8 @@ func detectIncumbentLock(proj *project.Project) (lockfile.Detection, error) {
 	switch proj.Identity {
 	case project.IdentityPNPM:
 		return detectPnpmLock(prior, proj, 0)
+	case project.IdentityNPM:
+		return detectNpmLock(prior)
 	case project.IdentityNub:
 		det, err := detectPnpmLock(prior, proj, 0)
 		if err != nil {

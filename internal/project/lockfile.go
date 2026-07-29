@@ -7,7 +7,23 @@ import (
 	"github.com/mewisme/mew/internal/apperr"
 )
 
-// LockFilename returns the incumbent lockfile basename for identity.
+const (
+	packageLockJSON   = "package-lock.json"
+	npmShrinkwrapJSON = "npm-shrinkwrap.json"
+)
+
+// IncumbentLockBasename returns the actual lock basename for identity at root.
+func IncumbentLockBasename(root string, id Identity) string {
+	if id == IdentityNPM {
+		shrink := filepath.Join(root, npmShrinkwrapJSON)
+		if _, err := os.Stat(shrink); err == nil {
+			return npmShrinkwrapJSON
+		}
+	}
+	return LockFilename(id)
+}
+
+// LockFilename returns the default lockfile basename for identity.
 func LockFilename(id Identity) string {
 	switch id {
 	case IdentityMew:
@@ -17,7 +33,7 @@ func LockFilename(id Identity) string {
 	case IdentityPNPM:
 		return "pnpm-lock.yaml"
 	case IdentityNPM:
-		return "package-lock.json"
+		return packageLockJSON
 	case IdentityYarn:
 		return "yarn.lock"
 	case IdentityBun:
@@ -29,7 +45,7 @@ func LockFilename(id Identity) string {
 
 // IncumbentLockPath returns the absolute incumbent lock path when the file exists.
 func IncumbentLockPath(root string, id Identity) (string, bool) {
-	name := LockFilename(id)
+	name := IncumbentLockBasename(root, id)
 	if name == "" {
 		return "", false
 	}
@@ -54,7 +70,7 @@ func DetectIncumbentLock(root string) (Identity, string, bool) {
 func ReadLockfileBytes(root string, id Identity) ([]byte, error) {
 	path, ok := IncumbentLockPath(root, id)
 	if !ok {
-		return nil, apperr.New(apperr.NotFound, "project.lock.read", LockFilename(id), "lockfile not found")
+		return nil, apperr.New(apperr.NotFound, "project.lock.read", IncumbentLockBasename(root, id), "lockfile not found")
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {

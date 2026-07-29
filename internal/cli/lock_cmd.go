@@ -174,7 +174,7 @@ func newLockMigrateCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:   "migrate",
-		Short: "Migrate nub or pnpm lock to m.lock",
+		Short: "Migrate nub, pnpm, or npm lock to m.lock",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ac := app.FromContext(cmd.Context())
@@ -205,7 +205,7 @@ func newLockMigrateCmd() *cobra.Command {
 			return err
 		},
 	}
-	cmd.Flags().StringVar(&from, "from", "", "source identity: nub or pnpm (default: project identity)")
+	cmd.Flags().StringVar(&from, "from", "", "source identity: nub, pnpm, or npm (default: project identity)")
 	cmd.Flags().StringVar(&to, "to", "m", "target format (only m is supported)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "emit loss report without writing m.lock")
 	cmd.Flags().IntVar(&pnpmMajor, "pnpm-major", 0, "disambiguate v9-shaped pnpm locks (9, 10, or 11)")
