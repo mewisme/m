@@ -366,10 +366,6 @@ func graphHasPackage(g *lockfile.Graph, id string) bool {
 
 func verifyNodeModulesGraph(t *testing.T, proj, family string) {
 	t.Helper()
-	if family == "workspace" {
-		// ponytail: workspace locals resolve in lock; node_modules link parity deferred.
-		return
-	}
 	node, err := exec.LookPath("node")
 	if err != nil {
 		t.Skip("node not on PATH")
@@ -386,6 +382,85 @@ func verifyNodeModulesGraph(t *testing.T, proj, family string) {
 	nm := filepath.Join(proj, "node_modules")
 	if _, err := os.Stat(nm); err != nil {
 		t.Fatalf("missing node_modules: %v", err)
+	}
+	if family == "workspace" {
+		verifyWorkspaceLink(t, proj)
+	}
+}
+
+func verifyWorkspaceLink(t *testing.T, proj string) {
+	t.Helper()
+	linkPath := filepath.Join(proj, "node_modules", "pkg-a")
+	info, err := os.Lstat(linkPath)
+	if err != nil {
+		t.Fatalf("missing workspace link pkg-a: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 && info.Mode()&os.ModeDir == 0 {
+		t.Fatalf("pkg-a is not a link or directory: mode=%v", info.Mode())
+	}
+}
+
+func verifyStage(t *testing.T, proj, family, stage, addName, wantVersion string) {
+	t.Helper()
+	verifyNodeModulesGraph(t, proj, family)
+	if family == "peer-context" {
+		major := peerContextMajor(proj)
+		assertPeerContextGraph(t, proj, major)
+	}
+	switch stage {
+	case "update":
+		if wantVersion != "" {
+			assertInstalledVersion(t, proj, addName, wantVersion)
+		}
+	case "remove":
+		removedPath := filepath.Join(proj, "node_modules", addName)
+		if _, err := os.Stat(removedPath); err == nil {
+			t.Fatalf("remove stage: %q still present in node_modules", addName)
+		}
+		node, err := exec.LookPath("node")
+		if err != nil {
+			t.Skip("node not on PATH")
+		}
+		script := fmt.Sprintf("try { require(%q); process.exit(1) } catch { console.log('ok') }", addName)
+		cmd := exec.Command(node, "-e", script)
+		cmd.Dir = proj
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("remove stage import still works for %q: %v\n%s", addName, err, out)
+		}
+	}
+}
+
+func peerContextMajor(proj string) int {
+	data, err := os.ReadFile(filepath.Join(proj, "package.json"))
+	if err != nil {
+		return 9
+	}
+	var doc map[string]any
+	if json.Unmarshal(data, &doc) != nil {
+		return 9
+	}
+	pm, _ := doc["packageManager"].(string)
+	if strings.HasPrefix(pm, "pnpm@11") {
+		return 11
+	}
+	if strings.HasPrefix(pm, "pnpm@10") {
+		return 10
+	}
+	return 9
+}
+
+func assertInstalledVersion(t *testing.T, proj, name, want string) {
+	t.Helper()
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not on PATH")
+	}
+	script := fmt.Sprintf("const v=require(%q+'/package.json').version; if(v!==%q) { console.error(v); process.exit(1) }", name, want)
+	cmd := exec.Command(node, "-e", script)
+	cmd.Dir = proj
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("installed version for %q want %q: %v\n%s", name, want, err, out)
 	}
 }
 
@@ -406,7 +481,9 @@ func importScriptsForFamily(family string) []string {
 	case "alias":
 		return []string{"require('my-lodash'); console.log('ok')"}
 	case "patch":
-		return []string{"require('ms'); console.log('ok')"}
+		return []string{
+			"const ms=require('ms'); if(ms()!=='ms-patched') process.exit(1); console.log('ok')",
+		}
 	default:
 		return []string{"console.log('ok')"}
 	}
@@ -421,15 +498,6 @@ func setupMutationEnv(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("MEW_HOME", home)
 	setupIsolatedPnpmHome(t)
-}
-
-func runPnpmFrozenAfterMutation(t *testing.T, projDir string, major int, family, stage string) {
-	t.Helper()
-	switch family {
-	case "peer-context", "workspace", "patch":
-		return
-	}
-	runPnpmFrozen(t, projDir, major, "", true)
 }
 
 func mutationAddDep(family string) (name, version string) {
@@ -454,25 +522,8 @@ func mutationUpdateVersion(name, version string) string {
 	}
 }
 
-func validateFrozenAfterMutation(family string) bool {
-	// ponytail: peer-context auto-installed peers can leave root importer graph ranges
-	// without manifest specifiers until resolver peer policy converges with frozen validate.
-	// workspace/patch mutations can diverge from pnpm frozen until linker/workspace parity lands.
-	switch family {
-	case "peer-context", "workspace", "patch":
-		return false
-	default:
-		return true
-	}
-}
-
 func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) {
 	t.Helper()
-	if family == "patch" {
-		// ponytail: patched graph nodes are not resolver-owned yet; parse+validate only.
-		testPnpmParseFamily(t, rel, major)
-		return
-	}
 	dir, _ := loadGeneratedFixture(t, rel)
 	validateFixtureLock(t, dir, major)
 	proj := copyFixtureProject(t, dir, major)
@@ -485,21 +536,23 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	if afterAdd == before {
 		t.Fatal("add mutation must change lock bytes")
 	}
-	runLockValidateCLI(t, proj, major, validateFrozenAfterMutation(family))
+	runLockValidateCLI(t, proj, major, true)
 	stripPackageManager(t, proj)
-	runPnpmFrozenAfterMutation(t, proj, major, family, "add")
-	verifyNodeModulesGraph(t, proj, family)
+	runPnpmFrozen(t, proj, major, "", true)
+	verifyStage(t, proj, family, "add", addName, addVer)
 
 	// update mutation
-	mutateUpdateDependency(t, proj, addName, mutationUpdateVersion(addName, addVer))
+	updateVer := mutationUpdateVersion(addName, addVer)
+	mutateUpdateDependency(t, proj, addName, updateVer)
 	runMewInstall(t, proj, major)
 	afterUpdate := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
 	if afterUpdate == afterAdd {
 		t.Fatal("update mutation must change lock bytes")
 	}
-	runLockValidateCLI(t, proj, major, validateFrozenAfterMutation(family))
+	runLockValidateCLI(t, proj, major, true)
 	stripPackageManager(t, proj)
-	runPnpmFrozenAfterMutation(t, proj, major, family, "update")
+	runPnpmFrozen(t, proj, major, "", true)
+	verifyStage(t, proj, family, "update", addName, updateVer)
 
 	// remove mutation
 	mutateRemoveDependency(t, proj, addName)
@@ -508,21 +561,13 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	if afterRemove == afterUpdate {
 		t.Fatal("remove mutation must change lock bytes")
 	}
-	runLockValidateCLI(t, proj, major, validateFrozenAfterMutation(family))
+	runLockValidateCLI(t, proj, major, true)
 	stripPackageManager(t, proj)
-	runPnpmFrozenAfterMutation(t, proj, major, family, "remove")
-	verifyNodeModulesGraph(t, proj, family)
-
-	if family == "peer-context" {
-		assertPeerContextGraph(t, proj, major)
-	}
+	runPnpmFrozen(t, proj, major, "", true)
+	verifyStage(t, proj, family, "remove", addName, "")
 
 	// deterministic repeat
-	if validateFrozenAfterMutation(family) {
-		runMewInstall(t, proj, major, "--frozen-lockfile")
-	} else {
-		runMewInstall(t, proj, major)
-	}
+	runMewInstall(t, proj, major, "--frozen-lockfile")
 	afterRepeat := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
 	if afterRepeat != afterRemove {
 		t.Fatal("repeat frozen install must preserve lock bytes")
