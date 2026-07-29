@@ -267,6 +267,9 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 
 	emitPhase(ac, "link", "")
+	if err := os.MkdirAll(stageNM, 0o755); err != nil {
+		return res, apperr.Wrap(apperr.IO, "app.install", stageNM, err)
+	}
 	var caps planner.Capabilities
 	if linkerMode == "isolated" {
 		caps, _ = planner.ProbeCached(config.CacheRoot(ac.Config), extractDir, stageNM)
