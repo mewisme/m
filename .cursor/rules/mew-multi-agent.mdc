@@ -1,0 +1,19 @@
+---
+description: Multi-agent local state — re-read files, preserve others' work
+alwaysApply: true
+---
+
+<!-- MEW-MULTI-AGENT_START -->
+# Multi-agent local state rules
+
+- Use the initial commit only as the review baseline.
+- After work begins, the current local working tree is authoritative.
+- Other agents may modify the same files at any time.
+- Re-read every target file from the current local working tree immediately before editing it.
+- Do not assume a file still matches its state from the beginning of the task.
+- Do not discard uncommitted changes that were not created by you.
+- Preserve compatible changes made by other agents.
+- Integrate with the latest local implementation instead of restoring an older version.
+- Resolve logical conflicts by merging the current implementations and rerunning tests.
+- Use the initial baseline only for comparison and final reporting, never as a restoration source.
+<!-- MEW-MULTI-AGENT_END -->

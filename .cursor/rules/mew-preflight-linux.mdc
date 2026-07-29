@@ -1,0 +1,58 @@
+---
+description: Linux local preflight through pinned Docker image
+alwaysApply: true
+---
+
+<!-- MEW-PREFLIGHT-LINUX_START -->
+# Linux local preflight through Docker
+
+- Use Docker for local Linux verification.
+- Linux Docker results are local Linux preflight evidence only.
+- Use a pinned Linux image matching the Go and Node versions used by CI.
+- Do not use an unpinned `latest` image for final evidence.
+- Use the exact pnpm versions pinned by the repository.
+- Explicitly set `CGO_ENABLED=0`.
+- Use an isolated HOME.
+- Use an isolated pnpm store for compatibility and installed-graph tests.
+- Do not reuse host `node_modules`.
+- Do not reuse the host pnpm store for clean conformance evidence.
+- Go module and build caches may use named Docker volumes.
+- Cache reuse must not hide missing dependencies or fixture defects.
+- Do not use privileged containers.
+- Do not mount the Docker socket.
+- Do not weaken filesystem or transaction tests merely because they run in a container.
+- Temporary Dockerfiles or test-image files may be created outside tracked repository files.
+- Do not commit Docker-only scaffolding unless it has intentional long-term project value.
+
+The Linux test image should include: the Go version required by the repository and CI; the Node version required by CI; Corepack; exact pinned pnpm 9, 10, and 11 versions; Git where required; CA certificates; shell utilities required by repository scripts.
+
+Use an execution structure equivalent to:
+
+```powershell
+docker run --rm `
+  --mount "type=bind,source=<ABSOLUTE_REPOSITORY_PATH>,target=/workspace" `
+  --mount type=volume,source=mew-go-mod-cache,target=/go/pkg/mod `
+  --mount type=volume,source=mew-go-build-cache,target=/root/.cache/go-build `
+  --workdir /workspace `
+  --env CGO_ENABLED=0 `
+  --env HOME=/tmp/mew-home `
+  <PINNED_TEST_IMAGE> `
+  <VERIFICATION_COMMAND>
+```
+
+At minimum, run in Linux Docker:
+
+- `CGO_ENABLED=0 go test ./... -count=1`
+- `CGO_ENABLED=0 go vet ./...`
+- `CGO_ENABLED=0 go build ./cmd/m`
+- `CGO_ENABLED=0 go build ./cmd/mx`
+- `CGO_ENABLED=0 go test -tags crash ./tests/integration/... -count=1 -run 'Crash' -timeout 30m`
+- `CGO_ENABLED=0 go run ./tools/check-license`
+- `CGO_ENABLED=0 go run ./tools/check-deps`
+- `CGO_ENABLED=0 go run ./tools/conformance/verify-fixtures`
+- `CGO_ENABLED=0 go run ./tools/ci/verify-crash-shards`
+- complete pnpm 9 conformance;
+- complete pnpm 10 conformance;
+- complete pnpm 11 conformance;
+- every Nub fixture-family validation.
+<!-- MEW-PREFLIGHT-LINUX_END -->

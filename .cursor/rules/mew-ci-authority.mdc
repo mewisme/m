@@ -1,0 +1,54 @@
+---
+description: Local failure handling and GitHub Actions as release gate
+alwaysApply: true
+---
+
+<!-- MEW-CI-AUTHORITY_START -->
+# Local preflight and CI authority
+
+- Use local testing to catch failures before pushing.
+- Do not use GitHub Actions as the first test runner when the relevant test can reasonably run locally.
+- Local success does not replace, reduce, skip, or weaken GitHub Actions.
+- GitHub Actions remains the authoritative platform and release gate.
+- READY requires the complete required CI matrix to pass on the exact final commit already pushed to `origin/main`.
+
+## Local failure rules
+
+- Fix reproducible local failures before pushing.
+- Do not push repeatedly merely to use CI as the first test runner.
+- Investigate local-only failures even when CI does not reproduce them.
+- A command that was not executed must be reported as not executed.
+- A skipped or unavailable command must not be reported as passed.
+- Local platform limitations do not justify removing or skipping the corresponding CI job.
+
+## GitHub Actions — full matrix is mandatory
+
+After local preflight:
+
+1. Commit the coherent change directly on `main`.
+2. Push directly to `origin/main`.
+3. Run the complete GitHub Actions workflow.
+4. Inspect every failed, cancelled, timed-out, startup-failed, or suspiciously skipped job.
+5. Identify the root cause.
+6. Fix the implementation, test, fixture, workflow, dependency, synchronization, or platform behavior.
+7. Rerun the relevant Windows-native and Linux-Docker preflight.
+8. Commit directly on `main`.
+9. Push directly to `origin/main`.
+10. Repeat until the complete required CI matrix passes.
+
+Never hide CI failures through: commit-message-based skip gates; `continue-on-error`; deleting required jobs; reducing OS coverage; weakening assertions; unconditional skips; family exclusions; parse-only substitutions; allowing a package manager to rewrite an invalid generated lockfile; unjustified timeout increases; reclassifying failed checks as optional.
+
+Do not claim CI failed or did not run solely because one connector or API returns no workflow runs or statuses. Empty GitHub API or connector results are not proof that CI was absent. Use GitHub Actions, `gh`, workflow pages, job data, or other available evidence. When evidence is unavailable, report it as unverified rather than failed.
+
+## Final exact-SHA rule
+
+- The exact final `origin/main` SHA reported in the final summary must have a fresh complete green workflow.
+- CI from a branch, PR SHA, pre-merge SHA, or earlier `main` SHA is insufficient.
+- CI from the final code SHA does not validate a later documentation or scorecard SHA.
+- Do not push another final documentation or scorecard commit after the verified run unless another complete workflow runs on the new SHA.
+- The task is incomplete while the exact final SHA lacks complete CI evidence.
+
+## Required CI coverage
+
+Unless the task explicitly and validly changes the supported matrix, preserve: no-CGO test, vet, and build gate; normal tests and builds on Ubuntu, macOS, and Windows; race coverage on Linux, macOS, and Windows where supported; platform-lock tests; no-CGO cross-compilation; lint; vulnerability scanning; dependency allowlist; license checks; fixture verification; gate-probe checks; required pnpm conformance; unsupported pnpm rejection; every Nub fixture-family validation; crash integration coverage.
+<!-- MEW-CI-AUTHORITY_END -->

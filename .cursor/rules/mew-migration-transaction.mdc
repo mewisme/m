@@ -1,0 +1,28 @@
+---
+description: Migration semantic-loss audit and transaction safety
+alwaysApply: true
+---
+
+<!-- MEW-MIGRATION-TRANSACTION_START -->
+# Migration and data-loss policy
+
+Audit every parsed semantic field. For each field choose exactly one:
+
+- **A.** Map it into the canonical graph or native Mew lockfile.
+- **B.** Preserve it in an actual versioned extension that is written and read back.
+- **C.** Emit a precise semantic loss item and fail closed.
+
+Do not report migration as lossless when semantic data disappears.
+
+Audit at minimum: top-level settings; catalogs; overrides; patches; checksums; importer metadata; dependency metadata; complete resolution metadata; engines; OS restrictions; CPU restrictions; libc restrictions; deprecation metadata; binary metadata; peer metadata; optional metadata; snapshot metadata; unknown semantic fields; auxiliary pnpm artifacts.
+
+Dry-run migration must report all losses. Non-dry-run migration must fail before publication when semantic loss is not explicitly representable.
+
+## Transaction safety
+
+All incumbent lockfile rewrites must use the transaction system. Do not write live incumbent paths directly. Use staged encoding and publication.
+
+Retain or add failure injection around: detection; parsing; graph conversion; reference resolution; representability analysis; encoding; staging; backup; publication; directory synchronization; post-publication interruption; validation; migration publication.
+
+After every injected failure verify: original incumbent bytes are restored; no partial Mew lockfile exists; no partial incumbent lockfile exists; no temporary file becomes authoritative; no stale backup becomes authoritative; no unrelated manifest change remains; no incomplete workspace state remains authoritative; recovery is deterministic.
+<!-- MEW-MIGRATION-TRANSACTION_END -->

@@ -1,0 +1,32 @@
+---
+description: Work directly on main — fetch, commit, push; no branches or PRs
+alwaysApply: true
+---
+
+<!-- MEW-MAIN-DIRECT_START -->
+# Work directly on main — hard requirement
+
+- Work only on the existing `main` branch.
+- Do not create, switch to, or push another branch.
+- Do not create a pull request.
+- Do not use a temporary stabilization branch.
+- Do not use a separate Git worktree attached to another branch.
+- Before editing, verify that the current branch is `main`.
+- Fetch `origin/main` before beginning.
+- Safely integrate the latest compatible `origin/main` state.
+- Commit every coherent logical step directly on `main`.
+- Push completed commits directly to `origin/main`.
+- Push regularly so completed logical steps are not left only in the local repository.
+- Never force-push.
+- Never rewrite published history.
+- Never amend a commit that has already been pushed unless explicitly authorized.
+- If a push is rejected because `origin/main` advanced:
+  - fetch the latest remote state;
+  - integrate compatible remote changes safely;
+  - preserve current local and other-agent work;
+  - rerun all affected tests;
+  - push normally.
+- If repository protection prevents direct pushes to `main`, stop and report **BLOCKED**.
+- Do not create a branch or pull request as a workaround.
+- The task is incomplete until the final verified code, tests, fixtures, workflows, and documentation are pushed to `origin/main`.
+<!-- MEW-MAIN-DIRECT_END -->

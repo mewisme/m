@@ -1,0 +1,16 @@
+---
+description: Documentation must match evidence; no overstated compatibility claims
+alwaysApply: true
+---
+
+<!-- MEW-DOCUMENTATION_START -->
+# Documentation and claims
+
+Update affected documentation, compatibility matrices, testing documentation, fixture evidence, plans, checklists, feature inventory, and scorecards.
+
+Documentation must match executed evidence.
+
+Do not claim: a feature from a test name alone; full support from partial coverage; mutation compatibility from parse-only tests; frozen acceptance when the external tool was not run; installed-graph verification when only lockfile bytes were checked; Nub executable support from derived fixtures; final readiness before final exact-SHA CI is green.
+
+Correct stale documentation and stale branch or pull-request references.
+<!-- MEW-DOCUMENTATION_END -->
