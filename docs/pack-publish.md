@@ -37,6 +37,19 @@ tar and gzip mtimes are set to the Unix epoch for reproducible bytes.
 - `name` and `version` are required in `package.json`.
 - Tarball filename follows npm rules (`@scope/pkg` → `scope-pkg-version.tgz`).
 
+### Sandbox (Pass 32)
+
+`m pack` enforces a fail-closed root boundary before tar creation:
+
+- Reject absolute, drive, UNC, `..`, and empty path components
+- Reject symlinks and reparse points (Windows junctions included)
+- Preserve executable bits on regular files
+- Exclude output tarball, `.git`, `node_modules`, `.mew`, and temp files
+- Limits: 100k files, 512 MiB per file, 2 GiB total, 4096-byte path length
+
+Implementation: `internal/pack/sandbox.go`. Hostile-path tests:
+`internal/pack/sandbox_test.go`, `sandbox_windows_test.go`.
+
 ## `m publish`
 
 Packs (unless a tarball is given) and `PUT`s to the configured registry.
@@ -58,7 +71,7 @@ m publish [tarball.tgz]
 | `--tag` | `latest` | npm dist-tag |
 | `--access` | — | Required semantics for scoped packages when registry expects it |
 | `--otp` | — | Sent as `npm-otp` header for registry 2FA |
-| `--provenance` | off | Invokes optional `ProvenanceAttest` hook only; no Sigstore integration in 0027 |
+| `--provenance` | off | Requires a configured `ProvenanceAttest` provider; fails with `ERR_M_UNSUPPORTED` before registry upload when unset |
 | `--pack-destination` | cwd | Used when packing before publish |
 | `--json` | off | Emit `PublishResult` JSON |
 
@@ -110,9 +123,17 @@ ResolvePackTarball (arg or m pack)
 | `tests/integration/pack_test.go` | `ListFiles` + CLI pack |
 | `tests/integration/publish_test.go` | Dry-run (no PUT) and authenticated PUT + OTP |
 
+## Provenance and verification
+
+| Surface | Behavior |
+|---|---|
+| `m publish --provenance` | Calls `ProvenanceAttest` hook when configured; **fail closed** (`ERR_M_UNSUPPORTED`) before upload when no provider is set |
+| `m verify provenance` | Verifies DSSE/Sigstore-bundle attestations with **explicit trust policy** (`TrustConfiguredKey` in production; fixture key for tests only) |
+| Live Sigstore / Fulcio | **Not supported** — fixture attestations in tests are not production Sigstore verification |
+
 ## Intentional limits (v1)
 
-- Provenance is a hook point only; attestation signing ships in MVP **0030**.
+- No live Sigstore publish provider or registry attestation upload in 0027/0030.
 - Workspace publish filters and monorepo publish orchestration are not in 0027.
 - `m publish` does not run prepublish lifecycle scripts; pack contents reflect
   the tree on disk at invocation time.

@@ -158,6 +158,7 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0031",
+      "notes": "conformance report schema v2; MEW_CONFORMANCE_REQUIRE_TOOLS fail-closed; cert-negative-probes CI",
       "tests": [
         "docs/core-certification.md",
         "docs/schema-freeze.md",
@@ -377,6 +378,7 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0027",
+      "notes": "m pack sandbox: root containment, symlink/reparse rejection, size limits; m publish --provenance fail-closed without provider",
       "tests": [
         "internal/fetch",
         "internal/archive",
@@ -408,6 +410,7 @@
       "mew_status": "shipped",
       "compatibility_class": "extension",
       "primary_mvp": "0029",
+      "notes": "multi-sample warmup + median/p95 JSON; baseline schemaVersion 2",
       "tests": [
         "internal/app",
         "internal/cli",
@@ -655,6 +658,7 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0014",
+      "notes": "blob cache PutVerified/GetVerified/ExistsVerified with corrupt quarantine",
       "tests": [
         "internal/fetch",
         "tests/integration"
@@ -739,6 +743,7 @@
       "mew_status": "shipped",
       "compatibility_class": "divergence",
       "primary_mvp": "0024",
+      "notes": "read-only incumbent: parse, validate, frozen install, byte-preserving no-op; semantic mutation ERR_M_UNSUPPORTED",
       "tests": [
         "internal/compat/npm",
         "tests/conformance/lock_bridge_npm_test.go",
@@ -994,6 +999,7 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0030",
+      "notes": "OSV multi-interval range matching; m audit --fail-on severity exit policy",
       "tests": [
         "internal/advisory/advisory_test.go",
         "internal/app/audit_test.go",
@@ -1008,6 +1014,7 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0030",
+      "notes": "graph-complete CycloneDX dependencies/bom-ref and SPDX DEPENDS_ON",
       "tests": [
         "internal/sbom/sbom_test.go",
         "internal/app/sbom_test.go",
@@ -1022,7 +1029,7 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0030",
-      "notes": "m publish --provenance hook (0027); m verify provenance (0030)",
+      "notes": "m verify provenance uses TrustConfiguredKey in production (fixture DSSE in tests only); m publish --provenance requires provider or ERR_M_UNSUPPORTED",
       "tests": [
         "internal/provenance/verify_test.go",
         "tests/integration/provenance_test.go"

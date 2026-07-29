@@ -19,7 +19,8 @@ See also: [`lockfile.md`](lockfile.md), [`core-certification.md`](core-certifica
 | Policy report | `schemaVersion: 1` | MVP 0030 | ADR; see [`policy.md`](policy.md) |
 | Org policy file | `schemaVersion: 1` | MVP 0030 | ADR |
 | Doctor report | `schemaVersion: 1` | MVP 0031 | Additive checks only |
-| Core conformance report | `schemaVersion: 1` | MVP 0031 | Additive suite metadata only |
+| Core conformance report | `schemaVersion: 2` | MVP 0031 (Pass 32) | Additive suite metadata only; breaking shape requires ADR |
+| Install bench baseline | `schemaVersion: 2` | Pass 32 | Regenerate via `m bench install --baseline`; median/p95 fields |
 | Transaction journal | `schemaVersion` in lock doc | MVP 0017 | ADR; recovery must handle prior version |
 
 ## `m.lock` v3 (native)

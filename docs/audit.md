@@ -8,13 +8,14 @@ See also: [`offline.md`](offline.md), [`cli.md`](cli.md), [`errors.md`](errors.m
 ## `m audit`
 
 ```text
-m audit [--json] [--fix]
+m audit [--json] [--fix] [--fail-on none|low|moderate|high|critical]
 ```
 
 | Flag | Effect |
 |---|---|
-| `--json` | Emit `AuditReport` JSON (schema v1) |
+| `--json` | Emit `AuditReport` JSON (schema v1) on stdout before exit |
 | `--fix` | Print suggested safe version bumps (no manifest or lock writes) |
+| `--fail-on` | Exit nonzero when any finding meets or exceeds the severity threshold (default `none`) |
 
 The command loads the project lock graph (same source as `m ls`) and matches each
 package name+version against `<cache>/advisory/osv.json`. Findings are sorted
@@ -83,6 +84,16 @@ Integration fixture: `fixtures/audit/vulnerable-transitive/` with registry
 Audit is fully local. Mew does not upload lockfiles, source trees, or package
 lists to external services. `--fix` may contact the configured registry to list
 versions when not offline.
+
+## OSV range matching
+
+Advisory `affected[].ranges[]` entries are evaluated with a multi-interval state
+machine (`internal/advisory/range.go`):
+
+- Multiple disjoint `introduced` / `fixed` / `last_affected` intervals
+- Open-ended ranges and explicit `versions[]` membership
+- Version normalized from package key (peer suffix stripped)
+- Malformed ranges surface structured load warnings or reject the entry
 
 ## Limitations (v1)
 

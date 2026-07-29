@@ -18,7 +18,7 @@ Related: [`security-pm-core.md`](security-pm-core.md),
 | `go run ./cmd/m doctor [--json] [--strict]` | Project and PM health checks |
 | `go run ./cmd/m bench install [--warm\|--cold] [--json]` | Install benchmark (see [`performance.md`](performance.md)) |
 | `pwsh tools/soak/install-loop.ps1 -Count <n> -Mode warm` | Repeated install soak (CI: `-Count 10`; manual: `-Count 100`) |
-| `pwsh tools/bench/check_regression.ps1 -Mode warm` | Install performance regression gate |
+| `pwsh tools/bench/check_regression.ps1 -Mode warm` | Install performance regression gate (median/p95 vs baseline) |
 
 `m benchmark` is the compatibility alias for `m bench` (0031 plan surface).
 
@@ -42,14 +42,29 @@ Related: [`security-pm-core.md`](security-pm-core.md),
 | bun lock bridge | `go test ./tests/conformance/... -run LockBridgeBun -count=1` | `conformance-bun` |
 | Yarn Classic + Berry | `go test ./tests/conformance/... -run LockBridgeYarn -count=1` | `conformance-yarn` |
 | Nub derived fixtures | `go test ./tests/conformance/... -run LockBridgeNub -count=1` | `conformance-nub-fixtures` |
-| Core conformance aggregate | `go run ./cmd/m conformance run core --json` | `core-stabilization` (0031) |
+| Core conformance aggregate | `go run ./cmd/m conformance run core --json` | `core-stabilization` (0031; `MEW_CONFORMANCE_REQUIRE_TOOLS=1`) |
+| Conformance negative probes | `go run ./cmd/m conformance run core --filter integration.cert-negative-*` (must fail) | `cert-negative-probes` |
 | PM health | `go run ./cmd/m doctor --json` | `core-stabilization` |
 | Soak (short) | `pwsh tools/soak/install-loop.ps1 -Count 10 -Mode warm` | `core-stabilization` |
-| Install bench regression | `pwsh tools/bench/check_regression.ps1 -Mode warm` | `bench-regression` |
+| Install bench regression | `pwsh tools/bench/check_regression.ps1 -Mode warm` | `bench-regression` (median/p95, 10% budget) |
 | License + dependency allowlist | `go run ./tools/check-license`; `go run ./tools/check-deps` | `gate-probe` |
 
 Pinned pnpm producer versions: `tools/conformance/pnpm-versions.env` (9.15.9 /
 10.34.5 / 11.17.0). Inventory: [`tests/conformance/inventory.json`](../tests/conformance/inventory.json).
+
+## Core conformance report (schema v2)
+
+`m conformance run core --json` emits `schemaVersion: 2` with:
+
+- `commitSHA`, `goVersion`, `startedAt`, `finishedAt`, `passed`
+- `tools[]` — resolved external binaries (`node`, `pnpm`, …) with versions
+- Per-suite `testsMatched`, `passed`, `failed`, `skipped`, `exitCode`
+
+**Fail-closed rules** (Pass 32): certification **passes only when every required
+suite has matched tests, zero failures, and zero skips** when
+`MEW_CONFORMANCE_REQUIRE_TOOLS=1` (CI `core-stabilization`). Suites with
+`requireTools: true` treat missing Node/pnpm as fatal, not skip. Negative probe
+suites (`integration.cert-negative-*`) must fail in `cert-negative-probes` CI.
 
 ## Lock-bridge certification scope
 
@@ -71,11 +86,26 @@ restore, and workspace snapshot paths. Windows runs in dedicated shards
 (snapshot, install/txn, update) per
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
-See [`transaction.md`](transaction.md) and stabilization pass 20 scorecard
-(`.agents/stabilization-pass20-score.md`) for patch-sandbox and provenance
-evidence.
+See [`transaction.md`](transaction.md) and stabilization scorecards
+(`.agents/stabilization-pass20-score.md`, `.agents/pass32-score.md`) for
+patch-sandbox, provenance, store-integrity, and capsule evidence.
 
-## Known limitations (pass 20 residual risks)
+## Pass 32 hardening evidence (core subset)
+
+| Area | Shipped control | Evidence |
+|---|---|---|
+| Blob store integrity | `PutVerified` / `GetVerified` / `ExistsVerified`; corrupt quarantine | `internal/store/verified.go`, `verified_test.go` |
+| Core certification | `go test -json` runner; skip/zero-match fail; `MEW_CONFORMANCE_REQUIRE_TOOLS` | `internal/conformance/testjson.go`, `cert-negative-probes` CI |
+| npm lock bridge | Read-only incumbent; semantic mutation `ERR_M_UNSUPPORTED` | `tests/conformance/lock_bridge_npm_test.go` |
+| `m pack` sandbox | Root containment; symlink/reparse rejection; size limits | `internal/pack/sandbox.go` |
+| OSV advisory | Multi-interval range state machine; `m audit --fail-on` | `internal/advisory/range.go`, `audit_cmd.go` |
+| Provenance | Explicit `TrustConfiguredKey` in production; exact package binding | `internal/provenance/trust.go`, `app/provenance.go` |
+| `m publish --provenance` | Fail closed before upload without provider | `internal/app/publish.go` |
+| Capsule | Atomic verified create; quarantined restore | `internal/capsule/archive.go` |
+| SBOM | Graph `dependencies` / `bom-ref` / SPDX `DEPENDS_ON` | `internal/sbom/sbom.go`, golden fixtures |
+| Bench regression | Multi-sample warmup + median/p95 metadata | `internal/app/bench.go`, `benchmarks/install-baseline.json` |
+
+## Known limitations (pass 32 residual risks)
 
 1. **Nub executable conformance** — derived-format fixture validation and
    Mew-native graph tests only; no frozen Nub binary differential matrix.
@@ -86,10 +116,15 @@ evidence.
    cross-major parity.
 4. **Differential npm/pnpm CI** — full 0080 runtime conformance program not in
    0031 scope (`m conformance run runtime` deferred).
-5. **Live Sigstore** — provenance verification uses fixture attestations; live
-   registry Sigstore is deferred.
+5. **Live Sigstore** — provenance verification uses fixture DSSE bundles in
+   tests with `TrustFixtureKey`; production `m verify provenance` requires
+   `TrustConfiguredKey` (configured public key). Live Fulcio/Sigstore roots
+   (`TrustSigstoreRoots`) return unsupported.
 6. **Advisory feed signing** — `m audit` uses cached OSV bytes with digest
    only; cryptographic feed signature verification deferred.
+7. **npm incumbent mutation** — parse, validate, frozen install, and
+   byte-preserving no-op only; dependency changes require npm or `m.lock`
+   migration.
 
 ## Schema freeze (0031)
 

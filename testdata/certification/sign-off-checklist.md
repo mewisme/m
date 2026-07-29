@@ -44,6 +44,19 @@ Evidence index: [`docs/core-certification.md`](../../docs/core-certification.md)
 - [x] Policy gate blocks denied packages/licenses (`m policy check`, install hook)
 - [x] Provenance fixture verification (`m verify provenance`; no live Sigstore claim)
 
+## Pass 32 hardening (evidence-backed)
+
+- [x] Content-addressed blob store verifies on read, write, and existence (`internal/store/verified.go`)
+- [x] Core certification fail-closed: zero-match, forced-skip, and missing-tool skips fail (`cert-negative-probes` CI)
+- [x] npm incumbent semantic mutation rejected (`TestLockBridgeNpmMutationRejected`)
+- [x] `m pack` root containment; symlinks and escape paths rejected (`internal/pack/sandbox.go`)
+- [x] OSV multi-interval range matching; `m audit --fail-on` exit policy (`internal/advisory/range.go`)
+- [x] Provenance explicit trust policy in production (`TrustConfiguredKey`; fixture DSSE ≠ Sigstore)
+- [x] `m publish --provenance` fails before upload without configured provider
+- [x] Capsule atomic verified create and quarantined restore
+- [x] SBOM graph `dependencies` / `bom-ref` / SPDX `DEPENDS_ON` edges
+- [x] Bench multi-sample median/p95 regression (`benchmarks/install-baseline.json` schema v2)
+
 ## Documentation and contracts
 
 - [x] `docs/core-certification.md` published with CI job mapping

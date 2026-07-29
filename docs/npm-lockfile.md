@@ -59,6 +59,13 @@ m lock migrate --from npm --to m [--dry-run]
 | `fixtures/projects/npm-app` | End-to-end install project |
 | `testdata/lockfile/npm-roundtrip/` | Golden decode/encode pairs |
 
+## Conformance evidence
+
+| Test | Covers |
+|------|--------|
+| `TestLockBridgeNpm` | Parse, graph conversion, byte-preserving no-op |
+| `TestLockBridgeNpmMutationRejected` | `m add` on npm-lock fixture → `ERR_M_UNSUPPORTED` |
+
 ## CI
 
 `conformance-npm` job runs `go test ./tests/conformance/... -run Npm`.

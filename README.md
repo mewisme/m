@@ -8,7 +8,9 @@
 | **`mx`** | Package executable runner (Mewx) |
 
 - New Mew projects use **`m.lock`** ([`docs/lockfile.md`](docs/lockfile.md)).
-- Existing projects preserve their incumbent lockfile when Mew has a certified writer.
+- Existing projects keep incumbent lockfile **identity**; certified writers preserve bytes on no-op paths.
+- **npm** `package-lock.json` / shrinkwrap are **read-only** for semantic mutations (`ERR_M_UNSUPPORTED`); use npm or migrate to `m.lock` to change dependencies.
+- **pnpm 9 / 10 / 11** lock bridges are certified for parse, graph conversion, and mutation (see [`docs/core-certification.md`](docs/core-certification.md)).
 - **`nub.lock`** is a first-class compatibility target.
 
 ## Documentation

@@ -23,14 +23,17 @@ Stdout receives the document bytes. The command is read-only.
 Every package instance in the lock graph is included (direct and transitive).
 Components carry:
 
+- stable `bom-ref` per component (scoped PURLs URL-encoded)
 - npm `purl` (`pkg:npm/name@version`)
 - integrity hashes when present on the lock entry
-- license strings read from `node_modules/<pkg>/package.json` when installed
+- license strings from graph package metadata and store manifest reads
+- **dependency edges** from the canonical graph (not inferred from flat `node_modules` layout)
 
 ### CycloneDX
 
-Minimal CycloneDX 1.5 JSON: `metadata.component`, `components[]` with `type`,
-`name`, `version`, `purl`, and `hashes` from lock integrity.
+CycloneDX 1.5 JSON: `metadata.component`, `components[]` with `type`,
+`name`, `version`, `purl`, `hashes`, `bom-ref`, plus top-level `dependencies[]`
+linking `ref` → `dependsOn[]`.
 
 Golden: `fixtures/sbom/medium-graph-cyclonedx-golden.json` (from
 `fixtures/bench/medium-graph/` after install).
@@ -38,7 +41,8 @@ Golden: `fixtures/sbom/medium-graph-cyclonedx-golden.json` (from
 ### SPDX
 
 SPDX 2.3 tag-value subset: `SPDXVersion`, `DataLicense`, `DocumentName`,
-`PackageName` / `PackageVersion` / `PackageDownloadLocation` per component.
+`PackageName` / `PackageVersion` / `PackageDownloadLocation` per component,
+plus `Relationship: DEPENDS_ON` edges between SPDX package IDs.
 
 ### Redaction
 
@@ -48,8 +52,8 @@ and purls only; lock files on disk are unchanged.
 
 ## Limitations (v1)
 
-- License fields come from installed `package.json` or are omitted when absent.
-- No VEX, dependency-of relationships, or supplier metadata beyond project name.
+- License fields come from graph metadata or installed package manifests; omitted when absent.
+- No VEX or supplier metadata beyond project name.
 - SPDX and CycloneDX outputs are validated by golden tests, not external schema CI.
 
 ## Related
