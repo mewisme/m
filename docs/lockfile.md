@@ -172,7 +172,7 @@ CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
 `--pnpm-major` (9, 10, or 11) applies to `m lock validate`, `m lock diff`,
 `m lock migrate`, and `m install`.
 
-## Support matrix (Pass 17)
+## Support matrix (Pass 18)
 
 | Generation | Read | Byte no-op | Semantic rewrite | Migrate to m.lock | Frozen pnpm CI |
 |---|---|---|---|---|---|
@@ -188,8 +188,12 @@ Verify committed fixtures: `go run ./tools/conformance/verify-fixtures` (CI `fix
 
 Mutation conformance runs full `pnpm install --frozen-lockfile` (not `--lockfile-only`),
 strict byte hash, `node_modules` import checks, add/update/remove txn paths, and
-commit-interrupt restore. Snapshot instance keys (peer-context) are modeled in the
-canonical graph; bare `packageManager: pnpm` does not certify major 9.
+commit-interrupt restore. Snapshot-primary instances: graph nodes from `snapshots`
+keys only (no phantom base package nodes). npm aliases resolve by actual package
+name. `Adapter.Write` fails closed without certified `--pnpm-major`. Strict
+`packageManager` semver (`pnpm@10.not-a-semver` rejected). Mutation families:
+basic, transitive, optional, peer-context, workspace, alias, patch (frozen after
+remove). Bare `packageManager: pnpm` does not certify major 9.
 
 Fixtures: `fixtures/locks/generated/` with `metadata.json` (SHA-256, producer,
 command). Evidence: `fixtures/locks/EVIDENCE.md`.

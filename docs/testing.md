@@ -146,8 +146,8 @@ Go module path is `github.com/mewisme/mew` (renamed from `github.com/mewisme/m`)
 | Snapshot instances | `internal/compat/pnpm/graph_peer_test.go` | Peer-context package keys in canonical graph |
 | Strict ref resolution | `internal/compat/pnpm/refresolve_test.go` | No importer fallback; dangling refs abort |
 | Fixture verify | `tools/conformance/verify-fixtures` | SHA-256 + pin metadata for all generated families |
-| pnpm mutation conformance | `tests/conformance/lock_bridge_pnpm_test.go` | Full frozen install, node_modules import, add/update/remove, txn restore |
-| Nub families | `tests/conformance/lock_bridge_pnpm_test.go` | Six derived fixtures (parse/validate tiers) |
+| pnpm mutation conformance | `tests/conformance/lock_bridge_pnpm_test.go` | 7 families × 3 majors: frozen after add/update/remove, node_modules import, txn restore |
+| Nub families | `tests/conformance/lock_bridge_pnpm_test.go` | Six derived fixtures (all parse + validate; workspace included) |
 | Txn failure injection | `internal/app/lock_txn_test.go` | Backup/publish/staging/encode failures preserve incumbent |
 | No-CGO gate | `internal/archcheck/nocgo_test.go`, CI `no-cgo-gate` | Production builds with `CGO_ENABLED=0` |
 | Fuzz / limits | `internal/compat/pnpm/fuzz_test.go`, `limits_test.go` | Hostile YAML, package keys, index caps |
