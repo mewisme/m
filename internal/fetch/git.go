@@ -55,10 +55,11 @@ func FetchGit(ctx context.Context, opts GitOptions) error {
 }
 
 func runGitCmd(ctx context.Context, sup process.ProcessSupervisor, dir string, args ...string) error {
-	env := append(process.RestrictedEnv(process.EnvSource{}, ""), "GIT_TERMINAL_PROMPT=0")
+	env := process.GitSubprocessEnv("")
 	fullArgs := append([]string{
 		"-c", "core.hooksPath=" + gitHooksDisabledPath(),
 		"-c", "init.templateDir=",
+		"-c", "protocol.file.allow=always",
 	}, args...)
 	spec := process.Spec{Path: "git", Args: fullArgs, Dir: dir, Env: env}
 	h, err := sup.Start(ctx, spec)

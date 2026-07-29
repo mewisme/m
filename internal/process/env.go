@@ -43,3 +43,29 @@ func RestrictedEnv(src EnvSource, binDir string) []string {
 	out = append(out, pathKey+"="+pathVal)
 	return out
 }
+
+// StripGitWorktreeEnv removes parent-repository git metadata inherited from CI
+// checkouts so nested git subprocesses operate only on their own -C directory.
+func StripGitWorktreeEnv(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		switch strings.ToUpper(envKey(kv)) {
+		case "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX", "GIT_COMMON_DIR":
+			continue
+		}
+		out = append(out, kv)
+	}
+	return out
+}
+
+// GitSubprocessEnv returns a restricted environment for nested git commands.
+func GitSubprocessEnv(binDir string) []string {
+	return StripGitWorktreeEnv(append(RestrictedEnv(EnvSource{}, binDir),
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_CONFIG_COUNT=2",
+		"GIT_CONFIG_KEY_0=safe.directory",
+		"GIT_CONFIG_VALUE_0=*",
+		"GIT_CONFIG_KEY_1=protocol.file.allow",
+		"GIT_CONFIG_VALUE_1=always",
+	))
+}

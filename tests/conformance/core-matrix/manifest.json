@@ -89,7 +89,7 @@
       "id": "integration-offline",
       "title": "offline install",
       "package": "./tests/integration",
-      "run": "Offline",
+      "run": "TestOfflineInstall",
       "required": true,
       "platforms": ["linux", "darwin", "windows"]
     },

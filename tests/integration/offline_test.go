@@ -50,6 +50,9 @@ func TestOfflineInstallFailsWithMissingList(t *testing.T) {
 }
 
 func TestOfflineWarmFasterThanCold(t *testing.T) {
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("wall-clock warm-vs-cold comparison is unreliable on shared CI runners")
+	}
 	testkit.CleanEnv(t)
 	t.Setenv("NO_PROXY", "*")
 	reg := testkit.LoadRegistry(t, "registry/v1")
