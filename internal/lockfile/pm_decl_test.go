@@ -51,6 +51,31 @@ func TestParsePMDeclarationRejectsUnsupportedMajor(t *testing.T) {
 	}
 }
 
+func TestParsePMDeclarationRejectsInvalidSemver(t *testing.T) {
+	cases := []string{
+		"pnpm@10.not-a-semver",
+		"pnpm@11.invalid",
+		"pnpm@9..0",
+		"pnpm@9.x",
+	}
+	for _, v := range cases {
+		_, err := lockfile.ParsePMDeclaration("packageManager", v)
+		if err == nil {
+			t.Fatalf("expected error for %q", v)
+		}
+	}
+}
+
+func TestParsePMDeclarationPrerelease(t *testing.T) {
+	decl, err := lockfile.ParsePMDeclaration("packageManager", "pnpm@10.0.0-beta.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decl.ProducerMajor != 10 || decl.ExactVersion != "10.0.0-beta.1" {
+		t.Fatalf("got %+v", decl)
+	}
+}
+
 func TestDetectPnpmBarePackageManagerNoMajor(t *testing.T) {
 	data := readFixture(t, "pnpm", "v9", "pnpm-lock.yaml")
 	det, err := lockfile.DetectPnpmWithContext(data, lockfile.ProjectHints{

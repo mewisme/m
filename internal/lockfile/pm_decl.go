@@ -2,8 +2,9 @@ package lockfile
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 // PM evidence states for packageManager / devEngines parsing.
@@ -83,14 +84,13 @@ func isPMVersionRangeOrTag(ver string) bool {
 
 func pmMajorFromVersion(ver string) (major int, exact string, err error) {
 	exact = strings.TrimSpace(ver)
-	dot := strings.IndexByte(exact, '.')
-	majorStr := exact
-	if dot > 0 {
-		majorStr = exact[:dot]
+	parsed, parseErr := semver.NewVersion(exact)
+	if parseErr != nil {
+		return 0, exact, fmt.Errorf("unrecognized pnpm version %q: %v", ver, parseErr)
 	}
-	n, err := strconv.Atoi(majorStr)
-	if err != nil {
-		return 0, exact, fmt.Errorf("unrecognized pnpm version %q", ver)
+	major64 := parsed.Major()
+	if major64 > 11 {
+		// still valid semver; unsupported major handled by caller
 	}
-	return n, exact, nil
+	return int(major64), parsed.String(), nil
 }
