@@ -212,7 +212,8 @@ func appendImporterEdges(g *graph.Graph, from graph.ImporterID, deps map[string]
 }
 
 // FromGraph builds a pnpm document from a validated graph and prior template.
-func FromGraph(g *graph.Graph, prior *Document, det lockfile.Detection) (*Document, error) {
+// lockRoot is the project directory containing package.json (empty skips manifest filtering).
+func FromGraph(g *graph.Graph, prior *Document, det lockfile.Detection, lockRoot string) (*Document, error) {
 	if g == nil {
 		return nil, apperr.New(apperr.Lockfile, "pnpm.graph", "graph", "nil graph")
 	}
@@ -236,10 +237,10 @@ func FromGraph(g *graph.Graph, prior *Document, det lockfile.Detection) (*Docume
 	if doc.LockfileVersion == "" {
 		doc.LockfileVersion = defaultLockfileVersion(det)
 	}
-	return fromGraphV9Shape(g, doc, prior)
+	return fromGraphV9Shape(g, doc, prior, lockRoot)
 }
 
-func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document, error) {
+func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document, lockRoot string) (*Document, error) {
 	importers := map[string]ImporterSection{}
 	if prior != nil {
 		importers = cloneImporters(prior.Importers)
@@ -288,6 +289,11 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 		sec, ok := importers[string(id)]
 		if !ok {
 			continue
+		}
+		if allowed, err := manifestImporterDepNames(lockRoot, string(id)); err == nil && allowed != nil {
+			if _, ok := allowed[e.Name]; !ok {
+				continue
+			}
 		}
 		dep := ImporterDep{Specifier: e.Range}
 		var err error

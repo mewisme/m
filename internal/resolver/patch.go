@@ -119,6 +119,24 @@ func stripPatchParenthetical(version string) string {
 	return version
 }
 
+func (s *resolveState) finalizePatchTargets(g *graph.Graph) {
+	if s.patches == nil || g == nil {
+		return
+	}
+	for _, p := range g.Packages {
+		suffix := s.patchSuffix(p.ID.Name, p.ID.Version)
+		if suffix == "" {
+			continue
+		}
+		selector := p.ID.Name + "@" + stripPatchParenthetical(p.ID.Version)
+		rec, ok := s.patches.bySelector[selector]
+		if !ok {
+			continue
+		}
+		s.patches.byPkgKey[p.ID.Key()] = rec
+	}
+}
+
 func (s *resolveState) recordPatchTarget(pkgKey, name, version string) {
 	if s.patches == nil {
 		return

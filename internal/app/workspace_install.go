@@ -2,6 +2,7 @@ package app
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
@@ -9,23 +10,53 @@ import (
 	"github.com/mewisme/mew/internal/workspace"
 )
 
-func buildLocalExtractDirs(projRoot string, res *resolver.Resolution) (map[string]string, error) {
-	if res == nil || !resolver.HasLocalSources(res.Extensions) {
+func buildLocalExtractDirs(projRoot string, res *resolver.Resolution, g *graph.Graph) (map[string]string, error) {
+	if res == nil && g == nil {
 		return nil, nil
 	}
-	locals, err := resolver.DecodeLocalSources(res.Extensions)
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[string]string, len(locals))
-	for key, src := range locals {
-		if src.Protocol != "workspace" {
-			continue
+	out := map[string]string{}
+	if res != nil && resolver.HasLocalSources(res.Extensions) {
+		locals, err := resolver.DecodeLocalSources(res.Extensions)
+		if err != nil {
+			return nil, err
 		}
-		abs := filepath.Join(projRoot, filepath.FromSlash(src.Path))
-		out[key] = abs
+		for key, src := range locals {
+			if src.Protocol != "workspace" {
+				continue
+			}
+			abs := filepath.Join(projRoot, filepath.FromSlash(src.Path))
+			out[key] = abs
+		}
+	}
+	if g != nil {
+		addLinkProtocolExtracts(projRoot, g, out)
+	}
+	if len(out) == 0 {
+		return nil, nil
 	}
 	return out, nil
+}
+
+func addLinkProtocolExtracts(projRoot string, g *graph.Graph, out map[string]string) {
+	for _, p := range g.Packages {
+		key := p.ID.Key()
+		if strings.HasPrefix(key, "link:") {
+			if _, ok := out[key]; !ok {
+				rel := strings.TrimPrefix(key, "link:")
+				out[key] = filepath.Join(projRoot, filepath.FromSlash(rel))
+			}
+		}
+	}
+	for _, e := range g.Edges {
+		if !strings.HasPrefix(e.To, "link:") {
+			continue
+		}
+		if _, ok := out[e.To]; ok {
+			continue
+		}
+		rel := strings.TrimPrefix(e.To, "link:")
+		out[e.To] = filepath.Join(projRoot, filepath.FromSlash(rel))
+	}
 }
 
 func requireWorkspacesGate(ac *Context, opts InstallOptions) error {

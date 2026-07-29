@@ -249,7 +249,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		// ponytail: stage overlay supplies workspace locals until commit publishes manifests.
 		localRoot = stage
 	}
-	localExtracts, err := buildLocalExtractDirs(localRoot, resolution)
+	localExtracts, err := buildLocalExtractDirs(localRoot, resolution, resolution.Graph)
 	if err != nil {
 		return res, err
 	}
@@ -874,6 +874,10 @@ func validateStagedIsolated(nm string, linkPlan *linker.Plan, g *graph.Graph) er
 	return validateIsolatedBoundaries(nm, g)
 }
 
+func installedVersionMatches(installed, graphVersion string) bool {
+	return registryBaseVersion(installed) == registryBaseVersion(graphVersion)
+}
+
 func validatePlacementPackage(nm string, pl linker.Placement, byKey map[string]graph.Package) error {
 	pkgPath := filepath.Join(pl.DestDir, "package.json")
 	st, err := os.Stat(pkgPath)
@@ -891,7 +895,7 @@ func validatePlacementPackage(nm string, pl linker.Placement, byKey map[string]g
 	if err != nil {
 		return apperr.Wrap(apperr.Integrity, "app.validate", pl.Key, err)
 	}
-	if gotName != pkg.ID.Name || gotVersion != pkg.ID.Version {
+	if gotName != pkg.ID.Name || !installedVersionMatches(gotVersion, pkg.ID.Version) {
 		return apperr.New(apperr.Integrity, "app.validate", pl.Key,
 			"package.json identity mismatch")
 	}

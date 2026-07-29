@@ -181,6 +181,7 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 			return nil, apperr.Wrap(apperr.Resolve, "resolver.merge", proj.Root, err)
 		}
 	}
+	s.finalizePatchTargets(g)
 	return &Resolution{
 		SchemaVersion: ResolutionSchemaVersion,
 		Graph:         g,

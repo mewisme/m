@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	"path/filepath"
+
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/lockfile"
@@ -115,7 +117,7 @@ func (Adapter) EncodePreserving(ctx context.Context, path string, g *graph.Graph
 		return lockfile.WriteResult{}, lockfile.NewUnsupported("pnpm.write", "pnpm-lock.yaml", "unsupported generation (only pnpm 9/10/11)")
 	}
 
-	outDoc, err := FromGraph(g, doc, det)
+	outDoc, err := FromGraph(g, doc, det, filepath.Dir(path))
 	if err != nil {
 		return lockfile.WriteResult{}, err
 	}
@@ -161,7 +163,7 @@ func encodeFresh(g *graph.Graph, det lockfile.Detection) ([]byte, error) {
 		}
 		det.ExplicitMajor = true
 	}
-	doc, err := FromGraph(g, nil, det)
+	doc, err := FromGraph(g, nil, det, "")
 	if err != nil {
 		return nil, err
 	}

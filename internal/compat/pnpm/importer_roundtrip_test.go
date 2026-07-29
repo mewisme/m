@@ -96,7 +96,7 @@ snapshots:
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := pnpm.FromGraph(g, doc, lockfile.Detection{Format: pnpm.FormatV9, ProducerMajor: 9, ExplicitMajor: true})
+	out, err := pnpm.FromGraph(g, doc, lockfile.Detection{Format: pnpm.FormatV9, ProducerMajor: 9, ExplicitMajor: true}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestImporterExtraSurvivesMutation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := pnpm.FromGraph(g, doc, lockfile.Detection{Format: pnpm.FormatV9, ProducerMajor: 9, ExplicitMajor: true})
+	out, err := pnpm.FromGraph(g, doc, lockfile.Detection{Format: pnpm.FormatV9, ProducerMajor: 9, ExplicitMajor: true}, "")
 	if err != nil {
 		t.Fatal(err)
 	}

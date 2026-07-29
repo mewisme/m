@@ -83,7 +83,7 @@ func TestDependencyRefRoundTripFixtures(t *testing.T) {
 			}
 			out, err := FromGraph(g, doc, lockfile.Detection{
 				Format: FormatV9, ProducerMajor: tc.major, ExplicitMajor: true,
-			})
+			}, "")
 			if err != nil {
 				t.Fatal(err)
 			}
