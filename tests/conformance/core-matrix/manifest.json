@@ -153,7 +153,7 @@
       "id": "unit-archive-security",
       "title": "archive extraction security",
       "package": "./internal/archive",
-      "run": "Security|PatchRejects",
+      "run": "PatchRejects(Traversal|Absolute|Create|Rename|Duplicate|Symlink)|ExtractRejects(Traversal|Integrity)",
       "required": true,
       "platforms": ["linux", "darwin", "windows"]
     },

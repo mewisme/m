@@ -120,7 +120,12 @@ func cloneGitAt(ctx context.Context, repoURL, commit, dest string) error {
 }
 
 func runGit(ctx context.Context, dir string, args ...string) ([]byte, error) {
-	env := append(process.RestrictedEnv(process.EnvSource{}, ""), "GIT_TERMINAL_PROMPT=0")
+	env := append(process.RestrictedEnv(process.EnvSource{}, ""),
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_CONFIG_COUNT=1",
+		"GIT_CONFIG_KEY_0=safe.directory",
+		"GIT_CONFIG_VALUE_0=*",
+	)
 	fullArgs := append([]string{
 		"-c", "core.hooksPath=" + devNullHooksPath(),
 		"-c", "init.templateDir=",
