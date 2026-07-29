@@ -117,6 +117,11 @@ func ResolveDependencyTarget(depName, resolutionRef string, idx PackageIndex) (T
 				return Target{Key: candidate}, nil
 			}
 		}
+		if strings.Contains(ref, "patch_hash=") {
+			if target, ok := resolvePatchHashRef(resolveName, ref, idx); ok {
+				return target, nil
+			}
+		}
 		return Target{}, danglingTarget(depName, ref, idx)
 	}
 	if id, err := ParsePackageIdentity(ref); err == nil && id.Name == resolveName {
