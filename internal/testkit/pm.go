@@ -3,7 +3,10 @@ package testkit
 import (
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
+	"strings"
+	"testing"
 	"time"
 )
 
@@ -60,4 +63,52 @@ func RunPM(ctx context.Context, name string, args []string, dir string, env []st
 		res.ExitCode = 1
 	}
 	return res
+}
+
+// RequirePM returns the path to name or skips/fails the test when absent.
+// When MEW_CONFORMANCE_REQUIRE_TOOLS=1, a missing binary is fatal.
+func RequirePM(t testing.TB, name string) string {
+	t.Helper()
+	path := LookPM(name)
+	if path == "" {
+		msg := name + " not found on PATH"
+		if conformanceRequireTools() {
+			t.Fatal(msg)
+		}
+		t.Skip(msg)
+	}
+	recordConformanceTool(t, name, path)
+	return path
+}
+
+func conformanceRequireTools() bool {
+	return os.Getenv("MEW_CONFORMANCE_REQUIRE_TOOLS") == "1"
+}
+
+func recordConformanceTool(t testing.TB, name, path string) {
+	t.Helper()
+	version := probePMVersion(path)
+	entry := name + "=" + path
+	if version != "" {
+		entry += "@" + version
+	}
+	key := "MEW_CONFORMANCE_TOOL_RECORD"
+	existing := os.Getenv(key)
+	if existing != "" {
+		entry = existing + ";" + entry
+	}
+	t.Setenv(key, entry)
+}
+
+func probePMVersion(path string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, path, "-v")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	if err := cmd.Run(); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(buf.String())
 }

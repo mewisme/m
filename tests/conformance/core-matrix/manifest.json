@@ -16,6 +16,7 @@
       "package": "./tests/conformance",
       "run": "TestLockBridgePnpm9($|MutationSuite|PeerContext|AliasPeer)",
       "required": true,
+      "requireTools": true,
       "platforms": ["linux", "darwin", "windows"]
     },
     {
@@ -24,6 +25,7 @@
       "package": "./tests/conformance",
       "run": "TestLockBridgePnpm10($|MutationSuite|PeerContext|AliasPeer)",
       "required": true,
+      "requireTools": true,
       "platforms": ["linux", "darwin", "windows"]
     },
     {
@@ -32,6 +34,7 @@
       "package": "./tests/conformance",
       "run": "TestLockBridgePnpm11($|MutationSuite|PeerContext|AliasPeer)",
       "required": true,
+      "requireTools": true,
       "platforms": ["linux", "darwin", "windows"]
     },
     {
@@ -168,6 +171,24 @@
       "package": "./internal/transaction",
       "run": "Runner|ScanIncomplete|Journal|Publish",
       "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "integration.cert-negative-zero-match",
+      "title": "cert runner zero-match probe",
+      "package": "./internal/conformance",
+      "run": "^TestCertNegativeDoesNotExist$",
+      "required": false,
+      "probe": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "integration.cert-negative-forced-skip",
+      "title": "cert runner forced-skip probe",
+      "package": "./internal/conformance",
+      "run": "TestCertNegativeForcedSkip",
+      "required": false,
+      "probe": true,
       "platforms": ["linux", "darwin", "windows"]
     }
   ]

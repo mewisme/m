@@ -23,12 +23,14 @@ type Manifest struct {
 
 // Suite describes one go test invocation in the matrix.
 type Suite struct {
-	ID        string   `json:"id"`
-	Title     string   `json:"title"`
-	Package   string   `json:"package"`
-	Run       string   `json:"run"`
-	Required  bool     `json:"required"`
-	Platforms []string `json:"platforms,omitempty"`
+	ID           string   `json:"id"`
+	Title        string   `json:"title"`
+	Package      string   `json:"package"`
+	Run          string   `json:"run"`
+	Required     bool     `json:"required"`
+	RequireTools bool     `json:"requireTools,omitempty"`
+	Probe        bool     `json:"probe,omitempty"`
+	Platforms    []string `json:"platforms,omitempty"`
 }
 
 // UnmarshalJSON accepts the manifest "suites" array.

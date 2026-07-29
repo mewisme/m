@@ -498,11 +498,28 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
+      MEW_CONFORMANCE_REQUIRE_TOOLS: "1"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
+      - name: Load pnpm versions
+        id: pnpm
+        run: |
+          set -a
+          # shellcheck disable=SC1091
+          source tools/conformance/pnpm-versions.env
+          set +a
+          echo "pnpm9=$PNPM9_VERSION" >> "$GITHUB_OUTPUT"
+          echo "pnpm10=$PNPM10_VERSION" >> "$GITHUB_OUTPUT"
+          echo "pnpm11=$PNPM11_VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ steps.pnpm.outputs.pnpm11 }}
       - name: Core certification matrix
         run: go run ./cmd/m conformance run core --json > core-report.json
       - name: PM doctor health check
@@ -519,3 +536,33 @@ jobs:
           name: core-certification-report
           path: core-report.json
           if-no-files-found: error
+
+  cert-negative-probes:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Zero-match probe must fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if go run ./cmd/m conformance run core --filter integration.cert-negative-zero-match --json > zero-match.json; then
+            echo "expected zero-match probe to fail"
+            exit 1
+          fi
+          grep -q '"status": "failed"' zero-match.json
+          grep -q 'zero tests matched' zero-match.json
+      - name: Forced-skip probe must fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if go run ./cmd/m conformance run core --filter integration.cert-negative-forced-skip --json > forced-skip.json; then
+            echo "expected forced-skip probe to fail"
+            exit 1
+          fi
+          grep -q '"status": "failed"' forced-skip.json
+          grep -q 'skipped' forced-skip.json

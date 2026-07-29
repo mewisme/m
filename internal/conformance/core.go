@@ -3,6 +3,8 @@ package conformance
 import (
 	"context"
 	"fmt"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -30,17 +32,23 @@ func RunCore(ctx context.Context, opts RunOptions) (Report, error) {
 	}
 
 	suites := FilterSuites(manifest.Suites, opts.Filter)
+	suites = excludeProbeSuitesUnlessFiltered(suites, opts.Filter)
 	if opts.Filter != "" && len(suites) == 0 {
 		return Report{}, fmt.Errorf("no suites match filter %q", opts.Filter)
 	}
 
 	report := Report{
-		SchemaVersion: SchemaVersion,
+		SchemaVersion: ReportSchemaVersion,
 		Matrix:        manifest.Matrix,
+		CommitSHA:     ResolveCommitSHA(repoRoot),
+		GoVersion:     runtime.Version(),
 		StartedAt:     time.Now().UTC(),
 		Filter:        opts.Filter,
 		DryRun:        opts.DryRun,
 		Suites:        make([]SuiteResult, 0, len(suites)),
+	}
+	if !opts.DryRun {
+		report.Tools = CollectTools()
 	}
 
 	for _, suite := range suites {
@@ -52,7 +60,6 @@ func RunCore(ctx context.Context, opts RunOptions) (Report, error) {
 				Run:        suite.Run,
 				Required:   suite.Required,
 				Status:     StatusSkipped,
-				Skipped:    true,
 				SkipReason: "unsupported platform",
 			})
 			continue
@@ -70,27 +77,34 @@ func RunCore(ctx context.Context, opts RunOptions) (Report, error) {
 		}
 
 		started := time.Now()
-		exitCode, output, runErr := RunTest(ctx, repoRoot, suite)
-		report.Suites = append(report.Suites, suiteResultFromRun(suite, started, exitCode, output, runErr))
+		exitCode, summary, output, runErr := RunTest(ctx, repoRoot, suite)
+		report.Suites = append(report.Suites, suiteResultFromRun(suite, started, exitCode, summary, output, runErr))
 	}
 
 	report.FinishedAt = time.Now().UTC()
-	report.Passed = reportPassed(report.Suites, opts.DryRun)
+	report.Passed = reportPassed(report.Suites, opts.DryRun, opts.Filter)
 	if !report.Passed && !opts.DryRun {
 		return report, fmt.Errorf("core certification failed")
 	}
 	return report, nil
 }
 
-func reportPassed(suites []SuiteResult, dryRun bool) bool {
+func reportPassed(suites []SuiteResult, dryRun bool, filter string) bool {
+	explicitFilter := strings.TrimSpace(filter) != ""
 	for _, s := range suites {
-		if !s.Required {
-			continue
-		}
 		if dryRun {
 			if s.Status != StatusPlanned && s.Status != StatusSkipped {
 				return false
 			}
+			continue
+		}
+		if explicitFilter {
+			if s.Status != StatusPassed && s.Status != StatusSkipped {
+				return false
+			}
+			continue
+		}
+		if !s.Required {
 			continue
 		}
 		if s.Status != StatusPassed && s.Status != StatusSkipped {
@@ -98,6 +112,19 @@ func reportPassed(suites []SuiteResult, dryRun bool) bool {
 		}
 	}
 	return true
+}
+
+func excludeProbeSuitesUnlessFiltered(suites []Suite, filter string) []Suite {
+	if strings.TrimSpace(filter) != "" {
+		return suites
+	}
+	var out []Suite
+	for _, s := range suites {
+		if !s.Probe {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // ListCore returns suite definitions from the core manifest, optionally filtered.
@@ -114,6 +141,7 @@ func ListCore(repoRoot, filter string) ([]Suite, error) {
 		return nil, err
 	}
 	suites := FilterSuites(manifest.Suites, filter)
+	suites = excludeProbeSuitesUnlessFiltered(suites, filter)
 	if filter != "" && len(suites) == 0 {
 		return nil, fmt.Errorf("no suites match filter %q", filter)
 	}

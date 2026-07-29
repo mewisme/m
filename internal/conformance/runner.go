@@ -12,31 +12,49 @@ import (
 	"time"
 )
 
-// RunTest executes go test for one suite.
-func RunTest(ctx context.Context, repoRoot string, suite Suite) (exitCode int, output string, err error) {
+// RunTest executes go test -json for one suite.
+func RunTest(ctx context.Context, repoRoot string, suite Suite) (exitCode int, summary TestSummary, output string, err error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	args := []string{"test", suite.Package, "-count=1"}
+	args := []string{"test", suite.Package, "-count=1", "-json"}
 	if suite.Run != "." {
 		args = append(args, "-run", suite.Run)
 	}
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = repoRoot
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
+	if conformanceRequireTools() {
+		cmd.Env = append(cmd.Env, "MEW_CONFORMANCE_REQUIRE_TOOLS=1")
+	}
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	runErr := cmd.Run()
-	output = strings.TrimSpace(buf.String())
+	combined := strings.TrimSpace(stdout.String())
+	if stderr.Len() > 0 {
+		if combined != "" {
+			combined += "\n"
+		}
+		combined += strings.TrimSpace(stderr.String())
+	}
+	output = combined
+	summary, parseErr := ParseTestJSONLines(&stdout)
+	if parseErr != nil {
+		return exitCodeFromRun(runErr), summary, output, parseErr
+	}
+	return exitCodeFromRun(runErr), summary, output, nil
+}
+
+func exitCodeFromRun(runErr error) int {
 	if runErr == nil {
-		return 0, output, nil
+		return 0
 	}
 	var ee *exec.ExitError
 	if errors.As(runErr, &ee) {
-		return ee.ExitCode(), output, nil
+		return ee.ExitCode()
 	}
-	return 1, output, runErr
+	return 1
 }
 
 // RepoRootFromModule walks up from start until go.mod is found.
@@ -78,26 +96,34 @@ func summarizeOutput(output string) string {
 	return strings.Join(lines, "\n")
 }
 
-func suiteResultFromRun(suite Suite, started time.Time, exitCode int, output string, runErr error) SuiteResult {
+func suiteResultFromRun(suite Suite, started time.Time, exitCode int, summary TestSummary, output string, runErr error) SuiteResult {
 	res := SuiteResult{
-		ID:       suite.ID,
-		Title:    suite.Title,
-		Package:  suite.Package,
-		Run:      suite.Run,
-		Required: suite.Required,
-		Duration: time.Since(started).Round(time.Millisecond).String(),
-		ExitCode: exitCode,
+		ID:           suite.ID,
+		Title:        suite.Title,
+		Package:      suite.Package,
+		Run:          suite.Run,
+		Required:     suite.Required,
+		Duration:     time.Since(started).Round(time.Millisecond).String(),
+		ExitCode:     exitCode,
+		TestsMatched: summary.TestsMatched,
+		Passed:       summary.Passed,
+		Failed:       summary.Failed,
+		Skipped:      summary.Skipped,
 	}
 	if runErr != nil {
 		res.Status = StatusFailed
-		res.Error = runErr.Error()
+		if summary.ParseError != "" {
+			res.Error = summary.ParseError
+		} else {
+			res.Error = runErr.Error()
+		}
 		return res
 	}
-	if exitCode == 0 {
-		res.Status = StatusPassed
+	if reason := summary.FailReason(suite, exitCode, conformanceRequireTools()); reason != "" {
+		res.Status = StatusFailed
+		res.Error = reason
 		return res
 	}
-	res.Status = StatusFailed
-	res.Error = summarizeOutput(output)
+	res.Status = StatusPassed
 	return res
 }

@@ -55,6 +55,46 @@ func TestRunCoreFilterIdentity(t *testing.T) {
 	}
 }
 
+func TestRunCoreCertNegativeZeroMatchProbe(t *testing.T) {
+	root := testkit.ModuleRoot(t)
+	report, err := RunCore(t.Context(), RunOptions{
+		RepoRoot: root,
+		Filter:   "integration.cert-negative-zero-match",
+	})
+	if err == nil {
+		t.Fatal("expected probe failure")
+	}
+	if report.Passed {
+		t.Fatalf("report=%+v", report)
+	}
+	if len(report.Suites) != 1 || report.Suites[0].Status != StatusFailed {
+		t.Fatalf("suites=%+v", report.Suites)
+	}
+	if report.SchemaVersion != ReportSchemaVersion {
+		t.Fatalf("schema=%d", report.SchemaVersion)
+	}
+	if report.CommitSHA == "" {
+		t.Fatal("missing commitSHA")
+	}
+}
+
+func TestRunCoreCertNegativeForcedSkipProbe(t *testing.T) {
+	root := testkit.ModuleRoot(t)
+	report, err := RunCore(t.Context(), RunOptions{
+		RepoRoot: root,
+		Filter:   "integration.cert-negative-forced-skip",
+	})
+	if err == nil {
+		t.Fatal("expected probe failure")
+	}
+	if report.Passed {
+		t.Fatalf("report=%+v", report)
+	}
+	if len(report.Suites) != 1 || report.Suites[0].Status != StatusFailed {
+		t.Fatalf("suites=%+v", report.Suites)
+	}
+}
+
 func TestFilterSuitesPrefix(t *testing.T) {
 	suites := []Suite{{ID: "lock-bridge-npm"}, {ID: "lock-bridge-yarn-identity"}}
 	got := FilterSuites(suites, "lock-bridge-n")

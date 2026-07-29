@@ -12,9 +12,7 @@ import (
 )
 
 func TestPackFileListMatchesNpmDryRun(t *testing.T) {
-	if testkit.LookPM("npm") == "" {
-		t.Skip("npm not in PATH")
-	}
+	testkit.RequirePM(t, "npm")
 	root := moduleRoot(t)
 	fixture := filepath.Join(root, "fixtures", "pack", "minimal-package")
 	pkgJSON, err := os.ReadFile(filepath.Join(fixture, "package.json"))
@@ -81,9 +79,7 @@ func TestPackFileListMatchesNpmDryRun(t *testing.T) {
 }
 
 func TestPackSimpleFixtureMatchesNpmDryRun(t *testing.T) {
-	if testkit.LookPM("npm") == "" {
-		t.Skip("npm not in PATH")
-	}
+	testkit.RequirePM(t, "npm")
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"pack-conformance","version":"2.0.0"}`), 0o644); err != nil {
 		t.Fatal(err)

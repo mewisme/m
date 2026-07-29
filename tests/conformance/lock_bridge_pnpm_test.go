@@ -199,10 +199,8 @@ func setupIsolatedPnpmHome(t *testing.T) string {
 
 func runPnpmFrozen(t *testing.T, projDir string, major int, registryURL string, strictBytes bool) {
 	t.Helper()
-	pnpm, err := exec.LookPath("pnpm")
-	if err != nil {
-		t.Skip("pnpm not on PATH")
-	}
+	pnpm := testkit.RequirePM(t, "pnpm")
+	testkit.RequirePM(t, "node")
 	setupIsolatedPnpmHome(t)
 	before, err := os.ReadFile(filepath.Join(projDir, "pnpm-lock.yaml"))
 	if err != nil {
@@ -420,10 +418,7 @@ func graphHasPackage(g *lockfile.Graph, id string) bool {
 
 func verifyNodeModulesGraph(t *testing.T, proj, family string) {
 	t.Helper()
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not on PATH")
-	}
+	node := testkit.RequirePM(t, "node")
 	scripts := importScriptsForFamily(family)
 	for _, script := range scripts {
 		cmd := exec.Command(node, "-e", script)
@@ -477,10 +472,7 @@ func verifyStage(t *testing.T, proj, family, stage, addName, wantVersion string,
 			// Workspace members may still declare the dependency; only root placement is asserted above.
 			return
 		}
-		node, err := exec.LookPath("node")
-		if err != nil {
-			t.Skip("node not on PATH")
-		}
+		node := testkit.RequirePM(t, "node")
 		script := fmt.Sprintf("try { require(%q); process.exit(1) } catch { console.log('ok') }", addName)
 		cmd := exec.Command(node, "-e", script)
 		cmd.Dir = proj
@@ -492,10 +484,7 @@ func verifyStage(t *testing.T, proj, family, stage, addName, wantVersion string,
 
 func assertInstalledVersion(t *testing.T, proj, name, want string) {
 	t.Helper()
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not on PATH")
-	}
+	node := testkit.RequirePM(t, "node")
 	script := fmt.Sprintf("const v=require(%q+'/package.json').version; if(v!==%q) { console.error(v); process.exit(1) }", name, want)
 	cmd := exec.Command(node, "-e", script)
 	cmd.Dir = proj
