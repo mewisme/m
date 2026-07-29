@@ -1,10 +1,13 @@
-# Stabilization Pass 19 — MVP 0023 Lock Bridge Scorecard
+# SUPERSEDED — Stabilization Pass 19 — MVP 0023 Lock Bridge Scorecard
+
+**Superseded by:** [`.agents/stabilization-pass20-score.md`](stabilization-pass20-score.md) (Pass 20 closes patch safety, provenance, and alias-peer e2e).  
+**Retracted claims:** READY at 9.5/10 overstated completeness — fixture provenance was deferred, patch hash could reuse stale hints, and alias-peer had no mutation conformance. Pass 19 evidence remains valid for workspace/link-bridge work on `c0536bf` only.
 
 **Date:** 2026-07-29  
 **Baseline:** `c5ea47aa6510b72af0a91e39c2b24834b786d4a7`  
 **Final SHA:** `c0536bf` (`fix(fsx): distinct stub reparse tags for non-Windows builds`)  
-**Overall score:** 9.5 / 10  
-**Status:** READY
+**Overall score:** 9.5 / 10 (historical; not current readiness)  
+**Status:** SUPERSEDED (was READY)
 
 ## CI evidence (run `30453214621` on `c0536bf`)
 
