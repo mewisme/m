@@ -132,7 +132,11 @@ func applySymlink(src, dest string) error {
 		return apperr.New(apperr.Internal, "linker.apply", "symlink", "missing src or dest")
 	}
 	_ = os.Remove(dest)
-	if err := os.Symlink(src, dest); err != nil {
+	target := src
+	if rel, err := filepath.Rel(filepath.Dir(dest), src); err == nil {
+		target = rel
+	}
+	if err := os.Symlink(target, dest); err != nil {
 		return apperr.Wrap(apperr.IO, "linker.apply", dest, err)
 	}
 	return nil

@@ -3,6 +3,7 @@
 package linker
 
 import (
+	"path/filepath"
 	"syscall"
 	"unsafe"
 )
@@ -15,7 +16,15 @@ var (
 const symbolicLinkFlagDirectory = 0x1
 
 func junctionDir(target, link string) error {
-	targetPtr, err := syscall.UTF16PtrFromString(`\\?\` + target)
+	linkTarget := target
+	if rel, err := filepath.Rel(filepath.Dir(link), target); err == nil {
+		linkTarget = rel
+	}
+	targetArg := linkTarget
+	if filepath.IsAbs(linkTarget) {
+		targetArg = `\\?\` + linkTarget
+	}
+	targetPtr, err := syscall.UTF16PtrFromString(targetArg)
 	if err != nil {
 		return err
 	}
