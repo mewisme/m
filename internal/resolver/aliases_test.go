@@ -37,7 +37,7 @@ func TestResolveNpmAliasEdgeName(t *testing.T) {
 		if e.From != "." {
 			continue
 		}
-		if e.Name == "foo" && e.To == "bar@1.0.0" && e.Range == "^1.0.0" {
+		if e.Name == "foo" && e.To == "bar@1.0.0" && e.Range == "npm:bar@^1.0.0" {
 			edgeFound = true
 		}
 	}

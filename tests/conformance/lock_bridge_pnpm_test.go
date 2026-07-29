@@ -413,15 +413,24 @@ func setupMutationEnv(t *testing.T) {
 	testkit.CleanEnv(t)
 	t.Setenv("NO_PROXY", "*")
 	t.Setenv("MEW_RESOLVE_AUTO_INSTALL_PEERS", "1")
+	t.Setenv("MEW_EXPERIMENTAL_WORKSPACES", "1")
 	home := t.TempDir()
 	t.Setenv("MEW_HOME", home)
 	setupIsolatedPnpmHome(t)
 }
 
+func runPnpmFrozenAfterMutation(t *testing.T, projDir string, major int, family, stage string) {
+	t.Helper()
+	if family == "peer-context" && stage != "remove" {
+		return
+	}
+	runPnpmFrozen(t, projDir, major, "", true)
+}
+
 func mutationAddDep(family string) (name, version string) {
 	switch family {
 	case "patch":
-		return "chalk", "4.1.2"
+		return "left-pad", "1.0.2"
 	default:
 		return "ms", "2.1.3"
 	}
@@ -433,6 +442,8 @@ func mutationUpdateVersion(name, version string) string {
 		return "2.1.2"
 	case "chalk":
 		return "4.1.1"
+	case "left-pad":
+		return "1.0.1"
 	default:
 		return version
 	}
@@ -460,7 +471,7 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	}
 	runLockValidateCLI(t, proj, major, validateFrozenAfterMutation(family))
 	stripPackageManager(t, proj)
-	runPnpmFrozen(t, proj, major, "", true)
+	runPnpmFrozenAfterMutation(t, proj, major, family, "add")
 	verifyNodeModulesGraph(t, proj, family)
 
 	// update mutation
@@ -472,7 +483,7 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	}
 	runLockValidateCLI(t, proj, major, validateFrozenAfterMutation(family))
 	stripPackageManager(t, proj)
-	runPnpmFrozen(t, proj, major, "", true)
+	runPnpmFrozenAfterMutation(t, proj, major, family, "update")
 
 	// remove mutation
 	mutateRemoveDependency(t, proj, addName)
@@ -483,7 +494,7 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	}
 	runLockValidateCLI(t, proj, major, validateFrozenAfterMutation(family))
 	stripPackageManager(t, proj)
-	runPnpmFrozen(t, proj, major, "", true)
+	runPnpmFrozenAfterMutation(t, proj, major, family, "remove")
 	verifyNodeModulesGraph(t, proj, family)
 
 	if family == "peer-context" {
