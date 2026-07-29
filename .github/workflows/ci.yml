@@ -18,8 +18,6 @@ jobs:
         run: echo "value=${{ github.event_name == 'push' && startsWith(github.event.head_commit.message, 'docs:') }}" >> "$GITHUB_OUTPUT"
 
   no-cgo-gate:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -37,8 +35,6 @@ jobs:
           go build ./cmd/mx
 
   test:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     env:
@@ -64,8 +60,6 @@ jobs:
         run: go run ./cmd/m development doctor
 
   race:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -76,8 +70,6 @@ jobs:
         run: go test -race ./... -count=1
 
   race-windows:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -87,28 +79,126 @@ jobs:
       - name: Race (transaction, store, fsx)
         run: go test -race ./internal/transaction/... ./internal/store/... ./internal/fsx/... -count=1
 
+  crash-shard-verify:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Prove crash tests partition Windows shards
+        run: go run ./tools/ci/verify-crash-shards
+
   crash-integration:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
-    name: crash-integration (${{ matrix.os }})
+    needs: crash-shard-verify
+    name: crash-integration (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
     env:
       CGO_ENABLED: "0"
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - label: ubuntu-latest
+            os: ubuntu-latest
+            shard: full
+            run: Crash
+          - label: windows-latest/snapshot
+            os: windows-latest
+            shard: snapshot
+            run: TestSnapshotCrash|TestWorkspaceSnapshotRestoreCrash
+          - label: windows-latest/install
+            os: windows-latest
+            shard: install
+            run: TestTxnCrash
+          - label: windows-latest/update
+            os: windows-latest
+            shard: update
+            run: TestUpdateCrash
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
-      - name: Process crash matrix (install, update, snapshot restore)
-        run: go test -tags crash ./tests/integration/... -count=1 -run 'Crash' -timeout 30m
+      - name: Process crash matrix (${{ matrix.shard }})
+        id: crash
+        shell: bash
+        run: |
+          set -euo pipefail
+          start=$(date +%s)
+          go test -tags crash ./tests/integration/... -count=1 -run '${{ matrix.run }}' -timeout 30m
+          end=$(date +%s)
+          duration=$((end - start))
+          echo "duration=${duration}" >> "$GITHUB_OUTPUT"
+          echo "${duration}" > crash-duration.txt
+      - name: Upload shard timing
+        if: always() && steps.crash.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: crash-timing-${{ matrix.os }}-${{ matrix.shard }}
+          path: crash-duration.txt
+          retention-days: 7
+
+  crash-integration-report:
+    needs: crash-integration
+    if: always() && !cancelled() && needs.crash-integration.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: crash-timing-*
+          path: timings
+          merge-multiple: false
+      - name: Compare Windows shard durations to sequential baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline=420
+          {
+            echo "## Crash integration timings"
+            echo ""
+            echo "| Shard | Duration |"
+            echo "| --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          max_win=0
+          max_win_label=""
+          for dir in timings/crash-timing-*; do
+            [ -d "$dir" ] || continue
+            name="${dir#timings/crash-timing-}"
+            dur="$(tr -d '[:space:]' < "$dir/crash-duration.txt")"
+            mins=$((dur / 60))
+            secs=$((dur % 60))
+            echo "| ${name} | ${mins}m ${secs}s (${dur}s) |" >> "$GITHUB_STEP_SUMMARY"
+            case "$name" in
+              windows-latest-*)
+                if [ "$dur" -gt "$max_win" ]; then
+                  max_win=$dur
+                  max_win_label=$name
+                fi
+                ;;
+            esac
+          done
+          {
+            echo ""
+            echo "**Previous sequential Windows job:** ~7m (${baseline}s)"
+            if [ "$max_win" -gt 0 ]; then
+              max_mins=$((max_win / 60))
+              max_secs=$((max_win % 60))
+              echo "**Longest Windows shard (${max_win_label}):** ${max_mins}m ${max_secs}s (${max_win}s)"
+              if [ "$max_win" -lt "$baseline" ]; then
+                saved=$((baseline - max_win))
+                saved_mins=$((saved / 60))
+                saved_secs=$((saved % 60))
+                echo "**Parallel wall-clock savings vs sequential:** ~${saved_mins}m ${saved_secs}s (${saved}s)"
+              else
+                echo "**Note:** longest shard exceeds sequential baseline; check shard balance."
+              fi
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   race-macos:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -119,8 +209,6 @@ jobs:
         run: go test -race ./internal/transaction/... ./internal/store/... ./internal/resolver/... -count=1
 
   platform-lock:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     name: platform-lock (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     env:
@@ -138,8 +226,6 @@ jobs:
         run: go test ./internal/transaction/... ./internal/store/... ./internal/fsx/... -count=1 -run 'Proc|Identity|Takeover|Import|ABA'
 
   cross:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -164,8 +250,6 @@ jobs:
           go build -o "/tmp/mx-${GOOS}-${GOARCH}${ext}" ./cmd/mx
 
   lint:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -187,8 +271,6 @@ jobs:
           version: ${{ steps.ver.outputs.golangci }}
 
   vuln:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -207,8 +289,6 @@ jobs:
           govulncheck ./...
 
   allowlist:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -224,8 +304,6 @@ jobs:
           go test ./tools/check-deps -count=1
 
   gate-probe:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -254,8 +332,6 @@ jobs:
         run: go test ./tools/check-deps -count=1 -run TestAllowlistRejectsUnknown
 
   fixture-verify:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -268,8 +344,6 @@ jobs:
         run: go run ./tools/conformance/verify-fixtures
 
   conformance-pnpm-9:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -296,8 +370,6 @@ jobs:
         run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm9($|MutationSuite|PeerContext)' -v
 
   conformance-pnpm-10:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -324,8 +396,6 @@ jobs:
         run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm10($|MutationSuite|PeerContext)' -v
 
   conformance-pnpm-11:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -352,8 +422,6 @@ jobs:
         run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm11($|MutationSuite|PeerContext)' -v
 
   conformance-pnpm-unsupported:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -366,8 +434,6 @@ jobs:
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpmUnsupported -v
 
   conformance-nub-fixtures:
-    needs: gate
-    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
