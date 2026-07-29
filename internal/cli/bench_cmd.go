@@ -61,8 +61,9 @@ func newBenchCmd() *cobra.Command {
 	install.Flags().StringVar(&fixture, "fixture", "", "fixture project path (default fixtures/bench/medium-graph)")
 
 	cmd := &cobra.Command{
-		Use:   "bench",
-		Short: "Performance benchmarks",
+		Use:     "benchmark",
+		Aliases: []string{"bench"},
+		Short:   "Performance benchmarks",
 	}
 	cmd.AddCommand(install)
 	return cmd

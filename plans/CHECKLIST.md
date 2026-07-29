@@ -2,14 +2,14 @@
 
 ## Program status
 
-- Current MVP: **0031** — Package-Manager Core Stabilization Gate
+- Current MVP: **0040** — Package Script Runner
 - Last updated: 2026-07-30
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0031 - Package-Manager Core Stabilization Gate](0031-core-stabilization.md)
+**Next:** [0040 - Package Script Runner](0040-script-runner.md)
 
 MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/mew/actions/runs/30310739645 (21/21 green).
 
@@ -63,7 +63,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 | 0028 | Core MVP 19 — Explainability, Plans, Semantic Diffs, and ... | Core / MVP 19 | 0017, 0020, 0026 | [x] | [0028](0028-explain-plan-history.md) | [0028-explain-plan-history](cursor/0028-explain-plan-history.plan.md) |
 | 0029 | Core MVP 20 — Performance, Offline Operation, and Portabl... | Core / MVP 20 | 0018, 0026, 0028 | [x] | [0029](0029-performance-offline-capsules.md) | [0029-performance-offline-capsules](cursor/0029-performance-offline-capsules.plan.md) |
 | 0030 | Core MVP 21 — Audit, SBOM, Provenance, and Supply-Chain P... | Core / MVP 21 | 0012, 0021, 0027, 0029 | [x] | [0030](0030-security-audit-sbom.md) | [0030-security-audit-sbom](cursor/0030-security-audit-sbom.plan.md) |
-| 0031 | Core MVP 22 — Package-Manager Core Stabilization Gate | Core / Stabilization | 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018, 0019, 0020, 0021, 0022, 0023, 0024, 0025, 0026, 0027, 0028, 0029, 0030 | [ ] | [0031](0031-core-stabilization.md) | [0031-core-stabilization](cursor/0031-core-stabilization.plan.md) |
+| 0031 | Core MVP 22 — Package-Manager Core Stabilization Gate | Core / Stabilization | 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018, 0019, 0020, 0021, 0022, 0023, 0024, 0025, 0026, 0027, 0028, 0029, 0030 | [x] | [0031](0031-core-stabilization.md) | [0031-core-stabilization](cursor/0031-core-stabilization.plan.md) |
 | 0040 | Runner MVP 1 — Package Script Runner | Runner / MVP 1 | 0031 | [ ] | [0040](0040-script-runner.md) | [0040-script-runner](cursor/0040-script-runner.plan.md) |
 | 0041 | Runner MVP 2 — Workspace Script Orchestration | Runner / MVP 2 | 0022, 0040 | [ ] | [0041](0041-workspace-runner.md) | [0041-workspace-runner](cursor/0041-workspace-runner.plan.md) |
 | 0042 | Runner MVP 3 — Direct `m <script>` Shortcuts | Runner / Mew Extension | 0010, 0040 | [ ] | [0042](0042-direct-script-shortcuts.md) | [0042-direct-script-shortcuts](cursor/0042-direct-script-shortcuts.plan.md) |
@@ -1102,37 +1102,37 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 ### 0031 - Core MVP 22 — Package-Manager Core Stabilization Gate
 
-- status: planned
+- status: done
 - plan: [0031-core-stabilization.md](0031-core-stabilization.md)
 - cursor: [cursor/0031-core-stabilization.plan.md](cursor/0031-core-stabilization.plan.md)
 
-- [ ] Run full conformance suite against Nub/npm/pnpm fixtures per 0080
-- [ ] Execute cross-platform integration matrix on Linux/macOS/Windows CI
-- [ ] Run soak tests: 100+ install cycles on representative projects
-- [ ] Fix all P0/P1 defects found during stabilization
-- [ ] Verify no critical data-loss or corruption paths remain
-- [ ] Implement m doctor health check for common misconfigurations
-- [ ] Publish core-certification.md with evidence links
-- [ ] Freeze public CLI and m.lock schema for runner MVPs
-- [ ] Review and close open decisions from 0010-0030
-- [ ] Benchmark baselines recorded and regression gates green
-- [ ] Security audit of threat model 0082 items for PM core
-- [ ] Documentation pass for all PM commands shipped
-- [ ] Verify transaction recovery on all supported platforms
-- [ ] Verify all lock adapters on certified fixture corpus
-- [ ] No new features: stabilization and fixes only
-- [ ] Sign-off checklist per 0087 definition of done
-- [ ] Unblock 0040 runner MVP with stable install interfaces
-- [ ] Acceptance: Full core conformance suite passes on all CI platforms
-- [ ] Acceptance: m doctor reports healthy state on clean fixture project
-- [ ] Acceptance: No open P0/P1 defects in PM core scope
-- [ ] Acceptance: core-certification.md published with test evidence
-- [ ] Acceptance: 0040 can depend on install/layout interfaces without breakage
-- [ ] Exit: Zero known data-loss or silent-integrity issue.
-- [ ] Exit: Certified read/write matrices are accurate and enforced by tests.
-- [ ] Exit: Transactional recovery succeeds for every injected commit interruption.
-- [ ] Exit: Core commands are documented and machine-readable output is versioned.
-- [ ] Exit: Performance and resource budgets are enforced in CI.
+- [x] Run full conformance suite against Nub/npm/pnpm fixtures per 0080
+- [x] Execute cross-platform integration matrix on Linux/macOS/Windows CI
+- [x] Run soak tests: 100+ install cycles on representative projects
+- [x] Fix all P0/P1 defects found during stabilization
+- [x] Verify no critical data-loss or corruption paths remain
+- [x] Implement m doctor health check for common misconfigurations
+- [x] Publish core-certification.md with evidence links
+- [x] Freeze public CLI and m.lock schema for runner MVPs
+- [x] Review and close open decisions from 0010-0030
+- [x] Benchmark baselines recorded and regression gates green
+- [x] Security audit of threat model 0082 items for PM core
+- [x] Documentation pass for all PM commands shipped
+- [x] Verify transaction recovery on all supported platforms
+- [x] Verify all lock adapters on certified fixture corpus
+- [x] No new features: stabilization and fixes only
+- [x] Sign-off checklist per 0087 definition of done
+- [x] Unblock 0040 runner MVP with stable install interfaces
+- [x] Acceptance: Full core conformance suite passes on all CI platforms
+- [x] Acceptance: m doctor reports healthy state on clean fixture project
+- [x] Acceptance: No open P0/P1 defects in PM core scope
+- [x] Acceptance: core-certification.md published with test evidence
+- [x] Acceptance: 0040 can depend on install/layout interfaces without breakage
+- [x] Exit: Zero known data-loss or silent-integrity issue.
+- [x] Exit: Certified read/write matrices are accurate and enforced by tests.
+- [x] Exit: Transactional recovery succeeds for every injected commit interruption.
+- [x] Exit: Core commands are documented and machine-readable output is versioned.
+- [x] Exit: Performance and resource budgets are enforced in CI.
 
 ### 0040 - Runner MVP 1 — Package Script Runner
 

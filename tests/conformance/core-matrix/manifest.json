@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "matrix": "core",
+  "suites": [
+    {
+      "id": "lock-bridge-npm",
+      "title": "npm lock bridge fixtures",
+      "package": "./tests/conformance",
+      "run": "Npm",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "lock-bridge-pnpm9",
+      "title": "pnpm 9 lock bridge",
+      "package": "./tests/conformance",
+      "run": "TestLockBridgePnpm9($|MutationSuite|PeerContext|AliasPeer)",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "lock-bridge-pnpm10",
+      "title": "pnpm 10 lock bridge",
+      "package": "./tests/conformance",
+      "run": "TestLockBridgePnpm10($|MutationSuite|PeerContext|AliasPeer)",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "lock-bridge-pnpm11",
+      "title": "pnpm 11 lock bridge",
+      "package": "./tests/conformance",
+      "run": "TestLockBridgePnpm11($|MutationSuite|PeerContext|AliasPeer)",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "lock-bridge-pnpm-unsupported",
+      "title": "pnpm legacy lock rejection",
+      "package": "./tests/conformance",
+      "run": "TestLockBridgePnpmUnsupported",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "lock-bridge-yarn",
+      "title": "Yarn lock bridge fixtures",
+      "package": "./tests/conformance",
+      "run": "Yarn",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "lock-bridge-yarn-identity",
+      "title": "Yarn identity adapter",
+      "package": "./tests/conformance",
+      "run": "TestLockBridgeYarnIdentityAdapter",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "lock-bridge-bun",
+      "title": "Bun lock bridge fixtures",
+      "package": "./tests/conformance",
+      "run": "Bun",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "lock-bridge-nub",
+      "title": "Nub lock fixture validation",
+      "package": "./tests/conformance",
+      "run": "TestLockBridgeNubFixtures",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "integration-install",
+      "title": "install smoke",
+      "package": "./tests/integration",
+      "run": "TestInstallGreenfieldBasicCJS|TestInstallFromLockHints|TestInstallDryRunNoMutation",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "integration-offline",
+      "title": "offline install",
+      "package": "./tests/integration",
+      "run": "Offline",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "integration-transaction",
+      "title": "transaction recovery inject",
+      "package": "./tests/integration",
+      "run": "TxnInject",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "integration-policy",
+      "title": "supply-chain policy",
+      "package": "./tests/integration",
+      "run": "Policy",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "integration-audit",
+      "title": "vulnerability audit",
+      "package": "./tests/integration",
+      "run": "Audit",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "integration-sbom",
+      "title": "SBOM export",
+      "package": "./tests/integration",
+      "run": "SBOM",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "integration-provenance",
+      "title": "provenance verification",
+      "package": "./tests/integration",
+      "run": "Provenance",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "unit-resolver",
+      "title": "resolver unit gates",
+      "package": "./internal/resolver",
+      "run": ".",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "unit-lockfile",
+      "title": "lockfile unit gates",
+      "package": "./internal/lockfile",
+      "run": ".",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "unit-archive-security",
+      "title": "archive extraction security",
+      "package": "./internal/archive",
+      "run": "Security|PatchRejects",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "unit-store",
+      "title": "content store security",
+      "package": "./internal/store",
+      "run": "Security|Validate",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "unit-transaction",
+      "title": "transaction journal",
+      "package": "./internal/transaction",
+      "run": "Runner|ScanIncomplete|Journal|Publish",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    }
+  ]
+}

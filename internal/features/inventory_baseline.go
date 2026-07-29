@@ -48,7 +48,16 @@ func baselineFeatures() []Feature {
 		rowWithTests("foundation.release-train", "MVP dependency graph and release train", "foundation", shipped, shipped, parity, "0009", []string{"internal/releasetrain"}),
 		rowWithTests("foundation.cli", "m and mx CLI foundation", "foundation", shipped, shipped, parity, "0010", []string{"internal/cli", "cmd/m", "cmd/mx", "internal/app"}),
 		rowWithTests("foundation.manifest-discovery", "package.json and project discovery", "foundation", shipped, shipped, parity, "0011", []string{"internal/manifest", "internal/project", "internal/workspace", "internal/cli"}),
-		row("foundation.core-stabilization", "package-manager core stabilization gate", "foundation", shipped, planned, parity, "0031"),
+		rowWithTests("foundation.core-stabilization", "package-manager core stabilization gate", "foundation", shipped, shipped, parity, "0031", []string{
+			"docs/core-certification.md",
+			"docs/schema-freeze.md",
+			"docs/security-pm-core.md",
+			"testdata/certification/sign-off-checklist.md",
+			"tests/conformance",
+			"tests/integration",
+			"tools/conformance/verify-fixtures",
+			"tools/ci/verify-crash-shards",
+		}),
 		row("foundation.runner-stabilization", "runner stabilization gate", "foundation", shipped, planned, parity, "0046"),
 		row("foundation.runtime-stabilization", "runtime stabilization gate", "foundation", shipped, planned, parity, "0057"),
 		row("cross.conformance-program", "continuous conformance certification", "cross-cutting", shipped, planned, parity, "0080"),
@@ -71,6 +80,7 @@ func baselineFeatures() []Feature {
 		row("pm.list-why-outdated", "list / why / outdated / view", "package-manager", shipped, planned, parity, "0026"),
 		row("pm.fetch-pack-publish", "fetch / pack / publish", "package-manager", shipped, planned, parity, "0014"),
 		rowWithTests("pm.store-cache-config", "store / cache / config", "package-manager", shipped, inProgress, parity, "0012", []string{"internal/cli", "internal/config", "internal/registry"}),
+		rowWithTests("pm.bench-install", "m bench install harness", "package-manager", omit, shipped, ext, "0029", []string{"internal/app", "internal/cli", "tests/integration"}),
 		row("pm.global-install", "global installs where retained", "package-manager", shipped, planned, parity, "0026"),
 
 		// Resolver
@@ -83,6 +93,8 @@ func baselineFeatures() []Feature {
 		rowWithTests("resolver.aliases", "aliases and npm protocol", "resolver", shipped, shipped, parity, "0020", []string{"internal/resolver", "tests/integration"}),
 		row("resolver.git-sources", "Git, hosted Git, file, link, portal, tarball", "resolver", shipped, planned, parity, "0027"),
 		row("resolver.patches", "patch dependencies", "resolver", shipped, planned, parity, "0027"),
+		rowWithTests("resolver.explain", "explain version selection and peer conflicts", "resolver", shipped, shipped, ext, "0028", []string{"internal/resolver", "internal/cli", "tests/integration", "fixtures/explain"}),
+		rowWithTests("plan.preview", "install mutation plan preview", "plan", omit, shipped, ext, "0028", []string{"internal/plan", "internal/app", "internal/cli", "tests/integration"}),
 		rowWithTests("resolver.minimum-release-age", "minimum release age", "resolver", shipped, shipped, parity, "0013", []string{"internal/resolver", "internal/policy"}),
 
 		// Registry

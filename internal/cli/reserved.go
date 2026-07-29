@@ -21,7 +21,7 @@ var stubCommands = []stubSpec{
 
 // shippedBuiltins are always reserved (implemented today).
 var shippedBuiltins = []string{
-	"version", "features", "development", "config", "project", "pkg", "cache", "store", "view", "resolve", "fetch", "lock", "install", "i", "add", "remove", "rm", "ci", "update", "patch", "explain", "plan", "snapshot", "history", "recover", "rollback", "diff", "pack", "capsule", "publish", "bench", "audit", "sbom", "policy", "verify", "completion", "__dispatch", "help",
+	"version", "features", "development", "config", "project", "pkg", "cache", "store", "view", "resolve", "fetch", "lock", "install", "i", "add", "remove", "rm", "ci", "update", "patch", "explain", "plan", "snapshot", "history", "recover", "rollback", "diff", "pack", "capsule", "publish", "doctor", "bench", "benchmark", "conformance", "audit", "sbom", "policy", "verify", "completion", "__dispatch", "help",
 }
 
 // ReservedNames returns sorted command names that cannot be shadowed by scripts (0042).

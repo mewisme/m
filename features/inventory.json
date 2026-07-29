@@ -155,10 +155,19 @@
       "name": "package-manager core stabilization gate",
       "module": "foundation",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0031",
-      "tests": []
+      "tests": [
+        "docs/core-certification.md",
+        "docs/schema-freeze.md",
+        "docs/security-pm-core.md",
+        "testdata/certification/sign-off-checklist.md",
+        "tests/conformance",
+        "tests/integration",
+        "tools/conformance/verify-fixtures",
+        "tools/ci/verify-crash-shards"
+      ]
     },
     {
       "id": "foundation.runner-stabilization",

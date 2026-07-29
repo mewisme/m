@@ -493,3 +493,29 @@ jobs:
       - name: Install bench regression (non-blocking)
         shell: pwsh
         run: pwsh tools/bench/check_regression.ps1 -Mode warm
+
+  core-stabilization:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Core certification matrix
+        run: go run ./cmd/m conformance run core --json > core-report.json
+      - name: PM doctor health check
+        run: go run ./cmd/m doctor --json
+      - name: Soak install loop
+        shell: pwsh
+        run: pwsh tools/soak/install-loop.ps1 -Count 10 -Mode warm
+      - name: Bench regression warm
+        shell: pwsh
+        run: pwsh tools/bench/check_regression.ps1 -Mode warm
+      - name: Upload core certification report
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-certification-report
+          path: core-report.json
+          if-no-files-found: error

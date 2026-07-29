@@ -3,7 +3,7 @@
 GO ?= go
 BIN_DIR := bin
 
-.PHONY: test vet lint race fuzz-smoke conformance vuln build allowlist
+.PHONY: test vet lint race fuzz-smoke conformance core-cert vuln build allowlist
 
 test:
 	$(GO) test ./... -count=1
@@ -24,6 +24,11 @@ fuzz-smoke:
 
 conformance:
 	$(GO) test ./tests/conformance/... -count=1
+
+core-cert:
+	$(GO) run ./cmd/m conformance run core
+	$(GO) run ./tools/conformance/verify-fixtures
+	$(GO) run ./tools/ci/verify-crash-shards
 
 vuln:
 	govulncheck ./...

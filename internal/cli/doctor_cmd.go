@@ -1,0 +1,50 @@
+package cli
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/apperr"
+)
+
+func newPMDoctorCmd() *cobra.Command {
+	var (
+		asJSON bool
+		strict bool
+	)
+	cmd := &cobra.Command{
+		Use:   "doctor",
+		Short: "Check project and package-manager health",
+		Long:  "Validates project discovery, lockfile, cache/store paths, filesystem link support, transaction journals, and configuration. Node on PATH is a warning only.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ac := app.FromContext(cmd.Context())
+			if ac == nil {
+				return apperr.New(apperr.Internal, "doctor", "", "missing app context")
+			}
+			report, err := app.Doctor(cmd.Context(), ac, app.DoctorOptions{Strict: strict})
+			if err != nil {
+				return err
+			}
+			if asJSON {
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetEscapeHTML(false)
+				enc.SetIndent("", "  ")
+				if err := enc.Encode(report); err != nil {
+					return err
+				}
+				return app.DoctorExitError(report)
+			}
+			if _, err := fmt.Fprint(cmd.OutOrStdout(), app.FormatDoctorReport(report)); err != nil {
+				return err
+			}
+			return app.DoctorExitError(report)
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "print doctor report as JSON")
+	cmd.Flags().BoolVar(&strict, "strict", false, "treat warnings as failures")
+	return cmd
+}

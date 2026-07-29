@@ -61,7 +61,7 @@ Stubs on `m` today: `run`, `exec`, `init`, `link`.
 Shipped built-ins (also reserved): `version`, `features`, `development`,
 `config`, `project`, `pkg`, `cache`, `view`, `resolve`, `fetch`, `lock`,
 `install` (`i`), `add`, `remove` (`rm`), `update`, `ci`, `outdated`, `dedupe`,
-`prune`, `ls` (`list`), `store`, `audit`, `sbom`, `policy`, `verify`,
+`prune`, `ls` (`list`), `store`, `doctor`, `audit`, `sbom`, `policy`, `verify`,
 `completion`, `help`, hidden `__dispatch`.
 
 Global flag: `--filter` — workspace package filter (pnpm-style), passed to
@@ -126,6 +126,15 @@ m fetch --plan-file plan.json [--dir dest] [--json]
 ```
 
 Download, verify, and extract tarballs from a JSON plan. See [`fetch.md`](fetch.md).
+
+## Doctor
+
+```text
+m doctor [--json] [--strict]
+```
+
+Project and package-manager health checks (lock, cache, store, filesystem probe,
+transaction journals, config). See [`doctor.md`](doctor.md).
 
 ## Audit
 

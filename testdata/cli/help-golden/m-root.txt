@@ -7,16 +7,18 @@ Available Commands:
   add            Add a dependency
   approve-builds Approve lifecycle scripts for packages (alias for m trust)
   audit          Audit dependencies for known vulnerabilities
-  bench          Performance benchmarks
+  benchmark      Performance benchmarks
   builds         Lifecycle build script audit
   cache          Manage the download cache
   capsule        Create and restore portable dependency capsules
   ci             Clean install from lockfile
   completion     Generate shell completion scripts
   config         Get and set configuration
+  conformance    Run certification conformance suites
   dedupe         Reduce duplicate dependencies in the lockfile
   development    Developer tooling
   diff           Diff project artifacts
+  doctor         Check project and package-manager health
   exec           Execute a local package binary
   explain        Explain resolution decisions
   features       List capability inventory and parity status

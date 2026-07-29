@@ -1,0 +1,12 @@
+{
+  "name": "workspace-two-pkg",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "dependencies": {
+    "app": "workspace:*",
+    "lib": "workspace:*"
+  }
+}

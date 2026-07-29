@@ -1,23 +1,129 @@
 {
   "schemaVersion": 1,
-  "description": "Conformance inventory stub for MVP 0080. Cases are not yet certified.",
+  "description": "PM-core lock-bridge conformance inventory (MVP 0031). Certified cases have fixture + test evidence; stub cases await differential or 0080 runtime program.",
   "referencePins": {
     "npm": "10",
-    "pnpm": "9",
-    "nub": ""
+    "pnpm9": "9.15.9",
+    "pnpm10": "10.34.5",
+    "pnpm11": "11.17.0",
+    "nub": "derived-fixtures"
   },
   "cases": [
+    {
+      "id": "lock.npm.parse",
+      "status": "certified",
+      "fixture": "fixtures/locks/npm",
+      "test": "tests/conformance/lock_bridge_npm_test.go",
+      "notes": "package-lock v2/v3 parse and graph conversion"
+    },
+    {
+      "id": "lock.npm.reject-v1",
+      "status": "certified",
+      "fixture": "fixtures/locks/npm",
+      "test": "tests/conformance/lock_bridge_npm_test.go",
+      "notes": "lockfileVersion 1 fails with typed error"
+    },
+    {
+      "id": "lock.pnpm9.basic",
+      "status": "certified",
+      "fixture": "fixtures/locks/generated/pnpm-9/basic",
+      "test": "tests/conformance/lock_bridge_pnpm_test.go",
+      "notes": "pnpm 9 producer; parse + install smoke"
+    },
+    {
+      "id": "lock.pnpm9.mutation",
+      "status": "certified",
+      "fixture": "fixtures/locks/generated/pnpm-9",
+      "test": "tests/conformance/lock_bridge_pnpm_test.go",
+      "notes": "Mutation families: basic, transitive, optional, peer-context, alias-peer, workspace, alias, patch"
+    },
+    {
+      "id": "lock.pnpm10.basic",
+      "status": "certified",
+      "fixture": "fixtures/locks/generated/pnpm-10/basic",
+      "test": "tests/conformance/lock_bridge_pnpm_test.go",
+      "notes": "pnpm 10 producer; parse + install smoke"
+    },
+    {
+      "id": "lock.pnpm10.mutation",
+      "status": "certified",
+      "fixture": "fixtures/locks/generated/pnpm-10",
+      "test": "tests/conformance/lock_bridge_pnpm_test.go",
+      "notes": "Mutation families: basic, transitive, optional, peer-context, alias-peer, workspace, alias, patch"
+    },
+    {
+      "id": "lock.pnpm11.basic",
+      "status": "certified",
+      "fixture": "fixtures/locks/generated/pnpm-11/basic",
+      "test": "tests/conformance/lock_bridge_pnpm_test.go",
+      "notes": "pnpm 11 producer; parse + install smoke"
+    },
+    {
+      "id": "lock.pnpm11.mutation",
+      "status": "certified",
+      "fixture": "fixtures/locks/generated/pnpm-11",
+      "test": "tests/conformance/lock_bridge_pnpm_test.go",
+      "notes": "Mutation families: basic, transitive, optional, peer-context, alias-peer, workspace, alias, patch"
+    },
+    {
+      "id": "lock.pnpm.unsupported-legacy",
+      "status": "certified",
+      "fixture": "fixtures/locks/pnpm/unsupported",
+      "test": "tests/conformance/lock_bridge_pnpm_test.go",
+      "notes": "pnpm 8 and older layouts rejected before graph conversion"
+    },
+    {
+      "id": "lock.yarn.classic",
+      "status": "certified",
+      "fixture": "fixtures/locks/yarn/classic",
+      "test": "tests/conformance/lock_bridge_yarn_test.go",
+      "notes": "Yarn Classic v1 lock parse"
+    },
+    {
+      "id": "lock.yarn.berry-nm",
+      "status": "certified",
+      "fixture": "fixtures/locks/yarn/berry-nm",
+      "test": "tests/conformance/lock_bridge_yarn_test.go",
+      "notes": "Yarn Berry node_modules mode"
+    },
+    {
+      "id": "lock.yarn.berry-pnp-readonly",
+      "status": "certified",
+      "fixture": "fixtures/locks/yarn/berry-pnp-readonly",
+      "test": "tests/conformance/lock_bridge_yarn_test.go",
+      "notes": "PnP lock parse + identity; install rejected"
+    },
+    {
+      "id": "lock.bun.parse",
+      "status": "certified",
+      "fixture": "fixtures/locks/bun",
+      "test": "tests/conformance/lock_bridge_bun_test.go",
+      "notes": "bun.lock parse and graph conversion"
+    },
+    {
+      "id": "lock.nub.derived",
+      "status": "certified",
+      "fixture": "fixtures/locks/generated/nub-basic",
+      "test": "tests/conformance/lock_bridge_pnpm_test.go",
+      "notes": "Derived nub.lock fixtures (basic, transitive, optional, peer, catalog, workspace); not live Nub binary"
+    },
     {
       "id": "identity.detection",
       "status": "stub",
       "fixture": "fixtures/identity",
-      "notes": "Covered by internal/project unit tests; differential pending"
+      "notes": "Covered by internal/project unit tests; differential pending (0080)"
     },
     {
       "id": "registry.hermetic",
       "status": "stub",
       "fixture": "fixtures/registry/v1",
-      "notes": "Local fixture registry smoke in tests/integration"
+      "notes": "Local fixture registry smoke in tests/integration; differential pending"
+    },
+    {
+      "id": "runtime.differential",
+      "status": "stub",
+      "fixture": "",
+      "notes": "Deferred to MVP 0080 (m conformance run runtime)"
     }
   ]
 }
