@@ -421,11 +421,10 @@ func verifyWorkspaceLink(t *testing.T, proj string) {
 	}
 }
 
-func verifyStage(t *testing.T, proj, family, stage, addName, wantVersion string) {
+func verifyStage(t *testing.T, proj, family, stage, addName, wantVersion string, major int) {
 	t.Helper()
 	verifyNodeModulesGraph(t, proj, family)
 	if family == "peer-context" {
-		major := peerContextMajor(proj)
 		assertPeerContextGraph(t, proj, major)
 	}
 	switch stage {
@@ -560,7 +559,7 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	runLockValidateCLI(t, proj, major, true)
 	stripPackageManager(t, proj)
 	runPnpmFrozen(t, proj, major, "", true)
-	verifyStage(t, proj, family, "add", addName, addVer)
+	verifyStage(t, proj, family, "add", addName, addVer, major)
 
 	// update mutation
 	updateVer := mutationUpdateVersion(addName, addVer)
@@ -573,7 +572,7 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	runLockValidateCLI(t, proj, major, true)
 	stripPackageManager(t, proj)
 	runPnpmFrozen(t, proj, major, "", true)
-	verifyStage(t, proj, family, "update", addName, updateVer)
+	verifyStage(t, proj, family, "update", addName, updateVer, major)
 
 	// remove mutation
 	mutateRemoveDependency(t, proj, addName)
@@ -585,7 +584,7 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	runLockValidateCLI(t, proj, major, true)
 	stripPackageManager(t, proj)
 	runPnpmFrozen(t, proj, major, "", true)
-	verifyStage(t, proj, family, "remove", addName, "")
+	verifyStage(t, proj, family, "remove", addName, "", major)
 
 	// deterministic repeat
 	runMewInstall(t, proj, major, "--frozen-lockfile")

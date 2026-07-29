@@ -61,7 +61,9 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 		if _, dup := seenDest[p.DestDir]; !dup {
 			seenDest[p.DestDir] = struct{}{}
 			ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: p.DestDir})
-			if l.UseSmartLink {
+			if isLinkProtocol(p.Key) {
+				ops = append(ops, planner.PlanDirAlias(src, p.DestDir, l.Capabilities))
+			} else if l.UseSmartLink {
 				ops = append(ops, planner.PlanPackageLink(src, p.DestDir, l.Capabilities))
 			} else {
 				ops = append(ops, linker.Op{Kind: linker.OpCopy, Src: src, Dest: p.DestDir})
@@ -254,6 +256,10 @@ func binNodeModulesFor(pkgInstallDir string) string {
 		}
 		dir = parent
 	}
+}
+
+func isLinkProtocol(key string) bool {
+	return strings.HasPrefix(key, "link:")
 }
 
 func rootDependencyKeys(g *graph.Graph) map[string]bool {
