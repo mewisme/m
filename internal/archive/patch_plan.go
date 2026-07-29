@@ -133,8 +133,14 @@ func looksAbsolutePatchPath(name string) bool {
 	}
 	if runtime.GOOS != "windows" {
 		slash := filepath.ToSlash(name)
-		if strings.Contains(slash, "/") && !strings.HasPrefix(slash, "/") && filepath.IsAbs("/"+slash) {
-			return true
+		if !strings.HasPrefix(slash, "/") && strings.Contains(slash, "/") {
+			top, _, _ := strings.Cut(slash, "/")
+			switch top {
+			case "tmp", "var", "private", "dev", "home", "Users", "proc":
+				if filepath.IsAbs("/" + slash) {
+					return true
+				}
+			}
 		}
 	}
 	return false
