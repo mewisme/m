@@ -85,14 +85,30 @@ func ResolveDependencyTarget(depName, resolutionRef string, idx PackageIndex) (T
 	if ref == "" {
 		return Target{}, apperr.New(apperr.Lockfile, "pnpm.refresolve", depName, "empty dependency reference")
 	}
+	resolveName := depName
+	if actual, _, ok := ParseAliasFromImporterDep(depName, "", ref); ok {
+		resolveName = actual
+	} else if strings.HasPrefix(ref, "npm:") {
+		if actual, resolvedRef, ok := ParseAliasFromImporterDep(depName, ref, ""); ok {
+			resolveName = actual
+			ref = resolvedRef
+		}
+	} else if strings.Contains(ref, "@") && !strings.Contains(ref, "(") {
+		if id, err := ParsePackageIdentity(ref); err == nil && !id.IsProtocolRef && id.PeerSuffix == "" && id.Name != depName {
+			resolveName = id.Name
+		}
+	}
 	if isProtocolRef(ref) {
+		if strings.HasPrefix(ref, "workspace:") {
+			return resolveWorkspaceTarget(depName, ref, idx)
+		}
 		return Target{Key: ref}, nil
 	}
 	if idx != nil && idx.HasKey(ref) {
 		return Target{Key: ref}, nil
 	}
 	if !strings.Contains(ref, "@") {
-		candidate := depName + "@" + ref
+		candidate := resolveName + "@" + ref
 		if idx != nil {
 			if gk, err := instanceKeyToGraphKey(candidate); err == nil && idx.HasKey(gk) {
 				return Target{Key: gk}, nil
@@ -103,7 +119,7 @@ func ResolveDependencyTarget(depName, resolutionRef string, idx PackageIndex) (T
 		}
 		return Target{}, danglingTarget(depName, ref, idx)
 	}
-	if id, err := ParsePackageIdentity(ref); err == nil && id.Name == depName {
+	if id, err := ParsePackageIdentity(ref); err == nil && id.Name == resolveName {
 		if idx != nil {
 			if gk, err := instanceKeyToGraphKey(ref); err == nil && idx.HasKey(gk) {
 				return Target{Key: gk}, nil
@@ -114,14 +130,14 @@ func ResolveDependencyTarget(depName, resolutionRef string, idx PackageIndex) (T
 		}
 	}
 	if idx != nil {
-		if gk, err := instanceKeyToGraphKey(depName + "@" + ref); err == nil && idx.HasKey(gk) {
+		if gk, err := instanceKeyToGraphKey(resolveName + "@" + ref); err == nil && idx.HasKey(gk) {
 			return Target{Key: gk}, nil
 		}
 	}
 	if idx == nil {
 		return Target{}, danglingTarget(depName, ref, nil)
 	}
-	matches := matchKeysForRef(idx, depName, ref)
+	matches := matchKeysForRef(idx, resolveName, ref)
 	switch len(matches) {
 	case 0:
 		return Target{}, danglingTarget(depName, ref, idx)
@@ -188,4 +204,21 @@ func isLocalProtocolRef(ref string) bool {
 	return strings.HasPrefix(ref, "link:") ||
 		strings.HasPrefix(ref, "workspace:") ||
 		strings.HasPrefix(ref, "file:")
+}
+
+func resolveWorkspaceTarget(depName, ref string, idx PackageIndex) (Target, error) {
+	_ = ref
+	if idx != nil {
+		for _, key := range idx.KeysForName(depName) {
+			if strings.HasPrefix(key, "link:") || strings.HasPrefix(key, "workspace:") {
+				return Target{Key: key}, nil
+			}
+		}
+	}
+	linkRef := "link:" + depName
+	if idx != nil && idx.HasKey(linkRef) {
+		return Target{Key: linkRef}, nil
+	}
+	return Target{}, apperr.New(apperr.Lockfile, "pnpm.refresolve", depName,
+		fmt.Sprintf("dangling workspace reference %q", ref))
 }

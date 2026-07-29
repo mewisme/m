@@ -73,12 +73,12 @@ func TestResolveDependencyTargetPeerContext(t *testing.T) {
 
 func TestResolveDependencyTargetAlias(t *testing.T) {
 	idx := NewPackageIndex([]string{"lodash@4.17.21"})
-	target, err := ResolveDependencyTarget("alias-name", "npm:lodash@4.17.21", idx)
-	if err == nil {
-		// alias protocol may resolve directly as protocol ref
-		if target.Key != "npm:lodash@4.17.21" {
-			t.Fatalf("unexpected alias resolution: %q", target.Key)
-		}
+	target, err := ResolveDependencyTarget("alias-name", "lodash@4.17.21", idx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if target.Key != "lodash@4.17.21" {
+		t.Fatalf("unexpected alias resolution: %q", target.Key)
 	}
 }
 
@@ -111,6 +111,8 @@ func FuzzResolveDependencyTarget(f *testing.F) {
 	f.Add("b", "2.0.0")
 	f.Add("@scope/x", "1.0.0")
 	f.Add("acorn-jsx", "5.3.2(acorn@8.18.0)")
+	f.Add("alias-name", "lodash@4.17.21")
+	f.Add("pkg-a", "link:packages/pkg-a")
 	f.Fuzz(func(t *testing.T, name, ref string) {
 		if len(name)+len(ref) > maxPackageKeyLen+maxPeerSuffixLen {
 			return

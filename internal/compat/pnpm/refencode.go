@@ -19,8 +19,12 @@ func EncodeDependencyRef(depName, targetKey string) (string, error) {
 		return dependencyRefFromGraphKey(depName, targetKey)
 	}
 	id, err := ParsePackageIdentity(targetKey)
-	if err == nil && id.Name == depName {
-		return id.BaseVersion + id.PeerSuffix, nil
+	if err == nil {
+		if id.Name == depName {
+			return id.BaseVersion + id.PeerSuffix, nil
+		}
+		// npm alias: version field stores actual package@version.
+		return id.Name + "@" + id.BaseVersion + id.PeerSuffix, nil
 	}
 	prefix := depName + "@"
 	if strings.HasPrefix(targetKey, prefix) {
