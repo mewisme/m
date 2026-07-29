@@ -25,15 +25,24 @@ func TestBenchInstallMediumGraphCold(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := BenchInstall(ctx, ac, BenchInstallOptions{Mode: BenchCold})
+	result, err := BenchInstall(ctx, ac, BenchInstallOptions{Mode: BenchCold, Samples: 1, Warmup: 0})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if result.Case != "medium-graph-cold" {
 		t.Fatalf("case=%s", result.Case)
 	}
-	if result.TotalMs <= 0 {
-		t.Fatalf("totalMs=%d", result.TotalMs)
+	if len(result.Samples) != 1 || result.MedianMs <= 0 || result.P95Ms <= 0 {
+		t.Fatalf("samples=%v median=%d p95=%d", result.Samples, result.MedianMs, result.P95Ms)
+	}
+	if result.TotalMs != result.MedianMs {
+		t.Fatalf("totalMs=%d medianMs=%d", result.TotalMs, result.MedianMs)
+	}
+	if result.GoVersion == "" || result.OS == "" || result.Arch == "" {
+		t.Fatalf("metadata go=%s os=%s arch=%s", result.GoVersion, result.OS, result.Arch)
+	}
+	if result.FixtureDigest == "" {
+		t.Fatal("expected fixtureDigest")
 	}
 	if len(result.Phases) == 0 {
 		t.Fatal("expected phase timings")
@@ -50,7 +59,7 @@ func TestBenchInstallMediumGraphCold(t *testing.T) {
 	if err := json.Unmarshal(data, &round); err != nil {
 		t.Fatal(err)
 	}
-	if round.Mode != "cold" || round.TotalMs != result.TotalMs {
+	if round.Mode != "cold" || round.TotalMs != result.TotalMs || round.MedianMs != result.MedianMs {
 		t.Fatalf("%+v", round)
 	}
 }

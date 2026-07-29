@@ -1,13 +1,33 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "cases": [
     {
       "name": "medium-graph-cold",
-      "totalMsMedian": 60000
+      "totalMsMedian": 167,
+      "totalMsP95": 175,
+      "samples": [
+        167,
+        175,
+        165
+      ],
+      "goVersion": "go1.26.5",
+      "os": "windows",
+      "arch": "amd64",
+      "fixtureDigest": "eda2d9c1d2dd4c387ec5f9869f16c63ff68899a8537384e1ec6dc320022d7086"
     },
     {
       "name": "medium-graph-warm",
-      "totalMsMedian": 10000
+      "totalMsMedian": 169,
+      "totalMsP95": 175,
+      "samples": [
+        157,
+        175,
+        169
+      ],
+      "goVersion": "go1.26.5",
+      "os": "windows",
+      "arch": "amd64",
+      "fixtureDigest": "eda2d9c1d2dd4c387ec5f9869f16c63ff68899a8537384e1ec6dc320022d7086"
     }
   ]
 }

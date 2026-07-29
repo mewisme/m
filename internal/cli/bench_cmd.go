@@ -11,10 +11,13 @@ import (
 
 func newBenchCmd() *cobra.Command {
 	var (
-		cold    bool
-		warm    bool
-		asJSON  bool
-		fixture string
+		cold     bool
+		warm     bool
+		asJSON   bool
+		fixture  string
+		baseline bool
+		warmup   int
+		samples  int
 	)
 	install := &cobra.Command{
 		Use:   "install",
@@ -33,8 +36,11 @@ func newBenchCmd() *cobra.Command {
 				return apperr.New(apperr.Usage, "bench install", "--cold|--warm", "specify only one mode flag")
 			}
 			result, err := app.BenchInstall(cmd.Context(), ac, app.BenchInstallOptions{
-				Fixture: fixture,
-				Mode:    mode,
+				Fixture:  fixture,
+				Mode:     mode,
+				Warmup:   warmup,
+				Samples:  samples,
+				Baseline: baseline,
 			})
 			if err != nil {
 				return err
@@ -59,6 +65,9 @@ func newBenchCmd() *cobra.Command {
 	install.Flags().BoolVar(&warm, "warm", false, "reuse cache from prior bench run in bench home")
 	install.Flags().BoolVar(&asJSON, "json", false, "emit BenchResult JSON")
 	install.Flags().StringVar(&fixture, "fixture", "", "fixture project path (default fixtures/bench/medium-graph)")
+	install.Flags().BoolVar(&baseline, "baseline", false, "update benchmarks/install-baseline.json for this case")
+	install.Flags().IntVar(&warmup, "warmup", 0, "discarded warmup iterations before sampling (default 1)")
+	install.Flags().IntVar(&samples, "samples", 0, "measured iterations for median/p95 (default 5)")
 
 	cmd := &cobra.Command{
 		Use:     "benchmark",
@@ -70,5 +79,6 @@ func newBenchCmd() *cobra.Command {
 }
 
 func formatBenchResult(r app.BenchResult) string {
-	return fmt.Sprintf("case=%s mode=%s totalMs=%d", r.Case, r.Mode, r.TotalMs)
+	return fmt.Sprintf("case=%s mode=%s samples=%d medianMs=%d p95Ms=%d totalMs=%d",
+		r.Case, r.Mode, len(r.Samples), r.MedianMs, r.P95Ms, r.TotalMs)
 }

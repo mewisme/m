@@ -25,16 +25,27 @@ const (
 
 // BenchInstallOptions configures m bench install.
 type BenchInstallOptions struct {
-	Fixture string
-	Mode    BenchMode
+	Fixture  string
+	Mode     BenchMode
+	Warmup   int
+	Samples  int
+	Baseline bool
 }
 
 // BenchResult is the JSON payload for m bench install --json.
 type BenchResult struct {
-	Case    string           `json:"case"`
-	Mode    string           `json:"mode"`
-	Phases  map[string]int64 `json:"phases"`
-	TotalMs int64            `json:"totalMs"`
+	Case          string           `json:"case"`
+	Mode          string           `json:"mode"`
+	Samples       []int64          `json:"samples"`
+	MedianMs      int64            `json:"medianMs"`
+	P95Ms         int64            `json:"p95Ms"`
+	TotalMs       int64            `json:"totalMs"`
+	Phases        map[string]int64 `json:"phases,omitempty"`
+	GoVersion     string           `json:"goVersion"`
+	OS            string           `json:"os"`
+	Arch          string           `json:"arch"`
+	Commit        string           `json:"commit"`
+	FixtureDigest string           `json:"fixtureDigest"`
 }
 
 type phaseReporter struct {
@@ -99,6 +110,11 @@ func (p *phaseReporter) totalMs() int64 {
 	return time.Since(p.start).Milliseconds()
 }
 
+type benchSample struct {
+	totalMs int64
+	phases  map[string]int64
+}
+
 // BenchInstall runs an isolated install benchmark against a fixture project.
 func BenchInstall(ctx context.Context, ac *Context, opts BenchInstallOptions) (BenchResult, error) {
 	if ac == nil {
@@ -123,25 +139,71 @@ func BenchInstall(ctx context.Context, ac *Context, opts BenchInstallOptions) (B
 	if err != nil {
 		return BenchResult{}, err
 	}
+	fixtureDigest, err := fixtureTreeDigest(fixtureSrc)
+	if err != nil {
+		return BenchResult{}, apperr.Wrap(apperr.IO, "app.bench", fixtureSrc, err)
+	}
 	caseName := filepath.Base(fixtureSrc) + "-" + string(mode)
+	goVersion, goos, goarch := benchRuntimeMetadata(ac.Commit)
 
+	warmup := benchWarmupCount(opts.Warmup)
+	samples := benchSampleCount(opts.Samples)
+	var totals []int64
+	var lastPhases map[string]int64
+	for i := 0; i < warmup+samples; i++ {
+		sample, err := benchInstallOnce(ctx, ac, mode, fixtureSrc, moduleRoot)
+		if err != nil {
+			return BenchResult{}, err
+		}
+		if i < warmup {
+			continue
+		}
+		totals = append(totals, sample.totalMs)
+		lastPhases = sample.phases
+	}
+
+	median := benchMedian(totals)
+	p95 := benchP95(totals)
+	result := BenchResult{
+		Case:          caseName,
+		Mode:          string(mode),
+		Samples:       totals,
+		MedianMs:      median,
+		P95Ms:         p95,
+		TotalMs:       median,
+		Phases:        lastPhases,
+		GoVersion:     goVersion,
+		OS:            goos,
+		Arch:          goarch,
+		Commit:        ac.Commit,
+		FixtureDigest: fixtureDigest,
+	}
+	if opts.Baseline {
+		if err := UpdateInstallBaseline(moduleRoot, result); err != nil {
+			return BenchResult{}, err
+		}
+	}
+	return result, nil
+}
+
+func benchInstallOnce(ctx context.Context, ac *Context, mode BenchMode, fixtureSrc, moduleRoot string) (benchSample, error) {
 	benchRoot := filepath.Join(moduleRoot, ".cache", "mew", "bench", filepath.Base(fixtureSrc))
 	home := filepath.Join(benchRoot, "home")
 	projectDir := filepath.Join(benchRoot, "project")
 	if err := os.MkdirAll(benchRoot, 0o755); err != nil {
-		return BenchResult{}, apperr.Wrap(apperr.IO, "app.bench", benchRoot, err)
+		return benchSample{}, apperr.Wrap(apperr.IO, "app.bench", benchRoot, err)
 	}
 
 	if mode == BenchCold {
 		if err := os.RemoveAll(home); err != nil {
-			return BenchResult{}, apperr.Wrap(apperr.IO, "app.bench", home, err)
+			return benchSample{}, apperr.Wrap(apperr.IO, "app.bench", home, err)
 		}
 	}
 	if err := os.RemoveAll(projectDir); err != nil {
-		return BenchResult{}, apperr.Wrap(apperr.IO, "app.bench", projectDir, err)
+		return benchSample{}, apperr.Wrap(apperr.IO, "app.bench", projectDir, err)
 	}
 	if err := copyBenchTree(fixtureSrc, projectDir); err != nil {
-		return BenchResult{}, apperr.Wrap(apperr.IO, "app.bench", fixtureSrc, err)
+		return benchSample{}, apperr.Wrap(apperr.IO, "app.bench", fixtureSrc, err)
 	}
 
 	cacheDir := filepath.Join(home, ".cache", "mew")
@@ -149,21 +211,21 @@ func BenchInstall(ctx context.Context, ac *Context, opts BenchInstallOptions) (B
 	configDir := filepath.Join(home, ".config", "mew")
 	for _, d := range []string{cacheDir, storeDir, configDir} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
-			return BenchResult{}, apperr.Wrap(apperr.IO, "app.bench", d, err)
+			return benchSample{}, apperr.Wrap(apperr.IO, "app.bench", d, err)
 		}
 	}
 
 	registryRoot := filepath.Join(moduleRoot, "fixtures", "registry", "v1")
 	reg, err := startFixtureRegistry(registryRoot)
 	if err != nil {
-		return BenchResult{}, apperr.Wrap(apperr.Network, "app.bench", registryRoot, err)
+		return benchSample{}, apperr.Wrap(apperr.Network, "app.bench", registryRoot, err)
 	}
 	defer reg.Close()
 
 	cfgPath := filepath.Join(projectDir, "m.jsonc")
 	cfgBody := fmt.Sprintf(`{"registry":"%s"}`+"\n", reg.URL())
 	if err := os.WriteFile(cfgPath, []byte(cfgBody), 0o644); err != nil {
-		return BenchResult{}, apperr.Wrap(apperr.IO, "app.bench", cfgPath, err)
+		return benchSample{}, apperr.Wrap(apperr.IO, "app.bench", cfgPath, err)
 	}
 
 	env := benchOverlayEnv(os.Environ(), home, cacheDir, storeDir, configDir)
@@ -178,19 +240,17 @@ func BenchInstall(ctx context.Context, ac *Context, opts BenchInstallOptions) (B
 		BuildDate:  ac.BuildDate,
 	})
 	if err != nil {
-		return BenchResult{}, err
+		return benchSample{}, err
 	}
 
 	_, err = Install(ctx, benchAC, InstallOptions{IgnoreScripts: true})
 	if err != nil {
-		return BenchResult{}, err
+		return benchSample{}, err
 	}
 
-	return BenchResult{
-		Case:    caseName,
-		Mode:    string(mode),
-		Phases:  phaseRep.finish(),
-		TotalMs: phaseRep.totalMs(),
+	return benchSample{
+		totalMs: phaseRep.totalMs(),
+		phases:  phaseRep.finish(),
 	}, nil
 }
 
