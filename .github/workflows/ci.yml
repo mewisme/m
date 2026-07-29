@@ -444,6 +444,30 @@ jobs:
       - name: npm lock bridge conformance
         run: go test ./tests/conformance/... -count=1 -run Npm -v
 
+  conformance-bun:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: bun lock bridge conformance
+        run: go test ./tests/conformance/... -count=1 -run Bun -v
+
+  conformance-yarn:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: yarn lock bridge conformance
+        run: go test ./tests/conformance/... -count=1 -run Yarn -v
+
   conformance-nub-fixtures:
     runs-on: ubuntu-latest
     env:

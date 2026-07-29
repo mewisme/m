@@ -675,30 +675,41 @@
       "name": "bun.lock",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0025",
-      "tests": []
+      "tests": [
+        "internal/compat/bun",
+        "tests/conformance/lock_bridge_bun_test.go"
+      ]
     },
     {
       "id": "lockfile.yarn-classic",
       "name": "Yarn Classic",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0025",
-      "tests": []
+      "tests": [
+        "internal/compat/yarn/classic",
+        "tests/conformance/lock_bridge_yarn_test.go"
+      ]
     },
     {
       "id": "lockfile.yarn-berry",
       "name": "Yarn Berry and PnP artifacts",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0025",
-      "tests": []
+      "tests": [
+        "internal/compat/yarn/berry",
+        "tests/conformance/lock_bridge_yarn_test.go",
+        "fixtures/locks/yarn/berry-nm",
+        "fixtures/locks/yarn/berry-pnp-readonly"
+      ]
     },
     {
       "id": "lockfile.preservation",

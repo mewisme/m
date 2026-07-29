@@ -158,8 +158,11 @@ Install-family commands write the **incumbent** lockfile only (`nub.lock` or
 | `nub` | `nub.lock` | `internal/compat/nub` | pnpm v9-shaped YAML |
 | `pnpm` | `pnpm-lock.yaml` | `internal/compat/pnpm` | **9, 10, 11 only** (v5–v8 rejected) |
 | `npm` | `package-lock.json` / `npm-shrinkwrap.json` | `internal/compat/npm` | **v2, v3 only** (v1 rejected) |
+| `bun` | `bun.lock` (text) | `internal/compat/bun` | **v0, v1** (`bun.lockb` rejected) |
+| `yarn` | `yarn.lock` | `internal/compat/yarn` | Classic v1; Berry node-modules; Berry PnP parse-only |
 
 See [`npm-lockfile.md`](npm-lockfile.md) for npm shrinkwrap precedence and write policy.
+See [`bun-lockfile.md`](bun-lockfile.md) and [`yarn-lockfile.md`](yarn-lockfile.md).
 
 pnpm **5–8** flat or legacy layouts are rejected with `ERR_M_LOCK_UNSUPPORTED` and
 remediation to regenerate with pnpm 9, 10, or 11. Unsupported fixtures:
@@ -170,7 +173,7 @@ metadata, observed root/settings field evidence, and optional `--pnpm-major` (9,
 or 11). Do not trust `lockfileVersion: '9.0'` alone.
 
 CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
---from nub|pnpm|npm --to m` (`--dry-run` emits migration report JSON).
+--from nub|pnpm|npm|bun|yarn --to m` (`--dry-run` emits migration report JSON).
 
 `--pnpm-major` (9, 10, or 11) applies to `m lock validate`, `m lock diff`,
 `m lock migrate`, and `m install`.

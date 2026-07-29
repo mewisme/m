@@ -2,14 +2,14 @@
 
 ## Program status
 
-- Current MVP: **0025** — Bun and Yarn Lockfile Compatibility
+- Current MVP: **0026** — Complete Package-Manager Command Surface
 - Last updated: 2026-07-29
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0025 - Bun and Yarn Lockfile Compatibility](0025-bun-yarn-locks.md)
+**Next:** [0026 - Complete Package-Manager Command Surface](0026-pm-command-surface.md)
 
 MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/mew/actions/runs/30310739645 (21/21 green).
 
@@ -57,7 +57,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 | 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [x] | [0022](0022-workspaces-catalogs.md) | [0022-workspaces-catalogs](cursor/0022-workspaces-catalogs.plan.md) |
 | 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [x] | [0023](0023-nub-pnpm-lock-bridge.md) | [0023-nub-pnpm-lock-bridge](cursor/0023-nub-pnpm-lock-bridge.plan.md) |
 | 0024 | Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility | Core / MVP 15 | 0023 | [x] | [0024](0024-npm-locks.md) | [0024-npm-locks](cursor/0024-npm-locks.plan.md) |
-| 0025 | Core MVP 16 — Bun and Yarn Lockfile Compatibility | Core / MVP 16 | 0023, 0024 | [ ] | [0025](0025-bun-yarn-locks.md) | [0025-bun-yarn-locks](cursor/0025-bun-yarn-locks.plan.md) |
+| 0025 | Core MVP 16 — Bun and Yarn Lockfile Compatibility | Core / MVP 16 | 0023, 0024 | [x] | [0025](0025-bun-yarn-locks.md) | [0025-bun-yarn-locks](cursor/0025-bun-yarn-locks.plan.md) |
 | 0026 | Core MVP 17 — Complete Package-Manager Command Surface | Core / MVP 17 | 0021, 0022, 0023, 0024, 0025 | [ ] | [0026](0026-pm-command-surface.md) | [0026-pm-command-surface](cursor/0026-pm-command-surface.plan.md) |
 | 0027 | Core MVP 18 — Advanced Sources, Patches, Pack, and Publish | Core / MVP 18 | 0026 | [ ] | [0027](0027-advanced-sources-publish.md) | [0027-advanced-sources-publish](cursor/0027-advanced-sources-publish.plan.md) |
 | 0028 | Core MVP 19 — Explainability, Plans, Semantic Diffs, and ... | Core / MVP 19 | 0017, 0020, 0026 | [ ] | [0028](0028-explain-plan-history.md) | [0028-explain-plan-history](cursor/0028-explain-plan-history.plan.md) |
@@ -898,36 +898,36 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0025 - Core MVP 16 — Bun and Yarn Lockfile Compatibility
 
-- status: planned
+- status: done
 - plan: [0025-bun-yarn-locks.md](0025-bun-yarn-locks.md)
 - cursor: [cursor/0025-bun-yarn-locks.plan.md](cursor/0025-bun-yarn-locks.plan.md)
 
-- [ ] Implement bun.lock parser adapter to canonical graph
-- [ ] Implement yarn.lock classic parser
-- [ ] Implement Yarn Berry lockfile read for node-modules mode
-- [ ] Certify Berry PnP read path or document explicit deferral
-- [ ] Preserve bun.lock on Bun-identity projects
-- [ ] Preserve yarn.lock on Yarn classic identity projects
-- [ ] Detect yarn berry via .yarnrc.yml and lockfile format
-- [ ] Support migrate lock from bun/yarn to m.lock
-- [ ] Document unsupported Berry features with clear errors
-- [ ] Add golden fixtures per lock type
+- [x] Implement bun.lock parser adapter to canonical graph
+- [x] Implement yarn.lock classic parser
+- [x] Implement Yarn Berry lockfile read for node-modules mode
+- [x] Certify Berry PnP read path or document explicit deferral
+- [x] Preserve bun.lock on Bun-identity projects
+- [x] Preserve yarn.lock on Yarn classic identity projects
+- [x] Detect yarn berry via .yarnrc.yml and lockfile format
+- [x] Support migrate lock from bun/yarn to m.lock
+- [x] Document unsupported Berry features with clear errors
+- [x] Add golden fixtures per lock type
 - [ ] Add differential install tests where reference tool available
 - [ ] Handle yarn resolutions field mapping to overrides
 - [ ] Support zero-install cache metadata read-only if present
-- [ ] Never silently convert yarn/bun locks to m.lock
-- [ ] Integrate identity detection from 0006
-- [ ] Validate parser against fuzz corpora
-- [ ] Emit migration report for lossy bun/yarn conversions
-- [ ] Acceptance: bun.lock fixture imports to valid install graph
-- [ ] Acceptance: yarn.lock classic project installs with preserved lock
-- [ ] Acceptance: Berry node-modules fixture installs without PnP
-- [ ] Acceptance: Unsupported Berry feature fails with documented error
-- [ ] Acceptance: Identity detection selects correct lock adapter
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Never silently convert yarn/bun locks to m.lock
+- [x] Integrate identity detection from 0006
+- [x] Validate parser against fuzz corpora
+- [x] Emit migration report for lossy bun/yarn conversions
+- [x] Acceptance: bun.lock fixture imports to valid install graph
+- [x] Acceptance: yarn.lock classic project installs with preserved lock
+- [x] Acceptance: Berry node-modules fixture installs without PnP
+- [x] Acceptance: Unsupported Berry feature fails with documented error
+- [x] Acceptance: Identity detection selects correct lock adapter
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0026 - Core MVP 17 — Complete Package-Manager Command Surface
 
