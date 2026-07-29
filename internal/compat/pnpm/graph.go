@@ -184,6 +184,21 @@ func validateImporterTargets(g *graph.Graph, doc *Document) error {
 	return nil
 }
 
+func resolveImporterDepTarget(name string, dep ImporterDep, idx PackageIndex) (Target, error) {
+	resolveName := name
+	ref := dep.Version
+	if strings.HasPrefix(strings.TrimSpace(dep.Specifier), "npm:") {
+		if actual, resolvedRef, ok := ParseAliasFromImporterDep(name, dep.Specifier, dep.Version); ok {
+			resolveName = actual
+			ref = resolvedRef
+		}
+	} else if actual, resolvedRef, ok := ParseAliasFromImporterDep(name, "", dep.Version); ok && actual != name {
+		resolveName = actual
+		ref = resolvedRef
+	}
+	return ResolveDependencyTarget(resolveName, ref, idx)
+}
+
 func sortedSnapshotKeys(m map[string]map[string]any) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
@@ -196,7 +211,7 @@ func sortedSnapshotKeys(m map[string]map[string]any) []string {
 func appendImporterEdges(g *graph.Graph, from graph.ImporterID, deps map[string]ImporterDep, kind graph.DepKind, idx PackageIndex) error {
 	for _, name := range sortedStrings(mapStringKeys(deps)) {
 		dep := deps[name]
-		target, err := ResolveDependencyTarget(name, dep.Version, idx)
+		target, err := resolveImporterDepTarget(name, dep, idx)
 		if err != nil {
 			return apperr.Wrap(apperr.Lockfile, "pnpm.graph", string(from)+"."+name, err)
 		}

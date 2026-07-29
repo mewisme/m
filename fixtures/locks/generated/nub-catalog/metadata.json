@@ -1,20 +1,37 @@
 {
-  "arch": "x64",
-  "classification": "derived",
-  "command": "derived from fixtures/locks/generated/pnpm-9/catalog pnpm-lock.yaml",
-  "confidence": "manual",
+  "producer": "nub",
+  "producerVersion": "pnpm-9-shaped",
+  "producerMajor": 9,
   "family": "nub-catalog",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "executablePath": "derived",
+  "executableArgs": [
+    "nub.lock",
+    "from",
+    "pnpm-9",
+    "catalog"
+  ],
+  "registry": "https://registry.npmjs.org",
+  "timestamp": "2026-07-29T20:41:22.3800288+07:00",
+  "classification": "derived",
+  "lockfileVersion": "9.0",
+  "lockfileSha256": "0c45bfcbe76d0b8924b6ec8636f748aa30a81f6b99ce72e5bf51558f59eef285",
+  "packageJsonSha256": "f93c339294eefc52cce35714d53a9dc956a4cb6391cf546de397cc119a84ed36",
+  "sourceFixture": "fixtures/locks/generated/pnpm-9/catalog",
+  "sourceLockSha256": "2207edd6106ab7502a2ca96d4e3ad10b71a7ce39cc32c264a0250145ab43df55",
+  "derivationCommand": "derived from fixtures/locks/generated/pnpm-9/catalog pnpm-lock.yaml; append nubVersion: 1.0.0",
+  "sourceTreeDigest": "52100e19817c6aa1b7642a1aa40e0d5194dfe0bc213a2f00c9967554e1e7e6a9",
+  "invocationId": "af904548-7e72-4291-808c-f52e899466ae",
+  "isolatedHomePolicy": "temp-home-and-pnpm-store-per-family",
+  "command": "derived from fixtures/locks/generated/pnpm-9/catalog pnpm-lock.yaml; append nubVersion: 1.0.0",
+  "confidence": "manual",
   "generationSignals": [
     "pnpm-v9-shaped",
     "nub.lock",
-    "derived-from=pnpm-9/catalog"
+    "derived-from=pnpm-9/catalog",
+    "invocationId=af904548-7e72-4291-808c-f52e899466ae"
   ],
-  "lockfileSha256": "0c45bfcbe76d0b8924b6ec8636f748aa30a81f6b99ce72e5bf51558f59eef285",
-  "lockfileVersion": "9.0",
-  "node": "v24.14.0",
-  "os": "Microsoft Windows 10.0.26200",
-  "producer": "nub",
-  "producerMajor": 9,
-  "producerVersion": "pnpm-9-shaped",
-  "timestamp": "2026-07-29T01:31:46.8157889+07:00"
+  "workspaceYamlSha256": "c6438c514bd1f02dbaf9ce6b555ae18bb701c456b7749fe6c78094373368eb2f"
 }

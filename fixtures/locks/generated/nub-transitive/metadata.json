@@ -1,20 +1,36 @@
 {
-  "arch": "x64",
-  "classification": "derived",
-  "command": "derived from fixtures/locks/generated/pnpm-9/transitive pnpm-lock.yaml",
-  "confidence": "manual",
+  "producer": "nub",
+  "producerVersion": "pnpm-9-shaped",
+  "producerMajor": 9,
   "family": "nub-transitive",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "executablePath": "derived",
+  "executableArgs": [
+    "nub.lock",
+    "from",
+    "pnpm-9",
+    "transitive"
+  ],
+  "registry": "https://registry.npmjs.org",
+  "timestamp": "2026-07-29T20:41:20.1247918+07:00",
+  "classification": "derived",
+  "lockfileVersion": "9.0",
+  "lockfileSha256": "1a4f0236812bd7cc35ff562d5b98af1930710654adc02ee55e174c283a0e5a4b",
+  "packageJsonSha256": "66d2e97fff98fe9c0988f7c7a4f09705d0f80ee6e43173af48c6d0cb7ee6fdaa",
+  "sourceFixture": "fixtures/locks/generated/pnpm-9/transitive",
+  "sourceLockSha256": "cfe2171f0923d3f2e58f8602d788eab7e7c471591a3a401b1aa2d7830aab760d",
+  "derivationCommand": "derived from fixtures/locks/generated/pnpm-9/transitive pnpm-lock.yaml; append nubVersion: 1.0.0",
+  "sourceTreeDigest": "79f920ccf995ccca542eaf3b2e1e7c87ce8db19bf6e831ad452416e1adfb0f1f",
+  "invocationId": "af904548-7e72-4291-808c-f52e899466ae",
+  "isolatedHomePolicy": "temp-home-and-pnpm-store-per-family",
+  "command": "derived from fixtures/locks/generated/pnpm-9/transitive pnpm-lock.yaml; append nubVersion: 1.0.0",
+  "confidence": "manual",
   "generationSignals": [
     "pnpm-v9-shaped",
     "nub.lock",
-    "derived-from=pnpm-9/transitive"
-  ],
-  "lockfileSha256": "1a4f0236812bd7cc35ff562d5b98af1930710654adc02ee55e174c283a0e5a4b",
-  "lockfileVersion": "9.0",
-  "node": "v24.14.0",
-  "os": "Microsoft Windows 10.0.26200",
-  "producer": "nub",
-  "producerMajor": 9,
-  "producerVersion": "pnpm-9-shaped",
-  "timestamp": "2026-07-29T01:31:46.7645867+07:00"
+    "derived-from=pnpm-9/transitive",
+    "invocationId=af904548-7e72-4291-808c-f52e899466ae"
+  ]
 }

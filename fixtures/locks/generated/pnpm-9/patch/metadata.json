@@ -6,14 +6,29 @@
   "node": "v24.14.0",
   "os": "Microsoft Windows 10.0.26200",
   "arch": "x64",
+  "executablePath": "C:\\Program Files\\nodejs\\pnpm.ps1",
+  "executableArgs": [
+    "install",
+    "--lockfile-only",
+    "--ignore-scripts"
+  ],
+  "registry": "https://registry.npmjs.org",
+  "timestamp": "2026-07-29T20:40:28.8350877+07:00",
+  "classification": "generated",
   "lockfileVersion": "9.0",
+  "lockfileSha256": "af20bfa860d1c174ffab979ee3cce7b7d394e9f710accc0718a30831b4849ab7",
+  "packageJsonSha256": "c271621afed81a663e04c51bbeb66cc4a945e42e880c1ca11c167ee503047177",
+  "sourceTreeDigest": "1247cbaca118c2bc6f6d283a4b56b0031d6292da24bfbaaffcd5d50e098bbca6",
+  "invocationId": "af904548-7e72-4291-808c-f52e899466ae",
+  "isolatedHomePolicy": "temp-home-and-pnpm-store-per-family",
+  "command": "corepack prepare pnpm@9.15.9 --activate; pnpm install --lockfile-only --ignore-scripts (family=patch)",
+  "confidence": "certain",
   "generationSignals": [
     "lockfileVersion=9.0",
-    "family=patch"
+    "family=patch",
+    "invocationId=af904548-7e72-4291-808c-f52e899466ae"
   ],
-  "confidence": "certain",
-  "classification": "generated",
-  "command": "corepack prepare pnpm@9.15.9 --activate; pnpm install --lockfile-only --ignore-scripts (family=patch)",
-  "timestamp": "2026-07-29T16:36:25.5610655+07:00",
-  "lockfileSha256": "af20bfa860d1c174ffab979ee3cce7b7d394e9f710accc0718a30831b4849ab7"
+  "patchFileSha256": {
+    "patches/ms@2.1.3.patch": "3d3b233afae989e0edf78c4014af2b67cae585452049aa323b1fc4160919e1cb"
+  }
 }

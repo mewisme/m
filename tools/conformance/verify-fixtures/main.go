@@ -2,25 +2,13 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-)
 
-type fixtureMeta struct {
-	Producer        string `json:"producer"`
-	ProducerVersion string `json:"producerVersion"`
-	ProducerMajor   int    `json:"producerMajor"`
-	Family          string `json:"family"`
-	LockfileVersion string `json:"lockfileVersion"`
-	LockfileSha256  string `json:"lockfileSha256"`
-	Command         string `json:"command"`
-	Classification  string `json:"classification"`
-}
+	"github.com/mewisme/mew/tools/conformance/fixturemeta"
+)
 
 type pinEnv struct {
 	Pnpm9  string
@@ -67,47 +55,41 @@ func verifyTree(root, wantVersion string, major int) []string {
 		if !ent.IsDir() {
 			continue
 		}
-		familyDir := filepath.Join(root, ent.Name())
+		family := ent.Name()
+		familyDir := filepath.Join(root, family)
 		metaPath := filepath.Join(familyDir, "metadata.json")
-		lockPath := filepath.Join(familyDir, "pnpm-lock.yaml")
-		meta, err := readMeta(metaPath)
+		meta, err := fixturemeta.ReadMeta(metaPath)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s metadata: %v", major, ent.Name(), err))
+			errs = append(errs, fmt.Sprintf("pnpm-%d/%s metadata: %v", major, family, err))
 			continue
 		}
-		if meta.Producer != "pnpm" {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: producer=%q", major, ent.Name(), meta.Producer))
+		opts := fixturemeta.ValidateOptions{
+			WantProducer:        "pnpm",
+			WantProducerVersion: wantVersion,
+			WantProducerMajor:   major,
+			WantFamily:          family,
 		}
-		if meta.ProducerMajor != major {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: producerMajor=%d", major, ent.Name(), meta.ProducerMajor))
-		}
-		if meta.ProducerVersion != wantVersion {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: producerVersion=%q want %q", major, ent.Name(), meta.ProducerVersion, wantVersion))
-		}
-		if meta.Family != ent.Name() {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: family=%q", major, ent.Name(), meta.Family))
+		for _, e := range meta.Validate(opts) {
+			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: %s", major, family, e))
 		}
 		if meta.LockfileVersion != "9.0" {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: lockfileVersion=%q", major, ent.Name(), meta.LockfileVersion))
+			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: lockfileVersion=%q", major, family, meta.LockfileVersion))
 		}
-		if meta.Command == "" {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: missing command", major, ent.Name()))
-		}
-		if isPlaceholderCommand(meta.Command) {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: placeholder command %q (run generate-lock-fixtures.ps1 -Generate)", major, ent.Name(), meta.Command))
-		}
+		lockPath := filepath.Join(familyDir, "pnpm-lock.yaml")
 		lockData, err := os.ReadFile(lockPath)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: %v", major, ent.Name(), err))
+			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: %v", major, family, err))
 			continue
 		}
 		if !strings.Contains(string(lockData), "lockfileVersion: '9.0'") {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: lock missing v9 marker", major, ent.Name()))
+			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: lock missing v9 marker", major, family))
 		}
-		hash := sha256.Sum256(lockData)
-		got := hex.EncodeToString(hash[:])
-		if meta.LockfileSha256 != got {
-			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: lockfileSha256 mismatch (meta=%s calc=%s)", major, ent.Name(), meta.LockfileSha256, got))
+		for _, e := range fixturemeta.VerifyFixtureDir(familyDir, meta, "pnpm-lock.yaml") {
+			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: %s", major, family, e))
+		}
+		src := filepath.Join(moduleRootMust(), "fixtures", "locks", "sources", "pnpm", family)
+		if digest, err := fixturemeta.SourceTreeDigest(src); err == nil && meta.SourceTreeDigest != digest {
+			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: sourceTreeDigest mismatch meta=%s calc=%s", major, family, meta.SourceTreeDigest, digest))
 		}
 	}
 	return errs
@@ -116,17 +98,21 @@ func verifyTree(root, wantVersion string, major int) []string {
 func verifyNub(dir, family string) []string {
 	var errs []string
 	metaPath := filepath.Join(dir, "metadata.json")
-	lockPath := filepath.Join(dir, "nub.lock")
-	meta, err := readMeta(metaPath)
+	meta, err := fixturemeta.ReadMeta(metaPath)
 	if err != nil {
 		return []string{fmt.Sprintf("%s metadata: %v", family, err)}
 	}
-	if meta.Producer != "nub" {
-		errs = append(errs, fmt.Sprintf("%s: producer=%q", family, meta.Producer))
+	opts := fixturemeta.ValidateOptions{
+		WantProducer: "nub",
+		WantFamily:   family,
 	}
-	if meta.Family != family {
-		errs = append(errs, fmt.Sprintf("%s: family=%q", family, meta.Family))
+	for _, e := range meta.Validate(opts) {
+		errs = append(errs, fmt.Sprintf("%s: %s", family, e))
 	}
+	if meta.Classification != fixturemeta.ClassDerived {
+		errs = append(errs, fmt.Sprintf("%s: classification=%q want derived", family, meta.Classification))
+	}
+	lockPath := filepath.Join(dir, "nub.lock")
 	lockData, err := os.ReadFile(lockPath)
 	if err != nil {
 		return append(errs, fmt.Sprintf("%s: %v", family, err))
@@ -134,46 +120,10 @@ func verifyNub(dir, family string) []string {
 	if !strings.Contains(string(lockData), "nubVersion:") {
 		errs = append(errs, fmt.Sprintf("%s: missing nubVersion marker", family))
 	}
-	hash := sha256.Sum256(lockData)
-	got := hex.EncodeToString(hash[:])
-	if meta.LockfileSha256 != got {
-		errs = append(errs, fmt.Sprintf("%s: lockfileSha256 mismatch", family))
-	}
-	if meta.Command != "" && isPlaceholderCommand(meta.Command) {
-		errs = append(errs, fmt.Sprintf("%s: placeholder command %q", family, meta.Command))
+	for _, e := range fixturemeta.VerifyFixtureDir(dir, meta, "nub.lock") {
+		errs = append(errs, fmt.Sprintf("%s: %s", family, e))
 	}
 	return errs
-}
-
-func isPlaceholderCommand(cmd string) bool {
-	cmd = strings.TrimSpace(cmd)
-	if cmd == "" {
-		return false
-	}
-	placeholders := []string{
-		"committed generated fixture",
-		"placeholder",
-		"TODO",
-	}
-	lower := strings.ToLower(cmd)
-	for _, p := range placeholders {
-		if strings.Contains(lower, strings.ToLower(p)) {
-			return true
-		}
-	}
-	return false
-}
-
-func readMeta(path string) (fixtureMeta, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return fixtureMeta{}, err
-	}
-	var meta fixtureMeta
-	if err := json.Unmarshal(raw, &meta); err != nil {
-		return fixtureMeta{}, err
-	}
-	return meta, nil
 }
 
 func loadPins(path string) (pinEnv, error) {
@@ -234,6 +184,14 @@ func moduleRoot() (string, error) {
 		}
 		dir = parent
 	}
+}
+
+func moduleRootMust() string {
+	root, err := moduleRoot()
+	if err != nil {
+		panic(err)
+	}
+	return root
 }
 
 func fail(err error) {

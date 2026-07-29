@@ -1,0 +1,8 @@
+{
+  "name": "fixture-alias-peer",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "my-acorn-jsx": "npm:acorn-jsx@5.3.2"
+  }
+}

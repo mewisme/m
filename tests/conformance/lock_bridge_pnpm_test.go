@@ -34,7 +34,7 @@ type fixtureMeta struct {
 }
 
 var mutationFamilies = []string{
-	"basic", "transitive", "optional", "peer-context", "workspace", "alias", "patch",
+	"basic", "transitive", "optional", "peer-context", "alias-peer", "workspace", "alias", "patch",
 }
 
 func moduleRoot(t testing.TB) string {
@@ -341,10 +341,7 @@ func assertPeerContextGraph(t *testing.T, proj string, major int) {
 	t.Helper()
 	lockPath := filepath.Join(proj, "pnpm-lock.yaml")
 	g := mustGraph(t, lockPath)
-	acornVer := "8.18.0"
-	if major == 11 {
-		acornVer = "8.17.0"
-	}
+	acornVer := acornPeerVersion(major)
 	if !graphHasPeerInstance(g, "acorn-jsx", "5.3.2", "acorn", acornVer) {
 		t.Fatalf("missing peer-context instance acorn-jsx@5.3.2 with acorn@%s", acornVer)
 	}
@@ -352,6 +349,42 @@ func assertPeerContextGraph(t *testing.T, proj string, major int) {
 	if !graphHasPackage(g, acornKey) {
 		t.Fatalf("missing acorn package %q", acornKey)
 	}
+}
+
+func acornPeerVersion(major int) string {
+	_ = major
+	return "8.18.0"
+}
+
+func assertAliasPeerGraph(t *testing.T, proj string, major int) {
+	t.Helper()
+	lockPath := filepath.Join(proj, "pnpm-lock.yaml")
+	g := mustGraph(t, lockPath)
+	if !graphHasAliasEdge(g, "my-acorn-jsx", "npm:acorn-jsx@5.3.2", "acorn-jsx@5.3.2") {
+		t.Fatal("missing alias edge my-acorn-jsx -> acorn-jsx@5.3.2 with npm: specifier")
+	}
+	acornVer := acornPeerVersion(major)
+	if !graphHasPeerInstance(g, "acorn-jsx", "5.3.2", "acorn", acornVer) {
+		t.Fatalf("missing alias-peer instance acorn-jsx@5.3.2 with acorn@%s", acornVer)
+	}
+	if !graphHasPackage(g, "acorn@"+acornVer) {
+		t.Fatalf("missing peer provider acorn@%s", acornVer)
+	}
+}
+
+func graphHasAliasEdge(g *lockfile.Graph, aliasName, wantRange, wantTarget string) bool {
+	for _, e := range g.Edges {
+		if e.From != "." || e.Name != aliasName {
+			continue
+		}
+		if e.Range != wantRange {
+			continue
+		}
+		if e.To == wantTarget || strings.HasPrefix(e.To, wantTarget+"(") || strings.HasPrefix(e.To, wantTarget+"#") {
+			return true
+		}
+	}
+	return false
 }
 
 func graphHasPeerInstance(g *lockfile.Graph, name, version, peerName, peerVer string) bool {
@@ -427,6 +460,9 @@ func verifyStage(t *testing.T, proj, family, stage, addName, wantVersion string,
 	if family == "peer-context" {
 		assertPeerContextGraph(t, proj, major)
 	}
+	if family == "alias-peer" {
+		assertAliasPeerGraph(t, proj, major)
+	}
 	switch stage {
 	case "update":
 		if wantVersion != "" {
@@ -481,6 +517,8 @@ func importScriptsForFamily(family string) []string {
 		return []string{"require('left-pad'); console.log('ok')"}
 	case "peer-context":
 		return []string{"require('acorn-jsx'); console.log('ok')"}
+	case "alias-peer":
+		return []string{"require('my-acorn-jsx'); console.log('ok')"}
 	case "workspace":
 		return []string{"require('pkg-a'); console.log('ok')"}
 	case "alias":
@@ -622,6 +660,13 @@ func TestLockBridgePnpm9PeerContext(t *testing.T) {
 	assertPeerContextGraph(t, proj, 9)
 }
 
+func TestLockBridgePnpm9AliasPeer(t *testing.T) {
+	testPnpmParseFamily(t, "pnpm-9/alias-peer", 9)
+	dir, _ := loadGeneratedFixture(t, "pnpm-9/alias-peer")
+	proj := copyFixtureProject(t, dir, 9)
+	assertAliasPeerGraph(t, proj, 9)
+}
+
 func TestLockBridgePnpm10(t *testing.T) {
 	testPnpmParseFamily(t, "pnpm-10/basic", 10)
 }
@@ -633,6 +678,13 @@ func TestLockBridgePnpm10PeerContext(t *testing.T) {
 	assertPeerContextGraph(t, proj, 10)
 }
 
+func TestLockBridgePnpm10AliasPeer(t *testing.T) {
+	testPnpmParseFamily(t, "pnpm-10/alias-peer", 10)
+	dir, _ := loadGeneratedFixture(t, "pnpm-10/alias-peer")
+	proj := copyFixtureProject(t, dir, 10)
+	assertAliasPeerGraph(t, proj, 10)
+}
+
 func TestLockBridgePnpm11(t *testing.T) {
 	testPnpmParseFamily(t, "pnpm-11/basic", 11)
 }
@@ -642,6 +694,13 @@ func TestLockBridgePnpm11PeerContext(t *testing.T) {
 	dir, _ := loadGeneratedFixture(t, "pnpm-11/peer-context")
 	proj := copyFixtureProject(t, dir, 11)
 	assertPeerContextGraph(t, proj, 11)
+}
+
+func TestLockBridgePnpm11AliasPeer(t *testing.T) {
+	testPnpmParseFamily(t, "pnpm-11/alias-peer", 11)
+	dir, _ := loadGeneratedFixture(t, "pnpm-11/alias-peer")
+	proj := copyFixtureProject(t, dir, 11)
+	assertAliasPeerGraph(t, proj, 11)
 }
 
 func TestLockBridgePnpm9MutationSuite(t *testing.T) {

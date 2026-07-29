@@ -1,0 +1,31 @@
+{
+  "producer": "pnpm",
+  "producerVersion": "10.34.5",
+  "producerMajor": 10,
+  "family": "alias-peer",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "arch": "x64",
+  "executablePath": "C:\\Program Files\\nodejs\\pnpm.ps1",
+  "executableArgs": [
+    "install",
+    "--lockfile-only",
+    "--ignore-scripts"
+  ],
+  "registry": "https://registry.npmjs.org",
+  "timestamp": "2026-07-29T20:40:51.8382252+07:00",
+  "classification": "generated",
+  "lockfileVersion": "9.0",
+  "lockfileSha256": "f56cc5c3f395f0f50dcca5a6b0fcc3323645bee4f7eeca1591bb4166b4f10034",
+  "packageJsonSha256": "0f1cf1e8767251906f5663cf85fa677c64a8e60a67a77d53002d535cd48c7a90",
+  "sourceTreeDigest": "ad08aa9a508154a7ac85cef076251fd51143c47b9f0c26c038486d0af9fb393f",
+  "invocationId": "af904548-7e72-4291-808c-f52e899466ae",
+  "isolatedHomePolicy": "temp-home-and-pnpm-store-per-family",
+  "command": "corepack prepare pnpm@10.34.5 --activate; pnpm install --lockfile-only --ignore-scripts (family=alias-peer)",
+  "confidence": "certain",
+  "generationSignals": [
+    "lockfileVersion=9.0",
+    "family=alias-peer",
+    "invocationId=af904548-7e72-4291-808c-f52e899466ae"
+  ]
+}

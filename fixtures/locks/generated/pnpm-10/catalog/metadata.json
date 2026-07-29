@@ -1,19 +1,32 @@
 {
-  "arch": "x64",
-  "classification": "generated",
-  "command": "corepack prepare pnpm@10.34.5 --activate; pnpm install --lockfile-only --ignore-scripts (family=catalog)",
-  "confidence": "certain",
+  "producer": "pnpm",
+  "producerVersion": "10.34.5",
+  "producerMajor": 10,
   "family": "catalog",
-  "generationSignals": [
-    "lockfileVersion=9.0",
-    "family=catalog"
-  ],
-  "lockfileSha256": "2207edd6106ab7502a2ca96d4e3ad10b71a7ce39cc32c264a0250145ab43df55",
-  "lockfileVersion": "9.0",
   "node": "v24.14.0",
   "os": "Microsoft Windows 10.0.26200",
-  "producer": "pnpm",
-  "producerMajor": 10,
-  "producerVersion": "10.34.5",
-  "timestamp": "2026-07-29T01:08:04.8536562+07:00"
+  "arch": "x64",
+  "executablePath": "C:\\Program Files\\nodejs\\pnpm.ps1",
+  "executableArgs": [
+    "install",
+    "--lockfile-only",
+    "--ignore-scripts"
+  ],
+  "registry": "https://registry.npmjs.org",
+  "timestamp": "2026-07-29T20:40:43.7544042+07:00",
+  "classification": "generated",
+  "lockfileVersion": "9.0",
+  "lockfileSha256": "2207edd6106ab7502a2ca96d4e3ad10b71a7ce39cc32c264a0250145ab43df55",
+  "packageJsonSha256": "f93c339294eefc52cce35714d53a9dc956a4cb6391cf546de397cc119a84ed36",
+  "sourceTreeDigest": "52100e19817c6aa1b7642a1aa40e0d5194dfe0bc213a2f00c9967554e1e7e6a9",
+  "invocationId": "af904548-7e72-4291-808c-f52e899466ae",
+  "isolatedHomePolicy": "temp-home-and-pnpm-store-per-family",
+  "command": "corepack prepare pnpm@10.34.5 --activate; pnpm install --lockfile-only --ignore-scripts (family=catalog)",
+  "confidence": "certain",
+  "generationSignals": [
+    "lockfileVersion=9.0",
+    "family=catalog",
+    "invocationId=af904548-7e72-4291-808c-f52e899466ae"
+  ],
+  "workspaceYamlSha256": "c6438c514bd1f02dbaf9ce6b555ae18bb701c456b7749fe6c78094373368eb2f"
 }

@@ -1,19 +1,31 @@
 {
-  "arch": "x64",
-  "classification": "generated",
-  "command": "corepack prepare pnpm@11.17.0 --activate; pnpm install --lockfile-only --ignore-scripts (family=override)",
-  "confidence": "certain",
+  "producer": "pnpm",
+  "producerVersion": "11.17.0",
+  "producerMajor": 11,
   "family": "override",
-  "generationSignals": [
-    "lockfileVersion=9.0",
-    "family=override"
-  ],
-  "lockfileSha256": "1b3070a04a37c73c3762b20db98fb1b1f9675d74aab37684dd48b670f21ee1ce",
-  "lockfileVersion": "9.0",
   "node": "v24.14.0",
   "os": "Microsoft Windows 10.0.26200",
-  "producer": "pnpm",
-  "producerMajor": 11,
-  "producerVersion": "11.17.0",
-  "timestamp": "2026-07-29T01:08:05.1904495+07:00"
+  "arch": "x64",
+  "executablePath": "C:\\Program Files\\nodejs\\pnpm.ps1",
+  "executableArgs": [
+    "install",
+    "--lockfile-only",
+    "--ignore-scripts"
+  ],
+  "registry": "https://registry.npmjs.org",
+  "timestamp": "2026-07-29T20:41:09.3090203+07:00",
+  "classification": "generated",
+  "lockfileVersion": "9.0",
+  "lockfileSha256": "1b3070a04a37c73c3762b20db98fb1b1f9675d74aab37684dd48b670f21ee1ce",
+  "packageJsonSha256": "7b06c627a558cb85a27dbf4a287aac60eed51ae49bfac50fcc551917c4cf5b92",
+  "sourceTreeDigest": "6a443d4556a55f76d16f2c3adc105b13f85a285a3d7cd9aa99b657b538b3d969",
+  "invocationId": "af904548-7e72-4291-808c-f52e899466ae",
+  "isolatedHomePolicy": "temp-home-and-pnpm-store-per-family",
+  "command": "corepack prepare pnpm@11.17.0 --activate; pnpm install --lockfile-only --ignore-scripts (family=override)",
+  "confidence": "certain",
+  "generationSignals": [
+    "lockfileVersion=9.0",
+    "family=override",
+    "invocationId=af904548-7e72-4291-808c-f52e899466ae"
+  ]
 }

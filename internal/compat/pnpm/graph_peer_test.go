@@ -37,7 +37,7 @@ func TestPeerContextFixtureGraph(t *testing.T) {
 	}{
 		{9, "8.18.0"},
 		{10, "8.18.0"},
-		{11, "8.17.0"},
+		{11, "8.18.0"},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("pnpm-%d-peer-context", tc.major), func(t *testing.T) {
