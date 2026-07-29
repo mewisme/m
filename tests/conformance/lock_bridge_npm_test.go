@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/compat/npm"
 	_ "github.com/mewisme/mew/internal/compat/npm"
+	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/lockfile"
 	"github.com/mewisme/mew/internal/project"
 )
@@ -63,6 +65,38 @@ func TestLockBridgeNpmFixturesParse(t *testing.T) {
 				t.Fatal("graph-equal no-op must preserve lock bytes")
 			}
 		})
+	}
+}
+
+func TestLockBridgeNpmMutationRejected(t *testing.T) {
+	root := moduleRoot(t)
+	lockPath := filepath.Join(root, "fixtures", "locks", "npm", "v2-basic", "package-lock.json")
+	data, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := npm.Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := npm.ToGraph(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mutated := *g
+	mutated.Packages = append(mutated.Packages, graph.Package{
+		ID: graph.PackageID{Name: "pkg-a", Version: "1.0.0"},
+	})
+	ext, ok := lockfile.ExtAdapterFor(project.IdentityNPM)
+	if !ok {
+		t.Fatal("missing npm adapter")
+	}
+	_, err = ext.(lockfile.PreservingEncoder).EncodePreserving(context.Background(), lockPath, &mutated, data, nil, npm.DetectFromDocument(doc))
+	if err == nil {
+		t.Fatal("expected semantic mutation rejection")
+	}
+	if apperr.CodeOf(err) != apperr.Unsupported {
+		t.Fatalf("code=%s want %s err=%v", apperr.CodeOf(err), apperr.Unsupported, err)
 	}
 }
 

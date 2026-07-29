@@ -1,29 +1,32 @@
 # npm lockfile compatibility
 
-Mew reads and writes npm `package-lock.json` and `npm-shrinkwrap.json` for npm-identity projects while preserving project identity (no silent conversion to `m.lock`).
+Mew reads npm `package-lock.json` and `npm-shrinkwrap.json` for npm-identity projects while preserving project identity (no silent conversion to `m.lock`). **Semantic lock mutation is not supported** — incumbent locks are read-only except for byte-preserving no-ops when the resolved graph is unchanged.
 
 ## Supported versions
 
 | Version | Status | Notes |
 |---------|--------|-------|
-| **v2** | Supported | `packages` map + optional legacy `dependencies` tree |
-| **v3** | Supported | Workspaces via workspace package paths and `link` entries |
+| **v2** | Read + validate | `packages` map + optional legacy `dependencies` tree |
+| **v3** | Read + validate | Workspaces via workspace package paths and `link` entries |
 | **v1** | **Rejected** | `ERR_M_LOCK_UNSUPPORTED` — regenerate with npm 7+ |
 
 Forward-unknown majors (for example v4+) fail closed with `ERR_M_LOCK_UNSUPPORTED`.
 
 ## Incumbent file precedence
 
-When both exist, **`npm-shrinkwrap.json` wins** over `package-lock.json` for read, write, install staging, and validation. Encode writes back to the path that was read.
+When both exist, **`npm-shrinkwrap.json` wins** over `package-lock.json` for read, install staging, and validation. Mew does not rewrite incumbent npm locks.
 
 ## Write policy
 
-| Scenario | `lockfileVersion` |
-|----------|-------------------|
-| Greenfield (no prior lock) | **3** |
-| Mutation (prior lock exists) | Preserve incumbent **2** or **3** |
+| Scenario | Behavior |
+|----------|----------|
+| Parse / validate / inspect | Supported |
+| Graph-equal incumbent (`EncodePreserving` no-op) | Byte-preserving |
+| Frozen `m ci` / `m install --frozen-lockfile` | Supported when graph matches |
+| Semantic mutation (add / update / remove / drift rewrite) | **`ERR_M_UNSUPPORTED`** |
+| Greenfield (no prior lock) | Generates `package-lock.json` v3 |
 
-Semantic compatibility is guaranteed; byte-identical formatting is not.
+Semantic compatibility is guaranteed on read paths; byte-identical formatting is not.
 
 ## Graph mapping
 
@@ -37,7 +40,7 @@ Semantic compatibility is guaranteed; byte-identical formatting is not.
 
 - npm identity uses the **hoisted** linker when `install.linker=auto` (including workspaces)
 - First install with no lock generates `package-lock.json` v3
-- Incumbent lock writes go through the install transaction (same as pnpm/nub)
+- Incumbent lock rewrites are rejected with `ERR_M_UNSUPPORTED`; use npm or migrate to `m.lock`
 
 ## CLI
 
@@ -63,6 +66,7 @@ m lock migrate --from npm --to m [--dry-run]
 ## Intentional limits
 
 - No package-lock v1 read/write/migrate
+- No semantic incumbent `package-lock.json` / `npm-shrinkwrap.json` mutation (`ERR_M_UNSUPPORTED`)
 - No byte-identical npm formatting guarantee
 - Full `bundledDependencies` graph expansion deferred
 - Bun/Yarn locks: MVP 0025

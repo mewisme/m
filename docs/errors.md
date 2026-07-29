@@ -18,6 +18,7 @@ Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DE
 | `ERR_M_INTEGRITY` | 1 | Checksum / integrity (seed) |
 | `ERR_M_LOCKFILE` | 1 | Lockfile parse, checksum, graph, or frozen manifest drift (MVP 0015) |
 | `ERR_M_UNIMPLEMENTED` | 1 | Reserved command stub not yet implemented (MVP 0010) |
+| `ERR_M_UNSUPPORTED` | 1 | Operation not supported on this identity or format (npm incumbent lock mutation, publish provenance without provider) |
 | `ERR_M_MANIFEST` | 1 | package.json parse / validate (MVP 0011) |
 | `ERR_M_NOT_FOUND` | 1 | Project root or package.json missing (MVP 0011) |
 | `ERR_M_RESOLVE` | 1 | Dependency resolution failure: unsatisfiable range, cycle, missing packument, or limit exceeded (MVP 0013) |

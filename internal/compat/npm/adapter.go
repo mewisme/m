@@ -3,6 +3,7 @@ package npm
 import (
 	"context"
 	"os"
+	"path/filepath"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
@@ -68,7 +69,6 @@ func (a Adapter) WritePreserving(ctx context.Context, path string, g *graph.Grap
 // EncodePreserving applies incumbent write policy and returns staged bytes.
 func (Adapter) EncodePreserving(ctx context.Context, path string, g *graph.Graph, prior []byte, ext lockfile.Extensions, det lockfile.Detection) (lockfile.WriteResult, error) {
 	_ = ctx
-	_ = path
 	if len(prior) == 0 {
 		out, err := encodeFresh(g, det)
 		return lockfile.WriteResult{Bytes: out}, err
@@ -101,19 +101,11 @@ func (Adapter) EncodePreserving(ctx context.Context, path string, g *graph.Graph
 		return lockfile.WriteResult{Unchanged: true, Bytes: prior}, nil
 	}
 
-	outDoc, err := FromGraph(g, doc, det)
-	if err != nil {
-		return lockfile.WriteResult{}, err
+	subject := filepath.Base(path)
+	if subject == "" || subject == "." {
+		subject = "package-lock.json"
 	}
-	preservePriorLockVersion(outDoc, doc)
-	if report := lossAgainstPrior(doc, outDoc); hasSemanticLoss(report) {
-		return lockfile.WriteResult{}, lockfile.NewUnrepresentable("npm.write", "package-lock.json", "lossy encode", report)
-	}
-	encoded, err := Encode(outDoc)
-	if err != nil {
-		return lockfile.WriteResult{}, err
-	}
-	return lockfile.WriteResult{Bytes: encoded}, nil
+	return lockfile.WriteResult{}, ErrMutationUnsupported("npm.write", subject)
 }
 
 // LossFromDocument reports fields that would be lost migrating to canonical graph.
@@ -140,15 +132,6 @@ func encodeFresh(g *graph.Graph, det lockfile.Detection) ([]byte, error) {
 		return nil, err
 	}
 	return Encode(doc)
-}
-
-func hasSemanticLoss(report lockfile.LossReport) bool {
-	for _, item := range report.Items {
-		if item.Semantic && item.Category == "loss" {
-			return true
-		}
-	}
-	return false
 }
 
 var (

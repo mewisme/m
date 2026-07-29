@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/mewisme/mew/internal/cli"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mewisme/mew/internal/cli"
 )
 
 const lodashLockYAML = `lockfileVersion: '9.0'
@@ -49,6 +50,67 @@ func setupLockBridgeProject(t *testing.T, lockName, lockBody string) (projDir, c
 		t.Fatal(err)
 	}
 	return projDir, cfgPath
+}
+
+const npmLockBridgePackageJSON = `{
+  "name": "lock-bridge-test",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10.9.2",
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}`
+
+func setupNpmLockBridgeProject(t *testing.T) (projDir, cfgPath string) {
+	t.Helper()
+	projDir, cfgPath, _ = setupRegistryProject(t, npmLockBridgePackageJSON)
+	code, out := runM(t, projDir, cfgPath, "install")
+	if code != 0 {
+		t.Fatalf("bootstrap install exit=%d out=%s", code, out)
+	}
+	return projDir, cfgPath
+}
+
+func TestLockBridgeNpmInstallPreservesIncumbent(t *testing.T) {
+	projDir, cfgPath := setupNpmLockBridgeProject(t)
+	before, err := os.ReadFile(filepath.Join(projDir, "package-lock.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out := runM(t, projDir, cfgPath, "install", "--frozen-lockfile")
+	if code != 0 {
+		t.Fatalf("install exit=%d out=%s", code, out)
+	}
+	if _, err := os.Stat(filepath.Join(projDir, "m.lock")); err == nil {
+		t.Fatal("m.lock must not be created on npm install")
+	}
+	after, err := os.ReadFile(filepath.Join(projDir, "package-lock.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("unchanged graph must preserve package-lock.json bytes")
+	}
+}
+
+func TestLockBridgeNpmAddRejected(t *testing.T) {
+	projDir, cfgPath := setupNpmLockBridgeProject(t)
+	before, err := os.ReadFile(filepath.Join(projDir, "package-lock.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out := runM(t, projDir, cfgPath, "add", "pkg-a@1.0.0")
+	if code == 0 {
+		t.Fatalf("expected npm add rejection, out=%s", out)
+	}
+	after, err := os.ReadFile(filepath.Join(projDir, "package-lock.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("rejected add must not mutate incumbent package-lock.json")
+	}
 }
 
 func TestLockBridgeNubInstallPreservesIncumbent(t *testing.T) {

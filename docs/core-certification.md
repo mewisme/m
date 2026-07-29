@@ -38,7 +38,7 @@ Related: [`security-pm-core.md`](security-pm-core.md),
 | pnpm 10 lock bridge + mutation | `go test ./tests/conformance/... -run 'Pnpm10' -count=1` | `conformance-pnpm-10` |
 | pnpm 11 lock bridge + mutation | `go test ./tests/conformance/... -run 'Pnpm11' -count=1` | `conformance-pnpm-11` |
 | Unsupported pnpm rejection | `go test ./tests/conformance/... -run UnsupportedLegacy -count=1` | `conformance-pnpm-unsupported` |
-| npm lock bridge | `go test ./tests/conformance/... -run LockBridgeNpm -count=1` | `conformance-npm` |
+| npm lock bridge (read-only) | `go test ./tests/conformance/... -run LockBridgeNpm -count=1` | `conformance-npm` |
 | bun lock bridge | `go test ./tests/conformance/... -run LockBridgeBun -count=1` | `conformance-bun` |
 | Yarn Classic + Berry | `go test ./tests/conformance/... -run LockBridgeYarn -count=1` | `conformance-yarn` |
 | Nub derived fixtures | `go test ./tests/conformance/... -run LockBridgeNub -count=1` | `conformance-nub-fixtures` |
@@ -56,7 +56,7 @@ Pinned pnpm producer versions: `tools/conformance/pnpm-versions.env` (9.15.9 /
 Certified (fixture parse, graph conversion, byte-preserving no-op or mutation
 where applicable):
 
-- **npm** — `package-lock.json` v2/v3 corpus under `fixtures/locks/npm/`
+- **npm** — `package-lock.json` v2/v3 corpus under `fixtures/locks/npm/` (read-only; semantic mutation rejected with `ERR_M_UNSUPPORTED`)
 - **pnpm 9 / 10 / 11** — generated fixtures under `fixtures/locks/generated/pnpm-{9,10,11}/` including mutation families: basic, transitive, optional, peer-context, alias-peer, workspace, alias, patch
 - **Yarn Classic** — `fixtures/locks/yarn/classic/`
 - **Yarn Berry (node_modules)** — `fixtures/locks/yarn/berry-nm/`

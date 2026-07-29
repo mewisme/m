@@ -737,11 +737,12 @@
       "module": "lockfile",
       "nub_status": "shipped",
       "mew_status": "shipped",
-      "compatibility_class": "parity",
+      "compatibility_class": "divergence",
       "primary_mvp": "0024",
       "tests": [
         "internal/compat/npm",
         "tests/conformance/lock_bridge_npm_test.go",
+        "tests/integration/lock_bridge_test.go",
         "fixtures/locks/npm"
       ]
     },
