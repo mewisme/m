@@ -1,7 +1,7 @@
-# Lock bridge evidence — Stabilization Pass 17
+# Lock bridge evidence — Stabilization Pass 18
 
 **Fetched:** 2026-07-29  
-**Baseline:** `073b1f1153113b909422b195b00b43f50c51c7b1`
+**Baseline:** `d9f5dfc457a7a86547d5798336c08769983c4e38`
 
 ## pnpm references
 
@@ -40,11 +40,18 @@ Nub adapter selects pnpm encode policy from incumbent `nub.lock` bytes via `Dete
 
 | Level | Families | What CI proves |
 |-------|----------|----------------|
-| **Derived-format** | `nub-workspace` | Metadata + lock bytes present; workspace `link:` edges not yet graph-validated |
-| **Parse + validate** | `nub-basic`, `nub-transitive`, `nub-catalog`, `nub-peer`, `nub-optional` | `ReadWithExtensions` + `m lock validate --json` |
+| **Derived-format** | all six | Metadata + lock bytes; `derived` classification in metadata |
+| **Parse + validate** | `nub-basic`, `nub-transitive`, `nub-workspace`, `nub-catalog`, `nub-peer`, `nub-optional` | `ReadWithExtensions` + `m lock validate --json` (workspace no longer skipped) |
 | **Executable (deferred)** | all | `conformance-nub-exec` not wired — requires `nub` binary in CI; residual risk documented |
 
-## Detection policy (Pass 17)
+## Pass 18 changes
+
+- Snapshot-primary instances: `packages` metadata only; graph nodes from `snapshots` keys
+- npm alias edges resolve by actual package name; encode round-trip via `lodash@x.y.z` version refs
+- `packageManager` semver strict via Masterminds/semver (`pnpm@10.not-a-semver` rejected)
+- Mutation matrix: 7 families × 3 majors with frozen after add/update/**remove**
+- Fixture provenance: verify-fixtures rejects placeholder commands; generation only with `-Generate`
+- `Adapter.Write` / fresh encode fail closed without certified `--pnpm-major`
 
 1. `package.json` `packageManager` (exact majors 9/10/11 only; bare `pnpm` → no major evidence)
 2. `devEngines.packageManager`
