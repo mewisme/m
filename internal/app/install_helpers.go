@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"github.com/mewisme/mew/internal/manifest"
 	"github.com/mewisme/mew/internal/plan"
 	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/registry"
 	"github.com/mewisme/mew/internal/resolver"
 	"github.com/mewisme/mew/internal/store"
 )
@@ -120,12 +122,64 @@ func readLockHints(ctx context.Context, ac *Context, proj *project.Project) (*gr
 	return lockfile.ReadGraph(ctx, proj.Root, proj.Identity)
 }
 
-func fetchPackages(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string, useGlobalStore bool, preExtracts map[string]string) (FetchOutcome, error) {
+func fetchPackages(ctx context.Context, ac *Context, proj *project.Project, g *graph.Graph, extractRoot string, useGlobalStore bool, preExtracts map[string]string) (FetchOutcome, error) {
+	if err := enrichRegistryTarballs(ctx, ac, proj, g, preExtracts); err != nil {
+		return FetchOutcome{}, err
+	}
 	if useGlobalStore {
 		return fetchAndImportGraph(ctx, ac, g, preExtracts)
 	}
 	extracts, err := fetchGraphLegacy(ctx, ac, g, extractRoot, preExtracts)
 	return FetchOutcome{Extracts: extracts}, err
+}
+
+func enrichRegistryTarballs(ctx context.Context, ac *Context, proj *project.Project, g *graph.Graph, preExtracts map[string]string) error {
+	if g == nil || ac == nil || proj == nil {
+		return nil
+	}
+	eng, err := resolver.NewFromApp(ac.Config, proj)
+	if err != nil {
+		return err
+	}
+	if eng.Client == nil {
+		return nil
+	}
+	for i := range g.Packages {
+		pkg := &g.Packages[i]
+		key := pkg.ID.Key()
+		if pkg.TarballURL != "" || preExtracts[key] != "" {
+			continue
+		}
+		if pkg.Integrity == "" {
+			continue
+		}
+		baseVer := registryBaseVersion(pkg.ID.Version)
+		base := registry.ResolveBaseForPackage(ac.Config, proj.Root, proj.Identity, pkg.ID.Name)
+		pack, err := eng.Client.Packument(ctx, base, pkg.ID.Name)
+		if err != nil {
+			return apperr.Wrap(apperr.Network, "app.install.fetch", pkg.ID.Key(), err)
+		}
+		meta, ok := pack.Versions[baseVer]
+		if !ok {
+			return apperr.New(apperr.Network, "app.install.fetch", pkg.ID.Key(),
+				fmt.Sprintf("version %q not in packument", baseVer))
+		}
+		pkg.TarballURL = registry.AbsoluteTarballURL(base, pkg.ID.Name, meta.Dist.Tarball)
+		if pkg.TarballURL == "" {
+			pkg.TarballURL = meta.Dist.Tarball
+		}
+	}
+	return nil
+}
+
+func registryBaseVersion(version string) string {
+	if i := strings.IndexByte(version, '('); i >= 0 {
+		return version[:i]
+	}
+	if i := strings.IndexByte(version, '#'); i >= 0 {
+		return version[:i]
+	}
+	return version
 }
 
 // FetchOutcome carries fetch/import results and store cleanup warnings.

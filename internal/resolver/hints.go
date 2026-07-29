@@ -1,6 +1,8 @@
 package resolver
 
 import (
+	"strings"
+
 	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/semver"
 )
@@ -121,5 +123,24 @@ func (h graphHints) pkg(name, version string) (graph.Package, bool) {
 			return p, true
 		}
 	}
+	base := stripHintVersionSuffix(version)
+	for _, p := range h.g.Packages {
+		if p.ID.Name != name {
+			continue
+		}
+		if strings.HasPrefix(p.ID.Version, base+"(") || strings.HasPrefix(p.ID.Version, base+"#") {
+			return p, true
+		}
+	}
 	return graph.Package{}, false
+}
+
+func stripHintVersionSuffix(version string) string {
+	if i := strings.IndexByte(version, '('); i >= 0 {
+		return version[:i]
+	}
+	if i := strings.IndexByte(version, '#'); i >= 0 {
+		return version[:i]
+	}
+	return version
 }

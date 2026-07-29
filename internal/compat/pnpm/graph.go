@@ -241,12 +241,14 @@ func FromGraph(g *graph.Graph, prior *Document, det lockfile.Detection) (*Docume
 
 func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document, error) {
 	importers := map[string]ImporterSection{}
+	if prior != nil {
+		importers = cloneImporters(prior.Importers)
+	}
 	for _, im := range g.Importers {
 		id := string(im.ID)
-		sec := ImporterSection{
-			Dependencies:         map[string]ImporterDep{},
-			DevDependencies:      map[string]ImporterDep{},
-			OptionalDependencies: map[string]ImporterDep{},
+		sec, ok := importers[id]
+		if !ok {
+			sec = ImporterSection{}
 		}
 		if prior != nil {
 			if prev, ok := prior.Importers[id]; ok {
@@ -259,6 +261,25 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 					}
 				}
 			}
+		}
+		if id == "." {
+			sec.Dependencies = map[string]ImporterDep{}
+			sec.DevDependencies = map[string]ImporterDep{}
+			sec.OptionalDependencies = map[string]ImporterDep{}
+		} else if prior != nil {
+			if prev, ok := prior.Importers[id]; ok {
+				sec.Dependencies = cloneDeps(prev.Dependencies)
+				sec.DevDependencies = cloneDeps(prev.DevDependencies)
+				sec.OptionalDependencies = cloneDeps(prev.OptionalDependencies)
+			} else {
+				sec.Dependencies = map[string]ImporterDep{}
+				sec.DevDependencies = map[string]ImporterDep{}
+				sec.OptionalDependencies = map[string]ImporterDep{}
+			}
+		} else {
+			sec.Dependencies = map[string]ImporterDep{}
+			sec.DevDependencies = map[string]ImporterDep{}
+			sec.OptionalDependencies = map[string]ImporterDep{}
 		}
 		importers[id] = sec
 	}

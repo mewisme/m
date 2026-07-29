@@ -347,6 +347,15 @@ func (s *resolveState) processRegistry(item workItem) error {
 		return err
 	}
 
+	if pkg, ok := s.hints.pkg(item.name, meta.Version); ok {
+		if pkg.Integrity != "" {
+			meta.Dist.Integrity = pkg.Integrity
+		}
+		if pkg.TarballURL != "" {
+			meta.Dist.Tarball = pkg.TarballURL
+		}
+	}
+
 	version := s.applyPatchVersion(item.name, meta.Version)
 	id, key := s.packageKeyForInstance(item, version, meta)
 	s.recordPatchTarget(key, item.name, version)

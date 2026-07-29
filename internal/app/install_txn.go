@@ -253,7 +253,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	if err != nil {
 		return res, err
 	}
-	fetchOut, err := fetchPackages(ctx, ac, resolution.Graph, extractDir, useStore, localExtracts)
+	fetchOut, err := fetchPackages(ctx, ac, proj, resolution.Graph, extractDir, useStore, localExtracts)
 	applyFetchOutcome(&res, fetchOut)
 	if err != nil {
 		return res, err

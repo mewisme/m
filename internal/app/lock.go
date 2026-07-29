@@ -147,12 +147,23 @@ func validateFrozenLockForProject(ctx context.Context, ac *Context, proj *projec
 }
 
 func validateFrozenFromGraph(proj *project.Project, g *graph.Graph) error {
+	manifestSpecs := mlock.SpecifiersFromManifest(proj.Normalized)
+	allow := make(map[string]struct{}, len(manifestSpecs))
+	for _, s := range manifestSpecs {
+		allow[s.Name] = struct{}{}
+	}
+	var filtered []mlock.Specifier
+	for _, s := range specifiersFromGraph(g, graph.RootImporter) {
+		if _, ok := allow[s.Name]; ok {
+			filtered = append(filtered, s)
+		}
+	}
 	manifest := map[graph.ImporterID][]mlock.Specifier{
-		graph.RootImporter: mlock.SpecifiersFromManifest(proj.Normalized),
+		graph.RootImporter: manifestSpecs,
 	}
 	lockSections := []mlock.ImporterSection{{
 		ID:         graph.RootImporter,
-		Specifiers: specifiersFromGraph(g, graph.RootImporter),
+		Specifiers: filtered,
 	}}
 	drift := mlock.CompareSpecifiers(lockSections, manifest)
 	if len(drift) == 0 {
