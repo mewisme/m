@@ -12,6 +12,10 @@ var (
 	testHook   func(phase string, opIndex int) error
 )
 
+// Test hook phases (SetTestHook / MEW_TXN_CRASH_AT):
+// post_resolve, post_fetch, post_link, post_lockfile, post_validate,
+// post_patch_copy, post_patch_preflight, post_patch_apply, post_patch_publish.
+
 // SetTestHook registers a failure-injection hook for tests (phase, opIndex).
 // Pass nil to clear.
 func SetTestHook(fn func(phase string, opIndex int) error) {

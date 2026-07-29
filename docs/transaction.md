@@ -183,7 +183,8 @@ The installer emits debug warnings for non-critical housekeeping failures.
 ## Crash injection (tests)
 
 `MEW_TXN_CRASH_AT` kills the process at named boundaries for subprocess crash
-tests: `journal_created`, `post_resolve`, `post_fetch`, `post_link`,
+tests: `journal_created`, `post_resolve`, `post_fetch`, `post_patch_copy`,
+`post_patch_preflight`, `post_patch_apply`, `post_patch_publish`, `post_link`,
 `post_lockfile`, `post_validate`, `backup:N`, `publish:N`, `commit:N`,
 `pre_committed`, `committed`, `finish`, `recovery`, `rollback:N`. See
 [`testing.md`](testing.md).
