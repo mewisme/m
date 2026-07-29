@@ -123,17 +123,31 @@ func (s *resolveState) finalizePatchTargets(g *graph.Graph) {
 	if s.patches == nil || g == nil {
 		return
 	}
-	for _, p := range g.Packages {
-		suffix := s.patchSuffix(p.ID.Name, p.ID.Version)
-		if suffix == "" {
-			continue
-		}
+	remap := map[string]string{}
+	for i := range g.Packages {
+		p := &g.Packages[i]
 		selector := p.ID.Name + "@" + stripPatchParenthetical(p.ID.Version)
 		rec, ok := s.patches.bySelector[selector]
-		if !ok {
+		if !ok || rec.hash == "" {
 			continue
 		}
+		patchedVer := stripPatchParenthetical(p.ID.Version) + "(patch_hash=" + rec.hash + ")"
+		if p.ID.Version != patchedVer {
+			oldKey := p.ID.Key()
+			p.ID = graph.PackageID{
+				Name:                p.ID.Name,
+				Version:             patchedVer,
+				PeerProviderContext: p.ID.PeerProviderContext,
+			}
+			p.ID.Normalize()
+			remap[oldKey] = p.ID.Key()
+		}
 		s.patches.byPkgKey[p.ID.Key()] = rec
+	}
+	for i := range g.Edges {
+		if to, ok := remap[g.Edges[i].To]; ok {
+			g.Edges[i].To = to
+		}
 	}
 }
 
