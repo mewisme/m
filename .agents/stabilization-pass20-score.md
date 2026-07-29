@@ -3,8 +3,8 @@
 **Date:** 2026-07-29  
 **Baseline:** `4d2235271e30537f7f03348135e18ec746741655`  
 **Starting HEAD (phases 1–10):** `c3c92078f7c915b1a8b863caaea743014a454011`  
-**Final SHA:** `27a7ea5d4811df0ddf3be5f4cc6fdeea36fc6b5a` (`docs(pass20): record final SHA and CI run`)  
-**CI run:** `30463655822` (complete green matrix on exact final SHA)  
+**Final SHA:** `11cff9a4f6dfdb74749daee5393184550930ba19` (`docs(pass20): align scorecard with green CI headSha 27a7ea5`)  
+**CI run:** `30464309718` (complete green matrix on exact final SHA)  
 **Overall score:** 9.1 / 10  
 **Status:** READY
 
@@ -62,7 +62,7 @@
 | `go run ./tools/check-license` / `check-deps` / `verify-fixtures` | **PASS** |
 | pnpm mutation conformance | **Not run locally** — `golang:1.26` image has no pnpm; **PASS** on Linux CI (`conformance-pnpm-9/10/11`) |
 
-## CI evidence (run `30463655822` on `27a7ea5`)
+## CI evidence (run `30464309718` on `11cff9a`)
 
 | Job | Result |
 |-----|--------|
@@ -104,6 +104,6 @@
 | Provenance schema + verifier | yes |
 | alias-peer e2e (Linux CI mutation) | yes |
 | `CGO_ENABLED=0` production path | yes |
-| Full CI green on exact final SHA | yes (`27a7ea5` = run `30463655822` headSha) |
+| Full CI green on exact final SHA | yes (`11cff9a` = run `30464309718` headSha) |
 
 READY
