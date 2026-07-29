@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fsx"
 	"github.com/mewisme/mew/internal/manifest"
 )
 
@@ -78,7 +79,7 @@ func Pack(ctx context.Context, opts Options) (Result, error) {
 	tarballName := TarballFileName(doc.Name, doc.Version)
 	tarballPath := filepath.Join(destDir, tarballName)
 
-	if err := writeTarball(ctx, tarballPath, root, files); err != nil {
+	if err := writeTarball(ctx, tarballPath, root, files, packExcludePaths(root, tarballPath)...); err != nil {
 		return Result{}, err
 	}
 	return Result{TarballPath: tarballPath, Files: files}, nil
@@ -96,11 +97,15 @@ func ListFiles(root string, pkgJSON []byte) ([]string, error) {
 	}
 	ignore := loadIgnorePatterns(root)
 
+	sb, err := newPackSandbox(root)
+	if err != nil {
+		return nil, err
+	}
 	var candidates []string
 	if len(whitelist) > 0 {
-		candidates, err = collectWhitelist(root, whitelist)
+		candidates, err = collectWhitelistSandboxed(sb, whitelist)
 	} else {
-		candidates, err = collectAll(root)
+		candidates, err = collectAllSandboxed(sb)
 	}
 	if err != nil {
 		return nil, err
@@ -151,101 +156,45 @@ func parseFilesField(pkgJSON []byte) ([]string, error) {
 	return raw.Files, nil
 }
 
-func collectAll(root string) ([]string, error) {
-	var files []string
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		files = append(files, rel)
-		return nil
-	})
-	return files, err
-}
-
-func collectWhitelist(root string, entries []string) ([]string, error) {
-	var files []string
-	seen := map[string]struct{}{}
-	for _, entry := range entries {
-		entry = filepath.FromSlash(strings.TrimSpace(entry))
-		if entry == "" || entry == "package.json" {
-			continue
-		}
-		abs := filepath.Join(root, entry)
-		st, err := os.Stat(abs)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, apperr.Wrap(apperr.IO, "pack", entry, err)
-		}
-		if st.IsDir() {
-			err := filepath.WalkDir(abs, func(path string, d os.DirEntry, err error) error {
-				if err != nil {
-					return err
-				}
-				if d.IsDir() {
-					return nil
-				}
-				rel, err := filepath.Rel(root, path)
-				if err != nil {
-					return err
-				}
-				rel = filepath.ToSlash(rel)
-				if _, ok := seen[rel]; ok {
-					return nil
-				}
-				seen[rel] = struct{}{}
-				files = append(files, rel)
-				return nil
-			})
-			if err != nil {
-				return nil, err
-			}
-			continue
-		}
-		rel := filepath.ToSlash(entry)
-		if _, ok := seen[rel]; ok {
-			continue
-		}
-		seen[rel] = struct{}{}
-		files = append(files, rel)
+func writeTarball(ctx context.Context, dest, root string, files []string, excludeAbs ...string) error {
+	dir := filepath.Dir(dest)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return apperr.Wrap(apperr.IO, "pack", dir, err)
 	}
-	return files, nil
-}
-
-func writeTarball(ctx context.Context, dest, root string, files []string) error {
-	tmp := dest + ".tmp"
-	if err := os.Remove(tmp); err != nil && !os.IsNotExist(err) {
-		return apperr.Wrap(apperr.IO, "pack", tmp, err)
-	}
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(dest)+".*.tmp")
 	if err != nil {
-		return apperr.Wrap(apperr.IO, "pack", tmp, err)
-	}
-	if err := writeTarballStream(ctx, f, root, files); err != nil {
-		_ = f.Close()
-		_ = os.Remove(tmp)
-		return err
-	}
-	if err := f.Close(); err != nil {
-		_ = os.Remove(tmp)
-		return apperr.Wrap(apperr.IO, "pack", tmp, err)
-	}
-	if err := os.Rename(tmp, dest); err != nil {
 		return apperr.Wrap(apperr.IO, "pack", dest, err)
 	}
+	tmpName := tmp.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.Remove(tmpName)
+		}
+	}()
+	if err := writeTarballStream(ctx, tmp, root, files, excludeAbs...); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return apperr.Wrap(apperr.IO, "pack", tmpName, err)
+	}
+	if err := tmp.Close(); err != nil {
+		return apperr.Wrap(apperr.IO, "pack", tmpName, err)
+	}
+	if err := fsx.ReplaceFileRecoverable(tmpName, dest); err != nil {
+		return err
+	}
+	cleanup = false
 	return nil
 }
 
-func writeTarballStream(ctx context.Context, w io.Writer, root string, files []string) error {
+func writeTarballStream(ctx context.Context, w io.Writer, root string, files []string, excludeAbs ...string) error {
+	sb, err := newPackSandbox(root, excludeAbs...)
+	if err != nil {
+		return err
+	}
 	gz := gzip.NewWriter(w)
 	defer func() { _ = gz.Close() }()
 	tw := tar.NewWriter(gz)
@@ -278,14 +227,13 @@ func writeTarballStream(ctx context.Context, w io.Writer, root string, files []s
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		src := filepath.Join(root, filepath.FromSlash(rel))
-		data, err := os.ReadFile(src)
+		data, mode, err := sb.readFile(rel)
 		if err != nil {
-			return apperr.Wrap(apperr.IO, "pack", rel, err)
+			return err
 		}
 		hdr := &tar.Header{
 			Name:     "package/" + rel,
-			Mode:     0o644,
+			Mode:     int64(mode),
 			Size:     int64(len(data)),
 			ModTime:  epoch,
 			Typeflag: tar.TypeReg,
