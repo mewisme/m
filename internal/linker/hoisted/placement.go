@@ -60,7 +60,7 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 		}
 		if _, dup := seenDest[p.DestDir]; !dup {
 			seenDest[p.DestDir] = struct{}{}
-			ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: p.DestDir})
+			ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: filepath.Dir(p.DestDir)})
 			if isLinkProtocol(p.Key) {
 				ops = append(ops, planner.PlanDirAlias(src, p.DestDir, l.Capabilities))
 			} else if l.UseSmartLink {

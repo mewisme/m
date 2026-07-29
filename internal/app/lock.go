@@ -10,6 +10,7 @@ import (
 	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/lockfile"
 	"github.com/mewisme/mew/internal/lockfile/mlock"
+	"github.com/mewisme/mew/internal/manifest"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/resolver"
 )
@@ -170,6 +171,72 @@ func validateFrozenFromGraph(proj *project.Project, g *graph.Graph) error {
 		return nil
 	}
 	return apperr.New(apperr.Lockfile, "lock.frozen", LockPath(proj), fmt.Sprintf("manifest drift:\n%s", mlock.FormatDrift(drift)))
+}
+
+// manifestDriftsFromLock reports whether live package.json root specifiers differ from the incumbent lock.
+func manifestDriftsFromLock(ctx context.Context, proj *project.Project) (bool, error) {
+	if proj == nil {
+		return false, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if proj.Normalized == nil {
+		norm, err := manifest.ToNormalized(proj.Doc)
+		if err != nil {
+			return false, err
+		}
+		proj.Normalized = norm
+	}
+	g, err := lockfile.ReadGraph(ctx, proj.Root, proj.Identity)
+	if err != nil {
+		return false, err
+	}
+	if g == nil {
+		return false, nil
+	}
+	lockNames := map[string]string{}
+	for _, e := range g.Edges {
+		if e.From != string(graph.RootImporter) {
+			continue
+		}
+		lockNames[e.Name] = e.Range
+	}
+	manifestNames := map[string]string{}
+	for _, d := range proj.Normalized.Dependencies {
+		if d.Kind != manifest.DepProd {
+			continue
+		}
+		manifestNames[d.Name] = d.Range
+	}
+	for name := range manifestNames {
+		if _, ok := lockNames[name]; !ok {
+			return true, nil
+		}
+	}
+	for name := range lockNames {
+		if _, ok := manifestNames[name]; !ok {
+			return true, nil
+		}
+	}
+	manifest := map[graph.ImporterID][]mlock.Specifier{
+		graph.RootImporter: mlock.SpecifiersFromManifest(proj.Normalized),
+	}
+	allow := make(map[string]struct{}, len(manifest[graph.RootImporter]))
+	for _, s := range manifest[graph.RootImporter] {
+		allow[s.Name] = struct{}{}
+	}
+	var filtered []mlock.Specifier
+	for _, s := range specifiersFromGraph(g, graph.RootImporter) {
+		if _, ok := allow[s.Name]; ok {
+			filtered = append(filtered, s)
+		}
+	}
+	drift := mlock.CompareSpecifiers([]mlock.ImporterSection{{
+		ID:         graph.RootImporter,
+		Specifiers: filtered,
+	}}, manifest)
+	return len(drift) > 0, nil
 }
 
 func specifiersFromGraph(g *graph.Graph, importer graph.ImporterID) []mlock.Specifier {

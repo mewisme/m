@@ -41,10 +41,18 @@ func newLinker(mode string, opts linkerOpts) linker.Linker {
 func resolveLinkerMode(ctx context.Context, ac *Context, proj *project.Project, opts InstallOptions) (string, error) {
 	_ = ctx
 	if ac != nil && ac.Config != nil && workspace.Enabled(ac.Config) && opts.Linker == "" {
-		if patterns, err := proj.Doc.WorkspacePatterns(); err == nil && len(patterns) > 0 {
-			if config.String(ac.Config, "install.linker", "auto") == "auto" {
-				ac.Config.Values["install.linker"] = config.Value{Raw: "isolated", Source: config.SourceCLI, Path: "workspaces"}
+		patterns, err := proj.Doc.WorkspacePatterns()
+		if err != nil {
+			return "", err
+		}
+		if len(patterns) == 0 {
+			patterns, err = workspace.PNPMWorkspacePatterns(proj.Root)
+			if err != nil {
+				return "", err
 			}
+		}
+		if len(patterns) > 0 && config.String(ac.Config, "install.linker", "auto") == "auto" {
+			ac.Config.Values["install.linker"] = config.Value{Raw: "isolated", Source: config.SourceCLI, Path: "workspaces"}
 		}
 	}
 	lockLinker := ""

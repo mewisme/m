@@ -162,6 +162,63 @@ func TestPlanApplyAndBins(t *testing.T) {
 	}
 }
 
+func TestHoistedWorkspaceUpdateAfterPollutedLink(t *testing.T) {
+	pkgADir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(pkgADir, "package.json"), []byte(`{"name":"pkg-a","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pollutedNM := filepath.Join(pkgADir, "node_modules")
+	if err := os.MkdirAll(pollutedNM, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pollutedNM, "ms"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ms212 := t.TempDir()
+	if err := os.WriteFile(filepath.Join(ms212, "package.json"), []byte(`{"name":"ms","version":"2.1.2"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ms213 := t.TempDir()
+	if err := os.WriteFile(filepath.Join(ms213, "package.json"), []byte(`{"name":"ms","version":"2.1.3"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	g := &graph.Graph{
+		Importers: []graph.Importer{
+			{ID: graph.RootImporter},
+			{ID: "packages/pkg-a", Name: "pkg-a"},
+		},
+		Packages: []graph.Package{
+			{ID: graph.PackageID{Name: "pkg-a", Version: "1.0.0"}},
+			{ID: graph.PackageID{Name: "ms", Version: "2.1.2"}},
+			{ID: graph.PackageID{Name: "ms", Version: "2.1.3"}},
+		},
+		Edges: []graph.Edge{
+			{From: ".", Name: "pkg-a", To: "pkg-a@1.0.0", Kind: graph.DepProd},
+			{From: ".", Name: "ms", To: "ms@2.1.2", Kind: graph.DepProd},
+			{From: "pkg-a@1.0.0", Name: "ms", To: "ms@2.1.3", Kind: graph.DepProd},
+		},
+	}
+
+	nm := filepath.Join(t.TempDir(), "node_modules")
+	l := &hoisted.Linker{
+		NodeModules: nm,
+		ExtractDirs: map[string]string{
+			"pkg-a@1.0.0": pkgADir,
+			"ms@2.1.2":    ms212,
+			"ms@2.1.3":    ms213,
+		},
+	}
+	plan, err := l.Plan(context.Background(), g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Apply(context.Background(), plan); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+}
+
 func TestFakeLinkerStructuredPlan(t *testing.T) {
 	plan := &linker.Plan{
 		NodeModules: filepath.Join(t.TempDir(), "node_modules"),

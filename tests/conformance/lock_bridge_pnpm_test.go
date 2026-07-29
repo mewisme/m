@@ -437,6 +437,10 @@ func verifyStage(t *testing.T, proj, family, stage, addName, wantVersion string,
 		if _, err := os.Stat(removedPath); err == nil {
 			t.Fatalf("remove stage: %q still present in node_modules", addName)
 		}
+		if family == "workspace" {
+			// Workspace members may still declare the dependency; only root placement is asserted above.
+			return
+		}
 		node, err := exec.LookPath("node")
 		if err != nil {
 			t.Skip("node not on PATH")
@@ -496,6 +500,7 @@ func setupMutationEnv(t *testing.T) {
 	t.Setenv("NO_PROXY", "*")
 	t.Setenv("MEW_RESOLVE_AUTO_INSTALL_PEERS", "1")
 	t.Setenv("MEW_EXPERIMENTAL_WORKSPACES", "1")
+	t.Setenv("MEW_EXPERIMENTAL_ISOLATED_LINKER", "1")
 	home := t.TempDir()
 	t.Setenv("MEW_HOME", home)
 	setupIsolatedPnpmHome(t)

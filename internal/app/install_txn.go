@@ -168,6 +168,15 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 
 	emitPhase(ac, "resolve", "")
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
+	if !manifestChanged {
+		drift, driftErr := manifestDriftsFromLock(ctx, proj)
+		if driftErr != nil {
+			return res, driftErr
+		}
+		if drift {
+			manifestChanged = true
+		}
+	}
 	if edit != nil {
 		if err := edit(proj); err != nil {
 			return res, err
@@ -406,6 +415,15 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 	}
 	emitPhase(ac, "resolve", "")
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
+	if !manifestChanged {
+		drift, driftErr := manifestDriftsFromLock(ctx, proj)
+		if driftErr != nil {
+			return res, driftErr
+		}
+		if drift {
+			manifestChanged = true
+		}
+	}
 	if edit != nil {
 		if err := edit(proj); err != nil {
 			return res, err

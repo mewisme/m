@@ -67,7 +67,8 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 		case l.UseSmartLink:
 			ops = append(ops, planner.PlanPackageLink(src, pl.ContentDir, caps))
 		case caps.Junction || caps.Symlink:
-			ops = append(ops, planner.PlanDirAlias(src, pl.ContentDir, caps))
+			// ponytail: symlink workspace members inherits incumbent node_modules (pnpm); copy into store.
+			ops = append(ops, planner.PlanPackageLink(src, pl.ContentDir, caps))
 		default:
 			ops = append(ops, linker.Op{Kind: linker.OpCopy, Src: src, Dest: pl.ContentDir})
 		}
