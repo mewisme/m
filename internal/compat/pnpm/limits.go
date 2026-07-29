@@ -2,6 +2,7 @@ package pnpm
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"go.yaml.in/yaml/v3"
@@ -16,6 +17,8 @@ const (
 	maxPeerSuffixLen = 2048
 	maxAliasChain    = 8
 	maxIndexKeys     = 200_000
+	maxWorkspaceRef  = 4096
+	maxAliasNameLen  = 256
 )
 
 func validateLockInput(data []byte) error {
@@ -74,6 +77,14 @@ func validatePackageKey(key string) error {
 	if len(key) > maxPackageKeyLen {
 		return apperr.New(apperr.Lockfile, "pnpm.identity", key,
 			fmt.Sprintf("package key exceeds %d bytes", maxPackageKeyLen))
+	}
+	if strings.HasPrefix(key, "workspace:") && len(key) > maxWorkspaceRef {
+		return apperr.New(apperr.Lockfile, "pnpm.identity", key,
+			fmt.Sprintf("workspace ref exceeds %d bytes", maxWorkspaceRef))
+	}
+	if strings.HasPrefix(key, "link:") && len(key) > maxWorkspaceRef {
+		return apperr.New(apperr.Lockfile, "pnpm.identity", key,
+			fmt.Sprintf("link ref exceeds %d bytes", maxWorkspaceRef))
 	}
 	if isProtocolRef(key) {
 		return nil

@@ -15,6 +15,8 @@ func FuzzDecodePnpmLock(f *testing.F) {
 		filepath.Join(root, "fixtures", "locks", "pnpm", "v10", "pnpm-lock.yaml"),
 		filepath.Join(root, "fixtures", "locks", "pnpm", "v11", "pnpm-lock.yaml"),
 		filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "peer-context", "pnpm-lock.yaml"),
+		filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "alias", "pnpm-lock.yaml"),
+		filepath.Join(root, "fixtures", "locks", "generated", "pnpm-9", "workspace", "pnpm-lock.yaml"),
 		filepath.Join(root, "testdata", "lockfile", "fuzz", "duplicate-key.yaml"),
 		filepath.Join(root, "testdata", "lockfile", "fuzz", "oversize-marker.yaml"),
 	}
