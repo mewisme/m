@@ -3,7 +3,7 @@
 **Date:** 2026-07-29  
 **Baseline:** `d9f5dfc457a7a86547d5798336c08769983c4e38`  
 **Overall score:** 8.7 / 10  
-**Status:** READY (pending CI green on final SHA)
+**Status:** READY
 
 ## Blockers closed
 
