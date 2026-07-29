@@ -37,6 +37,7 @@ func TestEncodeDependencyRefGolden(t *testing.T) {
 	}{
 		{"b", "b@2.0.0", "2.0.0"},
 		{"acorn-jsx", "acorn-jsx@5.3.2#acorn@8.18.0", "5.3.2(acorn@8.18.0)"},
+		{"react-dom-alias", "react-dom@18.2.0#react@18.2.0", "react-dom@18.2.0(react@18.2.0)"},
 		{"local", "link:../pkg", "link:../pkg"},
 		{"alias", "npm:lodash@4.17.21", "npm:lodash@4.17.21"},
 	}

@@ -40,11 +40,19 @@ func dependencyRefFromGraphKey(depName, graphKey string) (string, error) {
 	}
 	base, peerPart, hasPeer := strings.Cut(graphKey, "#")
 	name, ver := splitNameVersionKey(base)
+	if hasPeer {
+		peerRef := ver + "(" + peerPart + ")"
+		if name != depName {
+			// npm alias: importer key is alias label; version names actual package.
+			return name + "@" + peerRef, nil
+		}
+		return peerRef, nil
+	}
 	if name != depName {
+		if id, err := ParsePackageIdentity(base); err == nil && !id.IsProtocolRef {
+			return id.Name + "@" + id.BaseVersion + id.PeerSuffix, nil
+		}
 		return "", fmt.Errorf("graph key %q name mismatch for %q", graphKey, depName)
 	}
-	if !hasPeer {
-		return ver, nil
-	}
-	return ver + "(" + peerPart + ")", nil
+	return ver, nil
 }
