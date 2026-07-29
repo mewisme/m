@@ -345,14 +345,35 @@ func assertPeerContextGraph(t *testing.T, proj string, major int) {
 	if major == 11 {
 		acornVer = "8.17.0"
 	}
-	peerInstance := "acorn-jsx@5.3.2#acorn@" + acornVer
-	acornKey := "acorn@" + acornVer
-	if !graphHasPackage(g, peerInstance) {
-		t.Fatalf("missing peer-context package %q", peerInstance)
+	if !graphHasPeerInstance(g, "acorn-jsx", "5.3.2", "acorn", acornVer) {
+		t.Fatalf("missing peer-context instance acorn-jsx@5.3.2 with acorn@%s", acornVer)
 	}
+	acornKey := "acorn@" + acornVer
 	if !graphHasPackage(g, acornKey) {
 		t.Fatalf("missing acorn package %q", acornKey)
 	}
+}
+
+func graphHasPeerInstance(g *lockfile.Graph, name, version, peerName, peerVer string) bool {
+	want := peerName + "@" + peerVer
+	for _, p := range g.Packages {
+		if p.ID.Name != name {
+			continue
+		}
+		if p.ID.Version != version && !strings.HasPrefix(p.ID.Version, version+"(") {
+			continue
+		}
+		key := p.ID.Key()
+		if strings.Contains(key, want) {
+			return true
+		}
+		for _, pc := range p.ID.PeerProviderContext {
+			if pc.Name == peerName && pc.Version == peerVer {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func graphHasPackage(g *lockfile.Graph, id string) bool {
