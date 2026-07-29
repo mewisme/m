@@ -2,14 +2,14 @@
 
 ## Program status
 
-- Current MVP: **0026** — Complete Package-Manager Command Surface
+- Current MVP: **0029** — Performance, Offline Operation, and Portable Capsules
 - Last updated: 2026-07-29
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0026 - Complete Package-Manager Command Surface](0026-pm-command-surface.md)
+**Next:** [0029 - Performance, Offline Operation, and Portable Capsules](0029-performance-offline-capsules.md)
 
 MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/mew/actions/runs/30310739645 (21/21 green).
 
@@ -58,9 +58,9 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 | 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [x] | [0023](0023-nub-pnpm-lock-bridge.md) | [0023-nub-pnpm-lock-bridge](cursor/0023-nub-pnpm-lock-bridge.plan.md) |
 | 0024 | Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility | Core / MVP 15 | 0023 | [x] | [0024](0024-npm-locks.md) | [0024-npm-locks](cursor/0024-npm-locks.plan.md) |
 | 0025 | Core MVP 16 — Bun and Yarn Lockfile Compatibility | Core / MVP 16 | 0023, 0024 | [x] | [0025](0025-bun-yarn-locks.md) | [0025-bun-yarn-locks](cursor/0025-bun-yarn-locks.plan.md) |
-| 0026 | Core MVP 17 — Complete Package-Manager Command Surface | Core / MVP 17 | 0021, 0022, 0023, 0024, 0025 | [ ] | [0026](0026-pm-command-surface.md) | [0026-pm-command-surface](cursor/0026-pm-command-surface.plan.md) |
-| 0027 | Core MVP 18 — Advanced Sources, Patches, Pack, and Publish | Core / MVP 18 | 0026 | [ ] | [0027](0027-advanced-sources-publish.md) | [0027-advanced-sources-publish](cursor/0027-advanced-sources-publish.plan.md) |
-| 0028 | Core MVP 19 — Explainability, Plans, Semantic Diffs, and ... | Core / MVP 19 | 0017, 0020, 0026 | [ ] | [0028](0028-explain-plan-history.md) | [0028-explain-plan-history](cursor/0028-explain-plan-history.plan.md) |
+| 0026 | Core MVP 17 — Complete Package-Manager Command Surface | Core / MVP 17 | 0021, 0022, 0023, 0024, 0025 | [x] | [0026](0026-pm-command-surface.md) | [0026-pm-command-surface](cursor/0026-pm-command-surface.plan.md) |
+| 0027 | Core MVP 18 — Advanced Sources, Patches, Pack, and Publish | Core / MVP 18 | 0026 | [x] | [0027](0027-advanced-sources-publish.md) | [0027-advanced-sources-publish](cursor/0027-advanced-sources-publish.plan.md) |
+| 0028 | Core MVP 19 — Explainability, Plans, Semantic Diffs, and ... | Core / MVP 19 | 0017, 0020, 0026 | [x] | [0028](0028-explain-plan-history.md) | [0028-explain-plan-history](cursor/0028-explain-plan-history.plan.md) |
 | 0029 | Core MVP 20 — Performance, Offline Operation, and Portabl... | Core / MVP 20 | 0018, 0026, 0028 | [ ] | [0029](0029-performance-offline-capsules.md) | [0029-performance-offline-capsules](cursor/0029-performance-offline-capsules.plan.md) |
 | 0030 | Core MVP 21 — Audit, SBOM, Provenance, and Supply-Chain P... | Core / MVP 21 | 0012, 0021, 0027, 0029 | [ ] | [0030](0030-security-audit-sbom.md) | [0030-security-audit-sbom](cursor/0030-security-audit-sbom.plan.md) |
 | 0031 | Core MVP 22 — Package-Manager Core Stabilization Gate | Core / Stabilization | 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018, 0019, 0020, 0021, 0022, 0023, 0024, 0025, 0026, 0027, 0028, 0029, 0030 | [ ] | [0031](0031-core-stabilization.md) | [0031-core-stabilization](cursor/0031-core-stabilization.plan.md) |
@@ -655,7 +655,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Acceptance: Snapshot restore returns project to prior dependency state
 - [x] Acceptance: Journal records sufficient ops for full rollback
 - [x] Acceptance: Commit is atomic: no half-updated lockfile visible
-- [ ] Rich `m history` timeline UX — deferred to **0028**
+- [x] Rich `m history` timeline UX — shipped in **0028**
 - [x] Exit: All required tests pass on supported operating systems.
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
 - [x] Exit: Public behavior and intentional deviations are documented.
@@ -931,102 +931,106 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0026 - Core MVP 17 — Complete Package-Manager Command Surface
 
-- status: planned
+- status: done
 - plan: [0026-pm-command-surface.md](0026-pm-command-surface.md)
 - cursor: [cursor/0026-pm-command-surface.plan.md](cursor/0026-pm-command-surface.plan.md)
 
-- [ ] Complete PM subcommand tree with consistent flag naming
-- [ ] Implement m ci: clean install from lock in CI mode
-- [ ] Implement m outdated with recursive workspace support
-- [ ] Implement m dedupe rewriting lock to minimal graph
-- [ ] Implement m prune removing extraneous node_modules packages
-- [ ] Implement m list (m ls) dependency tree display
-- [ ] Route all mutating commands through transaction journal
-- [ ] Unify --dry-run behavior across install family
-- [ ] Unify --frozen-lockfile across ci and install
-- [ ] Add pnpm-compatible flag aliases where documented
-- [ ] Generate comprehensive --help per subcommand
-- [ ] Add integration tests per command on fixture projects
-- [ ] Document Mew grammar divergences from pnpm/npm
-- [ ] Ensure mx does not expose PM commands
-- [ ] Stable JSON output for outdated --json
-- [ ] Exit codes consistent across PM commands
-- [ ] Deprecate stubs replaced by real implementations with warnings
-- [ ] Acceptance: m ci fails when lockfile out of sync with manifest
-- [ ] Acceptance: m outdated reports available updates as JSON
-- [ ] Acceptance: m dedupe reduces duplicate packages in lock
-- [ ] Acceptance: All mutating commands rollback on failure
-- [ ] Acceptance: Help text complete for every PM subcommand
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Complete PM subcommand tree with consistent flag naming
+- [x] Implement m ci: clean install from lock in CI mode
+- [x] Implement m outdated with recursive workspace support
+- [x] Implement m dedupe rewriting lock to minimal graph
+- [x] Implement m prune removing extraneous node_modules packages
+- [x] Implement m list (m ls) dependency tree display
+- [x] Route all mutating commands through transaction journal
+- [x] Unify --dry-run behavior across install family
+- [x] Unify --frozen-lockfile across ci and install
+- [x] Add pnpm-compatible flag aliases where documented
+- [x] Generate comprehensive --help per subcommand
+- [x] Add integration tests per command on fixture projects
+- [x] Document Mew grammar divergences from pnpm/npm
+- [x] Ensure mx does not expose PM commands
+- [x] Stable JSON output for outdated --json
+- [x] Exit codes consistent across PM commands
+- [x] Deprecate stubs replaced by real implementations with warnings (no stub-to-real transitions in 0026)
+- [x] Acceptance: m ci fails when lockfile out of sync with manifest
+- [x] Acceptance: m outdated reports available updates as JSON
+- [x] Acceptance: m dedupe reduces duplicate packages in lock
+- [x] Acceptance: All mutating commands rollback on failure
+- [x] Acceptance: Help text complete for every PM subcommand
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+
+Deferred from 0026 scope: `m import`, `m rebuild`, `m link` (stub). Use `m explain` for `why`.
 
 ### 0027 - Core MVP 18 — Advanced Sources, Patches, Pack, and Publish
 
-- status: planned
+- status: done
 - plan: [0027-advanced-sources-publish.md](0027-advanced-sources-publish.md)
 - cursor: [cursor/0027-advanced-sources-publish.plan.md](cursor/0027-advanced-sources-publish.plan.md)
 
-- [ ] Support git+https, git+ssh, and github: dependency sources
-- [ ] Support file: and tarball: local dependency paths
-- [ ] Fetch git sources at resolved commit/tag with submodule policy
-- [ ] Implement pnpm-style patch commit workflow (m patch)
-- [ ] Apply patches deterministically during install
-- [ ] Implement m pack producing npm-compatible tarball
-- [ ] Validate package files field and .npmignore on pack
-- [ ] Implement m publish with registry auth and OTP support
-- [ ] Record non-registry sources in m.lock with integrity
-- [ ] Validate git URL and ref before fetch
-- [ ] Sandbox git fetch network access per policy
-- [ ] Add provenance attestation hook points (optional)
-- [ ] Add tests for git dep, file dep, patch, pack fixtures
-- [ ] Redact credentials in publish error output
-- [ ] Support --dry-run on publish
-- [ ] Document supported source protocols matrix
-- [ ] Never execute arbitrary scripts from git deps without policy
-- [ ] Acceptance: Git dependency installs at pinned commit
-- [ ] Acceptance: Applied patch changes installed file content deterministically
-- [ ] Acceptance: m pack tarball matches npm pack file list
-- [ ] Acceptance: m publish --dry-run validates without uploading
-- [ ] Acceptance: file: dependency resolves relative to manifest
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Support git+https, git+ssh, and github: dependency sources
+- [x] Support file: and tarball: local dependency paths
+- [x] Fetch git sources at resolved commit/tag with submodule policy
+- [x] Implement pnpm-style patch commit workflow (m patch)
+- [x] Apply patches deterministically during install
+- [x] Implement m pack producing npm-compatible tarball
+- [x] Validate package files field and .npmignore on pack
+- [x] Implement m publish with registry auth and OTP support
+- [x] Record non-registry sources in m.lock with integrity
+- [x] Validate git URL and ref before fetch
+- [x] Sandbox git fetch network access per policy
+- [x] Add provenance attestation hook points (optional)
+- [x] Add tests for git dep, file dep, patch, pack fixtures
+- [x] Redact credentials in publish error output
+- [x] Support --dry-run on publish
+- [x] Document supported source protocols matrix
+- [x] Never execute arbitrary scripts from git deps without policy
+- [x] Acceptance: Git dependency installs at pinned commit
+- [x] Acceptance: Applied patch changes installed file content deterministically
+- [x] Acceptance: m pack tarball matches npm pack file list
+- [x] Acceptance: m publish --dry-run validates without uploading
+- [x] Acceptance: file: dependency resolves relative to manifest
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0028 - Core MVP 19 — Explainability, Plans, Semantic Diffs, and Time Travel
 
-- status: planned
+- status: done
 - plan: [0028-explain-plan-history.md](0028-explain-plan-history.md)
 - cursor: [cursor/0028-explain-plan-history.plan.md](cursor/0028-explain-plan-history.plan.md)
 
-- [ ] Implement m explain showing version selection reasoning
-- [ ] Implement m explain peer for peer dependency conflicts
-- [ ] Implement m plan previewing fetch/link/manifest changes
-- [ ] Implement semantic diff between two lock graphs
-- [ ] Compare m.lock revisions and incumbent lock formats
-- [ ] Integrate snapshot list/restore from 0017 with UX polish
-- [ ] Emit structured JSON for explain and plan for agents
-- [ ] Colorize human explain output via diagnostics reporter
-- [ ] Support diff against npm/pnpm locks via adapters
-- [ ] Add golden tests for explain output on fixture graphs
-- [ ] Add plan preview tests matching actual install delta
-- [ ] Document explain trace schema
-- [ ] Never mutate state in explain/plan/diff commands
-- [ ] Support piping plan to file for CI review
-- [ ] Link explain output to stable error codes
-- [ ] Performance: explain completes in <1s on large graph fixture
-- [ ] Add m history showing snapshot timeline
-- [ ] Acceptance: m explain prints version selection path for target package
-- [ ] Acceptance: m plan --json matches actual install file changes on dry-run
-- [ ] Acceptance: m diff lock detects semver bump between two locks
-- [ ] Acceptance: m snapshot restore returns project to recorded state
-- [ ] Acceptance: Explain/plan/diff never modify project files
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement m explain showing version selection reasoning
+- [x] Implement m explain peer for peer dependency conflicts
+- [x] Implement m plan previewing fetch/link/manifest changes
+- [x] Implement semantic diff between two lock graphs
+- [x] Compare m.lock revisions and incumbent lock formats
+- [x] Integrate snapshot list/restore from 0017 with UX polish
+- [x] Emit structured JSON for explain and plan for agents
+- [x] Colorize human explain output via diagnostics reporter
+- [x] Support diff against npm/pnpm locks via adapters
+- [x] Add golden tests for explain output on fixture graphs
+- [x] Add plan preview tests matching actual install delta
+- [x] Document explain trace schema
+- [x] Never mutate state in explain/plan/diff commands
+- [x] Support piping plan to file for CI review
+- [x] Link explain output to stable error codes
+- [x] Performance: explain completes in <1s on large graph fixture
+- [x] Add m history showing snapshot timeline
+- [x] Acceptance: m explain prints version selection path for target package
+- [x] Acceptance: m plan --json matches actual install file changes on dry-run
+- [x] Acceptance: m diff lock detects semver bump between two locks
+- [x] Acceptance: m snapshot restore returns project to recorded state
+- [x] Acceptance: Explain/plan/diff never modify project files
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+
+Deferred: `m shell --snapshot` / `m run --snapshot` → MVP **0045**.
 
 ### 0029 - Core MVP 20 — Performance, Offline Operation, and Portable Capsules
 

@@ -1,0 +1,7 @@
+{
+  "name": "plan-delta",
+  "version": "1.0.0",
+  "dependencies": {
+    "pkg-a": "^1.0.0"
+  }
+}

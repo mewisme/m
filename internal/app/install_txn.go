@@ -153,6 +153,11 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 			return res, err
 		}
 	}
+	if opts.CleanNodeModules {
+		if err := cleanLiveNodeModules(txn, proj.Root); err != nil {
+			return res, err
+		}
+	}
 
 	if prepare != nil {
 		if err := prepare(ctx, ac, proj, &opts); err != nil {
@@ -277,7 +282,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	if err != nil {
 		return res, err
 	}
-	fetchOut, err := fetchPackages(ctx, ac, proj, resolution.Graph, extractDir, useStore, localExtracts)
+	fetchOut, err := fetchPackages(ctx, ac, proj, resolution.Graph, resolution.Extensions, extractDir, useStore, localExtracts)
 	applyFetchOutcome(&res, fetchOut)
 	if err != nil {
 		return res, err
@@ -395,6 +400,9 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	backupPaths = append(backupPaths, filepath.Join(".mew", "snapshots", "index.json"))
 
 	for _, rel := range backupPaths {
+		if opts.CleanNodeModules && rel == "node_modules" && txn.HasBackup(rel) {
+			continue
+		}
 		if err := txn.RecordBackup(rel); err != nil {
 			emitPhase(ac, "rollback", rel)
 			return res, err
@@ -488,7 +496,12 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 		return res, err
 	}
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
-	if p, err := BuildMutationPlan(resolution.Graph); err == nil {
+	if p, err := BuildMutationPlan(MutationPlanInput{
+		PriorKeys:     priorKeys,
+		Graph:         resolution.Graph,
+		IgnoreScripts: opts.IgnoreScripts,
+		AC:            ac,
+	}); err == nil {
 		res.Plan = p
 	}
 	return res, nil
@@ -1212,7 +1225,13 @@ func emitLinkSummary(ac *Context, summary linker.LinkSummary) {
 }
 
 func guardLocalInstall(ac *Context, res *resolver.Resolution) error {
-	if res == nil || !resolver.HasLocalSources(res.Extensions) {
+	if res == nil {
+		return nil
+	}
+	if resolver.HasGitSources(res.Extensions) {
+		return nil
+	}
+	if !resolver.HasLocalSources(res.Extensions) {
 		return nil
 	}
 	locals, err := resolver.DecodeLocalSources(res.Extensions)
@@ -1221,12 +1240,34 @@ func guardLocalInstall(ac *Context, res *resolver.Resolution) error {
 	}
 	workspacesOn := ac != nil && ac.Config != nil && workspace.Enabled(ac.Config)
 	for key, src := range locals {
-		if src.Protocol == "workspace" && workspacesOn {
+		switch src.Protocol {
+		case "workspace":
+			if workspacesOn {
+				continue
+			}
+		case "file", "portal", "tarball", "link":
 			continue
 		}
-		_ = key
-		return apperr.New(apperr.Install, "app.install", "",
+		return apperr.New(apperr.Install, "app.install", key,
 			"local source install not implemented; resolved in lock only")
+	}
+	return nil
+}
+
+// cleanLiveNodeModules journals and removes the live node_modules tree (m ci).
+func cleanLiveNodeModules(txn *transaction.Runner, projectRoot string) error {
+	nm := filepath.Join(projectRoot, "node_modules")
+	if _, err := os.Stat(nm); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return apperr.Wrap(apperr.IO, "app.ci", "node_modules", err)
+	}
+	if err := txn.RecordBackup("node_modules"); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(nm); err != nil {
+		return apperr.Wrap(apperr.IO, "app.ci", "node_modules", err)
 	}
 	return nil
 }

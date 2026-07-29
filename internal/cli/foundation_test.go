@@ -98,7 +98,7 @@ func TestVersionJSONAndBuildDate(t *testing.T) {
 
 func TestReservedNamesAndStub(t *testing.T) {
 	names := ReservedNames()
-	for _, want := range []string{"install", "i", "run", "version", "completion", "__dispatch"} {
+	for _, want := range []string{"install", "i", "run", "version", "completion", "__dispatch", "plan", "history", "diff"} {
 		if !IsReserved(want) {
 			t.Fatalf("expected reserved %q in %v", want, names)
 		}
@@ -117,7 +117,7 @@ func TestReservedNamesAndStub(t *testing.T) {
 		Out: ioDiscard{}, Err: &errW, Format: "silent", Color: diagnostics.ColorNever,
 	})
 	_ = rep
-	root.SetArgs([]string{"plan"})
+	root.SetArgs([]string{"run"})
 	err := root.Execute()
 	if err == nil {
 		t.Fatal("expected unimplemented")
@@ -128,7 +128,7 @@ func TestReservedNamesAndStub(t *testing.T) {
 	if apperr.ExitCode(err) != 1 {
 		t.Fatalf("exit=%d", apperr.ExitCode(err))
 	}
-	if !strings.Contains(err.Error(), "0028") {
+	if !strings.Contains(err.Error(), "0040") {
 		t.Fatalf("err=%v", err)
 	}
 }

@@ -81,16 +81,49 @@ base `name@version` key (see `testdata/graph/peers.json`).
 | v2 | Loaded via adapter; edges without `name` infer `name` from target package name |
 | v3 | Current format |
 
-`extensions.mew.resolver/local` maps package keys (`name@version`) to local source
-metadata:
+`extensions` carry non-registry resolution metadata (MVP **0027**). Registry
+packages omit these keys.
+
+### `mew.resolver/local`
+
+Maps package keys (`name@version`) to project-relative local sources:
 
 ```json
 {
-  "lib@2.4.0": { "protocol": "workspace", "path": "packages/lib" }
+  "lib@2.4.0": { "protocol": "workspace", "path": "packages/lib" },
+  "vendor-pkg@1.0.0": { "protocol": "file", "path": "vendor/pkg" }
 }
 ```
 
-Protocols: `workspace`, `file`, `link`, `portal`. Registry packages omit this extension.
+Protocols: `workspace`, `file`, `link`, `portal`, `tarball`. Optional
+`integrity` supports future local tarball pinning.
+
+### `mew.resolver/git`
+
+Maps package keys to pinned git remotes:
+
+```json
+{
+  "sample-pkg@1.0.0": {
+    "url": "https://github.com/org/repo.git",
+    "commit": "1e92b302cc5df841ccc7a74c7d88e8d2c2e13535"
+  }
+}
+```
+
+Install reads this extension to shallow-fetch at `commit`. See [`sources.md`](sources.md).
+
+### `mew.resolver/patches`
+
+Maps package keys to committed unified patch files:
+
+```json
+{
+  "pkg-a@1.0.0": { "path": "patches/pkg-a@1.0.0.patch", "hash": "…" }
+}
+```
+
+Applied during install after fetch/extract. See [`patch.md`](patch.md).
 
 ## Checksum
 

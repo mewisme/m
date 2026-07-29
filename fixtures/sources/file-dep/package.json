@@ -1,0 +1,7 @@
+{
+  "name": "file-dep-root",
+  "version": "1.0.0",
+  "dependencies": {
+    "vendor-pkg": "file:./vendor/pkg"
+  }
+}

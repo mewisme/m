@@ -10,7 +10,6 @@ import (
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
-	"github.com/mewisme/mew/internal/lockfile"
 	"github.com/mewisme/mew/internal/lockfile/mlock"
 	"github.com/mewisme/mew/internal/project"
 )
@@ -127,6 +126,8 @@ func newLockValidateCmd() *cobra.Command {
 
 func newLockDiffCmd() *cobra.Command {
 	var (
+		fromPath  string
+		toPath    string
 		asJSON    bool
 		pnpmMajor int
 	)
@@ -139,27 +140,16 @@ func newLockDiffCmd() *cobra.Command {
 			if ac == nil {
 				return apperr.New(apperr.Internal, "lock.diff", "", "missing app context")
 			}
-			other := ""
+			opts := app.LockDiffOptions{FromPath: fromPath, ToPath: toPath, PnpmMajor: pnpmMajor}
 			if len(args) > 0 {
-				other = args[0]
+				opts.OtherPath = args[0]
 			}
-			diff, err := app.LockDiff(cmd.Context(), ac, app.LockDiffOptions{OtherPath: other, PnpmMajor: pnpmMajor})
-			if err != nil {
-				return err
-			}
-			data, err := lockfile.EncodeDiffJSON(diff)
-			if err != nil {
-				return err
-			}
-			if asJSON {
-				_, err = cmd.OutOrStdout().Write(data)
-				return err
-			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), string(data))
-			return err
+			return runLockDiff(cmd.Context(), cmd.OutOrStdout(), ac, opts, asJSON)
 		},
 	}
-	cmd.Flags().BoolVar(&asJSON, "json", false, "alias for JSON diff output")
+	cmd.Flags().StringVar(&fromPath, "from", "", "left lockfile path (requires --to)")
+	cmd.Flags().StringVar(&toPath, "to", "", "right lockfile path (requires --from)")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit diff as JSON")
 	cmd.Flags().IntVar(&pnpmMajor, "pnpm-major", 0, "disambiguate v9-shaped pnpm locks (9, 10, or 11)")
 	return cmd
 }

@@ -50,9 +50,12 @@ func newSnapshotListCmd() *cobra.Command {
 				_, err := fmt.Fprintln(cmd.OutOrStdout(), "no snapshots")
 				return err
 			}
-			for _, s := range list {
-				_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s  %s  %s\n", s.ID, s.CreatedAt.Format("2006-01-02T15:04:05Z"), s.GraphDigest)
-				if err != nil {
+			for i, s := range list {
+				var older *snapshot.Snapshot
+				if i+1 < len(list) {
+					older = &list[i+1]
+				}
+				if err := formatSnapshotLine(cmd.OutOrStdout(), s, older); err != nil {
 					return err
 				}
 			}

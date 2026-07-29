@@ -58,6 +58,16 @@ func TestParseSpecifier(t *testing.T) {
 			want: manifest.Specifier{DisplayName: "portal", TargetName: "portal", Range: "../portal-pkg", Protocol: manifest.ProtocolPortal},
 		},
 		{
+			key:  "git-dep",
+			spec: "github:foo/bar#abc1234",
+			want: manifest.Specifier{DisplayName: "git-dep", TargetName: "git-dep", Range: "https://github.com/foo/bar.git#abc1234", Protocol: manifest.ProtocolGit},
+		},
+		{
+			key:  "tarball-dep",
+			spec: "tarball:./vendor/pkg.tgz",
+			want: manifest.Specifier{DisplayName: "tarball-dep", TargetName: "tarball-dep", Range: "./vendor/pkg.tgz", Protocol: manifest.ProtocolTarball},
+		},
+		{
 			key:  "@scope/pkg",
 			spec: "^1.0.0",
 			want: manifest.Specifier{DisplayName: "@scope/pkg", TargetName: "@scope/pkg", Range: "^1.0.0", Protocol: manifest.ProtocolRegistry},

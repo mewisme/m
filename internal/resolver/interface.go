@@ -49,6 +49,12 @@ type ResolveOptions struct {
 	MemberManifests map[string]*manifest.Document
 	// PnpmMajor selects the patch hash algorithm for pnpm patchedDependencies (9, 10, or 11).
 	PnpmMajor int
+	// Dedupe re-resolves without lock pin reuse and consolidates duplicate package names
+	// when semver ranges allow (m dedupe).
+	Dedupe bool
+	// PriorForDedupe is the incumbent lock graph used only for duplicate detection during
+	// dedupe; it does not pin versions when Dedupe is true.
+	PriorForDedupe *graph.Graph
 }
 
 // ResolutionDecision records candidate filtering and version selection for 0028.

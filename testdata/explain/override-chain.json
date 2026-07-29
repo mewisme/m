@@ -1,0 +1,26 @@
+{
+  "package": "pkg-b",
+  "decisions": [
+    {
+      "package": "pkg-b",
+      "requested": "1.0.0",
+      "candidates": [
+        "1.0.0",
+        "1.2.0"
+      ],
+      "selected": "1.0.0",
+      "reason": "tag-or-exact",
+      "overrideFrom": "^1.0.0"
+    }
+  ],
+  "paths": [
+    {
+      "importer": ".",
+      "chain": [
+        ".",
+        "pkg-a@1.0.0",
+        "pkg-b@1.0.0"
+      ]
+    }
+  ]
+}

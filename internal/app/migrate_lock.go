@@ -7,8 +7,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/lockfile"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/transaction"
@@ -33,19 +35,43 @@ type MigrateLockResult struct {
 	PreservedUnknown int
 }
 
-// LockDiffOptions compares incumbent lock graph to another lock path.
+// LockDiffOptions compares lock graphs.
 type LockDiffOptions struct {
 	OtherPath string
+	FromPath  string
+	ToPath    string
 	PnpmMajor int
 }
 
-// LockDiff compares the incumbent lock graph to another lockfile.
+// LockDiff compares lock graphs.
 func LockDiff(ctx context.Context, ac *Context, opts LockDiffOptions) (*lockfile.GraphDiff, error) {
 	proj, err := OpenProject(ctx, ac)
 	if err != nil {
 		return nil, err
 	}
 	hints := lockHintsFromProject(proj)
+	if opts.FromPath != "" || opts.ToPath != "" {
+		if opts.FromPath == "" || opts.ToPath == "" {
+			return nil, apperr.New(apperr.Usage, "lock.diff", "", "both --from and --to are required")
+		}
+		leftPath, err := resolveLockDiffPath(ac, opts.FromPath)
+		if err != nil {
+			return nil, err
+		}
+		rightPath, err := resolveLockDiffPath(ac, opts.ToPath)
+		if err != nil {
+			return nil, err
+		}
+		left, err := readLockGraphAtPath(ctx, leftPath, hints, opts.PnpmMajor)
+		if err != nil {
+			return nil, err
+		}
+		right, err := readLockGraphAtPath(ctx, rightPath, hints, opts.PnpmMajor)
+		if err != nil {
+			return nil, err
+		}
+		return lockfile.DiffGraphs(left, right)
+	}
 	if proj.Identity == project.IdentityPNPM {
 		prior, readErr := project.ReadLockfileBytes(proj.Root, proj.Identity)
 		if readErr != nil {
@@ -62,29 +88,45 @@ func LockDiff(ctx context.Context, ac *Context, opts LockDiffOptions) (*lockfile
 	otherPath := opts.OtherPath
 	if otherPath == "" {
 		otherPath = filepath.Join(proj.Root, "m.lock")
+	} else if !filepath.IsAbs(otherPath) {
+		otherPath = filepath.Join(ac.CWD, otherPath)
 	}
-	otherID, ok := lockIdentityFromBasename(filepath.Base(otherPath))
-	if !ok {
-		return nil, apperr.New(apperr.Usage, "lock.diff", otherPath, "unrecognized lockfile name")
-	}
-	if otherID == project.IdentityPNPM {
-		otherPrior, readErr := os.ReadFile(otherPath)
-		if readErr != nil {
-			return nil, apperr.Wrap(apperr.IO, "lock.diff", otherPath, readErr)
-		}
-		if _, err := detectPnpmLockBytes(otherPrior, hints, opts.PnpmMajor); err != nil {
-			return nil, err
-		}
-	}
-	adapter := lockfile.AdapterFor(otherID)
-	if adapter == nil {
-		return nil, lockfile.NewUnsupported("lock.diff", otherPath, "adapter not registered")
-	}
-	right, err := adapter.Read(ctx, otherPath)
+	right, err := readLockGraphAtPath(ctx, otherPath, hints, opts.PnpmMajor)
 	if err != nil {
 		return nil, err
 	}
 	return lockfile.DiffGraphs(left, right)
+}
+
+func resolveLockDiffPath(ac *Context, path string) (string, error) {
+	if path == "" {
+		return "", apperr.New(apperr.Usage, "lock.diff", "", "empty lock path")
+	}
+	if filepath.IsAbs(path) {
+		return path, nil
+	}
+	return filepath.Join(ac.CWD, path), nil
+}
+
+func readLockGraphAtPath(ctx context.Context, path string, hints lockfile.ProjectHints, pnpmMajor int) (*graph.Graph, error) {
+	id, ok := lockIdentityFromBasename(filepath.Base(path))
+	if !ok {
+		return nil, apperr.New(apperr.Usage, "lock.diff", path, "unrecognized lockfile name")
+	}
+	if id == project.IdentityPNPM {
+		prior, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, apperr.Wrap(apperr.IO, "lock.diff", path, readErr)
+		}
+		if _, err := detectPnpmLockBytes(prior, hints, pnpmMajor); err != nil {
+			return nil, err
+		}
+	}
+	adapter := lockfile.AdapterFor(id)
+	if adapter == nil {
+		return nil, lockfile.NewUnsupported("lock.diff", path, "adapter not registered")
+	}
+	return adapter.Read(ctx, path)
 }
 
 // MigrateLock migrates an incumbent nub/pnpm lock to m.lock.
@@ -272,9 +314,25 @@ func lockIdentityFromBasename(name string) (project.Identity, bool) {
 		return project.IdentityBun, true
 	case "yarn.lock":
 		return project.IdentityYarn, true
-	default:
-		return "", false
 	}
+	type suffixID struct {
+		suffix string
+		id     project.Identity
+	}
+	for _, entry := range []suffixID{
+		{suffix: "m.lock", id: project.IdentityMew},
+		{suffix: "nub.lock", id: project.IdentityNub},
+		{suffix: "pnpm-lock.yaml", id: project.IdentityPNPM},
+		{suffix: "package-lock.json", id: project.IdentityNPM},
+		{suffix: "npm-shrinkwrap.json", id: project.IdentityNPM},
+		{suffix: "bun.lock", id: project.IdentityBun},
+		{suffix: "yarn.lock", id: project.IdentityYarn},
+	} {
+		if strings.HasSuffix(name, entry.suffix) {
+			return entry.id, true
+		}
+	}
+	return "", false
 }
 
 // ValidateLockOptions controls incumbent lock validation.

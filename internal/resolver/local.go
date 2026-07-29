@@ -25,8 +25,9 @@ type PatchSource struct {
 
 // LocalSource records a non-registry package location resolved into the lock graph.
 type LocalSource struct {
-	Protocol string `json:"protocol"`
-	Path     string `json:"path"` // root-relative POSIX path
+	Protocol  string `json:"protocol"`
+	Path      string `json:"path"` // root-relative POSIX path
+	Integrity string `json:"integrity,omitempty"`
 }
 
 func (s *resolveState) processLocal(item workItem) error {
@@ -157,6 +158,15 @@ func (s *resolveState) buildExtensions() lockfile.Extensions {
 		raw, err := json.Marshal(s.localSources)
 		if err == nil {
 			ext = lockfile.Extensions{LocalExtensionKey: raw}
+		}
+	}
+	if len(s.gitSources) > 0 {
+		raw, err := json.Marshal(s.gitSources)
+		if err == nil {
+			if ext == nil {
+				ext = lockfile.Extensions{}
+			}
+			ext[GitExtensionKey] = raw
 		}
 	}
 	if s.patches != nil && len(s.patches.byPkgKey) > 0 {

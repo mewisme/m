@@ -1,0 +1,74 @@
+{
+  "lockfileVersion": 3,
+  "checksum": "c904dda2c87b12e28c69325fac8555ae22b9ff4e71bb267512301d96d63fe621",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask",
+      "strictPeerDependencies": true
+    },
+    "resolverPolicyFingerprint": "19431a4e9835a91e",
+    "targetPlatformFingerprint": "20aaa8ec6493246d"
+  },
+  "importers": [
+    {
+      "id": ".",
+      "name": "ci-clean-install",
+      "path": ".",
+      "specifiers": [
+        {
+          "name": "pkg-a",
+          "range": "^1.0.0",
+          "kind": "prod"
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "pkg-a",
+        "version": "1.0.0"
+      },
+      "integrity": "sha256-2e1afab8b566a6ac1019ae2ba9201ea8a036b0ca1463ed2b22673d4cc87b2354"
+    },
+    {
+      "id": {
+        "name": "pkg-b",
+        "version": "1.2.0"
+      },
+      "integrity": "sha256-24c92f24878bdc43d34f0397c47ebd529869e7e444c28813ecfda1b8a52d2d65"
+    },
+    {
+      "id": {
+        "name": "pkg-c",
+        "version": "1.0.1"
+      },
+      "integrity": "sha256-9b75a3d4e441037d52cbcf35988036a38e8e931c5d77c71d729abc85a89ded6a"
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "name": "pkg-a",
+      "to": "pkg-a@1.0.0",
+      "kind": "prod",
+      "range": "^1.0.0"
+    },
+    {
+      "from": "pkg-a@1.0.0",
+      "name": "pkg-b",
+      "to": "pkg-b@1.2.0",
+      "kind": "prod",
+      "range": "^1.0.0"
+    },
+    {
+      "from": "pkg-b@1.2.0",
+      "name": "pkg-c",
+      "to": "pkg-c@1.0.1",
+      "kind": "prod",
+      "range": "^1.0.0"
+    }
+  ]
+}

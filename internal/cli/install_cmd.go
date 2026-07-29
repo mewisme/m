@@ -141,29 +141,36 @@ func newRemoveCmd() *cobra.Command {
 
 func newCiCmd() *cobra.Command {
 	var (
-		prod          bool
-		linkerMode    string
-		ignoreScripts bool
-		asJSON        bool
+		prod           bool
+		linkerMode     string
+		ignoreScripts  bool
+		asJSON         bool
+		dryRun         bool
+		frozenLockfile bool
 	)
 	cmd := &cobra.Command{
 		Use:   "ci",
 		Short: "Clean install from lockfile",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if dryRun {
+				return apperr.New(apperr.Usage, "ci", "--dry-run", "dry-run is not supported with ci")
+			}
 			ac := app.FromContext(cmd.Context())
 			if ac == nil {
 				return apperr.New(apperr.Internal, "ci", "", "missing app context")
 			}
 			opts := installOptsFromGlobals(cmd, app.InstallOptions{
-				Prod:          prod,
-				Frozen:        true,
-				Linker:        linkerMode,
-				IgnoreScripts: ignoreScripts,
+				Prod:             prod,
+				Frozen:           true,
+				CleanNodeModules: true,
+				Linker:           linkerMode,
+				IgnoreScripts:    ignoreScripts,
 			})
 			if len(opts.Filter) > 0 {
 				return apperr.New(apperr.Usage, "ci", "--filter", "--filter is not supported with ci (frozen full-tree install)")
 			}
+			_ = frozenLockfile // always frozen; alias for npm/pnpm compatibility
 			result, err := app.Install(cmd.Context(), ac, opts)
 			outErr := writeInstallResult(cmd, result, asJSON, false)
 			if err != nil {
@@ -179,6 +186,10 @@ func newCiCmd() *cobra.Command {
 	cmd.Flags().StringVar(&linkerMode, "linker", "", "node linker mode: hoisted or isolated")
 	cmd.Flags().BoolVar(&ignoreScripts, "ignore-scripts", false, "skip lifecycle scripts")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "not supported")
+	cmd.Flags().BoolVar(&frozenLockfile, "frozen-lockfile", false, "alias; ci is always frozen")
+	_ = cmd.Flags().MarkHidden("dry-run")
+	_ = cmd.Flags().MarkHidden("frozen-lockfile")
 	return cmd
 }
 

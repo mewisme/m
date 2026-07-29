@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 )
@@ -43,6 +44,18 @@ type FixtureRegistry struct {
 	ForceStatus int32  // if >0, return this status for packument GETs
 	ETag        string // etag value for packuments (default fixed)
 	hitCount    atomic.Int64
+
+	publishMu sync.Mutex
+	publishes []PublishRecord
+}
+
+// PublishRecord captures one registry PUT publish.
+type PublishRecord struct {
+	Method string
+	Path   string
+	Auth   string
+	OTP    string
+	Body   []byte
 }
 
 // LoadRegistry loads fixtures/<rel> (default registry/v1), verifies checksums, and returns a registry.
@@ -97,6 +110,10 @@ func (r *FixtureRegistry) Start(t testing.TB) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodPut {
+			r.handlePublish(w, req)
+			return
+		}
 		if req.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -157,6 +174,42 @@ func (r *FixtureRegistry) Start(t testing.TB) *httptest.Server {
 
 // HitCount returns packument GET attempts (including 304).
 func (r *FixtureRegistry) HitCount() int64 { return r.hitCount.Load() }
+
+// PublishCount returns recorded PUT publishes.
+func (r *FixtureRegistry) PublishCount() int {
+	r.publishMu.Lock()
+	defer r.publishMu.Unlock()
+	return len(r.publishes)
+}
+
+// Publishes returns a copy of recorded PUT publishes.
+func (r *FixtureRegistry) Publishes() []PublishRecord {
+	r.publishMu.Lock()
+	defer r.publishMu.Unlock()
+	out := make([]PublishRecord, len(r.publishes))
+	copy(out, r.publishes)
+	return out
+}
+
+func (r *FixtureRegistry) handlePublish(w http.ResponseWriter, req *http.Request) {
+	body, err := io.ReadAll(io.LimitReader(req.Body, 32<<20))
+	if err != nil {
+		http.Error(w, "bad body", http.StatusBadRequest)
+		return
+	}
+	rec := PublishRecord{
+		Method: req.Method,
+		Path:   req.URL.Path,
+		Auth:   req.Header.Get("Authorization"),
+		OTP:    req.Header.Get("npm-otp"),
+		Body:   append([]byte(nil), body...),
+	}
+	r.publishMu.Lock()
+	r.publishes = append(r.publishes, rec)
+	r.publishMu.Unlock()
+	w.WriteHeader(http.StatusCreated)
+	_, _ = w.Write([]byte(`{"ok":true}`))
+}
 
 // URL returns the base URL of the started server.
 func (r *FixtureRegistry) URL() string {

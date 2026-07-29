@@ -62,6 +62,48 @@ func ResolvePatchPath(projectRoot, rel string) (string, error) {
 	return filepath.Join(projectRoot, filepath.FromSlash(rel)), nil
 }
 
+// SetPatchedDependency records selector→patchPath under pnpm.patchedDependencies.
+func (d *Document) SetPatchedDependency(selector, patchPath string) error {
+	if d == nil {
+		return fmt.Errorf("nil document")
+	}
+	selector = strings.TrimSpace(selector)
+	patchPath = strings.TrimSpace(patchPath)
+	if selector == "" || patchPath == "" {
+		return fmt.Errorf("empty patch selector or path")
+	}
+	var root map[string]json.RawMessage
+	if err := json.Unmarshal(d.Source, &root); err != nil {
+		return fmt.Errorf("decode package.json: %w", err)
+	}
+	pnpm := map[string]any{}
+	if raw, ok := root["pnpm"]; ok && len(raw) > 0 {
+		if err := json.Unmarshal(raw, &pnpm); err != nil {
+			return fmt.Errorf("decode pnpm: %w", err)
+		}
+	}
+	patches := map[string]string{}
+	if existing, ok := pnpm["patchedDependencies"]; ok {
+		switch m := existing.(type) {
+		case map[string]string:
+			for k, v := range m {
+				patches[k] = v
+			}
+		case map[string]any:
+			for k, v := range m {
+				patches[k] = fmt.Sprint(v)
+			}
+		}
+	}
+	patches[selector] = patchPath
+	pnpm["patchedDependencies"] = patches
+	raw, err := json.Marshal(pnpm)
+	if err != nil {
+		return fmt.Errorf("encode pnpm: %w", err)
+	}
+	return d.spliceTopLevel("pnpm", raw)
+}
+
 // ReadPatchFile reads and normalizes a unified diff patch (CRLF→LF).
 func ReadPatchFile(path string) ([]byte, error) {
 	data, err := os.ReadFile(path)

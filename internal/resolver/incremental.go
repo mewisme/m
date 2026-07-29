@@ -526,6 +526,9 @@ func mapsEqual(a, b map[string]string) bool {
 }
 
 func prepareHints(eff *config.Effective, opts ResolveOptions, m *manifest.Manifest) graphHints {
+	if opts.Dedupe {
+		return graphHints{}
+	}
 	h := graphHints{g: opts.Hints}
 	if opts.Prior != nil {
 		if h.g == nil {

@@ -98,6 +98,6 @@ isolated layout, phantom-dependency blocking via real Node `require()`, and
 
 ## Deferred
 
-- `m why` dependency explanations (**0028**)
+- `m explain` dependency explanations (use instead of deferred `m why`)
 - `public-hoist-pattern` selective hoisting (later MVP)
 - Isolated layout crash-during-publication integration test (deferred)

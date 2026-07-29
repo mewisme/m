@@ -1,0 +1,10 @@
+{
+  "name": "override-chain",
+  "version": "1.0.0",
+  "dependencies": {
+    "pkg-a": "1.0.0"
+  },
+  "overrides": {
+    "pkg-b": "1.0.0"
+  }
+}

@@ -20,7 +20,9 @@ backups.
 | `m install` / `i` | `--prod`, `--frozen-lockfile`, `--dry-run`, `--journal`, `--linker`, `--json` | Full install |
 | `m add <pkg>` | `-D`, `-E`, `--linker`, `--json` | Manifest + lock + install (atomic commit) |
 | `m remove <pkg>` / `rm` | `--linker`, `--json` | Remove dep + reinstall |
-| `m ci` | `--prod`, `--linker`, `--json` | `install --frozen-lockfile` |
+| `m ci` | `--prod`, `--linker`, `--json`, `--frozen-lockfile` (alias) | Frozen clean install: validates lock, removes `node_modules`, reinstalls |
+| `m dedupe` | `--dry-run`, `--prod`, `--linker`, `--json` | Collapse duplicate lock entries (transactional) |
+| `m prune` | `--prod`, `--dry-run`, `--linker`, `--json` | Remove extraneous `node_modules` packages |
 | `m update [pkg...]` | `--latest`, `--dry-run`, `--journal`, `--linker`, `--json` | Incremental lock refresh + install (transactional) |
 | `m snapshot` | `list`, `restore <id>` | Snapshot history |
 | `m recover` | — | Recover interrupted transaction |
@@ -38,4 +40,9 @@ backups.
 
 `m update` routes through the same install transaction as `m add` / `m remove`: resolve → fetch → link → validate → commit. `--latest` bumps manifest ranges in memory before resolve; `package.json` is written only at commit. `--dry-run` resolves and emits a mutation plan JSON (with `--json`) without touching disk.
 
-See also: [`lockfile.md`](lockfile.md), [`transaction.md`](transaction.md), [`store.md`](store.md), [`linker.md`](linker.md), [`cli.md`](cli.md).
+`m ci` always runs with `--frozen-lockfile` semantics. It deletes the live
+`node_modules` tree before linking and rejects `--dry-run` and `--filter`.
+
+See also: [`pm-commands.md`](pm-commands.md), [`lockfile.md`](lockfile.md),
+[`transaction.md`](transaction.md), [`store.md`](store.md), [`linker.md`](linker.md),
+[`cli.md`](cli.md).

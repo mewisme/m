@@ -21,7 +21,11 @@ func buildLocalExtractDirs(projRoot string, res *resolver.Resolution, g *graph.G
 			return nil, err
 		}
 		for key, src := range locals {
-			if src.Protocol != "workspace" {
+			switch src.Protocol {
+			case "workspace", "file", "portal", "link":
+			case "tarball":
+				continue
+			default:
 				continue
 			}
 			abs := filepath.Join(projRoot, filepath.FromSlash(src.Path))

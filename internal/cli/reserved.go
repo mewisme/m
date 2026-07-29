@@ -17,16 +17,12 @@ var stubCommands = []stubSpec{
 	{Use: "exec", MVP: "0043", Short: "Execute a local package binary"},
 	{Use: "init", MVP: "0070", Short: "Initialize a project"},
 	{Use: "audit", MVP: "0030", Short: "Audit dependencies"},
-	{Use: "pack", MVP: "0027", Short: "Create a package tarball"},
-	{Use: "publish", MVP: "0027", Short: "Publish a package"},
 	{Use: "link", MVP: "0026", Short: "Link a local package"},
-	{Use: "plan", MVP: "0028", Short: "Preview install mutations"},
-	{Use: "history", MVP: "0028", Short: "Show install history"},
 }
 
 // shippedBuiltins are always reserved (implemented today).
 var shippedBuiltins = []string{
-	"version", "features", "development", "config", "project", "pkg", "cache", "store", "view", "resolve", "fetch", "lock", "install", "i", "add", "remove", "rm", "ci", "update", "explain", "snapshot", "recover", "rollback", "completion", "__dispatch", "help",
+	"version", "features", "development", "config", "project", "pkg", "cache", "store", "view", "resolve", "fetch", "lock", "install", "i", "add", "remove", "rm", "ci", "update", "patch", "explain", "plan", "snapshot", "history", "recover", "rollback", "diff", "pack", "publish", "completion", "__dispatch", "help",
 }
 
 // ReservedNames returns sorted command names that cannot be shadowed by scripts (0042).

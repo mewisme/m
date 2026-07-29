@@ -1,0 +1,43 @@
+{
+  "lockfileVersion": 3,
+  "checksum": "06a496ce8e57f12ef5aae80ce9237c0206716933cd9c0406b6fd6c2ccaea7c19",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask"
+    }
+  },
+  "importers": [
+    {
+      "id": ".",
+      "name": "lock-revision-before",
+      "path": ".",
+      "specifiers": [
+        {
+          "name": "a",
+          "range": "^1.0.0",
+          "kind": "prod"
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "a",
+        "version": "1.0.0"
+      },
+      "integrity": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "name": "a",
+      "to": "a@1.0.0",
+      "kind": "prod",
+      "range": "^1.0.0"
+    }
+  ]
+}

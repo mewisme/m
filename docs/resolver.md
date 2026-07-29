@@ -76,10 +76,10 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 - Multi-importer install (`-r`, `--filter`) — see [`workspaces.md`](workspaces.md).
 - `catalog:` specifiers resolve against the root catalog before registry fetch.
 
-### Local sources (0020 placeholders)
+### Local and git sources (0020 resolve, 0027 install)
 
-- `file:`, `link:`, `portal:` resolve into the graph and lock extensions only.
-- Install defers with actionable `ERR_M_INSTALL` until linker MVP wires copy/link.
+- `file:`, `link:`, `portal:`, `tarball:`, and git specifiers resolve into the graph and lock extensions (`mew.resolver/local`, `mew.resolver/git`).
+- Install materializes sources per protocol — see [`sources.md`](sources.md).
 - `portal` and `link` record distinct `protocol` values in the extension payload.
 
 ### Incremental resolve (0020)
@@ -97,12 +97,18 @@ decision traces out. No `node_modules` mutation (0016). Lockfile write is via
 - After resolve, packages outside the update closure are merged verbatim from `Prior` so unrelated subgraphs stay byte-stable.
 - `m update [pkg...]` re-resolves with `UpdateTargets`; empty args refresh direct deps only while preserving unrelated subgraph. Routed through the install transaction (`runInstallTxn`).
 
-### Conflict explanation (0020 partial)
+### Conflict explanation (0028)
 
 Peer resolution failures build a structured `ConflictNode` tree during resolve
 (ancestry steps and per-environment provider search). Golden fixtures live under
-`testdata/resolver/explain/`. Full product `m explain` beyond the peer
-subcommand — **0028**.
+`testdata/resolver/explain/` and `fixtures/explain/`.
+
+Product commands:
+
+- `m explain <name>` — version selection path and import chains for one package
+- `m explain peer <name>` — peer conflict tree (or “no peer conflict” when satisfied)
+
+See [`explain.md`](explain.md).
 
 ### Registry cancellation
 
@@ -114,7 +120,9 @@ cancellation (`ERR_M_CANCELLED`).
 ```text
 m resolve [--plan] [--json] [--trace]
 m update [pkg...] [--latest] [--dry-run] [--json]
+m explain <name> [--json]
 m explain peer <name> [--json]
+m plan [--json] [--output <file>]
 ```
 
 `--plan` is the dry-resolve mode (default). `--json` emits `Resolution`.

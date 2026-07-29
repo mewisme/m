@@ -22,7 +22,7 @@ Isolated linking is selected automatically for workspace projects when
 | `m --filter <pattern> install` | Global filter (pnpm-style) |
 | `m add <pkg> --filter <pattern>` | Add a dependency scoped to filtered importers |
 | `m remove <pkg> --filter <pattern>` | Remove a dependency from filtered members only |
-| `m ls` / `m list` | List workspace packages |
+| `m ls` / `m list` | Default: lock dependency tree (`--depth`, `--prod`, `--json`). `-r` lists workspace members when workspaces are enabled |
 | `m ls -r` | List all members (requires workspaces gate) |
 
 Default `m install` resolves and installs **only the root importer**. Workspace

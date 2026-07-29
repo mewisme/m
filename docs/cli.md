@@ -56,13 +56,12 @@ Primary package-manager verbs are reserved so scripts cannot shadow them (script
 fallback is MVP **0042**). Unimplemented verbs return `ERR_M_UNIMPLEMENTED`
 (exit **1**) with the owning MVP id in the message.
 
-Stubs on `m` today: `install` (`i`), `add`, `remove` (`rm`), `update`, `ci`,
-`run`, `exec`, `init`, `audit`, `pack`, `publish`, `store`, `cache`, `link`,
-`explain`, `plan`, `history`.
+Stubs on `m` today: `run`, `exec`, `init`, `audit`, `pack`, `publish`, `link`.
 
 Shipped built-ins (also reserved): `version`, `features`, `development`,
-`config`, `project`, `pkg`, `cache`, `view`, `resolve`, `fetch`, `lock`, `ls`
-(`list`), `completion`, `help`, hidden `__dispatch`.
+`config`, `project`, `pkg`, `cache`, `view`, `resolve`, `fetch`, `lock`,
+`install` (`i`), `add`, `remove` (`rm`), `update`, `ci`, `outdated`, `dedupe`,
+`prune`, `ls` (`list`), `store`, `completion`, `help`, hidden `__dispatch`.
 
 Global flag: `--filter` — workspace package filter (pnpm-style), passed to
 install-family commands. Requires [`workspaces.md`](workspaces.md) gate.
@@ -85,7 +84,39 @@ m resolve [--plan] [--json] [--trace]
 ```
 
 Dry dependency resolution without install. See [`resolver.md`](resolver.md).
-`m explain` remains a 0028 stub; use `--trace` for decision lines today.
+
+## Explain
+
+```text
+m explain <name> [--json]
+m explain peer <name> [--json]
+```
+
+Version selection and peer conflict trees. See [`explain.md`](explain.md).
+
+## Plan
+
+```text
+m plan [--json] [--output <file>] [install flags]
+m plan update [pkg...] [--json] [--output <file>]
+```
+
+Install mutation preview (same dry-run engine as `m install --dry-run`). See
+[`plan.md`](plan.md).
+
+## History and diff
+
+```text
+m history [--json]
+m diff lock [--from <a> --to <b>] [other] [--json]
+m lock diff [--from <a> --to <b>] [other] [--json]
+```
+
+`m history` lists install snapshots newest-first with delta summaries.
+`m diff lock` / `m lock diff` compare lock graphs (human summary + optional JSON).
+Snapshot restore: `m snapshot restore <id>` (see [`install.md`](install.md)).
+
+`m shell --snapshot` / `m run --snapshot` — deferred to MVP **0045**.
 
 ## Fetch
 
@@ -103,7 +134,7 @@ m lock validate [--frozen] [--json]
 ```
 
 Canonicalize or validate native `m.lock`. `--frozen` checks manifest specifier
-drift (0016 install flag remains a stub). See [`lockfile.md`](lockfile.md).
+drift (same check as `m install --frozen-lockfile`). See [`lockfile.md`](lockfile.md).
 
 ## Command precedence
 
@@ -129,6 +160,15 @@ fallback; no script lookup yet.
 
 `m install`, `m add`, `m remove`, and `m ci` — see [`install.md`](install.md).
 
+Maintenance and reporting commands — see [`pm-commands.md`](pm-commands.md):
+
+```text
+m outdated [-r] [--json]
+m dedupe [--dry-run] [--json]
+m prune [--prod] [--dry-run] [--json]
+m ls [--depth N] [--prod] [--json]
+```
+
 Workspace options (gated — see [`workspaces.md`](workspaces.md)):
 
 ```text
@@ -136,7 +176,7 @@ m install -r
 m install --filter <pattern>
 m --filter <pattern> install
 m add <pkg> --filter <pattern>
-m ls [-r] [--depth N]
+m ls -r [--depth N]
 ```
 
 ## Signals

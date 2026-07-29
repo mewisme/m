@@ -300,6 +300,10 @@ func (s *resolveState) finalizePeerProviderContexts() {
 			delete(s.localSources, key)
 			s.localSources[newKey] = loc
 		}
+		if git, ok := s.gitSources[key]; ok {
+			delete(s.gitSources, key)
+			s.gitSources[newKey] = git
+		}
 		for ctx, deps := range s.provides {
 			for name, dep := range deps {
 				if dep.key == key {

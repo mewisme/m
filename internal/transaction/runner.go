@@ -415,6 +415,11 @@ func (r *Runner) rollbackPlanOp(ctx context.Context, index int) error {
 	return r.saveJournal()
 }
 
+// HasBackup reports whether rel was already journaled via RecordBackup.
+func (r *Runner) HasBackup(rel string) bool {
+	return r.findBackupForPath(rel) != nil
+}
+
 func (r *Runner) findBackupForPath(rel string) *Op {
 	for i := range r.doc.Ops {
 		if r.doc.Ops[i].Kind == OpBackup && r.doc.Ops[i].Path == rel {

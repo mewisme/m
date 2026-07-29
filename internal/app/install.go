@@ -47,6 +47,10 @@ type InstallOptions struct {
 	MemberEdits map[string]*manifest.Document
 	// PnpmMajor disambiguates v9-shaped pnpm locks (9, 10, or 11).
 	PnpmMajor int
+	// Dedupe re-resolves and consolidates duplicate lock packages (m dedupe).
+	Dedupe bool
+	// CleanNodeModules removes live node_modules before linking (m ci).
+	CleanNodeModules bool
 }
 
 // UpdateResolveOptions selects incremental update resolve parameters.

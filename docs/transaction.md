@@ -207,7 +207,8 @@ Mid-fetch resume is not supported — only rollback/recover after staging valida
 as a no-op (NTFS does not support directory flush the same way as Unix). File
 publishes still call `Sync` on open write handles.
 
-Rich `m history` UX — **0028**.
+`m history` lists install snapshots with delta summaries (0028). Snapshot restore:
+`m snapshot restore <id>`. Ephemeral `m shell --snapshot` — MVP **0045**.
 
 Full `node_modules` snapshot copies — restore relinks from cache.
 

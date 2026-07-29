@@ -76,6 +76,7 @@ type resolveState struct {
 	wsMemberPaths   map[string]struct{}
 	catalog         manifest.Catalog
 	localSources    map[string]LocalSource
+	gitSources      map[string]GitSource
 	patches         *patchState
 	pnpmMajor       int
 	seededImporters map[graph.ImporterID]bool
@@ -145,6 +146,7 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 		provides:        map[string]map[string]providedDep{},
 		pkgInstances:    map[string]string{},
 		localSources:    map[string]LocalSource{},
+		gitSources:      map[string]GitSource{},
 		pnpmMajor:       opts.PnpmMajor,
 		seededImporters: map[graph.ImporterID]bool{graph.RootImporter: true},
 	}
@@ -185,6 +187,12 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 	}
 	if err := s.finalizePatchTargets(g); err != nil {
 		return nil, err
+	}
+	if opts.Dedupe && opts.PriorForDedupe != nil {
+		g, err = consolidateDuplicateNames(g, opts.PriorForDedupe)
+		if err != nil {
+			return nil, apperr.Wrap(apperr.Resolve, "resolver.dedupe", proj.Root, err)
+		}
 	}
 	return &Resolution{
 		SchemaVersion: ResolutionSchemaVersion,
@@ -314,6 +322,10 @@ func (s *resolveState) processItem(item workItem) error {
 		return s.processWorkspace(item)
 	case manifest.ProtocolFile, manifest.ProtocolLink, manifest.ProtocolPortal:
 		return s.processLocal(item)
+	case manifest.ProtocolGit:
+		return s.processGit(item)
+	case manifest.ProtocolTarball:
+		return s.processTarball(item)
 	default:
 		return s.processRegistry(item)
 	}

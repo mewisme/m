@@ -1,0 +1,7 @@
+{
+  "name": "git-dep-root",
+  "version": "1.0.0",
+  "dependencies": {
+    "git-sample-pkg": "git+file:./repos/sample-pkg.git#1e92b302cc5df841ccc7a74c7d88e8d2c2e13535"
+  }
+}

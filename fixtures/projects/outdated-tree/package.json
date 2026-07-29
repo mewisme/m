@@ -1,0 +1,7 @@
+{
+  "name": "outdated-tree",
+  "version": "1.0.0",
+  "dependencies": {
+    "pkg-b": "^1.0.0"
+  }
+}

@@ -12,22 +12,27 @@ Available Commands:
   ci             Clean install from lockfile
   completion     Generate shell completion scripts
   config         Get and set configuration
+  dedupe         Reduce duplicate dependencies in the lockfile
   development    Developer tooling
+  diff           Diff project artifacts
   exec           Execute a local package binary
   explain        Explain resolution decisions
   features       List capability inventory and parity status
   fetch          Download and extract packages from a fetch plan
   help           Help about any command
-  history        Show install history
+  history        Show install snapshot timeline
   init           Initialize a project
   install        Install dependencies
   link           Link a local package
   lock           Lockfile utilities
-  ls             List workspace packages
+  ls             List dependency tree or workspace packages
+  outdated       Check for outdated package versions
   pack           Create a package tarball
+  patch          Extract a dependency for patching or commit a patch
   pkg            Read package.json fields
   plan           Preview install mutations
   project        Inspect the current project
+  prune          Remove extraneous packages from node_modules
   publish        Publish a package
   recover        Recover from an interrupted install transaction
   remove         Remove a dependency

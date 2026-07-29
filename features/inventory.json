@@ -336,33 +336,44 @@
       "name": "import / dedupe / prune / rebuild",
       "module": "package-manager",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0026",
-      "tests": []
+      "tests": [
+        "internal/app",
+        "internal/cli",
+        "internal/resolver",
+        "tests/integration"
+      ]
     },
     {
       "id": "pm.list-why-outdated",
       "name": "list / why / outdated / view",
       "module": "package-manager",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0026",
-      "tests": []
+      "tests": [
+        "internal/app",
+        "internal/cli",
+        "tests/integration"
+      ]
     },
     {
       "id": "pm.fetch-pack-publish",
       "name": "fetch / pack / publish",
       "module": "package-manager",
       "nub_status": "shipped",
-      "mew_status": "in-progress",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
-      "primary_mvp": "0014",
+      "primary_mvp": "0027",
       "tests": [
         "internal/fetch",
         "internal/archive",
+        "internal/pack",
         "internal/app",
+        "internal/registry",
         "tests/integration"
       ]
     },
@@ -491,21 +502,60 @@
       "name": "Git, hosted Git, file, link, portal, tarball",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0027",
-      "notes": "file:/link:/portal: resolve-only in graph+lock; install deferred",
-      "tests": []
+      "notes": "git submodules not fetched; hooks disabled during git fetch",
+      "tests": [
+        "internal/resolver",
+        "internal/fetch",
+        "internal/app",
+        "tests/integration"
+      ]
     },
     {
       "id": "resolver.patches",
       "name": "patch dependencies",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0027",
-      "tests": []
+      "tests": [
+        "internal/archive",
+        "internal/app",
+        "tests/integration"
+      ]
+    },
+    {
+      "id": "resolver.explain",
+      "name": "explain version selection and peer conflicts",
+      "module": "resolver",
+      "nub_status": "shipped",
+      "mew_status": "shipped",
+      "compatibility_class": "extension",
+      "primary_mvp": "0028",
+      "tests": [
+        "internal/resolver",
+        "internal/cli",
+        "tests/integration",
+        "fixtures/explain"
+      ]
+    },
+    {
+      "id": "plan.preview",
+      "name": "install mutation plan preview",
+      "module": "plan",
+      "nub_status": "intentional-omit",
+      "mew_status": "shipped",
+      "compatibility_class": "extension",
+      "primary_mvp": "0028",
+      "tests": [
+        "internal/plan",
+        "internal/app",
+        "internal/cli",
+        "tests/integration"
+      ]
     },
     {
       "id": "resolver.minimum-release-age",
@@ -846,10 +896,14 @@
       "name": "dependency time travel",
       "module": "linker",
       "nub_status": "intentional-omit",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "extension",
       "primary_mvp": "0028",
-      "tests": []
+      "tests": [
+        "internal/snapshot",
+        "internal/cli",
+        "tests/integration"
+      ]
     },
     {
       "id": "linker.capsules",
@@ -928,7 +982,8 @@
       "nub_status": "shipped",
       "mew_status": "planned",
       "compatibility_class": "parity",
-      "primary_mvp": "0027",
+      "primary_mvp": "0030",
+      "notes": "m publish --provenance exposes hook only in 0027",
       "tests": []
     },
     {

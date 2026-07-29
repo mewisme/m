@@ -82,6 +82,10 @@ func (s *resolveState) remapResolveStateKey(oldKey, newKey string) {
 		delete(s.localSources, oldKey)
 		s.localSources[newKey] = loc
 	}
+	if git, ok := s.gitSources[oldKey]; ok {
+		delete(s.gitSources, oldKey)
+		s.gitSources[newKey] = git
+	}
 	for ctx, deps := range s.provides {
 		for name, dep := range deps {
 			if dep.key == oldKey {

@@ -1,0 +1,17 @@
+{
+  "packagesAdded": [
+    "a@2.0.0"
+  ],
+  "packagesRemoved": [
+    "a@1.0.0"
+  ],
+  "specifiers": [
+    {
+      "importer": ".",
+      "name": "a",
+      "kind": "prod",
+      "before": "^1.0.0",
+      "after": "^2.0.0"
+    }
+  ]
+}

@@ -13,6 +13,7 @@ import (
 	"github.com/mewisme/mew/internal/contentid"
 	"github.com/mewisme/mew/internal/fetch"
 	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/lifecycle"
 	"github.com/mewisme/mew/internal/linker"
 	"github.com/mewisme/mew/internal/lockfile"
 	"github.com/mewisme/mew/internal/manifest"
@@ -24,6 +25,9 @@ import (
 )
 
 func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, opts InstallOptions, manifestChanged bool) (*resolver.Resolution, error) {
+	if opts.Dedupe {
+		return resolveForDedupe(ctx, ac, proj, opts)
+	}
 	if opts.Update != nil {
 		return resolveForUpdate(ctx, ac, proj, *opts.Update)
 	}
@@ -88,6 +92,28 @@ func resolveForUpdate(ctx context.Context, ac *Context, proj *project.Project, u
 	})
 }
 
+func resolveForDedupe(ctx context.Context, ac *Context, proj *project.Project, opts InstallOptions) (*resolver.Resolution, error) {
+	eng, err := resolver.NewFromApp(ac.Config, proj)
+	if err != nil {
+		return nil, err
+	}
+	prior, err := readLockHints(ctx, ac, proj)
+	if err != nil {
+		return nil, err
+	}
+	if prior == nil {
+		return nil, apperr.New(apperr.Lockfile, "app.dedupe", LockPath(proj), "no lockfile to dedupe")
+	}
+	ropts := resolver.ResolveOptions{
+		Dedupe:         true,
+		PriorForDedupe: prior,
+		OmitRootDev:    opts.Prod,
+		Policy:         resolver.PolicyFromEffective(ac.Config),
+		PnpmMajor:      resolvePnpmMajor(ac, proj, opts),
+	}
+	return eng.ResolveProject(ctx, proj, ropts)
+}
+
 func resolvePnpmMajor(ac *Context, proj *project.Project, opts InstallOptions) int {
 	if opts.PnpmMajor != 0 {
 		return opts.PnpmMajor
@@ -142,8 +168,14 @@ func readLockHints(ctx context.Context, ac *Context, proj *project.Project) (*gr
 	return lockfile.ReadGraph(ctx, proj.Root, proj.Identity)
 }
 
-func fetchPackages(ctx context.Context, ac *Context, proj *project.Project, g *graph.Graph, extractRoot string, useGlobalStore bool, preExtracts map[string]string) (FetchOutcome, error) {
+func fetchPackages(ctx context.Context, ac *Context, proj *project.Project, g *graph.Graph, ext lockfile.Extensions, extractRoot string, useGlobalStore bool, preExtracts map[string]string) (FetchOutcome, error) {
+	if preExtracts == nil {
+		preExtracts = map[string]string{}
+	}
 	if err := enrichRegistryTarballs(ctx, ac, proj, g, preExtracts); err != nil {
+		return FetchOutcome{}, err
+	}
+	if err := fetchSourcePackages(ctx, ac, proj, ext, g, extractRoot, preExtracts); err != nil {
 		return FetchOutcome{}, err
 	}
 	if useGlobalStore {
@@ -151,6 +183,62 @@ func fetchPackages(ctx context.Context, ac *Context, proj *project.Project, g *g
 	}
 	extracts, err := fetchGraphLegacy(ctx, ac, g, extractRoot, preExtracts)
 	return FetchOutcome{Extracts: extracts}, err
+}
+
+func fetchSourcePackages(ctx context.Context, ac *Context, proj *project.Project, ext lockfile.Extensions, g *graph.Graph, extractRoot string, preExtracts map[string]string) error {
+	if g == nil || proj == nil {
+		return nil
+	}
+	locals, err := resolver.DecodeLocalSources(ext)
+	if err != nil {
+		return err
+	}
+	gits, err := resolver.DecodeGitSources(ext)
+	if err != nil {
+		return err
+	}
+	if len(locals) == 0 && len(gits) == 0 {
+		return nil
+	}
+	if preExtracts == nil {
+		preExtracts = map[string]string{}
+	}
+	offline := ac != nil && ac.Config != nil && config.Bool(ac.Config, "offline", false)
+	for _, pkg := range g.Packages {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		key := pkg.ID.Key()
+		if preExtracts[key] != "" {
+			continue
+		}
+		if git, ok := gits[key]; ok {
+			dest := filepath.Join(extractRoot, sanitizeKeyDir(key))
+			if err := fetch.FetchGit(ctx, fetch.GitOptions{
+				URL: git.URL, Commit: git.Commit, Dest: dest, Offline: offline,
+			}); err != nil {
+				return err
+			}
+			preExtracts[key] = dest
+			continue
+		}
+		loc, ok := locals[key]
+		if !ok {
+			continue
+		}
+		switch loc.Protocol {
+		case "file", "portal":
+			abs := filepath.Join(proj.Root, filepath.FromSlash(loc.Path))
+			preExtracts[key] = abs
+		case "tarball":
+			dest := filepath.Join(extractRoot, sanitizeKeyDir(key))
+			if err := fetch.MaterializeLocalTarball(ctx, proj.Root, loc.Path, dest); err != nil {
+				return err
+			}
+			preExtracts[key] = dest
+		}
+	}
+	return nil
 }
 
 func enrichRegistryTarballs(ctx context.Context, ac *Context, proj *project.Project, g *graph.Graph, preExtracts map[string]string) error {
@@ -259,6 +347,9 @@ func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractR
 			extracts[key] = dir
 			continue
 		}
+		if strings.TrimSpace(pkg.TarballURL) == "" {
+			continue
+		}
 		dest := filepath.Join(extractRoot, sanitizeKeyDir(key))
 		_ = os.RemoveAll(dest)
 		art, err := dl.Download(ctx, fetch.DownloadRequest{
@@ -300,6 +391,9 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preEx
 		key := pkg.ID.Key()
 		if dir, ok := preExtracts[key]; ok {
 			out.Extracts[key] = dir
+			continue
+		}
+		if strings.TrimSpace(pkg.TarballURL) == "" {
 			continue
 		}
 		art, err := dl.Download(ctx, fetch.DownloadRequest{
@@ -370,21 +464,96 @@ func diffKeys(prior, next map[string]string) InstallResult {
 	return res
 }
 
+// MutationPlanInput carries graph and install context for dry-run plans.
+type MutationPlanInput struct {
+	PriorKeys     map[string]string
+	Graph         *graph.Graph
+	IgnoreScripts bool
+	AC            *Context
+}
+
 // BuildMutationPlan builds a plan.Plan for dry-run output.
-func BuildMutationPlan(g *graph.Graph) (*plan.Plan, error) {
+func BuildMutationPlan(in MutationPlanInput) (*plan.Plan, error) {
 	p := &plan.Plan{SchemaVersion: plan.SchemaVersion}
-	if g == nil {
-		return p, p.Normalize()
+	if in.PriorKeys == nil {
+		in.PriorKeys = map[string]string{}
 	}
-	for _, pkg := range g.Packages {
-		p.Desired = append(p.Desired, plan.DesiredState{
-			PackageKey: pkg.ID.Key(),
-			Integrity:  pkg.Integrity,
-		})
-		p.Operations = append(p.Operations, plan.Operation{
-			Op: "link", Subject: pkg.ID.Key(), Detail: pkg.ID.Name + "@" + pkg.ID.Version,
-		})
+	nextKeys := packageKeysFromGraph(in.Graph)
+	for key := range in.PriorKeys {
+		if _, ok := nextKeys[key]; !ok {
+			p.Operations = append(p.Operations, plan.Operation{
+				Op: "unlink", Subject: key,
+			})
+		}
 	}
-	p.Commits = append(p.Commits, plan.CommitAction{Op: "write-lock"}, plan.CommitAction{Op: "publish", Subject: "node_modules"})
+	scriptsEnabled := !in.IgnoreScripts && in.AC != nil && lifecycle.Enabled(in.AC.Config)
+	if in.Graph != nil {
+		for _, pkg := range in.Graph.Packages {
+			key := pkg.ID.Key()
+			p.Desired = append(p.Desired, plan.DesiredState{
+				PackageKey: key,
+				Integrity:  pkg.Integrity,
+			})
+			oldVer, had := in.PriorKeys[key]
+			if had && oldVer == pkg.ID.Version {
+				continue
+			}
+			if needsFetch(in.AC, pkg) {
+				detail := pkg.TarballURL
+				if detail == "" {
+					detail = pkg.Integrity
+				}
+				p.Operations = append(p.Operations, plan.Operation{
+					Op: "fetch", Subject: key, Detail: detail,
+				})
+			}
+			p.Operations = append(p.Operations, plan.Operation{
+				Op: "link", Subject: key, Detail: pkg.ID.Name + "@" + pkg.ID.Version,
+			})
+			if scriptsEnabled {
+				p.Operations = append(p.Operations, plan.Operation{
+					Op: "script", Subject: key, Detail: "lifecycle",
+				})
+			}
+		}
+	}
+	p.Commits = append(p.Commits,
+		plan.CommitAction{Op: "write-lock"},
+		plan.CommitAction{Op: "publish", Subject: "node_modules"},
+	)
 	return p, p.Normalize()
+}
+
+func needsFetch(ac *Context, pkg graph.Package) bool {
+	if strings.TrimSpace(pkg.TarballURL) == "" && strings.TrimSpace(pkg.Integrity) == "" {
+		return false
+	}
+	if ac == nil || ac.Config == nil {
+		return true
+	}
+	if strings.TrimSpace(pkg.Integrity) != "" && packageContentCached(ac, pkg.Integrity) {
+		return false
+	}
+	return strings.TrimSpace(pkg.TarballURL) != "" || strings.TrimSpace(pkg.Integrity) != ""
+}
+
+func packageContentCached(ac *Context, integrity string) bool {
+	parsed, err := fetch.ParseIntegrity(integrity)
+	if err != nil {
+		return false
+	}
+	blobs := store.NewDir(config.BlobCacheDir(ac.Config))
+	if blobs.Exists(store.Key(parsed.BlobPath())) {
+		return true
+	}
+	storeRoot, err := config.StoreRoot(ac.Config)
+	if err != nil {
+		return false
+	}
+	pkgStore := store.NewPackageStore(storeRoot)
+	key, err := store.PackageKeyFromIdentity(parsed.Identity())
+	if err != nil {
+		return false
+	}
+	return pkgStore.VerifyPackage(context.Background(), key) == nil
 }

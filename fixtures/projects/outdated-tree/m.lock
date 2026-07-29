@@ -1,0 +1,58 @@
+{
+  "lockfileVersion": 3,
+  "checksum": "ac50bb73f23ebcb07737b09bf81e108bb3f5a6bf3ffe345ef5c66dbac90cca96",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask",
+      "strictPeerDependencies": true
+    }
+  },
+  "importers": [
+    {
+      "id": ".",
+      "name": "outdated-tree",
+      "path": ".",
+      "specifiers": [
+        {
+          "name": "pkg-b",
+          "range": "^1.0.0",
+          "kind": "prod"
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "pkg-b",
+        "version": "1.0.0"
+      },
+      "integrity": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "id": {
+        "name": "pkg-c",
+        "version": "1.0.0"
+      },
+      "integrity": "sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "name": "pkg-b",
+      "to": "pkg-b@1.0.0",
+      "kind": "prod",
+      "range": "^1.0.0"
+    },
+    {
+      "from": "pkg-b@1.0.0",
+      "name": "pkg-c",
+      "to": "pkg-c@1.0.0",
+      "kind": "prod",
+      "range": "^1.0.0"
+    }
+  ]
+}

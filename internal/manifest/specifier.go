@@ -19,6 +19,8 @@ const (
 	ProtocolLink      Protocol = "link"
 	ProtocolPortal    Protocol = "portal"
 	ProtocolCatalog   Protocol = "catalog"
+	ProtocolGit       Protocol = "git"
+	ProtocolTarball   Protocol = "tarball"
 )
 
 // Specifier is a parsed package.json dependency specifier.
@@ -90,6 +92,19 @@ func ParseSpecifier(displayName, spec string) (Specifier, error) {
 			Range:       spec[len("portal:"):],
 			Protocol:    ProtocolPortal,
 		}, nil
+	case strings.HasPrefix(spec, "tarball:"):
+		rng := strings.TrimSpace(spec[len("tarball:"):])
+		if rng == "" {
+			return Specifier{}, apperr.New(apperr.Manifest, "manifest.specifier", displayName, "empty tarball path")
+		}
+		return Specifier{
+			DisplayName: displayName,
+			TargetName:  displayName,
+			Range:       rng,
+			Protocol:    ProtocolTarball,
+		}, nil
+	case isGitSpecifier(spec):
+		return parseGitSpecifier(displayName, spec)
 	case strings.HasPrefix(spec, "npm:"):
 		return parseNpmSpecifier(displayName, spec)
 	default:
@@ -100,6 +115,63 @@ func ParseSpecifier(displayName, spec string) (Specifier, error) {
 			Protocol:    ProtocolRegistry,
 		}, nil
 	}
+}
+
+func isGitSpecifier(spec string) bool {
+	return strings.HasPrefix(spec, "git+https:") ||
+		strings.HasPrefix(spec, "git+ssh:") ||
+		strings.HasPrefix(spec, "git+file:") ||
+		strings.HasPrefix(spec, "git:") ||
+		strings.HasPrefix(spec, "github:")
+}
+
+func parseGitSpecifier(displayName, spec string) (Specifier, error) {
+	rng, err := normalizeGitSpecifierRange(spec)
+	if err != nil {
+		return Specifier{}, apperr.Wrap(apperr.Manifest, "manifest.specifier", displayName, err)
+	}
+	return Specifier{
+		DisplayName: displayName,
+		TargetName:  displayName,
+		Range:       rng,
+		Protocol:    ProtocolGit,
+	}, nil
+}
+
+func normalizeGitSpecifierRange(spec string) (string, error) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return "", fmt.Errorf("empty git specifier")
+	}
+	if strings.HasPrefix(spec, "github:") {
+		rest := strings.TrimSpace(spec[len("github:"):])
+		if rest == "" {
+			return "", fmt.Errorf("empty github: repository")
+		}
+		ref := ""
+		if i := strings.IndexByte(rest, '#'); i >= 0 {
+			ref = strings.TrimSpace(rest[i+1:])
+			rest = strings.TrimSpace(rest[:i])
+		}
+		if rest == "" {
+			return "", fmt.Errorf("empty github: repository")
+		}
+		url := "https://github.com/" + strings.TrimSuffix(rest, ".git") + ".git"
+		if ref != "" {
+			url += "#" + ref
+		}
+		return url, nil
+	}
+	for _, prefix := range []string{"git+https:", "git+ssh:", "git+file:", "git:"} {
+		if strings.HasPrefix(spec, prefix) {
+			rng := strings.TrimSpace(spec[len(prefix):])
+			if rng == "" {
+				return "", fmt.Errorf("empty git url")
+			}
+			return rng, nil
+		}
+	}
+	return "", fmt.Errorf("unsupported git specifier %q", spec)
 }
 
 func parseNpmSpecifier(displayName, spec string) (Specifier, error) {
