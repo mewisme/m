@@ -101,6 +101,37 @@ func TestResolveWorkspaceCaret(t *testing.T) {
 	t.Fatalf("missing workspace edge: %#v", res.Graph.Edges)
 }
 
+func TestResolveWorkspaceTilde(t *testing.T) {
+	eng, _ := testEngine(t)
+	root := writeWorkspace(t, map[string]string{
+		"package.json": `{
+  "name": "root",
+  "version": "1.0.0",
+  "workspaces": ["packages/*"],
+  "dependencies": { "pkg-a": "workspace:~" }
+}`,
+		"packages/a/package.json": `{
+  "name": "pkg-a",
+  "version": "1.2.3"
+}`,
+	})
+	res, err := eng.Resolve(context.Background(), root, resolver.ResolveOptions{
+		Policy: testStrictPeersOff(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range res.Graph.Edges {
+		if e.From == string(graph.RootImporter) && strings.HasPrefix(e.To, "pkg-a@") {
+			if e.Range != "workspace:~" {
+				t.Fatalf("edge range=%q want workspace:~" , e.Range)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing workspace:~ edge: %#v", res.Graph.Edges)
+}
+
 func TestResolveWorkspaceMissingTarget(t *testing.T) {
 	eng, _ := testEngine(t)
 	root := writeWorkspace(t, map[string]string{

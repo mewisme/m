@@ -255,6 +255,17 @@ func workspaceVersion(member workspaceMember, rng string) (version, edgeRange st
 				fmt.Sprintf("workspace:^ ambiguous for %s@%s", member.Name, member.Version))
 		}
 		return member.Version, caret, nil
+	case "~":
+		tilde := "~" + member.Version
+		ok, err := semver.Satisfies(member.Version, tilde)
+		if err != nil {
+			return "", "", apperr.Wrap(apperr.Resolve, "resolver.workspace", member.Name, err)
+		}
+		if !ok {
+			return "", "", apperr.New(apperr.Resolve, "resolver.workspace", member.Name,
+				fmt.Sprintf("workspace:~ ambiguous for %s@%s", member.Name, member.Version))
+		}
+		return member.Version, tilde, nil
 	default:
 		return "", "", apperr.New(apperr.Resolve, "resolver.workspace", member.Name,
 			fmt.Sprintf("unsupported workspace range %q", rng))
