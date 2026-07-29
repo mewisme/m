@@ -429,6 +429,21 @@ jobs:
       - name: pnpm legacy lock rejection
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpmUnsupported -v
 
+  conformance-npm:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: npm lock bridge conformance
+        run: go test ./tests/conformance/... -count=1 -run Npm -v
+
   conformance-nub-fixtures:
     runs-on: ubuntu-latest
     env:

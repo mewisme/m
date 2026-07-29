@@ -11,7 +11,7 @@ Mew never silently picks a winner.
    - `nub.lock` → `nub`
    - `m.lock` → `mew`
    - `pnpm-lock.yaml` → `pnpm`
-   - `package-lock.json` / `npm-shrinkwrap.json` → `npm`
+   - `package-lock.json` / `npm-shrinkwrap.json` → `npm` (shrinkwrap wins when both exist)
    - `yarn.lock` → `yarn`
    - `bun.lock` / `bun.lockb` → `bun`
 4. Else **`mew`** (greenfield native)
@@ -31,6 +31,8 @@ When the field matches the lockfile, the field wins (same identity).
 |---|---|
 | `packageManager: pnpm@9` + `pnpm-lock.yaml` | `pnpm` |
 | only `package-lock.json` | `npm` |
+| only `npm-shrinkwrap.json` | `npm` |
+| both shrinkwrap and package-lock | `npm` (incumbent = shrinkwrap) |
 | only `nub.lock` | `nub` |
 | `m.lock` / empty greenfield | `mew` |
 | `packageManager: npm@10` + only `pnpm-lock.yaml` | error |

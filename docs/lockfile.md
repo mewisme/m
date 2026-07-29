@@ -157,6 +157,9 @@ Install-family commands write the **incumbent** lockfile only (`nub.lock` or
 | `mew` | `m.lock` | `internal/lockfile/mlock` | v3 JSON |
 | `nub` | `nub.lock` | `internal/compat/nub` | pnpm v9-shaped YAML |
 | `pnpm` | `pnpm-lock.yaml` | `internal/compat/pnpm` | **9, 10, 11 only** (v5–v8 rejected) |
+| `npm` | `package-lock.json` / `npm-shrinkwrap.json` | `internal/compat/npm` | **v2, v3 only** (v1 rejected) |
+
+See [`npm-lockfile.md`](npm-lockfile.md) for npm shrinkwrap precedence and write policy.
 
 pnpm **5–8** flat or legacy layouts are rejected with `ERR_M_LOCK_UNSUPPORTED` and
 remediation to regenerate with pnpm 9, 10, or 11. Unsupported fixtures:
@@ -167,7 +170,7 @@ metadata, observed root/settings field evidence, and optional `--pnpm-major` (9,
 or 11). Do not trust `lockfileVersion: '9.0'` alone.
 
 CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
---from nub|pnpm --to m` (`--dry-run` emits migration report JSON).
+--from nub|pnpm|npm --to m` (`--dry-run` emits migration report JSON).
 
 `--pnpm-major` (9, 10, or 11) applies to `m lock validate`, `m lock diff`,
 `m lock migrate`, and `m install`.
@@ -181,6 +184,7 @@ CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
 | pnpm v10 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-10` + `MutationSuite` |
 | pnpm v11 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-11` + `MutationSuite` |
 | nub | yes | yes | policy from incumbent bytes | yes (loss report) | `conformance-nub-fixtures` (6 families) |
+| npm v2/v3 | yes | yes | preserve lockfileVersion | yes (loss report) | `conformance-npm` |
 | m.lock v3 | yes | yes | yes | n/a | n/a |
 
 Pinned producer versions: `tools/conformance/pnpm-versions.env` (9.15.9 / 10.34.5 / 11.17.0).

@@ -661,10 +661,14 @@
       "name": "package-lock and shrinkwrap",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0024",
-      "tests": []
+      "tests": [
+        "internal/compat/npm",
+        "tests/conformance/lock_bridge_npm_test.go",
+        "fixtures/locks/npm"
+      ]
     },
     {
       "id": "lockfile.bun",

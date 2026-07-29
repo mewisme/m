@@ -2,14 +2,14 @@
 
 ## Program status
 
-- Current MVP: **0024** — npm Lockfile and Shrinkwrap Compatibility
-- Last updated: 2026-07-28
+- Current MVP: **0025** — Bun and Yarn Lockfile Compatibility
+- Last updated: 2026-07-29
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0024 - npm Lockfile and Shrinkwrap Compatibility](0024-npm-locks.md)
+**Next:** [0025 - Bun and Yarn Lockfile Compatibility](0025-bun-yarn-locks.md)
 
 MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/mew/actions/runs/30310739645 (21/21 green).
 
@@ -56,7 +56,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 | 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [x] | [0021](0021-lifecycle-sandbox.md) | [0021-lifecycle-sandbox](cursor/0021-lifecycle-sandbox.plan.md) |
 | 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [x] | [0022](0022-workspaces-catalogs.md) | [0022-workspaces-catalogs](cursor/0022-workspaces-catalogs.plan.md) |
 | 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [x] | [0023](0023-nub-pnpm-lock-bridge.md) | [0023-nub-pnpm-lock-bridge](cursor/0023-nub-pnpm-lock-bridge.plan.md) |
-| 0024 | Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility | Core / MVP 15 | 0023 | [ ] | [0024](0024-npm-locks.md) | [0024-npm-locks](cursor/0024-npm-locks.plan.md) |
+| 0024 | Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility | Core / MVP 15 | 0023 | [x] | [0024](0024-npm-locks.md) | [0024-npm-locks](cursor/0024-npm-locks.plan.md) |
 | 0025 | Core MVP 16 — Bun and Yarn Lockfile Compatibility | Core / MVP 16 | 0023, 0024 | [ ] | [0025](0025-bun-yarn-locks.md) | [0025-bun-yarn-locks](cursor/0025-bun-yarn-locks.plan.md) |
 | 0026 | Core MVP 17 — Complete Package-Manager Command Surface | Core / MVP 17 | 0021, 0022, 0023, 0024, 0025 | [ ] | [0026](0026-pm-command-surface.md) | [0026-pm-command-surface](cursor/0026-pm-command-surface.plan.md) |
 | 0027 | Core MVP 18 — Advanced Sources, Patches, Pack, and Publish | Core / MVP 18 | 0026 | [ ] | [0027](0027-advanced-sources-publish.md) | [0027-advanced-sources-publish](cursor/0027-advanced-sources-publish.plan.md) |
@@ -865,36 +865,36 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0024 - Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility
 
-- status: planned
+- status: done
 - plan: [0024-npm-locks.md](0024-npm-locks.md)
 - cursor: [cursor/0024-npm-locks.plan.md](cursor/0024-npm-locks.plan.md)
 
-- [ ] Implement package-lock.json v2 and v3 parsers
-- [ ] Map npm lock packages array to canonical graph nodes
-- [ ] Preserve npm project identity: write package-lock not m.lock
-- [ ] Support npm-shrinkwrap.json read and write
-- [ ] Handle lockfileVersion field and forward compatibility
-- [ ] Import integrity and resolved URL fields from npm lock
-- [ ] Support bundledDependencies and packages link fields
-- [ ] Install produces npm-compatible hoisted layout
-- [ ] Detect package-lock drift vs package.json on frozen install
-- [ ] Add golden tests for npm lock v2/v3 fixtures
-- [ ] Add differential tests vs npm install on fixture projects
-- [ ] Document npm-specific fields preserved in adapter
-- [ ] Implement migrate to m.lock with loss report
-- [ ] Never strip package-lock on npm-identity project install
-- [ ] Handle absent package-lock: generate on first install
-- [ ] Support workspaces in package-lock v3
-- [ ] Validate lockfilePackages ordering determinism on write
-- [ ] Acceptance: npm fixture install matches package-lock dependency tree
-- [ ] Acceptance: package-lock.json preserved after m install on npm project
-- [ ] Acceptance: Frozen install fails when package.json conflicts with lock
-- [ ] Acceptance: npm-shrinkwrap project installs correctly
-- [ ] Acceptance: Lock v2 and v3 fixtures parse without error
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement package-lock.json v2 and v3 parsers
+- [x] Map npm lock packages array to canonical graph nodes
+- [x] Preserve npm project identity: write package-lock not m.lock
+- [x] Support npm-shrinkwrap.json read and write
+- [x] Handle lockfileVersion field and forward compatibility
+- [x] Import integrity and resolved URL fields from npm lock
+- [x] Support bundledDependencies and packages link fields
+- [x] Install produces npm-compatible hoisted layout
+- [x] Detect package-lock drift vs package.json on frozen install
+- [x] Add golden tests for npm lock v2/v3 fixtures
+- [ ] Add differential tests vs npm install on fixture projects (deferred: conformance-npm parse/round-trip only; npm ci differential optional per plan)
+- [x] Document npm-specific fields preserved in adapter
+- [x] Implement migrate to m.lock with loss report
+- [x] Never strip package-lock on npm-identity project install
+- [x] Handle absent package-lock: generate on first install
+- [x] Support workspaces in package-lock v3
+- [x] Validate lockfilePackages ordering determinism on write
+- [x] Acceptance: npm fixture install matches package-lock dependency tree (graph conformance)
+- [x] Acceptance: package-lock.json preserved after m install on npm project (EncodePreserving no-op)
+- [x] Acceptance: Frozen install fails when package.json conflicts with lock (identity-agnostic frozen path)
+- [x] Acceptance: npm-shrinkwrap project installs correctly (shrinkwrap precedence tests)
+- [x] Acceptance: Lock v2 and v3 fixtures parse without error
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0025 - Core MVP 16 — Bun and Yarn Lockfile Compatibility
 
