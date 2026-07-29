@@ -9,18 +9,106 @@ import (
 )
 
 func buildInstanceSet(doc *Document) []string {
-	seen := make(map[string]struct{}, len(doc.Packages)+len(doc.Snapshots))
-	for k := range doc.Packages {
-		seen[k] = struct{}{}
+	if len(doc.Snapshots) == 0 {
+		seen := make(map[string]struct{}, len(doc.Packages))
+		for k := range doc.Packages {
+			seen[k] = struct{}{}
+		}
+		out := make([]string, 0, len(seen))
+		for k := range seen {
+			out = append(out, k)
+		}
+		return sortedStrings(out)
 	}
+
+	seen := make(map[string]struct{}, len(doc.Snapshots))
 	for k := range doc.Snapshots {
 		seen[k] = struct{}{}
+	}
+	for _, snap := range doc.Snapshots {
+		collectSnapshotTargetInstances(doc, snap, seen)
+	}
+	for _, im := range doc.Importers {
+		collectImporterDepInstances(doc, im, seen)
 	}
 	out := make([]string, 0, len(seen))
 	for k := range seen {
 		out = append(out, k)
 	}
 	return sortedStrings(out)
+}
+
+func collectSnapshotTargetInstances(doc *Document, snap map[string]any, seen map[string]struct{}) {
+	for _, field := range []string{"dependencies", "optionalDependencies", "peerDependencies"} {
+		raw, ok := snap[field]
+		if !ok {
+			continue
+		}
+		m, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		for depName, v := range m {
+			ref, ok := v.(string)
+			if !ok {
+				continue
+			}
+			maybeAddPackageOnlyInstance(doc, depName, ref, seen)
+		}
+	}
+}
+
+func collectImporterDepInstances(doc *Document, im ImporterSection, seen map[string]struct{}) {
+	for name, dep := range im.Dependencies {
+		maybeAddPackageOnlyInstance(doc, name, dep.Version, seen)
+	}
+	for name, dep := range im.DevDependencies {
+		maybeAddPackageOnlyInstance(doc, name, dep.Version, seen)
+	}
+	for name, dep := range im.OptionalDependencies {
+		maybeAddPackageOnlyInstance(doc, name, dep.Version, seen)
+	}
+}
+
+func maybeAddPackageOnlyInstance(doc *Document, depName, ref string, seen map[string]struct{}) {
+	if isProtocolRef(ref) {
+		return
+	}
+	baseKey := refToBasePackageKey(depName, ref)
+	if baseKey == "" {
+		return
+	}
+	if _, ok := doc.Packages[baseKey]; !ok {
+		return
+	}
+	if _, ok := seen[baseKey]; ok {
+		return
+	}
+	seen[baseKey] = struct{}{}
+}
+
+func refToBasePackageKey(depName, ref string) string {
+	resolveName := depName
+	if actual, _, ok := ParseAliasFromImporterDep(depName, "", ref); ok {
+		resolveName = actual
+	}
+	if strings.HasPrefix(ref, "npm:") {
+		if actual, resolutionRef, ok := ParseAliasFromImporterDep(depName, ref, ""); ok {
+			resolveName = actual
+			ref = resolutionRef
+		}
+	}
+	if id, err := ParsePackageIdentity(ref); err == nil && !id.IsProtocolRef {
+		return id.Name + "@" + id.BaseVersion
+	}
+	if !strings.Contains(ref, "@") {
+		return resolveName + "@" + ref
+	}
+	name, ver := splitNameVersionKey(ref)
+	if name != "" && ver != "" {
+		return name + "@" + ver
+	}
+	return ""
 }
 
 func basePackageKeyFromInstance(instanceKey string) string {

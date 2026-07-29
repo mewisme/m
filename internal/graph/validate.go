@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
 )
@@ -91,7 +92,7 @@ func (g *Graph) Validate() error {
 		if e.To == "" {
 			return apperr.New(apperr.Lockfile, "graph.validate", "graph", "edge missing to")
 		}
-		if _, ok := pkgByKey[e.To]; !ok {
+		if _, ok := pkgByKey[e.To]; !ok && !isLocalEdgeTarget(e.To) {
 			return apperr.New(apperr.Lockfile, "graph.validate", "graph",
 				fmt.Sprintf("dangling edge to %q", e.To))
 		}
@@ -106,4 +107,10 @@ func (g *Graph) Validate() error {
 		}
 	}
 	return nil
+}
+
+func isLocalEdgeTarget(to string) bool {
+	return strings.HasPrefix(to, "link:") ||
+		strings.HasPrefix(to, "workspace:") ||
+		strings.HasPrefix(to, "file:")
 }

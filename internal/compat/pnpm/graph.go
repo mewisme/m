@@ -2,6 +2,7 @@ package pnpm
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -46,7 +47,7 @@ func v9ShapeToGraph(doc *Document) (*graph.Graph, error) {
 		packageKeys[graphKey] = struct{}{}
 		graphKeys = append(graphKeys, graphKey)
 	}
-	idx := NewPackageIndex(graphKeys)
+	idx := NewPackageIndex(appendWorkspaceIndexKeys(graphKeys, doc))
 
 	importerIDs := sortedStrings(mapImporterSectionKeys(doc.Importers))
 	if len(importerIDs) == 0 {
@@ -293,6 +294,9 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 	}
 	for _, p := range g.Packages {
 		graphKey := p.ID.Key()
+		if isProtocolRef(graphKey) {
+			continue
+		}
 		instanceKey, err := graphKeyToInstanceKey(graphKey)
 		if err != nil {
 			return nil, err
@@ -317,12 +321,16 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 		if priorSnap == nil {
 			priorSnap = priorSnaps[baseKey]
 		}
-		doc.Snapshots[instanceKey] = snapshotFromGraphEdges(graphKey, g, priorSnap)
+		snap, err := snapshotFromGraphEdges(graphKey, g, priorSnap)
+		if err != nil {
+			return nil, err
+		}
+		doc.Snapshots[instanceKey] = snap
 	}
 	return doc, nil
 }
 
-func snapshotFromGraphEdges(pkgKey string, g *graph.Graph, prior map[string]any) map[string]any {
+func snapshotFromGraphEdges(pkgKey string, g *graph.Graph, prior map[string]any) (map[string]any, error) {
 	snap := map[string]any{}
 	for k, v := range prior {
 		if k != "dependencies" && k != "optionalDependencies" && k != "peerDependencies" {
@@ -338,7 +346,8 @@ func snapshotFromGraphEdges(pkgKey string, g *graph.Graph, prior map[string]any)
 		}
 		ref, err := EncodeDependencyRef(e.Name, e.To)
 		if err != nil {
-			continue
+			return nil, apperr.Wrap(apperr.Lockfile, "pnpm.graph", pkgKey+"."+e.Name,
+				fmt.Errorf("encode edge to %q (%s): %w", e.To, e.Kind, err))
 		}
 		switch e.Kind {
 		case graph.DepOptional:
@@ -358,7 +367,35 @@ func snapshotFromGraphEdges(pkgKey string, g *graph.Graph, prior map[string]any)
 	if len(peer) > 0 {
 		snap["peerDependencies"] = peer
 	}
-	return snap
+	return snap, nil
+}
+
+func appendWorkspaceIndexKeys(graphKeys []string, doc *Document) []string {
+	seen := make(map[string]struct{}, len(graphKeys))
+	for _, k := range graphKeys {
+		seen[k] = struct{}{}
+	}
+	for _, im := range doc.Importers {
+		collectLinkRefs(im.Dependencies, seen)
+		collectLinkRefs(im.DevDependencies, seen)
+		collectLinkRefs(im.OptionalDependencies, seen)
+	}
+	if len(seen) == len(graphKeys) {
+		return graphKeys
+	}
+	out := make([]string, 0, len(seen))
+	for k := range seen {
+		out = append(out, k)
+	}
+	return sortedStrings(out)
+}
+
+func collectLinkRefs(deps map[string]ImporterDep, seen map[string]struct{}) {
+	for _, dep := range deps {
+		if isLocalProtocolRef(dep.Version) {
+			seen[dep.Version] = struct{}{}
+		}
+	}
 }
 
 func defaultLockfileVersion(det lockfile.Detection) string {

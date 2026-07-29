@@ -163,7 +163,43 @@ snapshots:
 	}
 }
 
-func TestInstanceSetDeterministicOrdering(t *testing.T) {
+func TestNoPhantomBaseInstance(t *testing.T) {
+	const src = `
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      acorn-jsx:
+        specifier: 5.3.2
+        version: 5.3.2(acorn@8.18.0)
+packages:
+  acorn-jsx@5.3.2:
+    resolution: {integrity: sha512-jsx}
+  acorn@8.18.0:
+    resolution: {integrity: sha512-acorn}
+snapshots:
+  acorn-jsx@5.3.2(acorn@8.18.0):
+    dependencies:
+      acorn: 8.18.0
+  acorn@8.18.0: {}
+`
+	doc, err := Decode([]byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := ToGraph(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasPackage(g, "acorn-jsx@5.3.2") {
+		t.Fatal("phantom base instance acorn-jsx@5.3.2 must not appear in graph")
+	}
+	if !hasPackage(g, "acorn-jsx@5.3.2#acorn@8.18.0") {
+		t.Fatal("missing peer-context instance")
+	}
+}
+
+func TestPeerContextRoundTripDeterministic(t *testing.T) {
 	const src = `
 lockfileVersion: '9.0'
 importers:
