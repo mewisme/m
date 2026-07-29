@@ -9,6 +9,8 @@ import (
 
 var defaultIgnoreLines = []string{
 	".git",
+	".gitignore",
+	".npmignore",
 	"node_modules",
 	".mew",
 	".DS_Store",

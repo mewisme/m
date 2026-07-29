@@ -36,13 +36,18 @@ func setupRegistryProject(t *testing.T, packageJSON string) (projDir, cfgPath, s
 func runM(t *testing.T, projDir, cfgPath string, args ...string) (int, string) {
 	t.Helper()
 	cliRoot := cli.NewMRoot(cli.BuildInfo{Version: "0.0.0-test"})
-	buf := new(bytes.Buffer)
-	cliRoot.SetOut(buf)
-	cliRoot.SetErr(buf)
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
+	cliRoot.SetOut(outBuf)
+	cliRoot.SetErr(errBuf)
 	full := append([]string{"--cwd", projDir, "--config", cfgPath}, args...)
 	cliRoot.SetArgs(full)
 	code := cli.ExecuteWithContext(cliRoot, context.Background())
-	return code, buf.String()
+	out := outBuf.String()
+	if out != "" {
+		return code, out
+	}
+	return code, errBuf.String()
 }
 
 func TestInstallGreenfieldBasicCJS(t *testing.T) {

@@ -139,7 +139,7 @@ func attachAppPreRun(root *cobra.Command, g *globalFlags, info BuildInfo) {
 			ConfigPath:    g.configPath,
 			Offline:       g.offline,
 			PreferOffline: g.preferOffline,
-			Reporter:      g.newReporter(),
+			Reporter:      g.newReporter(cmd),
 			Version:       info.Version,
 			Commit:        info.Commit,
 			BuildDate:     info.BuildDate,

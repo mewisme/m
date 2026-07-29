@@ -79,13 +79,18 @@ func (g *globalFlags) resolveColor() diagnostics.ColorMode {
 	return diagnostics.ColorAuto
 }
 
-func (g *globalFlags) newReporter() diagnostics.Reporter {
-	return diagnostics.NewReporter(diagnostics.Options{
+func (g *globalFlags) newReporter(cmd *cobra.Command) diagnostics.Reporter {
+	opts := diagnostics.Options{
 		Format: g.resolveFormat(),
 		Debug:  g.resolveDebug(),
 		Color:  g.resolveColor(),
 		Unsafe: g.unsafe,
-	})
+	}
+	if cmd != nil {
+		opts.Out = cmd.OutOrStdout()
+		opts.Err = cmd.ErrOrStderr()
+	}
+	return diagnostics.NewReporter(opts)
 }
 
 func attachGlobals(root *cobra.Command) *globalFlags {
@@ -117,7 +122,7 @@ func ownerFlags(root *cobra.Command) *globalFlags {
 
 func execute(root *cobra.Command) (exit int) {
 	g := ownerFlags(root)
-	rep := g.newReporter()
+	rep := g.newReporter(root)
 	defer func() {
 		if rec := recover(); rec != nil {
 			err := apperr.New(apperr.InternalPanic, "cli", newCrashID(), fmt.Sprintf("panic: %v", rec))
@@ -131,7 +136,7 @@ func execute(root *cobra.Command) (exit int) {
 	root.SetContext(ctx)
 
 	err := root.ExecuteContext(ctx)
-	rep = g.newReporter()
+	rep = g.newReporter(root)
 	if err == nil {
 		return 0
 	}
@@ -180,7 +185,7 @@ func ExecuteWithContext(root *cobra.Command, ctx context.Context) int {
 	g := ownerFlags(root)
 	root.SetContext(ctx)
 	err := root.ExecuteContext(ctx)
-	rep := g.newReporter()
+	rep := g.newReporter(root)
 	if err == nil {
 		return 0
 	}
