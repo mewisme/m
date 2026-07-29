@@ -1,4 +1,3 @@
-// Package capsule holds portable dependency capsule descriptors and archives.
 package capsule
 
 import (

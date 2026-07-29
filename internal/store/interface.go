@@ -1,4 +1,3 @@
-// Package store is the content-addressed global package store.
 package store
 
 import "context"

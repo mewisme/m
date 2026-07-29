@@ -248,6 +248,9 @@ func (c *Client) fetchPackument(ctx context.Context, registryBase, name, etag st
 	url := strings.TrimRight(registryBase, "/") + "/" + EncodeNamePath(name)
 	var lastErr error
 	for attempt := 0; attempt <= c.opts.MaxRetries; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return nil, "", false, err
+		}
 		if attempt > 0 {
 			delay := time.Duration(1<<uint(attempt-1)) * 100 * time.Millisecond
 			if delay > 2*time.Second {
@@ -259,7 +262,7 @@ func (c *Client) fetchPackument(ctx context.Context, registryBase, name, etag st
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return nil, "", false, apperr.Wrap(apperr.Network, "registry.fetch", name, err)
+			return nil, "", false, redactErr(apperr.Wrap(apperr.Network, "registry.fetch", name, err))
 		}
 		req.Header.Set("Accept", "application/json")
 		if etag != "" {
@@ -270,7 +273,7 @@ func (c *Client) fetchPackument(ctx context.Context, registryBase, name, etag st
 		}
 		res, err := c.http.Do(req)
 		if err != nil {
-			lastErr = apperr.Wrap(apperr.Network, "registry.fetch", name, err)
+			lastErr = redactErr(apperr.Wrap(apperr.Network, "registry.fetch", name, err))
 			continue
 		}
 		func() {
@@ -280,7 +283,7 @@ func (c *Client) fetchPackument(ctx context.Context, registryBase, name, etag st
 				limit := c.maxPackumentBytes() + 1
 				b, rerr := io.ReadAll(io.LimitReader(res.Body, limit))
 				if rerr != nil {
-					lastErr = apperr.Wrap(apperr.Network, "registry.fetch", name, rerr)
+					lastErr = redactErr(apperr.Wrap(apperr.Network, "registry.fetch", name, rerr))
 					return
 				}
 				if int64(len(b)) > c.maxPackumentBytes() {
@@ -332,11 +335,11 @@ func (c *Client) fetchPackument(ctx context.Context, registryBase, name, etag st
 			return body, newETag, notModified, nil
 		}
 		if err != nil && !retryable(err) {
-			return nil, "", false, err
+			return nil, "", false, redactErr(err)
 		}
 	}
 	if lastErr != nil {
-		return nil, "", false, lastErr
+		return nil, "", false, redactErr(lastErr)
 	}
 	return nil, "", false, apperr.New(apperr.Network, "registry.fetch", name, "exhausted retries")
 }

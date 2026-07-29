@@ -3,9 +3,6 @@ package capsule
 import (
 	"archive/tar"
 	"context"
-	"crypto/sha256"
-	"crypto/sha512"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -283,22 +280,7 @@ func readVerifiedBlob(r io.Reader, ref BlobRef) ([]byte, error) {
 }
 
 func verifyBlobDigest(data []byte, ref BlobRef) error {
-	var got string
-	switch ref.Algo {
-	case "sha256":
-		sum := sha256.Sum256(data)
-		got = hex.EncodeToString(sum[:])
-	case "sha512":
-		sum := sha512.Sum512(data)
-		got = hex.EncodeToString(sum[:])
-	default:
-		return apperr.New(apperr.Integrity, "capsule.restore", ref.BlobPath(), "unsupported digest algorithm")
-	}
-	if got != ref.Hex {
-		return apperr.New(apperr.Integrity, "capsule.restore", ref.BlobPath(),
-			fmt.Sprintf("digest mismatch: got %s want %s", got, ref.Hex))
-	}
-	return nil
+	return contentid.MatchHex(data, ref.Algo, ref.Hex)
 }
 
 func parseBlobArchivePath(name string) (BlobRef, error) {

@@ -5,14 +5,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
-	"github.com/mewisme/mew/internal/diagnostics"
 )
 
 // PublishOptions configures an npm registry publish PUT.
@@ -145,24 +143,13 @@ func buildPublishBody(opts PublishOptions, attachName, tag string) ([]byte, erro
 }
 
 func redactPublishErr(err error) error {
-	if err == nil {
-		return nil
-	}
-	return apperr.New(apperr.CodeOf(err), publishOp(err), publishSubject(err), diagnostics.Redact(err.Error()))
+	return redactErr(err)
 }
 
 func publishOp(err error) string {
-	var ae *apperr.Error
-	if errors.As(err, &ae) && ae != nil && ae.Op != "" {
-		return ae.Op
-	}
-	return "registry.publish"
+	return errOp(err)
 }
 
 func publishSubject(err error) string {
-	var ae *apperr.Error
-	if errors.As(err, &ae) && ae != nil && ae.Subject != "" {
-		return ae.Subject
-	}
-	return ""
+	return errSubject(err)
 }

@@ -2,8 +2,6 @@ package fetch
 
 import (
 	"crypto/sha1"
-	"crypto/sha256"
-	"crypto/sha512"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -137,14 +135,5 @@ func RedactURL(raw string) string {
 func redactURL(s string) string { return RedactURL(s) }
 
 func newHasher(algo string) (hash.Hash, error) {
-	switch algo {
-	case "sha512":
-		return sha512.New(), nil
-	case "sha256":
-		return sha256.New(), nil
-	case "sha1":
-		return sha1.New(), nil
-	default:
-		return nil, apperr.New(apperr.Integrity, "fetch.hash", algo, "unsupported algorithm")
-	}
+	return contentid.NewHasher(algo)
 }

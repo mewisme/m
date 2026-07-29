@@ -2,9 +2,6 @@ package store
 
 import (
 	"context"
-	"crypto/sha1"
-	"crypto/sha256"
-	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -101,7 +98,7 @@ func (d *Dir) OpenVerified(ctx context.Context, key Key) (io.ReadCloser, error) 
 		}
 		return nil, apperr.Wrap(apperr.IO, "store.open", string(key), err)
 	}
-	h, err := newBlobHasher(pk.algo)
+	h, err := contentid.NewHasher(pk.algo)
 	if err != nil {
 		_ = f.Close()
 		return nil, err
@@ -153,7 +150,7 @@ func VerifyFileDigest(path, algo, wantHex string) error {
 
 func parseKey(key Key) (parsedKey, error) {
 	s := filepath.ToSlash(string(key))
-	if err := rejectUnsafeKeyPath(s); err != nil {
+	if err := contentid.RejectUnsafeKeyPath(s); err != nil {
 		return parsedKey{}, err
 	}
 	algo, hex, ok := strings.Cut(s, "/")
@@ -179,43 +176,8 @@ func parseVerifiedKey(key Key) (parsedKey, error) {
 	}
 }
 
-func rejectUnsafeKeyPath(s string) error {
-	if s == "" {
-		return apperr.New(apperr.Store, "store.key", s, "empty key")
-	}
-	if strings.Contains(s, "..") {
-		return apperr.New(apperr.Store, "store.key", s, "invalid key")
-	}
-	if len(s) >= 2 && s[1] == ':' {
-		return apperr.New(apperr.Store, "store.key", s, "drive path")
-	}
-	if strings.HasPrefix(s, "//") {
-		return apperr.New(apperr.Store, "store.key", s, "unc path")
-	}
-	if strings.Contains(s, "\\") {
-		return apperr.New(apperr.Store, "store.key", s, "invalid key separators")
-	}
-	if strings.HasPrefix(s, "/") {
-		return apperr.New(apperr.Store, "store.key", s, "absolute path")
-	}
-	return nil
-}
-
-func newBlobHasher(algo string) (hash.Hash, error) {
-	switch algo {
-	case "sha512":
-		return sha512.New(), nil
-	case "sha256":
-		return sha256.New(), nil
-	case "sha1":
-		return sha1.New(), nil
-	default:
-		return nil, apperr.New(apperr.Integrity, "store.hash", algo, "unsupported algorithm")
-	}
-}
-
 func readAndHash(r io.Reader, pk parsedKey) ([]byte, error) {
-	h, err := newBlobHasher(pk.algo)
+	h, err := contentid.NewHasher(pk.algo)
 	if err != nil {
 		return nil, err
 	}
@@ -240,19 +202,7 @@ func readAndHash(r io.Reader, pk parsedKey) ([]byte, error) {
 }
 
 func verifyBytesDigest(data []byte, pk parsedKey) error {
-	h, err := newBlobHasher(pk.algo)
-	if err != nil {
-		return err
-	}
-	if _, err := h.Write(data); err != nil {
-		return apperr.Wrap(apperr.IO, "store.verify", pk.algo+"/"+pk.hex, err)
-	}
-	got := hex.EncodeToString(h.Sum(nil))
-	if got != pk.hex {
-		return apperr.New(apperr.Integrity, "store.verify", pk.algo+"/"+pk.hex,
-			fmt.Sprintf("digest mismatch: got %s want %s", got, pk.hex))
-	}
-	return nil
+	return contentid.MatchHex(data, pk.algo, pk.hex)
 }
 
 func verifyFileDigest(path string, pk parsedKey) error {
@@ -261,7 +211,7 @@ func verifyFileDigest(path string, pk parsedKey) error {
 		return apperr.Wrap(apperr.IO, "store.verify", path, err)
 	}
 	defer func() { _ = f.Close() }()
-	h, err := newBlobHasher(pk.algo)
+	h, err := contentid.NewHasher(pk.algo)
 	if err != nil {
 		return err
 	}

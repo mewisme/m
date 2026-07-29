@@ -52,6 +52,9 @@ func RunCore(ctx context.Context, opts RunOptions) (Report, error) {
 	}
 
 	for _, suite := range suites {
+		if err := ctx.Err(); err != nil {
+			return report, err
+		}
 		if !suiteSupportedOnPlatform(suite) {
 			report.Suites = append(report.Suites, SuiteResult{
 				ID:         suite.ID,
