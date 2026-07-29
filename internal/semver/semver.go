@@ -64,6 +64,9 @@ func Compare(a, b string) (int, error) {
 }
 
 func stripBuild(v string) string {
+	if i := strings.IndexByte(v, '('); i >= 0 {
+		v = v[:i]
+	}
 	if i := strings.IndexByte(v, '+'); i >= 0 {
 		return v[:i]
 	}

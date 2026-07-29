@@ -36,11 +36,13 @@ func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, 
 		Filter:          append([]string(nil), opts.Filter...),
 		MemberManifests: opts.MemberEdits,
 	}
-	if !manifestChanged {
-		if prior, err := readLockHints(ctx, ac, proj); err == nil && prior != nil {
+	if prior, err := readLockHints(ctx, ac, proj); err == nil && prior != nil {
+		ropts.Hints = prior
+		if !manifestChanged {
 			ropts.Prior = prior
-			ropts.Hints = prior
 		}
+	}
+	if !manifestChanged {
 		return eng.Resolve(ctx, proj.Root, ropts)
 	}
 	norm, err := manifest.ToNormalized(proj.Doc)
@@ -254,6 +256,26 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preEx
 
 func sanitizeKeyDir(key string) string {
 	return strings.NewReplacer("@", "_at_", "/", "_", "#", "_").Replace(key)
+}
+
+func applyPatchesToExtracts(ctx context.Context, ext lockfile.Extensions, extracts map[string]string) error {
+	patches, err := resolver.DecodePatchSources(ext)
+	if err != nil {
+		return err
+	}
+	for pkgKey, patch := range patches {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		dir, ok := extracts[pkgKey]
+		if !ok || dir == "" || patch.Path == "" {
+			continue
+		}
+		if err := archive.ApplyUnifiedPatch(ctx, dir, patch.Path); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func priorPackageKeys(ctx context.Context, ac *Context, proj *project.Project) (map[string]string, error) {

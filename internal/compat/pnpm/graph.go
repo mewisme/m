@@ -274,6 +274,7 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 		if err != nil {
 			return nil, apperr.Wrap(apperr.Lockfile, "pnpm.graph", string(id)+"."+e.Name, err)
 		}
+		dep.Version = preservePriorWorkspaceRef(prior, doc.Extensions, string(id), e.Name, e.To, dep.Version)
 		dep.Version = preservePriorPatchVersion(prior, string(id), e.Name, e.To, dep.Version)
 		switch e.Kind {
 		case graph.DepDev:
@@ -520,6 +521,19 @@ func priorImporterDepVersion(prior *Document, importerID, depName string) string
 	return ""
 }
 
+func preservePriorWorkspaceRef(prior *Document, ext lockfile.Extensions, importerID, depName, targetKey, encoded string) string {
+	priorVer := priorImporterDepVersion(prior, importerID, depName)
+	if priorVer != "" && strings.HasPrefix(priorVer, "link:") {
+		if !strings.HasPrefix(encoded, "link:") {
+			return priorVer
+		}
+	}
+	if link := workspaceLinkFromExtensions(ext, depName, targetKey); link != "" {
+		return link
+	}
+	return encoded
+}
+
 func preservePriorPatchVersion(prior *Document, importerID, depName, targetKey, encoded string) string {
 	priorVer := priorImporterDepVersion(prior, importerID, depName)
 	if priorVer == "" || !strings.Contains(priorVer, "patch_hash=") {
@@ -579,4 +593,36 @@ func reconcilePriorPatchSnapshots(doc, prior *Document) {
 			}
 		}
 	}
+}
+
+const localExtensionKey = "mew.resolver/local"
+
+func workspaceLinkFromExtensions(ext lockfile.Extensions, depName, targetKey string) string {
+	if ext == nil {
+		return ""
+	}
+	raw, ok := ext[localExtensionKey]
+	if !ok || len(raw) == 0 {
+		return ""
+	}
+	var locals map[string]struct {
+		Protocol string `json:"protocol"`
+		Path     string `json:"path"`
+	}
+	if err := json.Unmarshal(raw, &locals); err != nil {
+		return ""
+	}
+	for key, src := range locals {
+		if src.Protocol != "workspace" || src.Path == "" {
+			continue
+		}
+		if key == targetKey {
+			return "link:" + src.Path
+		}
+		name, _ := splitNameVersionKey(key)
+		if name == depName {
+			return "link:" + src.Path
+		}
+	}
+	return ""
 }

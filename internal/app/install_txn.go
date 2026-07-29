@@ -258,6 +258,9 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	if err != nil {
 		return res, err
 	}
+	if err := applyPatchesToExtracts(ctx, resolution.Extensions, fetchOut.Extracts); err != nil {
+		return res, err
+	}
 	extracts := fetchOut.Extracts
 	if err := transaction.InvokeTestHook("post_fetch", 0); err != nil {
 		return res, apperr.Wrap(apperr.Transaction, "app.install", "fetch", err)
@@ -690,6 +693,14 @@ func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.R
 	var extensions lockfile.Extensions
 	if _, extData, readErr := ext.ReadWithExtensions(context.Background(), livePath); readErr == nil {
 		extensions = extData
+	}
+	if res != nil && len(res.Extensions) > 0 {
+		if extensions == nil {
+			extensions = lockfile.Extensions{}
+		}
+		for k, v := range res.Extensions {
+			extensions[k] = v
+		}
 	}
 	det := lockfile.Detection{}
 	if proj.Identity == project.IdentityPNPM {
