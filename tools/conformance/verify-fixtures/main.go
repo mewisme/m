@@ -19,6 +19,7 @@ type fixtureMeta struct {
 	LockfileVersion string `json:"lockfileVersion"`
 	LockfileSha256  string `json:"lockfileSha256"`
 	Command         string `json:"command"`
+	Classification  string `json:"classification"`
 }
 
 type pinEnv struct {
@@ -92,6 +93,9 @@ func verifyTree(root, wantVersion string, major int) []string {
 		if meta.Command == "" {
 			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: missing command", major, ent.Name()))
 		}
+		if isPlaceholderCommand(meta.Command) {
+			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: placeholder command %q (run generate-lock-fixtures.ps1 -Generate)", major, ent.Name(), meta.Command))
+		}
 		lockData, err := os.ReadFile(lockPath)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("pnpm-%d/%s: %v", major, ent.Name(), err))
@@ -135,7 +139,29 @@ func verifyNub(dir, family string) []string {
 	if meta.LockfileSha256 != got {
 		errs = append(errs, fmt.Sprintf("%s: lockfileSha256 mismatch", family))
 	}
+	if meta.Command != "" && isPlaceholderCommand(meta.Command) {
+		errs = append(errs, fmt.Sprintf("%s: placeholder command %q", family, meta.Command))
+	}
 	return errs
+}
+
+func isPlaceholderCommand(cmd string) bool {
+	cmd = strings.TrimSpace(cmd)
+	if cmd == "" {
+		return false
+	}
+	placeholders := []string{
+		"committed generated fixture",
+		"placeholder",
+		"TODO",
+	}
+	lower := strings.ToLower(cmd)
+	for _, p := range placeholders {
+		if strings.Contains(lower, strings.ToLower(p)) {
+			return true
+		}
+	}
+	return false
 }
 
 func readMeta(path string) (fixtureMeta, error) {

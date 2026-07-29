@@ -41,6 +41,7 @@ function Write-Metadata($dest, $major, $family, $pnpmVersion, $command) {
         lockfileVersion   = '9.0'
         generationSignals = @("lockfileVersion=9.0", "family=$family")
         confidence        = 'certain'
+        classification    = 'generated'
         command           = $command
         timestamp         = (Get-Date -Format o)
         lockfileSha256    = $hash
@@ -94,7 +95,12 @@ foreach ($major in $Majors) {
                 Write-Warning "skip $dest — no committed lock; run with -Generate"
                 continue
             }
-            $cmd = "committed generated fixture (family=$family, pnpm@$ver)"
+            if (-not (Test-Path (Join-Path $dest 'metadata.json'))) {
+                Write-Warning "skip $dest — no metadata.json; run with -Generate"
+                continue
+            }
+            Write-Host "ok: pnpm-$major/$family (verify-only)"
+            continue
         }
         Write-Metadata $dest $major $family $ver $cmd
         Write-Host "ok: pnpm-$major/$family"
@@ -102,6 +108,7 @@ foreach ($major in $Majors) {
 }
 
 # Nub fixture families — derived from pnpm-9 generated locks (pnpm-v9-shaped nub.lock)
+if ($Generate) {
 $nubMap = [ordered]@{
     'nub-basic'      = 'basic'
     'nub-transitive' = 'transitive'
@@ -146,11 +153,13 @@ foreach ($entry in $nubMap.GetEnumerator()) {
         lockfileVersion   = '9.0'
         generationSignals = @('pnpm-v9-shaped', 'nub.lock', "derived-from=pnpm-9/$family")
         confidence        = 'manual'
+        classification    = 'derived'
         command           = "derived from fixtures/locks/generated/pnpm-9/$family pnpm-lock.yaml"
         timestamp         = (Get-Date -Format o)
         lockfileSha256    = $nubHash
     } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $nubDest 'metadata.json') -Encoding utf8NoBOM
     Write-Host "ok: $name"
+}
 }
 
 Write-Host "done: fixtures/locks/generated refreshed"
