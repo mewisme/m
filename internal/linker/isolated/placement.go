@@ -51,6 +51,7 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 	ops := make([]linker.Op, 0)
 	placements := make([]linker.Placement, 0, len(layout.Packages))
 	bins := make([]linker.BinSource, 0)
+	seenAliasDest := map[string]struct{}{}
 	rootDeps := rootDependencyKeys(g)
 
 	for _, pl := range layout.Packages {
@@ -91,13 +92,20 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 			}
 		}
 	}
+	appendAlias := func(src, dest string) {
+		dest = filepath.Clean(dest)
+		if _, dup := seenAliasDest[dest]; dup {
+			return
+		}
+		seenAliasDest[dest] = struct{}{}
+		ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: filepath.Dir(dest)})
+		ops = append(ops, planner.PlanDirAlias(src, dest, caps))
+	}
 	for _, link := range layout.DepLinks {
-		ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: filepath.Dir(link.Dest)})
-		ops = append(ops, planner.PlanDirAlias(link.Src, link.Dest, caps))
+		appendAlias(link.Src, link.Dest)
 	}
 	for _, link := range layout.Aliases {
-		ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: filepath.Dir(link.Dest)})
-		ops = append(ops, planner.PlanDirAlias(link.Src, link.Dest, caps))
+		appendAlias(link.Src, link.Dest)
 	}
 	for _, e := range g.Edges {
 		if e.From != string(graph.RootImporter) || !strings.HasPrefix(e.To, "link:") {
@@ -112,8 +120,7 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 			name = graph.TargetNameFromKey(e.To)
 		}
 		dest := filepath.Join(append([]string{nmRoot}, installSegments(name)...)...)
-		ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: filepath.Dir(dest)})
-		ops = append(ops, planner.PlanDirAlias(src, dest, caps))
+		appendAlias(src, dest)
 	}
 	sort.SliceStable(bins, func(i, j int) bool { return bins[i].Cmd < bins[j].Cmd })
 

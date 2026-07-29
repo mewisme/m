@@ -3,6 +3,7 @@ package isolated
 import (
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/mewisme/mew/internal/graph"
 )
@@ -48,6 +49,9 @@ func computeLayout(g *graph.Graph, nmRoot string) (*Layout, error) {
 	seen := map[string]struct{}{}
 	for _, p := range g.Packages {
 		key := p.ID.Key()
+		if strings.HasPrefix(key, "link:") {
+			continue
+		}
 		if _, ok := seen[key]; ok {
 			continue
 		}
@@ -72,6 +76,9 @@ func computeLayout(g *graph.Graph, nmRoot string) (*Layout, error) {
 	for from, edges := range children {
 		parentPrivate := PrivateNMForEdgeFrom(nmRoot, g, out.Packages, from)
 		for _, edge := range edges {
+			if strings.HasPrefix(edge.toKey, "link:") {
+				continue
+			}
 			target, ok := contentOf[edge.toKey]
 			if !ok {
 				continue
