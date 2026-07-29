@@ -14,6 +14,15 @@ import (
 // LocalExtensionKey is the m.lock extensions key for workspace/file/link/portal sources.
 const LocalExtensionKey = "mew.resolver/local"
 
+// PatchExtensionKey is the extensions key for install-time patch application.
+const PatchExtensionKey = "mew.resolver/patches"
+
+// PatchSource records a patch file for a resolved package key.
+type PatchSource struct {
+	Path string `json:"path"`
+	Hash string `json:"hash,omitempty"`
+}
+
 // LocalSource records a non-registry package location resolved into the lock graph.
 type LocalSource struct {
 	Protocol string `json:"protocol"`
@@ -143,14 +152,45 @@ func (s *resolveState) expandLocalManifest(fromKey, memberPath string, depth int
 }
 
 func (s *resolveState) buildExtensions() lockfile.Extensions {
-	if len(s.localSources) == 0 {
-		return nil
+	var ext lockfile.Extensions
+	if len(s.localSources) > 0 {
+		raw, err := json.Marshal(s.localSources)
+		if err == nil {
+			ext = lockfile.Extensions{LocalExtensionKey: raw}
+		}
 	}
-	raw, err := json.Marshal(s.localSources)
-	if err != nil {
-		return nil
+	if s.patches != nil && len(s.patches.byPkgKey) > 0 {
+		raw, err := json.Marshal(s.patches.byPkgKey)
+		if err == nil {
+			if ext == nil {
+				ext = lockfile.Extensions{}
+			}
+			ext[PatchExtensionKey] = raw
+		}
 	}
-	return lockfile.Extensions{LocalExtensionKey: raw}
+	return ext
+}
+
+// DecodePatchSources parses the mew.resolver/patches extension payload.
+func DecodePatchSources(ext lockfile.Extensions) (map[string]PatchSource, error) {
+	if len(ext) == 0 {
+		return nil, nil
+	}
+	raw, ok := ext[PatchExtensionKey]
+	if !ok {
+		return nil, nil
+	}
+	var patches map[string]PatchSource
+	if err := json.Unmarshal(raw, &patches); err != nil {
+		return nil, err
+	}
+	return patches, nil
+}
+
+// HasPatchSources reports whether extensions contain patch apply metadata.
+func HasPatchSources(ext lockfile.Extensions) bool {
+	patches, err := DecodePatchSources(ext)
+	return err == nil && len(patches) > 0
 }
 
 // HasLocalSources reports whether extensions contain resolved local/workspace packages.

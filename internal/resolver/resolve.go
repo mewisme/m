@@ -76,6 +76,7 @@ type resolveState struct {
 	wsMemberPaths   map[string]struct{}
 	catalog         manifest.Catalog
 	localSources    map[string]LocalSource
+	patches         *patchState
 	seededImporters map[graph.ImporterID]bool
 }
 
@@ -148,6 +149,9 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 	s.b.Importer(graph.RootImporter, proj.Normalized.Name)
 
 	if err := s.initWorkspace(); err != nil {
+		return nil, err
+	}
+	if err := s.initPatches(); err != nil {
 		return nil, err
 	}
 	if err := s.seedFromManifest(proj.Normalized); err != nil {
@@ -343,8 +347,10 @@ func (s *resolveState) processRegistry(item workItem) error {
 		return err
 	}
 
-	id, key := s.packageKeyForInstance(item, meta.Version, meta)
-	decision.Selected = meta.Version
+	version := s.applyPatchVersion(item.name, meta.Version)
+	id, key := s.packageKeyForInstance(item, version, meta)
+	s.recordPatchTarget(key, item.name, version)
+	decision.Selected = version
 	if item.overrideFrom != "" {
 		decision.OverrideFrom = item.overrideFrom
 	}
