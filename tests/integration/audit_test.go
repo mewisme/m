@@ -100,6 +100,57 @@ func TestAuditFixOffline(t *testing.T) {
 	}
 }
 
+func TestAuditFailOnCritical(t *testing.T) {
+	projDir, cfgPath, env := setupAuditProject(t)
+	seedAdvisoryCache(t, env.CacheDir)
+
+	if code, out := runM(t, projDir, cfgPath, "install"); code != 0 {
+		t.Fatalf("install exit=%d out=%s", code, out)
+	}
+
+	code, out := runM(t, projDir, cfgPath, "audit", "--offline", "--fail-on", "critical")
+	if code == 0 {
+		t.Fatalf("expected nonzero exit with --fail-on critical, out=%s", out)
+	}
+	if !strings.Contains(out, "CVE-2026-0001") {
+		t.Fatalf("expected findings in output before failure: %s", out)
+	}
+}
+
+func TestAuditFailOnNonePassesWithFindings(t *testing.T) {
+	projDir, cfgPath, env := setupAuditProject(t)
+	seedAdvisoryCache(t, env.CacheDir)
+
+	if code, out := runM(t, projDir, cfgPath, "install"); code != 0 {
+		t.Fatalf("install exit=%d out=%s", code, out)
+	}
+
+	code, out := runM(t, projDir, cfgPath, "audit", "--offline", "--fail-on", "none")
+	if code != 0 {
+		t.Fatalf("audit exit=%d want 0 with --fail-on none, out=%s", code, out)
+	}
+	if !strings.Contains(out, "CVE-2026-0001") {
+		t.Fatalf("missing CVE in output: %s", out)
+	}
+}
+
+func TestAuditFailOnJSONEmitsBeforeExit(t *testing.T) {
+	projDir, cfgPath, env := setupAuditProject(t)
+	seedAdvisoryCache(t, env.CacheDir)
+
+	if code, out := runM(t, projDir, cfgPath, "install"); code != 0 {
+		t.Fatalf("install exit=%d out=%s", code, out)
+	}
+
+	code, out := runM(t, projDir, cfgPath, "audit", "--json", "--offline", "--fail-on", "critical")
+	if code == 0 {
+		t.Fatal("expected nonzero exit")
+	}
+	if !strings.Contains(out, `"schemaVersion"`) || !strings.Contains(out, `"CVE-2026-0001"`) {
+		t.Fatalf("expected JSON report before failure exit: %s", out)
+	}
+}
+
 func TestAuditOfflineFailsWithoutCache(t *testing.T) {
 	projDir, cfgPath, _ := setupAuditProject(t)
 

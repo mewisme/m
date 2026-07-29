@@ -9,7 +9,6 @@ import (
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
-	"github.com/mewisme/mew/internal/semver"
 )
 
 const ReportSchemaVersion = 1
@@ -53,8 +52,9 @@ type RangeEvent struct {
 
 // AdvisoryDB is a loaded OSV database.
 type AdvisoryDB struct {
-	Entries []OSVEntry
-	Digest  string
+	Entries  []OSVEntry
+	Digest   string
+	Warnings []DBWarning
 }
 
 // Vulnerability is one matched finding in an audit report.
@@ -90,7 +90,8 @@ func Load(data []byte) (*AdvisoryDB, error) {
 		return nil, apperr.Wrap(apperr.Integrity, "advisory.load", "osv", err)
 	}
 	digest := Digest(data)
-	return &AdvisoryDB{Entries: entries, Digest: digest}, nil
+	db := &AdvisoryDB{Entries: entries, Digest: digest, Warnings: collectRangeWarnings(entries)}
+	return db, nil
 }
 
 // MatchGraph returns sorted findings for packages in g.
@@ -160,6 +161,7 @@ func (db *AdvisoryDB) IsVulnerable(name, version string) bool {
 }
 
 func (db *AdvisoryDB) entryMatches(entry OSVEntry, name, version string) bool {
+	version = normalizeAuditVersion(version)
 	for _, aff := range entry.Affected {
 		if aff.Package.Ecosystem != "" && aff.Package.Ecosystem != "npm" {
 			continue
@@ -173,51 +175,12 @@ func (db *AdvisoryDB) entryMatches(entry OSVEntry, name, version string) bool {
 			}
 		}
 		for _, r := range aff.Ranges {
-			if r.Type != "" && r.Type != "SEMVER" {
-				continue
-			}
-			if semverRangeMatches(r, version) {
+			if versionMatchesRange(r, version) {
 				return true
 			}
 		}
 	}
 	return false
-}
-
-func semverRangeMatches(r VersionRange, version string) bool {
-	introduced := "0"
-	fixed := ""
-	lastAffected := ""
-	for _, ev := range r.Events {
-		if ev.Introduced != "" {
-			introduced = ev.Introduced
-		}
-		if ev.Fixed != "" {
-			fixed = ev.Fixed
-		}
-		if ev.LastAffected != "" {
-			lastAffected = ev.LastAffected
-		}
-	}
-	if introduced != "0" {
-		cmp, err := semver.Compare(version, introduced)
-		if err != nil || cmp < 0 {
-			return false
-		}
-	}
-	if fixed != "" {
-		cmp, err := semver.Compare(version, fixed)
-		if err != nil || cmp >= 0 {
-			return false
-		}
-	}
-	if lastAffected != "" {
-		cmp, err := semver.Compare(version, lastAffected)
-		if err != nil || cmp > 0 {
-			return false
-		}
-	}
-	return introduced != "0" || fixed != "" || lastAffected != ""
 }
 
 func displayID(entry OSVEntry) string {

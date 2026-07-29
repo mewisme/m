@@ -15,6 +15,7 @@ func newAuditCmd() *cobra.Command {
 	var (
 		asJSON bool
 		fix    bool
+		failOn string
 	)
 	cmd := &cobra.Command{
 		Use:   "audit",
@@ -25,6 +26,10 @@ func newAuditCmd() *cobra.Command {
 			ac := app.FromContext(cmd.Context())
 			if ac == nil {
 				return apperr.New(apperr.Internal, "audit", "", "missing app context")
+			}
+			threshold, err := advisory.ParseFailOn(failOn)
+			if err != nil {
+				return apperr.Wrap(apperr.Usage, "audit", "--fail-on", err)
 			}
 			result, err := app.Audit(cmd.Context(), ac, app.AuditOptions{Fix: fix})
 			if err != nil {
@@ -41,24 +46,31 @@ func newAuditCmd() *cobra.Command {
 				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetEscapeHTML(false)
 				enc.SetIndent("", "  ")
-				return enc.Encode(payload)
-			}
-			if text := advisory.FormatTable(result.Report); text != "" {
-				if _, err := fmt.Fprintln(cmd.OutOrStdout(), text); err != nil {
+				if err := enc.Encode(payload); err != nil {
 					return err
 				}
-			}
-			if fix {
-				if fixes := advisory.FormatFixSuggestions(result.Fixes); fixes != "" {
-					if _, err := fmt.Fprintln(cmd.OutOrStdout(), fixes); err != nil {
+			} else {
+				if text := advisory.FormatTable(result.Report); text != "" {
+					if _, err := fmt.Fprintln(cmd.OutOrStdout(), text); err != nil {
 						return err
 					}
 				}
+				if fix {
+					if fixes := advisory.FormatFixSuggestions(result.Fixes); fixes != "" {
+						if _, err := fmt.Fprintln(cmd.OutOrStdout(), fixes); err != nil {
+							return err
+						}
+					}
+				}
+			}
+			if advisory.ReportExceedsThreshold(result.Report, threshold) {
+				return apperr.New(apperr.Policy, "audit", "", "vulnerabilities at or above --fail-on threshold")
 			}
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print audit report as JSON")
 	cmd.Flags().BoolVar(&fix, "fix", false, "print suggested safe version bumps (no write)")
+	cmd.Flags().StringVar(&failOn, "fail-on", "none", "exit nonzero when findings meet severity threshold: none|low|moderate|high|critical")
 	return cmd
 }
