@@ -107,6 +107,17 @@ snapshots:
 	}
 }
 
+func TestResolvePatchHashRefToBaseKey(t *testing.T) {
+	idx := NewPackageIndex([]string{"ms@2.1.3"})
+	target, err := ResolveDependencyTarget("ms", "2.1.3(patch_hash=abc)", idx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if target.Key != "ms@2.1.3" {
+		t.Fatalf("target=%q", target.Key)
+	}
+}
+
 func FuzzResolveDependencyTarget(f *testing.F) {
 	f.Add("b", "2.0.0")
 	f.Add("@scope/x", "1.0.0")

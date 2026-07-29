@@ -134,6 +134,11 @@ func ResolveDependencyTarget(depName, resolutionRef string, idx PackageIndex) (T
 			return Target{Key: gk}, nil
 		}
 	}
+	if strings.Contains(ref, "patch_hash=") {
+		if target, ok := resolvePatchHashRef(resolveName, ref, idx); ok {
+			return target, nil
+		}
+	}
 	if idx == nil {
 		return Target{}, danglingTarget(depName, ref, nil)
 	}
@@ -145,6 +150,19 @@ func ResolveDependencyTarget(depName, resolutionRef string, idx PackageIndex) (T
 		return Target{Key: matches[0]}, nil
 	default:
 		return Target{}, ambiguousTarget(depName, ref, matches)
+	}
+}
+
+func resolvePatchHashRef(depName, ref string, idx PackageIndex) (Target, bool) {
+	if idx == nil {
+		return Target{}, false
+	}
+	matches := matchKeysForRef(idx, depName, ref)
+	switch len(matches) {
+	case 1:
+		return Target{Key: matches[0]}, true
+	default:
+		return Target{}, false
 	}
 }
 
@@ -169,9 +187,32 @@ func matchKeysForRef(idx PackageIndex, depName, ref string) []string {
 		}
 		if enc, err := EncodeDependencyRef(depName, key); err == nil && enc == ref {
 			matches = append(matches, key)
+			continue
+		}
+		if strings.Contains(ref, "patch_hash=") {
+			baseVer, _, _ := strings.Cut(ref, "(")
+			if strings.HasPrefix(key, depName+"@"+baseVer) {
+				matches = append(matches, key)
+			}
 		}
 	}
-	return matches
+	return dedupeStrings(matches)
+}
+
+func dedupeStrings(in []string) []string {
+	if len(in) <= 1 {
+		return in
+	}
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
+	}
+	return out
 }
 
 func danglingTarget(depName, ref string, idx PackageIndex) error {
