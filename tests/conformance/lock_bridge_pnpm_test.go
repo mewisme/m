@@ -34,7 +34,7 @@ type fixtureMeta struct {
 }
 
 var mutationFamilies = []string{
-	"basic", "transitive", "optional",
+	"basic", "transitive", "optional", "peer-context", "workspace", "alias", "patch",
 }
 
 func moduleRoot(t testing.TB) string {
@@ -396,6 +396,10 @@ func importScriptsForFamily(family string) []string {
 		return []string{"require('acorn-jsx'); console.log('ok')"}
 	case "workspace":
 		return []string{"require('pkg-a'); console.log('ok')"}
+	case "alias":
+		return []string{"require('my-lodash'); console.log('ok')"}
+	case "patch":
+		return []string{"require('ms'); console.log('ok')"}
 	default:
 		return []string{"console.log('ok')"}
 	}
@@ -449,6 +453,13 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 		t.Fatal("remove mutation must change lock bytes")
 	}
 	runLockValidateCLI(t, proj, major)
+	stripPackageManager(t, proj)
+	runPnpmFrozen(t, proj, major, "", true)
+	verifyNodeModulesGraph(t, proj, family)
+
+	if family == "peer-context" {
+		assertPeerContextGraph(t, proj, major)
+	}
 
 	// deterministic repeat
 	runMewInstall(t, proj, major, "--frozen-lockfile")
@@ -593,8 +604,8 @@ func TestLockBridgeNubFixtures(t *testing.T) {
 		"nub-basic", "nub-transitive", "nub-workspace",
 		"nub-catalog", "nub-peer", "nub-optional",
 	}
-	// ponytail: workspace derived fixture still has link: workspace edges; validate deferred.
-	skipValidate := map[string]bool{"nub-workspace": true}
+	// ponytail: workspace derived fixture validated after workspace graph support.
+	skipValidate := map[string]bool{}
 	for _, family := range families {
 		t.Run(family, func(t *testing.T) {
 			dir, meta := loadGeneratedFixture(t, family)
