@@ -28,6 +28,8 @@ type Component struct {
 	Name      string
 	Version   string
 	PURL      string
+	BOMRef    string
+	SPDXID    string
 	Integrity string
 	License   string
 	Redacted  bool
@@ -35,18 +37,13 @@ type Component struct {
 
 // ExportCycloneDX emits a minimal CycloneDX 1.5 JSON BOM from a lock graph.
 func ExportCycloneDX(g *graph.Graph, opts SBOMOptions) ([]byte, error) {
-	comps, err := componentsFromGraph(g, opts)
+	bundle, err := buildBundle(g, opts)
 	if err != nil {
 		return nil, err
 	}
-	ts := opts.GeneratedAt
-	if ts.IsZero() {
-		ts = time.Now().UTC()
-	}
-	project := opts.ProjectName
-	if project == "" {
-		project = projectNameFromGraph(g)
-	}
+	ts := bundle.generatedAt
+	project := bundle.projectName
+	projectRef := projectBOMRef(project)
 
 	type hashEntry struct {
 		Alg     string `json:"alg"`
@@ -58,6 +55,7 @@ func ExportCycloneDX(g *graph.Graph, opts SBOMOptions) ([]byte, error) {
 		} `json:"license"`
 	}
 	type componentEntry struct {
+		BOMRef   string         `json:"bom-ref"`
 		Type     string         `json:"type"`
 		Name     string         `json:"name"`
 		Version  string         `json:"version,omitempty"`
@@ -68,17 +66,19 @@ func ExportCycloneDX(g *graph.Graph, opts SBOMOptions) ([]byte, error) {
 	type metadata struct {
 		Timestamp string `json:"timestamp"`
 		Component struct {
+			BOMRef  string `json:"bom-ref"`
 			Type    string `json:"type"`
 			Name    string `json:"name"`
 			Version string `json:"version,omitempty"`
 		} `json:"component"`
 	}
 	type bom struct {
-		BOMFormat   string           `json:"bomFormat"`
-		SpecVersion string           `json:"specVersion"`
-		Version     int              `json:"version"`
-		Metadata    metadata         `json:"metadata"`
-		Components  []componentEntry `json:"components"`
+		BOMFormat    string                `json:"bomFormat"`
+		SpecVersion  string                `json:"specVersion"`
+		Version      int                   `json:"version"`
+		Metadata     metadata              `json:"metadata"`
+		Components   []componentEntry      `json:"components"`
+		Dependencies []cycloneDXDependency `json:"dependencies"`
 	}
 
 	out := bom{
@@ -87,11 +87,13 @@ func ExportCycloneDX(g *graph.Graph, opts SBOMOptions) ([]byte, error) {
 		Version:     1,
 	}
 	out.Metadata.Timestamp = ts.Format(time.RFC3339)
+	out.Metadata.Component.BOMRef = projectRef
 	out.Metadata.Component.Type = "application"
 	out.Metadata.Component.Name = project
 
-	for _, c := range comps {
+	for _, c := range bundle.components {
 		entry := componentEntry{
+			BOMRef:  c.BOMRef,
 			Type:    "library",
 			Name:    c.Name,
 			Version: c.Version,
@@ -107,6 +109,7 @@ func ExportCycloneDX(g *graph.Graph, opts SBOMOptions) ([]byte, error) {
 		}
 		out.Components = append(out.Components, entry)
 	}
+	out.Dependencies = cycloneDXDependencies(bundle)
 
 	var buf strings.Builder
 	enc := json.NewEncoder(&buf)
@@ -120,18 +123,13 @@ func ExportCycloneDX(g *graph.Graph, opts SBOMOptions) ([]byte, error) {
 
 // ExportSPDX emits an SPDX 2.3 tag-value document from a lock graph.
 func ExportSPDX(g *graph.Graph, opts SBOMOptions) ([]byte, error) {
-	comps, err := componentsFromGraph(g, opts)
+	bundle, err := buildBundle(g, opts)
 	if err != nil {
 		return nil, err
 	}
-	ts := opts.GeneratedAt
-	if ts.IsZero() {
-		ts = time.Now().UTC()
-	}
-	project := opts.ProjectName
-	if project == "" {
-		project = projectNameFromGraph(g)
-	}
+	ts := bundle.generatedAt
+	project := bundle.projectName
+	rootID := rootSPDXID()
 
 	var b strings.Builder
 	writeTag := func(key, value string) {
@@ -153,10 +151,16 @@ func ExportSPDX(g *graph.Graph, opts SBOMOptions) ([]byte, error) {
 	writeTag("Created", ts.Format(time.RFC3339))
 	b.WriteByte('\n')
 
-	for i, c := range comps {
-		spdxID := "SPDXRef-Package-" + itoa(i+1)
+	writeTag("PackageName", project)
+	writeTag("SPDXID", rootID)
+	writeTag("PackageDownloadLocation", "NOASSERTION")
+	writeTag("PackageLicenseConcluded", "NOASSERTION")
+	writeTag("PackageLicenseDeclared", "NOASSERTION")
+	b.WriteByte('\n')
+
+	for _, c := range bundle.components {
 		writeTag("PackageName", c.Name)
-		writeTag("SPDXID", spdxID)
+		writeTag("SPDXID", c.SPDXID)
 		writeTag("VersionInfo", c.Version)
 		writeTag("PackageDownloadLocation", "NOASSERTION")
 		if c.PURL != "" {
@@ -175,7 +179,153 @@ func ExportSPDX(g *graph.Graph, opts SBOMOptions) ([]byte, error) {
 		b.WriteByte('\n')
 	}
 
+	writeTag("Relationship", "SPDXRef-DOCUMENT DESCRIBES "+rootID)
+	for _, rel := range spdxRelationships(bundle) {
+		writeTag("Relationship", rel)
+	}
+	b.WriteByte('\n')
+
 	return []byte(b.String()), nil
+}
+
+type bundle struct {
+	projectName string
+	generatedAt time.Time
+	components  []Component
+	byKey       map[string]Component
+	edges       []graph.Edge
+}
+
+func buildBundle(g *graph.Graph, opts SBOMOptions) (*bundle, error) {
+	comps, err := componentsFromGraph(g, opts)
+	if err != nil {
+		return nil, err
+	}
+	ts := opts.GeneratedAt
+	if ts.IsZero() {
+		ts = time.Now().UTC()
+	}
+	project := opts.ProjectName
+	if project == "" {
+		project = projectNameFromGraph(g)
+	}
+	byKey := make(map[string]Component, len(comps))
+	for _, c := range comps {
+		byKey[c.Key] = c
+	}
+	return &bundle{
+		projectName: project,
+		generatedAt: ts,
+		components:  comps,
+		byKey:       byKey,
+		edges:       append([]graph.Edge(nil), g.Edges...),
+	}, nil
+}
+
+type cycloneDXDependency struct {
+	Ref       string   `json:"ref"`
+	DependsOn []string `json:"dependsOn"`
+}
+
+func cycloneDXDependencies(b *bundle) []cycloneDXDependency {
+	depends := map[string]map[string]struct{}{}
+	add := func(from, to string) {
+		if from == "" || to == "" || from == to {
+			return
+		}
+		if depends[from] == nil {
+			depends[from] = map[string]struct{}{}
+		}
+		depends[from][to] = struct{}{}
+	}
+
+	for _, e := range b.edges {
+		fromRef := refForEdgeFrom(b, e.From)
+		toComp, ok := b.byKey[e.To]
+		if !ok {
+			continue
+		}
+		add(fromRef, toComp.BOMRef)
+	}
+
+	refs := make([]string, 0, len(depends))
+	for ref := range depends {
+		refs = append(refs, ref)
+	}
+	sort.Strings(refs)
+
+	out := make([]cycloneDXDependency, 0, len(refs))
+	for _, ref := range refs {
+		targets := make([]string, 0, len(depends[ref]))
+		for target := range depends[ref] {
+			targets = append(targets, target)
+		}
+		sort.Strings(targets)
+		out = append(out, cycloneDXDependency{Ref: ref, DependsOn: targets})
+	}
+	return out
+}
+
+func spdxRelationships(b *bundle) []string {
+	type pair struct {
+		from string
+		to   string
+	}
+	seen := map[pair]struct{}{}
+	var rels []pair
+	add := func(from, to string) {
+		if from == "" || to == "" || from == to {
+			return
+		}
+		p := pair{from: from, to: to}
+		if _, ok := seen[p]; ok {
+			return
+		}
+		seen[p] = struct{}{}
+		rels = append(rels, p)
+	}
+
+	for _, e := range b.edges {
+		fromID := refForEdgeFromSPDX(b, e.From)
+		toComp, ok := b.byKey[e.To]
+		if !ok {
+			continue
+		}
+		add(fromID, toComp.SPDXID)
+	}
+
+	sort.Slice(rels, func(i, j int) bool {
+		if rels[i].from != rels[j].from {
+			return rels[i].from < rels[j].from
+		}
+		return rels[i].to < rels[j].to
+	})
+
+	out := make([]string, 0, len(rels))
+	for _, rel := range rels {
+		out = append(out, rel.from+" DEPENDS_ON "+rel.to)
+	}
+	return out
+}
+
+func refForEdgeFrom(b *bundle, from string) string {
+	if from == string(graph.RootImporter) {
+		return projectBOMRef(b.projectName)
+	}
+	if c, ok := b.byKey[from]; ok {
+		return c.BOMRef
+	}
+	return packageBOMRef(from)
+}
+
+func refForEdgeFromSPDX(b *bundle, from string) string {
+	if from == string(graph.RootImporter) {
+		return rootSPDXID()
+	}
+	if c, ok := b.byKey[from]; ok {
+		return c.SPDXID
+	}
+	return spdxIDForKey(from)
 }
 
 func componentsFromGraph(g *graph.Graph, opts SBOMOptions) ([]Component, error) {
@@ -210,6 +360,8 @@ func componentsFromGraph(g *graph.Graph, opts SBOMOptions) ([]Component, error) 
 				Key:      key,
 				Name:     "[redacted]",
 				Version:  "[redacted]",
+				BOMRef:   packageBOMRef(key),
+				SPDXID:   spdxIDForKey(key),
 				Redacted: true,
 			})
 			continue
@@ -219,11 +371,62 @@ func componentsFromGraph(g *graph.Graph, opts SBOMOptions) ([]Component, error) 
 			Name:      name,
 			Version:   version,
 			PURL:      npmPURL(name, version),
+			BOMRef:    packageBOMRef(key),
+			SPDXID:    spdxIDForKey(key),
 			Integrity: pkg.Integrity,
 			License:   lic,
 		})
 	}
 	return out, nil
+}
+
+func projectBOMRef(project string) string {
+	project = strings.TrimSpace(project)
+	if project == "" {
+		project = "project"
+	}
+	return "mew:project:" + url.PathEscape(project)
+}
+
+func rootSPDXID() string {
+	return "SPDXRef-RootPackage"
+}
+
+func packageBOMRef(key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "mew:package:unknown"
+	}
+	if purl := npmPURLFromKey(key); purl != "" {
+		return purl
+	}
+	return "mew:package:" + url.PathEscape(key)
+}
+
+func spdxIDForKey(key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "SPDXRef-Package-unknown"
+	}
+	safe := strings.NewReplacer("@", "-at-", "/", "-", "#", "-peer-", ",", "-").Replace(key)
+	return "SPDXRef-Package-" + safe
+}
+
+func npmPURLFromKey(key string) string {
+	name, version, ok := splitPackageKey(key)
+	if !ok {
+		return ""
+	}
+	return npmPURL(name, version)
+}
+
+func splitPackageKey(key string) (name, version string, ok bool) {
+	key, _, _ = strings.Cut(key, "#")
+	idx := strings.LastIndex(key, "@")
+	if idx <= 0 || idx >= len(key)-1 {
+		return "", "", false
+	}
+	return key[:idx], key[idx+1:], true
 }
 
 func projectNameFromGraph(g *graph.Graph) string {
@@ -290,18 +493,4 @@ func shouldRedact(name string, redactInternal bool, pattern *regexp.Regexp) bool
 		return true
 	}
 	return false
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var digits [20]byte
-	i := len(digits)
-	for n > 0 {
-		i--
-		digits[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(digits[i:])
 }

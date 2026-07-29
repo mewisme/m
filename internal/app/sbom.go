@@ -8,9 +8,11 @@ import (
 	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/sbom"
+	"github.com/mewisme/mew/internal/store"
 )
 
 // SBOMFormat selects the SBOM serialization.
@@ -41,7 +43,7 @@ func ExportSBOM(ctx context.Context, ac *Context, opts ExportSBOMOptions) ([]byt
 	if err != nil {
 		return nil, err
 	}
-	licenses := readInstalledLicenses(proj.Root, g)
+	licenses := readGraphLicenses(ac, g)
 	sbomOpts := sbom.SBOMOptions{
 		RedactInternal: opts.RedactInternal,
 		RedactPattern:  opts.RedactPattern,
@@ -70,30 +72,33 @@ func projectDisplayName(proj *project.Project, g *graph.Graph) string {
 	return "project"
 }
 
-func readInstalledLicenses(projRoot string, g *graph.Graph) map[string]string {
-	if g == nil || projRoot == "" {
+func readGraphLicenses(ac *Context, g *graph.Graph) map[string]string {
+	if g == nil || ac == nil || ac.Config == nil {
 		return nil
 	}
-	nmRoot := filepath.Join(projRoot, "node_modules")
+	storeRoot, err := config.StoreRoot(ac.Config)
+	if err != nil || storeRoot == "" {
+		return nil
+	}
+	ps := store.NewPackageStore(storeRoot)
 	out := make(map[string]string, len(g.Packages))
 	for _, pkg := range g.Packages {
-		key := pkg.ID.Key()
-		path := packageJSONPath(nmRoot, pkg.ID.Name)
-		if lic := readPackageLicense(path); lic != "" {
-			out[key] = lic
+		if pkg.Integrity == "" {
+			continue
+		}
+		storeKey, err := store.PackageKeyFromIntegrity(pkg.Integrity)
+		if err != nil {
+			continue
+		}
+		pkgJSON := filepath.Join(ps.PackagePath(storeKey), "package.json")
+		if lic := readPackageLicense(pkgJSON); lic != "" {
+			out[pkg.ID.Key()] = lic
 		}
 	}
 	if len(out) == 0 {
 		return nil
 	}
 	return out
-}
-
-func packageJSONPath(nmRoot, name string) string {
-	parts := strings.Split(name, "/")
-	all := append([]string{nmRoot}, parts...)
-	all = append(all, "package.json")
-	return filepath.Join(all...)
 }
 
 func readPackageLicense(path string) string {

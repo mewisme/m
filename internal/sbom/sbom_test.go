@@ -55,6 +55,63 @@ func TestExportCycloneDXMediumGraphGolden(t *testing.T) {
 	}
 }
 
+func TestExportCycloneDXIncludesDependencies(t *testing.T) {
+	g := mediumGraphFromLock(t)
+	out, err := sbom.ExportCycloneDX(g, fixedSBOMOpts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(out)
+	for _, want := range []string{
+		`"bom-ref": "mew:project:medium-graph"`,
+		`"dependencies"`,
+		`"ref": "mew:project:medium-graph"`,
+		`"dependsOn"`,
+		`"ref": "pkg:npm/pkg-a@1.0.0"`,
+		`"pkg:npm/pkg-b@1.2.0"`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %q in cyclonedx output", want)
+		}
+	}
+}
+
+func TestExportSPDXIncludesRelationships(t *testing.T) {
+	g := mediumGraphFromLock(t)
+	out, err := sbom.ExportSPDX(g, fixedSBOMOpts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(out)
+	for _, want := range []string{
+		"SPDXRef-RootPackage",
+		"Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-RootPackage",
+		"Relationship: SPDXRef-RootPackage DEPENDS_ON SPDXRef-Package-pkg-a-at-1.0.0",
+		"Relationship: SPDXRef-Package-pkg-a-at-1.0.0 DEPENDS_ON SPDXRef-Package-pkg-b-at-1.2.0",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %q in spdx output", want)
+		}
+	}
+}
+
+func TestPackageBOMRefScoped(t *testing.T) {
+	g, err := graph.NewBuilder().
+		Importer(graph.RootImporter, "root").
+		Package(graph.PackageID{Name: "@scope/pkg", Version: "1.0.0"}, "sha256-abcd", "").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := sbom.ExportCycloneDX(g, sbom.SBOMOptions{ProjectName: "root"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `"bom-ref": "pkg:npm/@scope%2Fpkg@1.0.0"`) {
+		t.Fatalf("scoped bom-ref missing: %s", out)
+	}
+}
+
 func TestExportCycloneDXIncludesTransitivePackages(t *testing.T) {
 	g := mediumGraphFromLock(t)
 	out, err := sbom.ExportCycloneDX(g, fixedSBOMOpts())
