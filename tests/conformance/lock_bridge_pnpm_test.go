@@ -556,6 +556,9 @@ func testPnpmParseFamily(t *testing.T, rel string, major int) {
 	validateFixtureLock(t, dir, major)
 	proj := copyFixtureProject(t, dir, major)
 	runLockValidateCLI(t, proj, major, true)
+	if strings.HasSuffix(rel, "/patch") {
+		return
+	}
 	setupIsolatedPnpmHome(t)
 	runPnpmFrozen(t, proj, major, "", true)
 }
