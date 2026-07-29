@@ -3,6 +3,7 @@
 package fsx_test
 
 import (
+	"os"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -43,11 +44,15 @@ func junctionDir(target, link string) error {
 func TestGuardAncestorsJunctionEscape(t *testing.T) {
 	root := t.TempDir()
 	outside := t.TempDir()
-	mew := root + `\proj\.mew`
-	if err := junctionDir(outside, mew); err != nil {
+	proj := root + `\proj`
+	if err := os.MkdirAll(proj, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mew := proj + `\.mew`
+	if err := fsx.CreateMountPoint(mew, `\\?\`+outside, outside); err != nil {
 		t.Skip("junction not supported:", err)
 	}
-	if err := fsx.GuardAncestors(root+`\proj`, mew+`\txn`); err == nil {
+	if err := fsx.GuardAncestors(proj, mew+`\txn`); err == nil {
 		t.Fatal("expected junction rejection")
 	}
 }

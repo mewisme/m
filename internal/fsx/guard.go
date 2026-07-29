@@ -76,7 +76,7 @@ func GuardAncestors(base, target string) error {
 			}
 			return apperr.Wrap(apperr.IO, "fs.guard", cur, err)
 		}
-		if IsSymlinkOrJunction(fi) && cur != target {
+		if (IsSymlinkOrJunction(fi) || ReparseTag(cur) != 0) && cur != target {
 			return apperr.New(apperr.Transaction, "fs.guard", cur, "symlink or junction in guarded path")
 		}
 	}
@@ -91,7 +91,7 @@ func lstatNoSymlink(path string) error {
 		}
 		return apperr.Wrap(apperr.IO, "fs.guard", path, err)
 	}
-	if IsSymlinkOrJunction(fi) {
+	if IsSymlinkOrJunction(fi) || ReparseTag(path) != 0 {
 		return apperr.New(apperr.Transaction, "fs.guard", path, "symlink or junction in guarded path")
 	}
 	return nil

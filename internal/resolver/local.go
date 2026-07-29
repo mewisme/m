@@ -160,7 +160,11 @@ func (s *resolveState) buildExtensions() lockfile.Extensions {
 		}
 	}
 	if s.patches != nil && len(s.patches.byPkgKey) > 0 {
-		raw, err := json.Marshal(s.patches.byPkgKey)
+		encoded := make(map[string]PatchSource, len(s.patches.byPkgKey))
+		for k, rec := range s.patches.byPkgKey {
+			encoded[k] = PatchSource{Path: rec.path, Hash: rec.hash}
+		}
+		raw, err := json.Marshal(encoded)
 		if err == nil {
 			if ext == nil {
 				ext = lockfile.Extensions{}

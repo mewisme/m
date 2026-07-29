@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -215,7 +216,7 @@ func TestVerifyTreeManifestTypeSwap(t *testing.T) {
 }
 
 func TestVerifyTreeManifestSymlinkTargetChange(t *testing.T) {
-	if os.Getenv("GOOS") == "windows" {
+	if runtime.GOOS == "windows" {
 		t.Skip("symlink test skipped on windows")
 	}
 	dir := t.TempDir()

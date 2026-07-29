@@ -43,11 +43,22 @@ func newPatchPathError(patchFile, root, original, normalized, reason string) err
 func resolvePatchTarget(patchFile, root, name string) (string, error) {
 	original := name
 	name = filepath.ToSlash(strings.TrimSpace(name))
+	if strings.HasPrefix(strings.TrimSpace(original), "/") || strings.HasPrefix(original, "\\") {
+		return "", newPatchPathError(patchFile, root, original, name, "absolute path")
+	}
 	if name == "" {
 		return "", newPatchPathError(patchFile, root, original, name, "empty path")
 	}
 	if name == "/dev/null" {
 		return "", newPatchPathError(patchFile, root, original, name, "dev null path")
+	}
+	if strings.HasPrefix(name, "/") {
+		return "", newPatchPathError(patchFile, root, original, name, "absolute path")
+	}
+	if runtime.GOOS == "windows" {
+		if len(name) >= 2 && name[1] == ':' {
+			return "", newPatchPathError(patchFile, root, original, name, "drive path")
+		}
 	}
 	if strings.HasPrefix(name, "//") || strings.HasPrefix(name, "\\\\") {
 		return "", newPatchPathError(patchFile, root, original, name, "unc path")

@@ -22,3 +22,10 @@ func TestResolvePatchTargetRejectsTraversal(t *testing.T) {
 		t.Fatal("expected error for traversal")
 	}
 }
+
+func TestResolvePatchTargetRejectsAbsolutePath(t *testing.T) {
+	_, err := resolvePatchTarget("patch.patch", t.TempDir(), "/tmp/outside.txt")
+	if err == nil {
+		t.Fatal("expected error for absolute path")
+	}
+}

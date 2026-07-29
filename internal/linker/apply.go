@@ -86,6 +86,9 @@ func applyTree(src, dest string, fn fileApplyFn) error {
 		if rel == "." {
 			return nil
 		}
+		if d.IsDir() && d.Name() == "node_modules" {
+			return filepath.SkipDir
+		}
 		target := filepath.Join(dest, rel)
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)
@@ -147,6 +150,10 @@ func applyJunction(src, dest string) error {
 		return apperr.New(apperr.Internal, "linker.apply", "junction", "missing src or dest")
 	}
 	if err := junctionDir(src, dest); err != nil {
+		return applyTree(src, dest, applyCopyFile)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "package.json")); err != nil {
+		_ = os.RemoveAll(dest)
 		return applyTree(src, dest, applyCopyFile)
 	}
 	return nil

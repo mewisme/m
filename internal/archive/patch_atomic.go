@@ -101,6 +101,9 @@ func copyDirTree(src, dst string) error {
 		if err != nil {
 			return err
 		}
+		if d.IsDir() && d.Name() == "node_modules" {
+			return filepath.SkipDir
+		}
 		target := filepath.Join(dst, rel)
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)

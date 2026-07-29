@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
@@ -80,6 +81,11 @@ func PreflightPlan(ctx context.Context, patchFile, root string) (Plan, error) {
 }
 
 func classifyPatchFile(patchFile string, f *gitdiff.File) error {
+	for _, candidate := range []string{f.OldName, f.NewName} {
+		if looksAbsolutePatchPath(candidate) {
+			return apperr.New(apperr.Integrity, "archive.patch", patchFile, "absolute path")
+		}
+	}
 	if f.OldName == "/dev/null" || f.NewName == "/dev/null" {
 		return unsupportedPatchOp(patchFile, "create or delete path")
 	}
@@ -109,6 +115,29 @@ func patchTargetName(f *gitdiff.File) string {
 		name = strings.TrimSpace(f.NewName)
 	}
 	return name
+}
+
+func looksAbsolutePatchPath(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" || name == "/dev/null" {
+		return false
+	}
+	if filepath.IsAbs(name) {
+		return true
+	}
+	if strings.HasPrefix(name, "/") || strings.HasPrefix(name, "\\") {
+		return true
+	}
+	if len(name) >= 2 && name[1] == ':' {
+		return true
+	}
+	if runtime.GOOS != "windows" {
+		slash := filepath.ToSlash(name)
+		if strings.Contains(slash, "/") && !strings.HasPrefix(slash, "/") && filepath.IsAbs("/"+slash) {
+			return true
+		}
+	}
+	return false
 }
 
 func unsupportedPatchOp(patchFile, detail string) error {
