@@ -16,6 +16,8 @@
 | Weak PM semver | Masterminds/semver strict parse | `pm_decl_test.go` |
 | Partial mutation | 7 families × 3 majors + frozen after remove | `lock_bridge_pnpm_test.go` |
 | Workspace parse-only | link/workspace index + mutation | workspace fixtures |
+| Patch instance keys | `patch_hash=` suffix not peer context | patch mutation conformance |
+| Peer-context frozen | deferred post-mutation frozen validate | `validateFrozenAfterMutation` |
 | Fake provenance | verify-only script path; placeholder rejection | `verify-fixtures` |
 | Unsafe Write | fail-closed without certified major | `adapter_test.go` |
 
@@ -32,6 +34,7 @@
 1. **Nub executable conformance** — no `nub` binary in CI; parse/validate only
 2. **Mutation suite** — skipped on Windows (isolated pnpm store); runs Linux CI
 3. **Fixture regeneration** — metadata commands truthful; locks not re-generated this pass (hashes unchanged)
+4. **Peer-context frozen validate** — post-add/update frozen check deferred; remove-stage still frozen
 
 ## Category scores
 

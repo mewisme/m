@@ -132,11 +132,15 @@ func packageIDFromInstanceKey(instanceKey string) (graph.PackageID, error) {
 	}
 	pkgID := graph.PackageID{Name: id.Name, Version: id.BaseVersion}
 	if id.PeerSuffix != "" {
-		ppc, err := peerSuffixToProviders(id.PeerSuffix)
-		if err != nil {
-			return graph.PackageID{}, apperr.New(apperr.Lockfile, "pnpm.graph", instanceKey, err.Error())
+		if isPatchHashSuffix(id.PeerSuffix) {
+			pkgID.Version = id.BaseVersion + id.PeerSuffix
+		} else {
+			ppc, err := peerSuffixToProviders(id.PeerSuffix)
+			if err != nil {
+				return graph.PackageID{}, apperr.New(apperr.Lockfile, "pnpm.graph", instanceKey, err.Error())
+			}
+			pkgID.PeerProviderContext = ppc
 		}
-		pkgID.PeerProviderContext = ppc
 	}
 	pkgID.Normalize()
 	return pkgID, nil
@@ -148,6 +152,13 @@ func instanceKeyToGraphKey(instanceKey string) (string, error) {
 		return "", err
 	}
 	return id.Key(), nil
+}
+
+func isPatchHashSuffix(suffix string) bool {
+	if !strings.HasPrefix(suffix, "(") || !strings.HasSuffix(suffix, ")") {
+		return false
+	}
+	return strings.HasPrefix(suffix[1:len(suffix)-1], "patch_hash=")
 }
 
 func graphKeyToInstanceKey(graphKey string) (string, error) {

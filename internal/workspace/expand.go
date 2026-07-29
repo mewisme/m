@@ -99,6 +99,12 @@ func BuildIndex(root string) (*Index, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(patterns) == 0 {
+		patterns, err = PNPMWorkspacePatterns(root)
+		if err != nil {
+			return nil, err
+		}
+	}
 	members, err := Expand(root, patterns)
 	if err != nil {
 		return nil, err
