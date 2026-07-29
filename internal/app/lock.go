@@ -188,6 +188,13 @@ func manifestDriftsFromLock(ctx context.Context, proj *project.Project) (bool, e
 		}
 		proj.Normalized = norm
 	}
+	path := LockPath(proj)
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, apperr.Wrap(apperr.IO, "lock.drift", path, err)
+	}
 	g, err := lockfile.ReadGraph(ctx, proj.Root, proj.Identity)
 	if err != nil {
 		return false, err

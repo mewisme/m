@@ -87,12 +87,6 @@ func buildUpdateClosure(targets []string, prior *graph.Graph, m *manifest.Manife
 			continue
 		}
 		if _, ok := targetSet[e.Name]; !ok {
-			if _, ok := seen[e.To]; ok {
-				continue
-			}
-			seen[e.To] = struct{}{}
-			queue = append(queue, e.To)
-			closure[e.To] = struct{}{}
 			continue
 		}
 		if _, ok := seen[e.To]; ok {

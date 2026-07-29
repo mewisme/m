@@ -59,6 +59,29 @@ func copyTree(t *testing.T, src, dst string) {
 	}
 }
 
+func TestManifestDriftsFromLockNoIncumbentLock(t *testing.T) {
+	testkit.CleanEnv(t)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{
+  "name": "root",
+  "version": "1.0.0",
+  "dependencies": { "pkg-a": "^1.0.0" }
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	proj, err := project.Open(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	drift, err := manifestDriftsFromLock(context.Background(), proj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if drift {
+		t.Fatal("expected no drift when incumbent lock is absent")
+	}
+}
+
 func TestManifestDriftsFromLockRemovedRootDep(t *testing.T) {
 	testkit.CleanEnv(t)
 	dir := t.TempDir()
