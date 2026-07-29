@@ -1,9 +1,11 @@
 package resolver
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/compat/pnpm"
 	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/manifest"
 )
@@ -35,10 +37,33 @@ func (s *resolveState) initPatches() error {
 		if err != nil {
 			return apperr.Wrap(apperr.Resolve, "resolver.patch", e.Selector, err)
 		}
-		rec := patchRecord{path: abs, hash: patchHashFromPriorGraph(s.hints.g, e.Selector)}
-		s.patches.bySelector[e.Selector] = rec
+		hash, err := s.patchHashForFile(abs, e.Selector)
+		if err != nil {
+			return err
+		}
+		s.patches.bySelector[e.Selector] = patchRecord{path: abs, hash: hash}
 	}
 	return nil
+}
+
+func (s *resolveState) patchHashForFile(abs, selector string) (string, error) {
+	data, err := manifest.ReadPatchFile(abs)
+	if err != nil {
+		return "", apperr.Wrap(apperr.IO, "resolver.patch", abs, err)
+	}
+	major := s.pnpmMajor
+	if major == 0 {
+		major = 10
+	}
+	computed, err := pnpm.ComputePatchHash(major, data)
+	if err != nil {
+		return "", apperr.Wrap(apperr.Resolve, "resolver.patch", selector, err)
+	}
+	if prior := patchHashFromPriorGraph(s.hints.g, selector); prior != "" && prior != computed {
+		return computed, apperr.New(apperr.Resolve, "resolver.patch", selector,
+			fmt.Sprintf("patch bytes hash %q does not match prior lock hash %q", computed, prior))
+	}
+	return computed, nil
 }
 
 func patchHashFromPriorGraph(g *graph.Graph, selector string) string {
@@ -119,10 +144,11 @@ func stripPatchParenthetical(version string) string {
 	return version
 }
 
-func (s *resolveState) finalizePatchTargets(g *graph.Graph) {
+func (s *resolveState) finalizePatchTargets(g *graph.Graph) error {
 	if s.patches == nil || g == nil {
-		return
+		return nil
 	}
+	matched := make(map[string]bool, len(s.patches.bySelector))
 	remap := map[string]string{}
 	for i := range g.Packages {
 		p := &g.Packages[i]
@@ -131,6 +157,7 @@ func (s *resolveState) finalizePatchTargets(g *graph.Graph) {
 		if !ok || rec.hash == "" {
 			continue
 		}
+		matched[selector] = true
 		patchedVer := stripPatchParenthetical(p.ID.Version) + "(patch_hash=" + rec.hash + ")"
 		if p.ID.Version != patchedVer {
 			oldKey := p.ID.Key()
@@ -149,6 +176,13 @@ func (s *resolveState) finalizePatchTargets(g *graph.Graph) {
 			g.Edges[i].To = to
 		}
 	}
+	for selector := range s.patches.bySelector {
+		if !matched[selector] {
+			return apperr.New(apperr.Resolve, "resolver.patch", selector,
+				"patch declared in manifest but no matching resolved package")
+		}
+	}
+	return nil
 }
 
 func (s *resolveState) recordPatchTarget(pkgKey, name, version string) {

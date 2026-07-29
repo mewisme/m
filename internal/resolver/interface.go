@@ -47,6 +47,8 @@ type ResolveOptions struct {
 	Filter []string
 	// MemberManifests supplies in-memory member package.json docs (add --filter).
 	MemberManifests map[string]*manifest.Document
+	// PnpmMajor selects the patch hash algorithm for pnpm patchedDependencies (9, 10, or 11).
+	PnpmMajor int
 }
 
 // ResolutionDecision records candidate filtering and version selection for 0028.

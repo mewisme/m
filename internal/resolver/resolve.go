@@ -77,6 +77,7 @@ type resolveState struct {
 	catalog         manifest.Catalog
 	localSources    map[string]LocalSource
 	patches         *patchState
+	pnpmMajor       int
 	seededImporters map[graph.ImporterID]bool
 }
 
@@ -144,6 +145,7 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 		provides:        map[string]map[string]providedDep{},
 		pkgInstances:    map[string]string{},
 		localSources:    map[string]LocalSource{},
+		pnpmMajor:       opts.PnpmMajor,
 		seededImporters: map[graph.ImporterID]bool{graph.RootImporter: true},
 	}
 	s.b.Importer(graph.RootImporter, proj.Normalized.Name)
@@ -181,7 +183,9 @@ func (e *Engine) resolveProject(ctx context.Context, proj *project.Project, opts
 			return nil, apperr.Wrap(apperr.Resolve, "resolver.merge", proj.Root, err)
 		}
 	}
-	s.finalizePatchTargets(g)
+	if err := s.finalizePatchTargets(g); err != nil {
+		return nil, err
+	}
 	return &Resolution{
 		SchemaVersion: ResolutionSchemaVersion,
 		Graph:         g,

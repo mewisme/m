@@ -37,6 +37,7 @@ func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, 
 		Recursive:       opts.Recursive,
 		Filter:          append([]string(nil), opts.Filter...),
 		MemberManifests: opts.MemberEdits,
+		PnpmMajor:       resolvePnpmMajor(ac, proj, opts),
 	}
 	if prior, err := readLockHints(ctx, ac, proj); err == nil && prior != nil {
 		ropts.Hints = prior
@@ -83,7 +84,26 @@ func resolveForUpdate(ctx context.Context, ac *Context, proj *project.Project, u
 		PriorOverrides:    u.PriorOverrides,
 		PriorFingerprints: fps,
 		Policy:            resolver.PolicyFromEffective(ac.Config),
+		PnpmMajor:         resolvePnpmMajor(ac, proj, InstallOptions{}),
 	})
+}
+
+func resolvePnpmMajor(ac *Context, proj *project.Project, opts InstallOptions) int {
+	if opts.PnpmMajor != 0 {
+		return opts.PnpmMajor
+	}
+	if proj == nil || proj.Identity != project.IdentityPNPM {
+		return 0
+	}
+	prior, err := project.ReadLockfileBytes(proj.Root, proj.Identity)
+	if err != nil {
+		return 0
+	}
+	det, err := detectPnpmLock(prior, proj, 0)
+	if err != nil {
+		return 0
+	}
+	return det.ProducerMajor
 }
 
 func readLockFingerprints(root string, id project.Identity) (*resolver.PriorFingerprints, error) {
@@ -310,26 +330,6 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preEx
 
 func sanitizeKeyDir(key string) string {
 	return strings.NewReplacer("@", "_at_", "/", "_", "#", "_").Replace(key)
-}
-
-func applyPatchesToExtracts(ctx context.Context, ext lockfile.Extensions, extracts map[string]string) error {
-	patches, err := resolver.DecodePatchSources(ext)
-	if err != nil {
-		return err
-	}
-	for pkgKey, patch := range patches {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		dir, ok := extracts[pkgKey]
-		if !ok || dir == "" || patch.Path == "" {
-			continue
-		}
-		if err := archive.ApplyUnifiedPatch(ctx, dir, patch.Path); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func priorPackageKeys(ctx context.Context, ac *Context, proj *project.Project) (map[string]string, error) {

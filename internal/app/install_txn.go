@@ -267,7 +267,17 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	if err != nil {
 		return res, err
 	}
-	if err := applyPatchesToExtracts(ctx, resolution.Extensions, fetchOut.Extracts); err != nil {
+	var storeRoot string
+	if useStore {
+		storeRoot, err = config.StoreRoot(ac.Config)
+		if err != nil {
+			return res, err
+		}
+	}
+	if err := stagePatchDerivatives(ctx, stage, storeRoot, resolution.Extensions, fetchOut.Extracts); err != nil {
+		return res, err
+	}
+	if err := applyPatchesToExtracts(ctx, resolution.Graph, resolution.Extensions, fetchOut.Extracts); err != nil {
 		return res, err
 	}
 	extracts := fetchOut.Extracts

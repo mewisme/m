@@ -561,23 +561,7 @@ func preservePriorWorkspaceRef(prior *Document, ext lockfile.Extensions, importe
 	return encoded
 }
 
-func preservePriorPatchVersion(prior *Document, importerID, depName, targetKey, encoded string) string {
-	priorVer := priorImporterDepVersion(prior, importerID, depName)
-	if priorVer == "" || !strings.Contains(priorVer, "patch_hash=") {
-		return encoded
-	}
-	priorBase := refToBasePackageKey(depName, priorVer)
-	if priorBase == "" {
-		return encoded
-	}
-	if priorBase == refToBasePackageKey(depName, encoded) {
-		return priorVer
-	}
-	if id, err := ParsePackageIdentity(targetKey); err == nil && !id.IsProtocolRef {
-		if priorBase == id.Name+"@"+id.BaseVersion {
-			return priorVer
-		}
-	}
+func preservePriorPatchVersion(_ *Document, _, _, _, encoded string) string {
 	return encoded
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/fsx"
 	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/resolver"
 	"github.com/mewisme/mew/internal/testkit"
 	"github.com/mewisme/mew/internal/transaction"
 )
@@ -447,6 +448,16 @@ snapshots:
 		t.Fatal("expected encode failure")
 	}
 	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
+}
+
+func TestInstallTxnPatchValidationFailClosed(t *testing.T) {
+	pkgKey := "ms@2.1.3(patch_hash=abc)"
+	patches := map[string]resolver.PatchSource{
+		pkgKey: {Path: filepath.Join(t.TempDir(), "missing.patch"), Hash: "abc"},
+	}
+	if err := validatePatchPlan(graphWithPatch(pkgKey), patches, map[string]string{pkgKey: t.TempDir()}); err == nil {
+		t.Fatal("expected patch validation failure")
+	}
 }
 
 func TestInstallTxnPatchLockPreservesIncumbentOnEncodeFailure(t *testing.T) {
