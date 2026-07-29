@@ -31,13 +31,8 @@ func (Adapter) Read(ctx context.Context, path string) (*graph.Graph, error) {
 
 // Write encodes graph to pnpm-lock.yaml (non-preserving; prefer EncodePreserving).
 func (a Adapter) Write(ctx context.Context, path string, g *graph.Graph) error {
-	res, err := a.EncodePreserving(ctx, path, g, nil, nil, lockfile.Detection{
-		Format: FormatV9, ProducerMajor: 9, ExplicitMajor: true, Confidence: lockfile.DetectionInferred,
-	})
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, res.Bytes, 0o644)
+	return apperr.New(apperr.LockAmbiguous, "pnpm.write", path,
+		"Write requires certified producer major; use EncodePreserving with explicit detection")
 }
 
 // ReadWithExtensions reads graph and adapter-owned extensions.
@@ -150,8 +145,21 @@ func (Adapter) LossFromDocument(ctx context.Context, prior []byte) (lockfile.Los
 }
 
 func encodeFresh(g *graph.Graph, det lockfile.Detection) ([]byte, error) {
+	if !det.Certified() || det.ProducerMajor == 0 {
+		return nil, lockfile.NewAmbiguous("pnpm.write", "pnpm-lock.yaml", "fresh encode requires certified producer major")
+	}
 	if det.Format == "" {
-		det = lockfile.Detection{Format: FormatV9, ProducerMajor: 9, ExplicitMajor: true, Confidence: lockfile.DetectionInferred}
+		switch det.ProducerMajor {
+		case 9:
+			det.Format = FormatV9
+		case 10:
+			det.Format = FormatV10
+		case 11:
+			det.Format = FormatV11
+		default:
+			return nil, lockfile.NewUnsupported("pnpm.write", "pnpm-lock.yaml", "unsupported generation (only pnpm 9/10/11)")
+		}
+		det.ExplicitMajor = true
 	}
 	doc, err := FromGraph(g, nil, det)
 	if err != nil {

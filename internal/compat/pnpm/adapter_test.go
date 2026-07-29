@@ -81,6 +81,25 @@ func TestGoldenRoundTrip(t *testing.T) {
 	}
 }
 
+func TestWriteFailsWithoutCertifiedMajor(t *testing.T) {
+	g := &graph.Graph{SchemaVersion: graph.SchemaVersion}
+	err := pnpm.Adapter{}.Write(context.Background(), "pnpm-lock.yaml", g)
+	if err == nil {
+		t.Fatal("expected Write rejection")
+	}
+	if apperr.CodeOf(err) != apperr.LockAmbiguous {
+		t.Fatalf("code=%s", apperr.CodeOf(err))
+	}
+}
+
+func TestEncodeFreshFailsWithoutCertifiedMajor(t *testing.T) {
+	g := &graph.Graph{SchemaVersion: graph.SchemaVersion}
+	_, err := pnpm.Adapter{}.EncodePreserving(context.Background(), "x", g, nil, nil, lockfile.Detection{})
+	if err == nil {
+		t.Fatal("expected fresh encode rejection")
+	}
+}
+
 func TestAmbiguousWriteFailsClosed(t *testing.T) {
 	path := filepath.Join(moduleRoot(t), "fixtures", "locks", "pnpm", "v9", "pnpm-lock.yaml")
 	prior, err := os.ReadFile(path)
