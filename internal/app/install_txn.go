@@ -168,6 +168,18 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	if err := validateNpmLockBeforeTxn(proj); err != nil {
 		return res, err
 	}
+	if err := validateBunLockBeforeTxn(proj); err != nil {
+		return res, err
+	}
+	if err := rejectBunLockbIfPresent(proj); err != nil {
+		return res, err
+	}
+	if err := validateYarnLockBeforeTxn(proj); err != nil {
+		return res, err
+	}
+	if err := gateYarnPnPInstall(proj); err != nil {
+		return res, err
+	}
 
 	emitPhase(ac, "resolve", "")
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
@@ -427,6 +439,18 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 		return res, err
 	}
 	if err := validateNpmLockBeforeTxn(proj); err != nil {
+		return res, err
+	}
+	if err := validateBunLockBeforeTxn(proj); err != nil {
+		return res, err
+	}
+	if err := rejectBunLockbIfPresent(proj); err != nil {
+		return res, err
+	}
+	if err := validateYarnLockBeforeTxn(proj); err != nil {
+		return res, err
+	}
+	if err := gateYarnPnPInstall(proj); err != nil {
 		return res, err
 	}
 	emitPhase(ac, "resolve", "")
@@ -699,7 +723,7 @@ func writeStagedLock(stage string, ac *Context, proj *project.Project, res *reso
 	switch proj.Identity {
 	case project.IdentityMew:
 		return writeStagedMlock(stagePath, ac, proj, res, opts)
-	case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM:
+	case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM, project.IdentityBun, project.IdentityYarn:
 		return writeStagedExtLock(stagePath, proj, res, opts)
 	default:
 		return lockfile.NewUnsupported("app.install", lockName, "lock adapter not implemented for identity")
@@ -750,6 +774,18 @@ func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.R
 	}
 	if proj.Identity == project.IdentityNPM {
 		det, err = detectNpmLock(prior)
+		if err != nil {
+			return err
+		}
+	}
+	if proj.Identity == project.IdentityBun {
+		det, err = detectBunLock(prior)
+		if err != nil {
+			return err
+		}
+	}
+	if proj.Identity == project.IdentityYarn {
+		det, err = detectYarnLock(prior, proj.Root)
 		if err != nil {
 			return err
 		}

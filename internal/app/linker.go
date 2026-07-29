@@ -51,7 +51,7 @@ func resolveLinkerMode(ctx context.Context, ac *Context, proj *project.Project, 
 				return "", err
 			}
 		}
-		if len(patterns) > 0 && config.String(ac.Config, "install.linker", "auto") == "auto" && proj.Identity != project.IdentityNPM {
+		if len(patterns) > 0 && config.String(ac.Config, "install.linker", "auto") == "auto" && proj.Identity != project.IdentityNPM && proj.Identity != project.IdentityBun && proj.Identity != project.IdentityYarn {
 			ac.Config.Values["install.linker"] = config.Value{Raw: "isolated", Source: config.SourceCLI, Path: "workspaces"}
 		}
 	}

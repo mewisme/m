@@ -142,6 +142,18 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 			return out, err
 		}
 	}
+	if fromID == project.IdentityBun {
+		det, err = detectBunLock(prior)
+		if err != nil {
+			return out, err
+		}
+	}
+	if fromID == project.IdentityYarn {
+		det, err = detectYarnLock(prior, proj.Root)
+		if err != nil {
+			return out, err
+		}
+	}
 	encodeRes, encErr := lockfile.EncodePreserving(ctx, mext, filepath.Join(proj.Root, "m.lock"), g, nil, nil, det)
 	if encErr != nil {
 		var rep *lockfile.RepresentabilityError
@@ -226,10 +238,10 @@ func resolveMigrateFrom(proj *project.Project, from string) (project.Identity, e
 	switch from {
 	case "":
 		switch proj.Identity {
-		case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM:
+		case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM, project.IdentityBun, project.IdentityYarn:
 			return proj.Identity, nil
 		default:
-			return "", apperr.New(apperr.Usage, "lock.migrate", string(proj.Identity), "project identity is not nub, pnpm, or npm")
+			return "", apperr.New(apperr.Usage, "lock.migrate", string(proj.Identity), "project identity is not nub, pnpm, npm, bun, or yarn")
 		}
 	case "nub":
 		return project.IdentityNub, nil
@@ -237,8 +249,12 @@ func resolveMigrateFrom(proj *project.Project, from string) (project.Identity, e
 		return project.IdentityPNPM, nil
 	case "npm":
 		return project.IdentityNPM, nil
+	case "bun":
+		return project.IdentityBun, nil
+	case "yarn":
+		return project.IdentityYarn, nil
 	default:
-		return "", apperr.New(apperr.Usage, "lock.migrate", from, "expected --from nub, pnpm, or npm")
+		return "", apperr.New(apperr.Usage, "lock.migrate", from, "expected --from nub, pnpm, npm, bun, or yarn")
 	}
 }
 
@@ -252,6 +268,10 @@ func lockIdentityFromBasename(name string) (project.Identity, bool) {
 		return project.IdentityPNPM, true
 	case "package-lock.json", "npm-shrinkwrap.json":
 		return project.IdentityNPM, true
+	case "bun.lock":
+		return project.IdentityBun, true
+	case "yarn.lock":
+		return project.IdentityYarn, true
 	default:
 		return "", false
 	}
@@ -335,6 +355,10 @@ func detectIncumbentLock(proj *project.Project) (lockfile.Detection, error) {
 		return detectPnpmLock(prior, proj, 0)
 	case project.IdentityNPM:
 		return detectNpmLock(prior)
+	case project.IdentityBun:
+		return detectBunLock(prior)
+	case project.IdentityYarn:
+		return detectYarnLock(prior, proj.Root)
 	case project.IdentityNub:
 		det, err := detectPnpmLock(prior, proj, 0)
 		if err != nil {

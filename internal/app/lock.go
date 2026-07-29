@@ -63,7 +63,7 @@ func WriteLock(ctx context.Context, ac *Context, res *resolver.Resolution) error
 			return err
 		}
 		return mlock.WriteAtomic(LockPath(proj), doc)
-	case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM:
+	case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM, project.IdentityBun, project.IdentityYarn:
 		return lockfile.NewUnsupported("lock.write", project.IncumbentLockBasename(proj.Root, proj.Identity),
 			"incumbent lock must be written via install transaction; use m install")
 	default:

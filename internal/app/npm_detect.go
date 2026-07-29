@@ -14,7 +14,7 @@ func readExtLockPrior(proj *project.Project) ([]byte, error) {
 	if err == nil {
 		return prior, nil
 	}
-	if proj.Identity == project.IdentityNPM && isLockNotFound(err) {
+	if isLockNotFound(err) && (proj.Identity == project.IdentityNPM || proj.Identity == project.IdentityBun) {
 		return nil, nil
 	}
 	return nil, err
