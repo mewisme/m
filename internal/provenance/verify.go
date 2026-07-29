@@ -20,16 +20,21 @@ type TarballDigest struct {
 
 // VerifyResult summarizes a successful provenance verification.
 type VerifyResult struct {
-	PackageName    string `json:"packageName,omitempty"`
-	PackageVersion string `json:"packageVersion,omitempty"`
-	SubjectPURL    string `json:"subjectPurl,omitempty"`
-	DigestAlgo     string `json:"digestAlgo,omitempty"`
-	DigestHex      string `json:"digestHex,omitempty"`
+	PackageName      string `json:"packageName,omitempty"`
+	PackageVersion   string `json:"packageVersion,omitempty"`
+	SubjectPURL      string `json:"subjectPurl,omitempty"`
+	DigestAlgo       string `json:"digestAlgo,omitempty"`
+	DigestHex        string `json:"digestHex,omitempty"`
+	Ecosystem        string `json:"ecosystem,omitempty"`
+	TrustSource      string `json:"trustSource,omitempty"`
+	VerificationMode string `json:"verificationMode,omitempty"`
 }
 
 // VerifyOptions configures attestation verification.
 type VerifyOptions struct {
+	TrustPolicy      TrustPolicy
 	TrustedPublicKey ed25519.PublicKey
+	Binding          *PackageBinding
 }
 
 // Verify checks a Sigstore bundle attestation and optionally matches tarball digest.
@@ -37,13 +42,13 @@ func Verify(ctx context.Context, attestationPath string, want TarballDigest, opt
 	if err := ctx.Err(); err != nil {
 		return VerifyResult{}, err
 	}
+	pub, trustSource, err := resolveTrust(opts)
+	if err != nil {
+		return VerifyResult{}, apperr.Wrap(apperr.Config, "provenance.verify", attestationPath, err)
+	}
 	bundle, err := ParseBundle(attestationPath)
 	if err != nil {
 		return VerifyResult{}, err
-	}
-	pub := opts.TrustedPublicKey
-	if pub == nil {
-		pub = FixturePublicKey()
 	}
 	if err := verifyBundle(bundle, pub); err != nil {
 		return VerifyResult{}, apperr.New(apperr.Integrity, "provenance.verify", attestationPath, err.Error())
@@ -52,10 +57,19 @@ func Verify(ctx context.Context, attestationPath string, want TarballDigest, opt
 	if err != nil {
 		return VerifyResult{}, apperr.Wrap(apperr.Integrity, "provenance.verify", attestationPath, err)
 	}
-	res, err := resultFromStatement(stmt)
+	subj, mode, err := selectSubject(stmt, opts.Binding, want)
+	if err != nil {
+		return VerifyResult{}, apperr.Wrap(apperr.Integrity, "provenance.verify.subject", attestationPath, err)
+	}
+	res, err := resultFromSubject(subj)
 	if err != nil {
 		return VerifyResult{}, apperr.Wrap(apperr.Integrity, "provenance.verify", attestationPath, err)
 	}
+	if opts.Binding != nil {
+		res.Ecosystem = opts.Binding.Ecosystem
+	}
+	res.TrustSource = trustSource
+	res.VerificationMode = mode
 	if want.Algo != "" || want.Hex != "" {
 		if err := matchDigest(res, want); err != nil {
 			return VerifyResult{}, apperr.Wrap(apperr.Integrity, "provenance.verify.digest", res.SubjectPURL, err)
@@ -74,7 +88,7 @@ func verifyBundle(bundle Bundle, pub ed25519.PublicKey) error {
 			return fmt.Errorf("decode bundle public key: %w", err)
 		}
 		if len(raw) != ed25519.PublicKeySize || !ed25519.PublicKey(raw).Equal(pub) {
-			return fmt.Errorf("bundle public key does not match trusted fixture key")
+			return fmt.Errorf("bundle public key does not match trusted public key")
 		}
 	}
 	return verifyDSSE(bundle.DSSEEnvelope, pub)
@@ -98,8 +112,90 @@ func decodeStatement(payloadB64 string) (Statement, error) {
 	return stmt, nil
 }
 
-func resultFromStatement(stmt Statement) (VerifyResult, error) {
-	subj := stmt.Subject[0]
+func selectSubject(stmt Statement, bind *PackageBinding, want TarballDigest) (Subject, string, error) {
+	if bind != nil {
+		subj, err := findMatchingSubject(stmt, *bind)
+		return subj, "binding", err
+	}
+	if want.Algo != "" || want.Hex != "" {
+		var matches []Subject
+		for _, subj := range stmt.Subject {
+			if subjectMatchesDigest(subj, want) {
+				matches = append(matches, subj)
+			}
+		}
+		switch len(matches) {
+		case 0:
+			return Subject{}, "", fmt.Errorf("no attestation subject matches expected digest")
+		case 1:
+			return matches[0], "digest-only", nil
+		default:
+			return Subject{}, "", fmt.Errorf("ambiguous attestation subjects for expected digest")
+		}
+	}
+	if len(stmt.Subject) == 1 {
+		return stmt.Subject[0], "signature-only", nil
+	}
+	return Subject{}, "", fmt.Errorf("package binding required when attestation has %d subjects", len(stmt.Subject))
+}
+
+func findMatchingSubject(stmt Statement, bind PackageBinding) (Subject, error) {
+	var matches []Subject
+	for _, subj := range stmt.Subject {
+		if subjectMatchesBinding(subj, bind) {
+			matches = append(matches, subj)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		target := bind.PURL
+		if target == "" {
+			target = bind.Name + "@" + bind.Version
+		}
+		return Subject{}, fmt.Errorf("no attestation subject matches package %s", target)
+	case 1:
+		return matches[0], nil
+	default:
+		return Subject{}, fmt.Errorf("ambiguous attestation subjects for package %s", bind.PURL)
+	}
+}
+
+func subjectMatchesBinding(subj Subject, bind PackageBinding) bool {
+	name, version := purlNameVersion(subj.Name)
+	if bind.PURL != "" && subj.Name != bind.PURL {
+		if name != bind.Name || version != bind.Version {
+			return false
+		}
+	}
+	if bind.Name != "" && name != bind.Name {
+		return false
+	}
+	if bind.Version != "" && version != bind.Version {
+		return false
+	}
+	if bind.Digest.Algo != "" || bind.Digest.Hex != "" {
+		return subjectMatchesDigest(subj, bind.Digest)
+	}
+	return true
+}
+
+func subjectMatchesDigest(subj Subject, want TarballDigest) bool {
+	algo, hex, err := subjectDigest(subj)
+	if err != nil {
+		return false
+	}
+	wantAlgo := strings.ToLower(strings.TrimSpace(want.Algo))
+	wantHex := strings.ToLower(strings.TrimSpace(want.Hex))
+	if wantAlgo == "" && wantHex != "" {
+		wantAlgo = algo
+	}
+	if wantHex == "" {
+		return false
+	}
+	return wantAlgo == algo && wantHex == hex
+}
+
+func resultFromSubject(subj Subject) (VerifyResult, error) {
 	algo, hex, err := subjectDigest(subj)
 	if err != nil {
 		return VerifyResult{}, err
@@ -111,6 +207,7 @@ func resultFromStatement(stmt Statement) (VerifyResult, error) {
 		SubjectPURL:    subj.Name,
 		DigestAlgo:     algo,
 		DigestHex:      hex,
+		Ecosystem:      npmEcosystem,
 	}, nil
 }
 

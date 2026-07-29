@@ -8,11 +8,18 @@ import (
 	"testing"
 
 	"github.com/mewisme/mew/internal/lockfile/mlock"
+	"github.com/mewisme/mew/internal/provenance"
 	"github.com/mewisme/mew/internal/testkit"
 )
 
+func setProvenanceFixtureTrust(t *testing.T) {
+	t.Helper()
+	t.Setenv("MEW_PROVENANCE_TRUSTED_PUBLIC_KEY", provenance.FixturePublicKeyBase64())
+}
+
 func TestVerifyProvenanceAttestationPass(t *testing.T) {
 	testkit.CleanEnv(t)
+	setProvenanceFixtureTrust(t)
 	projDir := t.TempDir()
 	cfgPath := filepath.Join(projDir, "m.jsonc")
 	if err := os.WriteFile(cfgPath, []byte("{}\n"), 0o644); err != nil {
@@ -30,6 +37,7 @@ func TestVerifyProvenanceAttestationPass(t *testing.T) {
 
 func TestVerifyProvenanceWithLockPackagePass(t *testing.T) {
 	testkit.CleanEnv(t)
+	setProvenanceFixtureTrust(t)
 	projDir := t.TempDir()
 	testkit.CopyFixture(t, "provenance/signed-pkg", projDir)
 	cfgPath := filepath.Join(projDir, "m.jsonc")
@@ -47,6 +55,7 @@ func TestVerifyProvenanceWithLockPackagePass(t *testing.T) {
 
 func TestVerifyProvenanceDigestMismatchFail(t *testing.T) {
 	testkit.CleanEnv(t)
+	setProvenanceFixtureTrust(t)
 	projDir := t.TempDir()
 	testkit.CopyFixture(t, "provenance/signed-pkg", projDir)
 	lockPath := filepath.Join(projDir, "m.lock")

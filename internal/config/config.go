@@ -87,6 +87,7 @@ var ownedKeys = map[string]string{
 	"lifecycle.script_trust":         "string",
 	"lifecycle.script_timeout":       "string",
 	"workspaces.enabled":             "bool",
+	"provenance.trusted_public_key":  "string",
 }
 
 // OwnedKeys returns the sorted list of owned config keys.
@@ -264,6 +265,7 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) {
 	set("lifecycle.enabled", "MEW_EXPERIMENTAL_LIFECYCLE", parseBool)
 	set("lifecycle.script_timeout", "MEW_LIFECYCLE_SCRIPT_TIMEOUT", func(s string) (any, error) { return s, nil })
 	set("workspaces.enabled", "MEW_EXPERIMENTAL_WORKSPACES", parseBool)
+	set("provenance.trusted_public_key", "MEW_PROVENANCE_TRUSTED_PUBLIC_KEY", func(s string) (any, error) { return s, nil })
 }
 
 func parseBool(s string) (any, error) {
