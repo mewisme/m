@@ -2,6 +2,8 @@ package store_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,8 +15,9 @@ import (
 func TestDirPutGet(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "blobs")
 	d := store.NewDir(root)
-	key := store.Key("sha256/abc")
 	content := []byte("verified bytes")
+	sum := sha256.Sum256(content)
+	key := store.Key("sha256/" + hex.EncodeToString(sum[:]))
 	if err := d.Put(context.Background(), key, content); err != nil {
 		t.Fatal(err)
 	}
@@ -38,8 +41,10 @@ func TestDirGetMissing(t *testing.T) {
 func TestDirPutAtomic(t *testing.T) {
 	root := t.TempDir()
 	d := store.NewDir(root)
-	key := store.Key("sha256/deadbeef")
-	if err := d.Put(context.Background(), key, []byte("a")); err != nil {
+	content := []byte("a")
+	sum := sha256.Sum256(content)
+	key := store.Key("sha256/" + hex.EncodeToString(sum[:]))
+	if err := d.Put(context.Background(), key, content); err != nil {
 		t.Fatal(err)
 	}
 	path := d.BlobPath(key)

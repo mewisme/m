@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -50,7 +51,11 @@ func (d *Downloader) Download(ctx context.Context, req DownloadRequest) (*Artifa
 	key := store.Key(expected.BlobPath())
 
 	if d.Offline || d.PreferOffline {
-		if d.Store.Exists(key) {
+		exists, err := d.Store.ExistsVerified(key)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
 			return d.artifactFromStore(expected, key)
 		}
 		if d.Offline {
@@ -62,7 +67,7 @@ func (d *Downloader) Download(ctx context.Context, req DownloadRequest) (*Artifa
 	if err != nil {
 		return nil, err
 	}
-	if err := d.Store.Put(ctx, key, data); err != nil {
+	if err := d.Store.PutVerified(ctx, key, bytes.NewReader(data)); err != nil {
 		return nil, err
 	}
 	return &Artifact{

@@ -80,7 +80,11 @@ func CreateCapsule(ctx context.Context, ac *Context, opts CapsuleCreateOptions) 
 	}
 	blobStore := store.NewDir(config.BlobCacheDir(ac.Config))
 	for _, ref := range blobs {
-		if !blobStore.Exists(store.Key(ref.Algo + "/" + ref.Hex)) {
+		exists, err := blobStore.ExistsVerified(store.Key(ref.Algo + "/" + ref.Hex))
+		if err != nil {
+			return out, err
+		}
+		if !exists {
 			return out, apperr.New(apperr.NotFound, "app.capsule.create", ref.BlobPath(),
 				"blob missing from cache; run install first")
 		}
@@ -112,11 +116,7 @@ func CreateCapsule(ctx context.Context, ac *Context, opts CapsuleCreateOptions) 
 		return out, apperr.Wrap(apperr.IO, "app.capsule.create", output, err)
 	}
 	openBlob := func(ctx context.Context, ref capsule.BlobRef) (io.ReadCloser, error) {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		path := blobStore.BlobPath(store.Key(ref.Algo + "/" + ref.Hex))
-		return os.Open(path)
+		return blobStore.OpenVerified(ctx, store.Key(ref.Algo+"/"+ref.Hex))
 	}
 	if err := capsule.Create(ctx, capsule.CreateOptions{
 		OutputPath: output,
@@ -151,14 +151,7 @@ func RestoreCapsule(ctx context.Context, ac *Context, opts CapsuleRestoreOptions
 	man, err := capsule.Restore(ctx, capsule.RestoreOptions{
 		ArchivePath: archivePath,
 		WriteBlob: func(ctx context.Context, ref capsule.BlobRef, r io.Reader) error {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			data, err := io.ReadAll(io.LimitReader(r, 512<<20))
-			if err != nil {
-				return apperr.Wrap(apperr.IO, "app.capsule.restore", ref.BlobPath(), err)
-			}
-			return blobStore.Put(ctx, store.Key(ref.Algo+"/"+ref.Hex), data)
+			return blobStore.PutVerified(ctx, store.Key(ref.Algo+"/"+ref.Hex), r)
 		},
 	})
 	if err != nil {

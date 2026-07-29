@@ -153,7 +153,11 @@ func PreflightOffline(ctx context.Context, ac *Context, proj *project.Project, g
 			})
 			continue
 		}
-		if !blobStore.Exists(store.Key(expected.BlobPath())) {
+		exists, err := blobStore.ExistsVerified(store.Key(expected.BlobPath()))
+		if err != nil {
+			return report, err
+		}
+		if !exists {
 			report.Missing = append(report.Missing, OfflineMissing{
 				Kind:    OfflineMissingBlob,
 				Subject: key,

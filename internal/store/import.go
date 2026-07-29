@@ -34,6 +34,10 @@ func (s *PackageStore) ImportFromTarball(ctx context.Context, tarballPath string
 		return ImportResult{}, err
 	}
 
+	if err := VerifyFileDigest(tarballPath, id.Algo, id.Hex); err != nil {
+		return ImportResult{}, apperr.Wrap(apperr.Integrity, "store.import", tarballPath, err)
+	}
+
 	_, _ = s.CleanupStaleStaging(time.Hour)
 
 	dest := s.PackagePath(key)

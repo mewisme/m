@@ -97,6 +97,58 @@ func TestPreflightOfflineOKWithSeededCache(t *testing.T) {
 	}
 }
 
+func TestPreflightOfflineCorruptBlobQuarantined(t *testing.T) {
+	env := testkit.CleanEnv(t)
+	reg := testkit.LoadRegistry(t, "registry/v1")
+	srv := reg.Start(t)
+
+	projDir := copyOfflineProject(t)
+	cfgPath := writeOfflineConfig(t, projDir, srv.URL)
+	seedRegistryAndBlobs(t, env.CacheDir, srv.URL, srv.Client(), reg.Root)
+
+	blobRoot := filepath.Join(env.CacheDir, "blobs")
+	corruptHex := "2e1afab8b566a6ac1019ae2ba9201ea8a036b0ca1463ed2b22673d4cc87b2354"
+	corruptPath := filepath.Join(blobRoot, "sha256", corruptHex)
+	if err := os.WriteFile(corruptPath, []byte("corrupt"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	ac, err := New(ctx, Options{CWD: projDir, ConfigPath: cfgPath, Offline: true, Env: os.Environ()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	proj, err := OpenProject(ctx, ac)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := readLockHints(ctx, ac, proj)
+	if err != nil || g == nil {
+		t.Fatalf("graph: %v", err)
+	}
+
+	report, err := PreflightOffline(ctx, ac, proj, g, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.OK() {
+		t.Fatal("expected corrupt blob to fail preflight")
+	}
+	foundBlob := false
+	for _, m := range report.Missing {
+		if m.Kind == OfflineMissingBlob {
+			foundBlob = true
+		}
+	}
+	if !foundBlob {
+		t.Fatalf("missing=%+v", report.Missing)
+	}
+	quarantine := filepath.Join(blobRoot, ".quarantine", "sha256", corruptHex)
+	if _, err := os.Stat(quarantine); err != nil {
+		t.Fatalf("expected quarantine: %v", err)
+	}
+}
+
 func copyOfflineProject(t *testing.T) string {
 	t.Helper()
 	src := filepath.Join(testkit.ModuleRoot(t), "testdata", "offline", "full-cache-project")

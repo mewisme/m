@@ -4,10 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
-	"github.com/mewisme/mew/internal/fsx"
 )
 
 // Dir is a minimal content-addressed blob store: <root>/<algo>/<hex>.
@@ -54,14 +52,18 @@ func (d *Dir) Put(ctx context.Context, key Key, content []byte) error {
 	if d == nil || d.Root == "" {
 		return apperr.New(apperr.IO, "store.put", string(key), "nil store")
 	}
-	if strings.Contains(string(key), "..") {
-		return apperr.New(apperr.IO, "store.put", string(key), "invalid key")
+	pk, err := parseKey(key)
+	if err != nil {
+		return err
+	}
+	if err := verifyBytesDigest(content, pk); err != nil {
+		return err
 	}
 	path := d.BlobPath(key)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return apperr.Wrap(apperr.IO, "store.put", string(key), err)
 	}
-	return writeAtomic(path, content)
+	return writeAtomicVerified(path, pk, content)
 }
 
 // Exists reports whether key is present.
@@ -71,14 +73,4 @@ func (d *Dir) Exists(key Key) bool {
 	}
 	_, err := os.Stat(d.BlobPath(key))
 	return err == nil
-}
-
-func writeAtomic(path string, data []byte) error {
-	if err := fsx.PublishFileDurable(path, data, 0o644); err != nil {
-		if _, statErr := os.Stat(path); statErr == nil {
-			return nil // ponytail: concurrent put of same immutable blob is fine
-		}
-		return apperr.Wrap(apperr.IO, "store.put", path, err)
-	}
-	return nil
 }
