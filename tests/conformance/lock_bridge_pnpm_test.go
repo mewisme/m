@@ -415,6 +415,26 @@ func setupMutationEnv(t *testing.T) {
 	setupIsolatedPnpmHome(t)
 }
 
+func mutationAddDep(family string) (name, version string) {
+	switch family {
+	case "patch":
+		return "chalk", "4.1.2"
+	default:
+		return "ms", "2.1.3"
+	}
+}
+
+func mutationUpdateVersion(name, version string) string {
+	switch name {
+	case "ms":
+		return "2.1.2"
+	case "chalk":
+		return "4.1.1"
+	default:
+		return version
+	}
+}
+
 func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) {
 	t.Helper()
 	dir, _ := loadGeneratedFixture(t, rel)
@@ -423,8 +443,8 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	setupMutationEnv(t)
 
 	before := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
-	// add mutation (public registry package; incumbent deps resolved from lock + npmjs)
-	runMewAdd(t, proj, major, "ms", "2.1.3")
+	addName, addVer := mutationAddDep(family)
+	runMewAdd(t, proj, major, addName, addVer)
 	afterAdd := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
 	if afterAdd == before {
 		t.Fatal("add mutation must change lock bytes")
@@ -435,7 +455,7 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	verifyNodeModulesGraph(t, proj, family)
 
 	// update mutation
-	mutateUpdateDependency(t, proj, "ms", "2.1.2")
+	mutateUpdateDependency(t, proj, addName, mutationUpdateVersion(addName, addVer))
 	runMewInstall(t, proj, major)
 	afterUpdate := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
 	if afterUpdate == afterAdd {
@@ -446,7 +466,7 @@ func testPnpmMutationFamily(t *testing.T, rel string, major int, family string) 
 	runPnpmFrozen(t, proj, major, "", true)
 
 	// remove mutation
-	mutateRemoveDependency(t, proj, "ms")
+	mutateRemoveDependency(t, proj, addName)
 	runMewInstall(t, proj, major)
 	afterRemove := lockHash(t, filepath.Join(proj, "pnpm-lock.yaml"))
 	if afterRemove == afterUpdate {

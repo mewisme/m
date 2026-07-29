@@ -30,6 +30,12 @@ func (s *resolveState) initWorkspace() error {
 		return err
 	}
 	if len(patterns) == 0 {
+		patterns, err = workspace.PNPMWorkspacePatterns(s.proj.Root)
+		if err != nil {
+			return err
+		}
+	}
+	if len(patterns) == 0 {
 		return nil
 	}
 	wg, err := workspace.BuildGraph(s.proj.Root)

@@ -355,7 +355,7 @@ func (s *resolveState) processRegistry(item workItem) error {
 		tarball = meta.Dist.Tarball
 	}
 
-	s.b.EdgeEx(item.from, item.display, key, item.kind, item.rng, false)
+	s.b.EdgeEx(item.from, item.display, key, item.kind, edgeRangeForItem(item), false)
 	s.recordProvides(item.from, item.display, key)
 
 	if _, ok := s.seenPkg[key]; ok {
@@ -409,6 +409,13 @@ func parseDependencySpecifier(displayName, spec string) (display, target, rng st
 		return "", "", "", "", err
 	}
 	return sp.DisplayName, sp.TargetName, sp.Range, sp.Protocol, nil
+}
+
+func edgeRangeForItem(item workItem) string {
+	if item.protocol == manifest.ProtocolNpm && item.spec != "" {
+		return item.spec
+	}
+	return item.rng
 }
 
 type namedRange struct {

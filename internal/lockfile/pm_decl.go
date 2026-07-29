@@ -89,8 +89,5 @@ func pmMajorFromVersion(ver string) (major int, exact string, err error) {
 		return 0, exact, fmt.Errorf("unrecognized pnpm version %q: %v", ver, parseErr)
 	}
 	major64 := parsed.Major()
-	if major64 > 11 {
-		// still valid semver; unsupported major handled by caller
-	}
 	return int(major64), parsed.String(), nil
 }
