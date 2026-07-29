@@ -3,6 +3,9 @@ package capsule
 import (
 	"archive/tar"
 	"context"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -11,9 +14,14 @@ import (
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/contentid"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
-const manifestArchiveName = "capsule.json"
+const (
+	manifestArchiveName = "capsule.json"
+	maxManifestBytes    = 32 << 20  // 32 MiB
+	maxBlobBytes        = 512 << 20 // 512 MiB; matches store verified cap
+)
 
 // BlobOpener returns one blob payload for archive creation.
 type BlobOpener func(ctx context.Context, ref BlobRef) (io.ReadCloser, error)
@@ -52,15 +60,23 @@ func Create(ctx context.Context, opts CreateOptions) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(opts.OutputPath), 0o755); err != nil {
+	outputDir := filepath.Dir(opts.OutputPath)
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return apperr.Wrap(apperr.IO, "capsule.create", opts.OutputPath, err)
 	}
-	f, err := os.Create(opts.OutputPath)
+	tmp, err := os.CreateTemp(outputDir, "."+filepath.Base(opts.OutputPath)+".*.tmp")
 	if err != nil {
 		return apperr.Wrap(apperr.IO, "capsule.create", opts.OutputPath, err)
 	}
-	defer func() { _ = f.Close() }()
-	tw := tar.NewWriter(f)
+	tmpPath := tmp.Name()
+	failed := true
+	defer func() {
+		_ = tmp.Close()
+		if failed {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+	tw := tar.NewWriter(tmp)
 	if err := writeTarBytes(tw, manifestArchiveName, manifestBytes); err != nil {
 		return err
 	}
@@ -81,9 +97,16 @@ func Create(ctx context.Context, opts CreateOptions) error {
 	if err := tw.Close(); err != nil {
 		return apperr.Wrap(apperr.IO, "capsule.create", opts.OutputPath, err)
 	}
-	if err := f.Close(); err != nil {
+	if err := tmp.Sync(); err != nil {
 		return apperr.Wrap(apperr.IO, "capsule.create", opts.OutputPath, err)
 	}
+	if err := tmp.Close(); err != nil {
+		return apperr.Wrap(apperr.IO, "capsule.create", opts.OutputPath, err)
+	}
+	if err := fsx.ReplaceFileRecoverable(tmpPath, opts.OutputPath); err != nil {
+		return apperr.Wrap(apperr.IO, "capsule.create", opts.OutputPath, err)
+	}
+	failed = false
 	return nil
 }
 
@@ -100,9 +123,17 @@ func Restore(ctx context.Context, opts RestoreOptions) (*Manifest, error) {
 		return nil, apperr.Wrap(apperr.IO, "capsule.restore", opts.ArchivePath, err)
 	}
 	defer func() { _ = f.Close() }()
+
+	quarantineDir, err := os.MkdirTemp("", "mew-capsule-quarantine-*")
+	if err != nil {
+		return nil, apperr.Wrap(apperr.IO, "capsule.restore", opts.ArchivePath, err)
+	}
+	defer func() { _ = os.RemoveAll(quarantineDir) }()
+
 	tr := tar.NewReader(f)
 	var manifest *Manifest
 	seenBlobs := map[string]struct{}{}
+	quarantinePaths := map[string]string{}
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -117,9 +148,16 @@ func Restore(ctx context.Context, opts RestoreOptions) (*Manifest, error) {
 		name := filepath.ToSlash(strings.TrimPrefix(hdr.Name, "./"))
 		switch {
 		case name == manifestArchiveName:
-			data, err := io.ReadAll(io.LimitReader(tr, 32<<20))
+			if hdr.Size > maxManifestBytes {
+				return nil, apperr.New(apperr.Integrity, "capsule.restore", manifestArchiveName,
+					fmt.Sprintf("manifest exceeds %d bytes", maxManifestBytes))
+			}
+			data, err := io.ReadAll(io.LimitReader(tr, hdr.Size))
 			if err != nil {
 				return nil, apperr.Wrap(apperr.IO, "capsule.restore", manifestArchiveName, err)
+			}
+			if int64(len(data)) != hdr.Size {
+				return nil, apperr.New(apperr.Integrity, "capsule.restore", manifestArchiveName, "short manifest read")
 			}
 			manifest, err = DecodeManifestJSON(data)
 			if err != nil {
@@ -144,9 +182,25 @@ func Restore(ctx context.Context, opts RestoreOptions) (*Manifest, error) {
 				return nil, apperr.New(apperr.Integrity, "capsule.restore", name, "duplicate blob entry")
 			}
 			seenBlobs[key] = struct{}{}
-			if err := opts.WriteBlob(ctx, ref, tr); err != nil {
+			if hdr.Size > maxBlobBytes {
+				return nil, apperr.New(apperr.Integrity, "capsule.restore", name,
+					fmt.Sprintf("blob exceeds %d bytes", maxBlobBytes))
+			}
+			data, err := readVerifiedBlob(io.LimitReader(tr, hdr.Size), ref)
+			if err != nil {
 				return nil, err
 			}
+			if int64(len(data)) != hdr.Size {
+				return nil, apperr.New(apperr.Integrity, "capsule.restore", name, "short blob read")
+			}
+			qpath := filepath.Join(quarantineDir, ref.Algo, ref.Hex)
+			if err := os.MkdirAll(filepath.Dir(qpath), 0o700); err != nil {
+				return nil, apperr.Wrap(apperr.IO, "capsule.restore", name, err)
+			}
+			if err := os.WriteFile(qpath, data, 0o600); err != nil {
+				return nil, apperr.Wrap(apperr.IO, "capsule.restore", name, err)
+			}
+			quarantinePaths[key] = qpath
 		default:
 			return nil, apperr.New(apperr.Integrity, "capsule.restore", name, "unexpected archive member")
 		}
@@ -158,6 +212,27 @@ func Restore(ctx context.Context, opts RestoreOptions) (*Manifest, error) {
 		key := ref.Algo + "/" + ref.Hex
 		if _, ok := seenBlobs[key]; !ok {
 			return nil, apperr.New(apperr.Integrity, "capsule.restore", ref.BlobPath(), "missing blob in archive")
+		}
+	}
+	if trailing, err := io.Copy(io.Discard, f); err != nil {
+		return nil, apperr.Wrap(apperr.IO, "capsule.restore", opts.ArchivePath, err)
+	} else if trailing > 0 {
+		return nil, apperr.New(apperr.Integrity, "capsule.restore", opts.ArchivePath, "trailing data after archive end")
+	}
+	for _, ref := range manifest.Blobs {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		key := ref.Algo + "/" + ref.Hex
+		qpath := quarantinePaths[key]
+		blobFile, err := os.Open(qpath)
+		if err != nil {
+			return nil, apperr.Wrap(apperr.IO, "capsule.restore", ref.BlobPath(), err)
+		}
+		err = opts.WriteBlob(ctx, ref, blobFile)
+		_ = blobFile.Close()
+		if err != nil {
+			return nil, err
 		}
 	}
 	return manifest, nil
@@ -180,11 +255,50 @@ func writeTarBytes(tw *tar.Writer, name string, data []byte) error {
 }
 
 func writeTarStream(tw *tar.Writer, name string, rc io.Reader) error {
-	data, err := io.ReadAll(io.LimitReader(rc, 512<<20))
+	data, err := io.ReadAll(io.LimitReader(rc, maxBlobBytes+1))
 	if err != nil {
 		return apperr.Wrap(apperr.IO, "capsule.create", name, err)
 	}
+	if int64(len(data)) > maxBlobBytes {
+		return apperr.New(apperr.Integrity, "capsule.create", name,
+			fmt.Sprintf("blob exceeds %d bytes", maxBlobBytes))
+	}
 	return writeTarBytes(tw, name, data)
+}
+
+func readVerifiedBlob(r io.Reader, ref BlobRef) ([]byte, error) {
+	limited := &io.LimitedReader{R: r, N: maxBlobBytes + 1}
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.IO, "capsule.restore", ref.BlobPath(), err)
+	}
+	if int64(len(data)) > maxBlobBytes {
+		return nil, apperr.New(apperr.Integrity, "capsule.restore", ref.BlobPath(),
+			fmt.Sprintf("blob exceeds %d bytes", maxBlobBytes))
+	}
+	if err := verifyBlobDigest(data, ref); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func verifyBlobDigest(data []byte, ref BlobRef) error {
+	var got string
+	switch ref.Algo {
+	case "sha256":
+		sum := sha256.Sum256(data)
+		got = hex.EncodeToString(sum[:])
+	case "sha512":
+		sum := sha512.Sum512(data)
+		got = hex.EncodeToString(sum[:])
+	default:
+		return apperr.New(apperr.Integrity, "capsule.restore", ref.BlobPath(), "unsupported digest algorithm")
+	}
+	if got != ref.Hex {
+		return apperr.New(apperr.Integrity, "capsule.restore", ref.BlobPath(),
+			fmt.Sprintf("digest mismatch: got %s want %s", got, ref.Hex))
+	}
+	return nil
 }
 
 func parseBlobArchivePath(name string) (BlobRef, error) {

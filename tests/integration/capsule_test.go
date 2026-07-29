@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -34,6 +35,39 @@ func TestCapsuleRoundTripNodeModulesHash(t *testing.T) {
 	after := hashNodeModules(t, filepath.Join(projDir, "node_modules"))
 	if after != before {
 		t.Fatalf("node_modules hash mismatch\nbefore=%s\nafter=%s", before, after)
+	}
+}
+
+func TestCapsuleRestoreRejectsCorruptArchive(t *testing.T) {
+	projDir, cfgPath, _ := setupRegistryProject(t, `{
+  "name": "basic-export",
+  "version": "1.0.0",
+  "dependencies": { "pkg-a": "^1.0.0" }
+}`)
+	if code, out := runM(t, projDir, cfgPath, "install"); code != 0 {
+		t.Fatalf("install exit=%d out=%s", code, out)
+	}
+	capsulePath := filepath.Join(projDir, "basic-export.capsule")
+	if code, out := runM(t, projDir, cfgPath, "capsule", "create", "--output", capsulePath); code != 0 {
+		t.Fatalf("capsule create exit=%d out=%s", code, out)
+	}
+	data, err := os.ReadFile(capsulePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	corruptPath := filepath.Join(projDir, "corrupt.capsule")
+	if err := os.WriteFile(corruptPath, append(data, []byte("TRAILING")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(projDir, "node_modules")); err != nil {
+		t.Fatal(err)
+	}
+	code, out := runM(t, projDir, cfgPath, "capsule", "restore", corruptPath)
+	if code == 0 {
+		t.Fatalf("expected corrupt capsule restore failure, out=%s", out)
+	}
+	if !strings.Contains(out, "ERR_M_INTEGRITY") && !strings.Contains(out, "trailing") {
+		t.Fatalf("unexpected error output: %s", out)
 	}
 }
 

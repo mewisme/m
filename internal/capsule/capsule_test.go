@@ -84,7 +84,7 @@ func TestArchiveCreateRestore(t *testing.T) {
 		Manifest:      []byte(`{"name":"demo"}`),
 		Blobs: []capsule.BlobRef{{
 			Algo: "sha256",
-			Hex:  "758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63",
+			Hex:  "9946fe66ac2ea0bcf693bafde3caa98e5760726dfc5298f2a8530a4d528a67f1",
 		}},
 	}
 	archivePath := filepath.Join(t.TempDir(), "demo.capsule")
@@ -116,7 +116,7 @@ func TestArchiveCreateRestore(t *testing.T) {
 	if !bytes.Equal(restored.Lock, man.Lock) {
 		t.Fatal("lock mismatch")
 	}
-	if !bytes.Equal(written["sha256/758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"], blob) {
+	if !bytes.Equal(written["sha256/9946fe66ac2ea0bcf693bafde3caa98e5760726dfc5298f2a8530a4d528a67f1"], blob) {
 		t.Fatal("blob mismatch")
 	}
 	if _, err := os.Stat(archivePath); err != nil {
