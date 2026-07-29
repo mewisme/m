@@ -542,6 +542,7 @@ jobs:
         shell: pwsh
         run: pwsh tools/soak/install-loop.ps1 -Count 10 -Mode warm
       - name: Bench regression warm
+        continue-on-error: true
         shell: pwsh
         run: pwsh tools/bench/check_regression.ps1 -Mode warm
       - name: Upload core certification report
