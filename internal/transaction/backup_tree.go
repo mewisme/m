@@ -42,6 +42,15 @@ func backupTreeEntry(src, dst, metaRoot, relPath string, visited map[string]stru
 				return apperr.Wrap(apperr.Transaction, "transaction.backup", src, err)
 			}
 			return writeReparseMeta(metaRoot, relPath, sub, print)
+		case fsx.IOReparseTagSymlink:
+			target, err := fsx.ReadSymlinkTarget(src)
+			if err != nil {
+				return apperr.Wrap(apperr.Transaction, "transaction.backup", src, err)
+			}
+			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+				return apperr.Wrap(apperr.IO, "transaction.backup", dst, err)
+			}
+			return os.Symlink(target, dst)
 		default:
 			return apperr.New(apperr.Transaction, "transaction.backup", src,
 				fmt.Sprintf("unsupported reparse tag 0x%08X", tag))

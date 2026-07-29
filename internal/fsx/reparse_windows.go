@@ -16,7 +16,8 @@ import (
 const (
 	// IOReparseTagMountPoint is the reparse tag for directory junctions (mklink /J).
 	IOReparseTagMountPoint = 0xA0000003
-	ioReparseTagSymlink    = 0xA000000C
+	// IOReparseTagSymlink is the reparse tag for directory symlinks (mklink /D).
+	IOReparseTagSymlink = 0xA000000C
 )
 
 const (
@@ -161,12 +162,24 @@ func readReparsePoint(path string) (substitute, print string, tag uint32, err er
 	case IOReparseTagMountPoint:
 		substitute, print, err = parseMountPointNames(buf[8 : 8+dataLen])
 		return substitute, print, tag, err
-	case ioReparseTagSymlink:
+	case IOReparseTagSymlink:
 		substitute, print, err = parseSymlinkNames(buf[8 : 8+dataLen])
 		return substitute, print, tag, err
 	default:
 		return "", "", tag, nil
 	}
+}
+
+// ReadSymlinkTarget returns the print-name target for a directory symlink reparse point.
+func ReadSymlinkTarget(path string) (string, error) {
+	_, print, tag, err := readReparsePoint(path)
+	if err != nil {
+		return "", err
+	}
+	if tag != IOReparseTagSymlink {
+		return "", fmt.Errorf("fsx: not a symlink reparse point (tag 0x%08X)", tag)
+	}
+	return print, nil
 }
 
 func parseMountPointNames(data []byte) (substitute, print string, err error) {

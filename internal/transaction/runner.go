@@ -717,6 +717,13 @@ func pathKind(path string) (kind, target string, hadPrior bool, err error) {
 		return DestKindJunction, sub, true, nil
 	}
 	if tag := fsx.ReparseTag(path); tag != 0 {
+		if tag == fsx.IOReparseTagSymlink {
+			tgt, err := fsx.ReadSymlinkTarget(path)
+			if err != nil {
+				return "", "", false, apperr.Wrap(apperr.Transaction, "transaction.pathkind", path, err)
+			}
+			return DestKindSymlink, tgt, true, nil
+		}
 		return "", "", false, apperr.New(apperr.Transaction, "transaction.pathkind", path,
 			fmt.Sprintf("unsupported reparse tag 0x%08X", tag))
 	}
