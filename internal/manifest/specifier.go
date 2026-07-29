@@ -59,7 +59,7 @@ func ParseSpecifier(displayName, spec string) (Specifier, error) {
 		}, nil
 	case strings.HasPrefix(spec, "workspace:"):
 		rng := spec[len("workspace:"):]
-		if rng != "*" && rng != "^" {
+		if rng != "*" && rng != "^" && rng != "~" {
 			return Specifier{}, apperr.New(apperr.Manifest, "manifest.specifier", displayName,
 				fmt.Sprintf("unsupported workspace range %q", rng))
 		}

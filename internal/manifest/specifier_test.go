@@ -38,6 +38,11 @@ func TestParseSpecifier(t *testing.T) {
 			want: manifest.Specifier{DisplayName: "pkg", TargetName: "pkg", Range: "^", Protocol: manifest.ProtocolWorkspace},
 		},
 		{
+			key:  "pkg",
+			spec: "workspace:~",
+			want: manifest.Specifier{DisplayName: "pkg", TargetName: "pkg", Range: "~", Protocol: manifest.ProtocolWorkspace},
+		},
+		{
 			key:  "local",
 			spec: "file:./vendor/pkg",
 			want: manifest.Specifier{DisplayName: "local", TargetName: "local", Range: "./vendor/pkg", Protocol: manifest.ProtocolFile},
