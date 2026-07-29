@@ -274,6 +274,7 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 		if err != nil {
 			return nil, apperr.Wrap(apperr.Lockfile, "pnpm.graph", string(id)+"."+e.Name, err)
 		}
+		dep.Version = preservePriorPatchVersion(prior, string(id), e.Name, e.To, dep.Version)
 		switch e.Kind {
 		case graph.DepDev:
 			sec.DevDependencies[e.Name] = dep
@@ -302,6 +303,12 @@ func fromGraphV9Shape(g *graph.Graph, doc *Document, prior *Document) (*Document
 			return nil, err
 		}
 		baseKey := basePackageKeyFromInstance(instanceKey)
+		if prior != nil {
+			if patched := priorPatchSnapshotKey(prior, baseKey); patched != "" &&
+				!strings.Contains(graphKey, "#") {
+				instanceKey = patched
+			}
+		}
 		entry := PackageEntry{
 			Resolution: map[string]any{},
 			Engines:    map[string]any{},
@@ -494,4 +501,52 @@ func mapAnyKeys(m map[string]any) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func priorImporterDepVersion(prior *Document, importerID, depName string) string {
+	if prior == nil {
+		return ""
+	}
+	im, ok := prior.Importers[importerID]
+	if !ok {
+		return ""
+	}
+	for _, deps := range []map[string]ImporterDep{im.Dependencies, im.DevDependencies, im.OptionalDependencies} {
+		if dep, ok := deps[depName]; ok {
+			return dep.Version
+		}
+	}
+	return ""
+}
+
+func preservePriorPatchVersion(prior *Document, importerID, depName, targetKey, encoded string) string {
+	priorVer := priorImporterDepVersion(prior, importerID, depName)
+	if priorVer == "" || !strings.Contains(priorVer, "patch_hash=") {
+		return encoded
+	}
+	priorBase := refToBasePackageKey(depName, priorVer)
+	if priorBase == "" {
+		return encoded
+	}
+	if priorBase == refToBasePackageKey(depName, encoded) {
+		return priorVer
+	}
+	if id, err := ParsePackageIdentity(targetKey); err == nil && !id.IsProtocolRef {
+		if priorBase == id.Name+"@"+id.BaseVersion {
+			return priorVer
+		}
+	}
+	return encoded
+}
+
+func priorPatchSnapshotKey(prior *Document, baseKey string) string {
+	if prior == nil {
+		return ""
+	}
+	for k := range prior.Snapshots {
+		if basePackageKeyFromInstance(k) == baseKey && strings.Contains(k, "patch_hash=") {
+			return k
+		}
+	}
+	return ""
 }
