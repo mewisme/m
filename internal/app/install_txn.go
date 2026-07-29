@@ -267,13 +267,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 
 	emitPhase(ac, "link", "")
-	var caps planner.Capabilities
-	if useStore {
-		storeRoot, storeErr := config.StoreRoot(ac.Config)
-		if storeErr == nil {
-			caps, _ = planner.ProbeCached(config.CacheRoot(ac.Config), storeRoot, stageNM)
-		}
-	}
+	caps, _ := planner.ProbeCached(config.CacheRoot(ac.Config), extractDir, stageNM)
 	lnk := newLinker(linkerMode, linkerOpts{
 		NodeModules: stageNM, ExtractDirs: extracts, Capabilities: caps, UseSmartLink: useStore,
 	})

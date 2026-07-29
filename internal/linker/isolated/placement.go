@@ -63,9 +63,12 @@ func (l *Linker) Plan(ctx context.Context, g *graph.Graph) (*linker.Plan, error)
 			return nil, apperr.New(apperr.Internal, "linker.isolated.plan", pl.Key, "missing extract dir")
 		}
 		ops = append(ops, linker.Op{Kind: linker.OpMkdir, Dest: pl.ContentDir})
-		if l.UseSmartLink {
+		switch {
+		case l.UseSmartLink:
 			ops = append(ops, planner.PlanPackageLink(src, pl.ContentDir, caps))
-		} else {
+		case caps.Junction || caps.Symlink:
+			ops = append(ops, planner.PlanDirAlias(src, pl.ContentDir, caps))
+		default:
 			ops = append(ops, linker.Op{Kind: linker.OpCopy, Src: src, Dest: pl.ContentDir})
 		}
 		placements = append(placements, linker.Placement{Key: pl.Key, DestDir: pl.ContentDir})
