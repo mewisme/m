@@ -280,3 +280,21 @@ func fileURLForPath(abs string) string {
 	}
 	return "file://" + slash
 }
+
+func localGitDirFromURL(repoURL string) (string, bool) {
+	u, err := url.Parse(repoURL)
+	if err != nil || strings.ToLower(u.Scheme) != "file" {
+		return "", false
+	}
+	path := u.Path
+	if runtime.GOOS == "windows" {
+		if strings.HasPrefix(path, "/") && len(path) > 2 && path[2] == ':' {
+			path = strings.TrimPrefix(path, "/")
+		}
+	}
+	path = filepath.Clean(path)
+	if path == "" {
+		return "", false
+	}
+	return path, true
+}

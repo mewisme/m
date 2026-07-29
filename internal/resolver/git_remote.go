@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,6 +101,9 @@ func cloneGitAt(ctx context.Context, repoURL, commit, dest string) error {
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return apperr.Wrap(apperr.IO, "resolver.git", dest, err)
 	}
+	if bareDir, ok := localGitDirFromURL(repoURL); ok {
+		return checkoutLocalBareRepo(ctx, bareDir, commit, dest)
+	}
 	if _, err := runGit(ctx, dest, "init"); err != nil {
 		return err
 	}
@@ -115,6 +119,20 @@ func cloneGitAt(ctx context.Context, repoURL, commit, dest string) error {
 	}
 	if _, err := runGit(ctx, dest, "checkout", "FETCH_HEAD"); err != nil {
 		return apperr.Wrap(apperr.Resolve, "resolver.git", commit, err)
+	}
+	return nil
+}
+
+func checkoutLocalBareRepo(ctx context.Context, gitDir, commit, dest string) error {
+	if st, err := os.Stat(gitDir); err != nil || !st.IsDir() {
+		return apperr.Wrap(apperr.Resolve, "resolver.git", gitDir, fmt.Errorf("local git repository not found"))
+	}
+	checkoutRef := commit
+	if checkoutRef == "" {
+		checkoutRef = "HEAD"
+	}
+	if _, err := runGit(ctx, dest, "--git-dir", gitDir, "--work-tree", dest, "checkout", "-f", checkoutRef); err != nil {
+		return apperr.Wrap(apperr.Resolve, "resolver.git", gitDir, err)
 	}
 	return nil
 }

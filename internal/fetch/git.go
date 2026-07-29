@@ -2,8 +2,12 @@ package fetch
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/process"
@@ -39,6 +43,9 @@ func FetchGit(ctx context.Context, opts GitOptions) error {
 	if err := os.MkdirAll(opts.Dest, 0o755); err != nil {
 		return apperr.Wrap(apperr.IO, "fetch.git", opts.Dest, err)
 	}
+	if bareDir, ok := localGitDirFromURL(opts.URL); ok {
+		return checkoutLocalBareRepo(ctx, sup, bareDir, opts.Commit, opts.Dest)
+	}
 	if err := runGitCmd(ctx, sup, opts.Dest, "init"); err != nil {
 		return err
 	}
@@ -52,6 +59,31 @@ func FetchGit(ctx context.Context, opts GitOptions) error {
 		return apperr.Wrap(apperr.Integrity, "fetch.git", opts.Commit, err)
 	}
 	return nil
+}
+
+func checkoutLocalBareRepo(ctx context.Context, sup process.ProcessSupervisor, gitDir, commit, dest string) error {
+	if st, err := os.Stat(gitDir); err != nil || !st.IsDir() {
+		return apperr.Wrap(apperr.Resolve, "fetch.git", gitDir, fmt.Errorf("local git repository not found"))
+	}
+	return runGitCmd(ctx, sup, dest, "--git-dir", gitDir, "--work-tree", dest, "checkout", "-f", commit)
+}
+
+func localGitDirFromURL(repoURL string) (string, bool) {
+	u, err := url.Parse(repoURL)
+	if err != nil || strings.ToLower(u.Scheme) != "file" {
+		return "", false
+	}
+	path := u.Path
+	if runtime.GOOS == "windows" {
+		if strings.HasPrefix(path, "/") && len(path) > 2 && path[2] == ':' {
+			path = strings.TrimPrefix(path, "/")
+		}
+	}
+	path = filepath.Clean(path)
+	if path == "" {
+		return "", false
+	}
+	return path, true
 }
 
 func runGitCmd(ctx context.Context, sup process.ProcessSupervisor, dir string, args ...string) error {
