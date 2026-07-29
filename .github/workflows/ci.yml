@@ -261,6 +261,10 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: ${{ steps.ver.outputs.golangci }}
+      - name: Verify go.mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
 
   vuln:
     runs-on: ubuntu-latest
