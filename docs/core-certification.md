@@ -151,3 +151,16 @@ may be added in a backward-compatible way only.
 
 Human checklist (0087-aligned, PM-core subset):
 [`testdata/certification/sign-off-checklist.md`](../testdata/certification/sign-off-checklist.md).
+
+### Pass 32 CI evidence (2026-07-30)
+
+| Field | Value |
+|---|---|
+| Final `origin/main` SHA | `f19f3f73bd7dc4169a8a95c598a645b2077b9539` |
+| Workflow run ID | [`30486713425`](https://github.com/mewisme/mew/actions/runs/30486713425) |
+| `head_sha` | `f19f3f73bd7dc4169a8a95c598a645b2077b9539` |
+| Matrix | 38 jobs success (ubuntu, macOS, Windows test/race/cross/platform-lock/crash/conformance/core-stabilization) |
+| Core certification artifact | `core-certification-report` from `core-stabilization` job |
+| Scorecard | [`.agents/pass32-score.md`](../.agents/pass32-score.md) |
+
+Note: Windows `platform-lock` required one failed-job rerun on the same SHA (transient dual-winner flake). `bench-regression` and core-stabilization bench steps remain advisory (`continue-on-error: true`).
