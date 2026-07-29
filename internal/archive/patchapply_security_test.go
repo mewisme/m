@@ -179,7 +179,10 @@ func TestPatchRejectsSymlinkTarget(t *testing.T) {
 	defer func() { _ = os.Remove(outside) }()
 	link := filepath.Join(root, "link.js")
 	if err := os.Symlink(outside, link); err != nil {
-		t.Skip(err)
+		if runtime.GOOS == "windows" {
+			t.Skip(err)
+		}
+		t.Fatalf("symlink setup: %v", err)
 	}
 	beforeRoot := hashDir(t, root)
 	beforeOutside := fileHash(t, outside)

@@ -93,10 +93,7 @@ func NormalizeGitURL(raw string) (string, error) {
 	}
 	u.Fragment = ""
 	u.RawQuery = ""
-	out := u.String()
-	if strings.HasSuffix(out, "/") {
-		out = strings.TrimSuffix(out, "/")
-	}
+	out := strings.TrimSuffix(u.String(), "/")
 	return out, nil
 }
 
@@ -121,7 +118,7 @@ func ValidateGitURL(raw string) error {
 		return fmt.Errorf("git url missing repository path")
 	}
 	if strings.Contains(raw, "..") && u.Scheme == "file" {
-		return fmt.Errorf("git file url must not contain ..")
+		return fmt.Errorf("git file url rejects parent traversal segments")
 	}
 	return nil
 }
@@ -227,14 +224,6 @@ func (s *resolveState) resolveGitCommit(item workItem, parsed ParsedGitSpec) (st
 	}
 	offline := s.pol != nil && s.pol.Offline
 	return ResolveGitCommit(s.ctx, parsed.URL, parsed.Ref, offline)
-}
-
-func targetDirToRel(root, abs string) string {
-	rel, err := relPathToRoot(root, abs)
-	if err != nil {
-		return abs
-	}
-	return rel
 }
 
 // HasGitSources reports whether extensions contain git source metadata.

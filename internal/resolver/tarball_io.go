@@ -80,7 +80,7 @@ func readTarballFile(tgzPath, want string) ([]byte, error) {
 		if name != want {
 			continue
 		}
-		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
+		if hdr.Typeflag != tar.TypeReg {
 			return nil, apperr.New(apperr.Integrity, "resolver.tarball", want, "not a regular file")
 		}
 		const maxJSON = 1 << 20

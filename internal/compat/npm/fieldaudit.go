@@ -70,31 +70,3 @@ func FieldLossAudit(doc *Document) lockfile.LossReport {
 	}
 	return report
 }
-
-func lossAgainstPrior(prior, out *Document) lockfile.LossReport {
-	report := FieldLossAudit(prior)
-	if prior == nil || out == nil {
-		return report
-	}
-	for path, priorEntry := range prior.Packages {
-		outEntry, ok := out.Packages[path]
-		if !ok {
-			report.Items = append(report.Items, lockfile.LossItem{
-				Field: "packages." + path, Reason: "package path dropped on encode",
-				SourceFormat: prior.Detection.Format, Semantic: true, ProducerMajor: prior.LockfileVersion, Category: "loss",
-			})
-			continue
-		}
-		for k, v := range priorEntry.Extra {
-			if _, ok := outEntry.Extra[k]; !ok {
-				report.Items = append(report.Items, lockfile.LossItem{
-					Field: "packages." + path + "." + k, Reason: "package extra field lost on encode",
-					Value: string(v), SourceFormat: prior.Detection.Format, Semantic: true,
-					ProducerMajor: prior.LockfileVersion, Category: "loss",
-				})
-			}
-		}
-	}
-	_ = report.Normalize()
-	return report
-}

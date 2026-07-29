@@ -220,10 +220,10 @@ func offlinePreflightError(report OfflineReport) error {
 	}
 	for i := 0; i < limit; i++ {
 		m := report.Missing[i]
-		b.WriteString(fmt.Sprintf("\n- %s %s: %s", m.Kind, m.Subject, m.Detail))
+		fmt.Fprintf(&b, "\n- %s %s: %s", m.Kind, m.Subject, m.Detail)
 	}
 	if len(report.Missing) > offlinePreflightMaxLines {
-		b.WriteString(fmt.Sprintf("\n... and %d more missing", len(report.Missing)-offlinePreflightMaxLines))
+		fmt.Fprintf(&b, "\n... and %d more missing", len(report.Missing)-offlinePreflightMaxLines)
 	}
 	code := apperr.Network
 	for _, m := range report.Missing {

@@ -10,17 +10,6 @@ import (
 	"github.com/mewisme/mew/internal/project"
 )
 
-func readBunLockPrior(proj *project.Project) ([]byte, error) {
-	prior, err := project.ReadLockfileBytes(proj.Root, proj.Identity)
-	if err == nil {
-		return prior, nil
-	}
-	if proj.Identity == project.IdentityBun && isLockNotFound(err) {
-		return nil, nil
-	}
-	return nil, err
-}
-
 func detectBunLock(prior []byte) (lockfile.Detection, error) {
 	if len(prior) == 0 {
 		return lockfile.Detection{

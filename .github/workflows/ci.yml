@@ -520,6 +520,20 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ steps.pnpm.outputs.pnpm11 }}
+      - name: Install pnpm 9 and 10 shims
+        run: |
+          set -a
+          # shellcheck disable=SC1091
+          source tools/conformance/pnpm-versions.env
+          set +a
+          corepack enable
+          install -d "$HOME/.local/bin"
+          corepack prepare "pnpm@${PNPM9_VERSION}" --activate
+          ln -sf "$(command -v pnpm)" "$HOME/.local/bin/pnpm9"
+          corepack prepare "pnpm@${PNPM10_VERSION}" --activate
+          ln -sf "$(command -v pnpm)" "$HOME/.local/bin/pnpm10"
+          corepack prepare "pnpm@${PNPM11_VERSION}" --activate
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Core certification matrix
         run: go run ./cmd/m conformance run core --json > core-report.json
       - name: PM doctor health check

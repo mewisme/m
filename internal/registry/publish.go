@@ -145,11 +145,3 @@ func buildPublishBody(opts PublishOptions, attachName, tag string) ([]byte, erro
 func redactPublishErr(err error) error {
 	return redactErr(err)
 }
-
-func publishOp(err error) string {
-	return errOp(err)
-}
-
-func publishSubject(err error) string {
-	return errSubject(err)
-}

@@ -44,10 +44,23 @@ func runM(t *testing.T, projDir, cfgPath string, args ...string) (int, string) {
 	cliRoot.SetArgs(full)
 	code := cli.ExecuteWithContext(cliRoot, context.Background())
 	out := outBuf.String()
+	errOut := errBuf.String()
+	if code != 0 {
+		trimmed := strings.TrimSpace(out)
+		if trimmed != "" && strings.HasPrefix(trimmed, "{") {
+			return code, out
+		}
+		if out != "" && errOut != "" {
+			return code, out + errOut
+		}
+		if errOut != "" {
+			return code, errOut
+		}
+	}
 	if out != "" {
 		return code, out
 	}
-	return code, errBuf.String()
+	return code, errOut
 }
 
 func TestInstallGreenfieldBasicCJS(t *testing.T) {

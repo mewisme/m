@@ -133,10 +133,7 @@ func isHardExcludedRel(rel string) bool {
 		}
 	}
 	base := parts[len(parts)-1]
-	if strings.HasSuffix(base, ".tmp") {
-		return true
-	}
-	return false
+	return strings.HasSuffix(base, ".tmp")
 }
 
 func (s *packSandbox) lstatRegular(abs, subject string) (os.FileInfo, error) {

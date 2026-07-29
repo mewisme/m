@@ -26,11 +26,3 @@ func preservePriorPackageFields(doc, prior *Document) {
 		doc.Packages[path] = entry
 	}
 }
-
-// preservePriorLockVersion keeps incumbent lockfileVersion on mutation.
-func preservePriorLockVersion(doc *Document, prior *Document) {
-	if doc == nil || prior == nil || prior.LockfileVersion == 0 {
-		return
-	}
-	doc.LockfileVersion = prior.LockfileVersion
-}

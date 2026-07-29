@@ -84,18 +84,6 @@ func RepoRootFromModule(start string) (string, error) {
 	}
 }
 
-func summarizeOutput(output string) string {
-	output = strings.TrimSpace(output)
-	if output == "" {
-		return "go test failed"
-	}
-	lines := strings.Split(output, "\n")
-	if len(lines) > 8 {
-		lines = lines[len(lines)-8:]
-	}
-	return strings.Join(lines, "\n")
-}
-
 func suiteResultFromRun(suite Suite, started time.Time, exitCode int, summary TestSummary, output string, runErr error) SuiteResult {
 	res := SuiteResult{
 		ID:           suite.ID,

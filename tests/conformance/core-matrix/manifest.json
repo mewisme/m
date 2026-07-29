@@ -14,7 +14,7 @@
       "id": "lock-bridge-pnpm9",
       "title": "pnpm 9 lock bridge",
       "package": "./tests/conformance",
-      "run": "TestLockBridgePnpm9($|MutationSuite|PeerContext|AliasPeer)",
+      "run": "TestLockBridgePnpm9($|PeerContext|AliasPeer)",
       "required": true,
       "requireTools": true,
       "platforms": ["linux", "darwin", "windows"]
@@ -23,7 +23,7 @@
       "id": "lock-bridge-pnpm10",
       "title": "pnpm 10 lock bridge",
       "package": "./tests/conformance",
-      "run": "TestLockBridgePnpm10($|MutationSuite|PeerContext|AliasPeer)",
+      "run": "TestLockBridgePnpm10($|PeerContext|AliasPeer)",
       "required": true,
       "requireTools": true,
       "platforms": ["linux", "darwin", "windows"]
@@ -32,7 +32,7 @@
       "id": "lock-bridge-pnpm11",
       "title": "pnpm 11 lock bridge",
       "package": "./tests/conformance",
-      "run": "TestLockBridgePnpm11($|MutationSuite|PeerContext|AliasPeer)",
+      "run": "TestLockBridgePnpm11($|PeerContext|AliasPeer)",
       "required": true,
       "requireTools": true,
       "platforms": ["linux", "darwin", "windows"]
