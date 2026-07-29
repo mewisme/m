@@ -1,19 +1,20 @@
 {
-  "producer": "nub",
-  "producerVersion": "pnpm-9-shaped",
-  "producerMajor": 9,
-  "family": "nub-catalog",
-  "node": "v24.14.0",
-  "os": "Microsoft Windows 10.0.26200",
   "arch": "x64",
-  "lockfileVersion": "9.0",
+  "classification": "derived",
+  "command": "derived from fixtures/locks/generated/pnpm-9/catalog pnpm-lock.yaml",
+  "confidence": "manual",
+  "family": "nub-catalog",
   "generationSignals": [
     "pnpm-v9-shaped",
     "nub.lock",
     "derived-from=pnpm-9/catalog"
   ],
-  "confidence": "manual",
-  "command": "derived from fixtures/locks/generated/pnpm-9/catalog pnpm-lock.yaml",
-  "timestamp": "2026-07-29T01:31:46.8157889+07:00",
-  "lockfileSha256": "0c45bfcbe76d0b8924b6ec8636f748aa30a81f6b99ce72e5bf51558f59eef285"
+  "lockfileSha256": "0c45bfcbe76d0b8924b6ec8636f748aa30a81f6b99ce72e5bf51558f59eef285",
+  "lockfileVersion": "9.0",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "producer": "nub",
+  "producerMajor": 9,
+  "producerVersion": "pnpm-9-shaped",
+  "timestamp": "2026-07-29T01:31:46.8157889+07:00"
 }

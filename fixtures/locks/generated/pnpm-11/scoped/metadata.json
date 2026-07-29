@@ -1,18 +1,19 @@
 {
-  "producer": "pnpm",
-  "producerVersion": "11.17.0",
-  "producerMajor": 11,
-  "family": "scoped",
-  "node": "v24.14.0",
-  "os": "Microsoft Windows 10.0.26200",
   "arch": "x64",
-  "lockfileVersion": "9.0",
+  "classification": "generated",
+  "command": "corepack prepare pnpm@11.17.0 --activate; pnpm install --lockfile-only --ignore-scripts (family=scoped)",
+  "confidence": "certain",
+  "family": "scoped",
   "generationSignals": [
     "lockfileVersion=9.0",
     "family=scoped"
   ],
-  "confidence": "certain",
-  "command": "committed generated fixture (family=scoped, pnpm@11.17.0)",
-  "timestamp": "2026-07-29T01:08:05.1243058+07:00",
-  "lockfileSha256": "7439c21cd3bae827b828442bf1b2f8fe557523c15e8162252c328ba88c649564"
+  "lockfileSha256": "7439c21cd3bae827b828442bf1b2f8fe557523c15e8162252c328ba88c649564",
+  "lockfileVersion": "9.0",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "producer": "pnpm",
+  "producerMajor": 11,
+  "producerVersion": "11.17.0",
+  "timestamp": "2026-07-29T01:08:05.1243058+07:00"
 }

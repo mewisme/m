@@ -1,18 +1,19 @@
 {
-  "producer": "pnpm",
-  "producerVersion": "10.34.5",
-  "producerMajor": 10,
-  "family": "peer-context",
-  "node": "v24.14.0",
-  "os": "Microsoft Windows 10.0.26200",
   "arch": "x64",
-  "lockfileVersion": "9.0",
+  "classification": "generated",
+  "command": "corepack prepare pnpm@10.34.5 --activate; pnpm install --lockfile-only --ignore-scripts (family=peer-context)",
+  "confidence": "certain",
+  "family": "peer-context",
   "generationSignals": [
     "lockfileVersion=9.0",
     "family=peer-context"
   ],
-  "confidence": "certain",
-  "command": "committed generated fixture (family=peer-context, pnpm@10.34.5)",
-  "timestamp": "2026-07-29T01:08:04.7640607+07:00",
-  "lockfileSha256": "9b2572caa229dc24b5251a30e46cc549d7967e69a96b821093d063a50ae19a53"
+  "lockfileSha256": "9b2572caa229dc24b5251a30e46cc549d7967e69a96b821093d063a50ae19a53",
+  "lockfileVersion": "9.0",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "producer": "pnpm",
+  "producerMajor": 10,
+  "producerVersion": "10.34.5",
+  "timestamp": "2026-07-29T01:08:04.7640607+07:00"
 }

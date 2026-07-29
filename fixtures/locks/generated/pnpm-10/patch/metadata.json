@@ -1,18 +1,19 @@
 {
-  "producer": "pnpm",
-  "producerVersion": "10.34.5",
-  "producerMajor": 10,
-  "family": "patch",
-  "node": "v24.14.0",
-  "os": "Microsoft Windows 10.0.26200",
   "arch": "x64",
-  "lockfileVersion": "9.0",
+  "classification": "generated",
+  "command": "corepack prepare pnpm@10.34.5 --activate; pnpm install --lockfile-only --ignore-scripts (family=patch)",
+  "confidence": "certain",
+  "family": "patch",
   "generationSignals": [
     "lockfileVersion=9.0",
     "family=patch"
   ],
-  "confidence": "certain",
-  "command": "committed generated fixture (family=patch, pnpm@10.34.5)",
-  "timestamp": "2026-07-29T01:08:04.9683145+07:00",
-  "lockfileSha256": "0c9fae70c33f61cc6a7db1053df2bda59058794f22e021ac299fc5e9564c4c32"
+  "lockfileSha256": "0c9fae70c33f61cc6a7db1053df2bda59058794f22e021ac299fc5e9564c4c32",
+  "lockfileVersion": "9.0",
+  "node": "v24.14.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "producer": "pnpm",
+  "producerMajor": 10,
+  "producerVersion": "10.34.5",
+  "timestamp": "2026-07-29T01:08:04.9683145+07:00"
 }
