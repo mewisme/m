@@ -4,8 +4,9 @@
 **Baseline:** `2857ec0e3061356362c6d99cd84ea85de6621bb2`  
 **Starting `origin/main` (task entry):** `5715fe3e7304589cf796b62dbe0308256257ea31`  
 **Final code SHA:** `f19f3f73bd7dc4169a8a95c598a645b2077b9539`  
-**Final documentation SHA:** `f19f3f73bd7dc4169a8a95c598a645b2077b9539` (scorecard committed with code evidence SHA)  
-**CI run (authoritative):** `30486713425` — full matrix green on `f19f3f7` (includes successful rerun of flaky `platform-lock` Windows shard)  
+**Final documentation SHA:** `f0ce96df82b262819334a121c584b93b1aeaa309`  
+**CI run (authoritative, final doc SHA):** `30487309379` — full matrix green on `f0ce96d`  
+**CI run (code SHA):** `30486713425` — full matrix green on `f19f3f7` (Windows platform-lock rerun)  
 **Branch / PR:** direct commits on `main`; no branch or PR created  
 **Overall score:** 9.0 / 10  
 **Status:** READY
