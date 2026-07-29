@@ -1,0 +1,24 @@
+{
+  "name": "vuln-pkg",
+  "dist-tags": {
+    "latest": "1.0.1"
+  },
+  "versions": {
+    "1.0.0": {
+      "name": "vuln-pkg",
+      "version": "1.0.0",
+      "dist": {
+        "integrity": "sha256-573bee8e182915bbc370ce8f4858956effdd679f9409d491a0ab5082ece16809",
+        "tarball": "vuln-pkg-1.0.0.tgz"
+      }
+    },
+    "1.0.1": {
+      "name": "vuln-pkg",
+      "version": "1.0.1",
+      "dist": {
+        "integrity": "sha256-e2815e3beb5b81f0be8743ac4012f04c06b299983b98458ed5b8290e1ec380dd",
+        "tarball": "vuln-pkg-1.0.1.tgz"
+      }
+    }
+  }
+}

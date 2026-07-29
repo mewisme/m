@@ -1,0 +1,7 @@
+{
+  "name": "vulnerable-transitive",
+  "version": "1.0.0",
+  "dependencies": {
+    "carrier-pkg": "^1.0.0"
+  }
+}

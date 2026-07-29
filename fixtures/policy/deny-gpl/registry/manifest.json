@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "blobs": [
+    {"path": "packuments/gpl-pkg.json", "sha256": "577926090b06d9a2a2474a7c80d62f95c7f336750499296b16aedbeeebac614b"},
+    {"path": "tarballs/gpl-pkg-1.0.0.tgz", "sha256": "c7995da7bea5787dd6c6122076b03c4f8cb870dbe41e0414a07f130ca6cc0bfa"}
+  ]
+}

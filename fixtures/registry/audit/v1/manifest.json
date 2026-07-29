@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "blobs": [
+    {
+      "path": "tarballs/vuln-pkg-1.0.0.tgz",
+      "sha256": "573bee8e182915bbc370ce8f4858956effdd679f9409d491a0ab5082ece16809"
+    },
+    {
+      "path": "tarballs/vuln-pkg-1.0.1.tgz",
+      "sha256": "e2815e3beb5b81f0be8743ac4012f04c06b299983b98458ed5b8290e1ec380dd"
+    },
+    {
+      "path": "tarballs/carrier-pkg-1.0.0.tgz",
+      "sha256": "833a7130fe3af0b0f1cf1ebcda443446b4ac8e64400b230862c77628787c231d"
+    },
+    {
+      "path": "packuments/vuln-pkg.json",
+      "sha256": "d8a4629bdfab40c2029eda3104ec898ef89d04916d397085203a239226793b24"
+    },
+    {
+      "path": "packuments/carrier-pkg.json",
+      "sha256": "b1ca827d8013905c7bedbe4e01b2a9a242055e4d62f24ac624f26ae044752186"
+    }
+  ]
+}

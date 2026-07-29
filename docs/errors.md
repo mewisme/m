@@ -23,7 +23,7 @@ Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DE
 | `ERR_M_RESOLVE` | 1 | Dependency resolution failure: unsatisfiable range, cycle, missing packument, or limit exceeded (MVP 0013) |
 | `ERR_M_TRANSACTION` | 1 | Transaction journal, commit, rollback, recovery, or project lock failure (MVP 0017) |
 | `ERR_M_STORE` | 1 | Global content store import, verify, or prune failure (MVP 0018) |
-| `ERR_M_POLICY` | 1 | Lifecycle script blocked by trust or sandbox policy (MVP 0021) |
+| `ERR_M_POLICY` | 1 | Lifecycle script trust block (0021) or org supply-chain policy violation (0030) |
 | `ERR_M_PNP_UNSUPPORTED` | 1 | Yarn Berry PnP install blocked (MVP 0025; see [`yarn-lockfile.md`](yarn-lockfile.md)) |
 | `ERR_M_INTEGRITY` | 1 | Ambiguous incomplete transaction state, tree manifest collision, or verification failure |
 
@@ -46,6 +46,20 @@ Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DE
 | Windows directory sync denied | (none — no-op) | `fsx.SyncDir` ignores access-denied on directory handles; file sync still runs |
 
 Unknown codes map to exit **1**.
+
+## Supply-chain security (MVP 0030)
+
+| Situation | Code | Notes |
+|---|---|---|
+| Advisory cache missing with `--offline` | `ERR_M_NETWORK` | `app.audit`; seed `<cache>/advisory/osv.json` |
+| Advisory cache missing (online) | `ERR_M_NOT_FOUND` | Same path; copy or refresh advisory DB |
+| Org policy violation on `m policy check` | `ERR_M_POLICY` | `policy.check`; use `--json` for violations |
+| Org policy violation on install validate | `ERR_M_POLICY` | `app.policy` / `install`; transaction rolls back |
+| Invalid `mew.policy.json` | `ERR_M_CONFIG` | `policy.load` / `policy.normalize` |
+| Provenance attestation mismatch | `ERR_M_INTEGRITY` | `verify.provenance` / `app.provenance` |
+| Unknown SBOM format | `ERR_M_USAGE` | `app.sbom`; use `cyclonedx` or `spdx` |
+
+See [`audit.md`](audit.md), [`sbom.md`](sbom.md), [`policy.md`](policy.md).
 
 ## Go API
 

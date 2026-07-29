@@ -40,6 +40,9 @@ Freshness is **ETag / If-None-Match only** (no TTL). Corrupt entries are evicted
 
 Online 404 → `ERR_M_NOT_FOUND`.
 
+`m install --offline` preflights packument cache completeness before fetch
+(alongside tarball blobs and local paths). See [`offline.md`](offline.md).
+
 ## Scoped registries
 
 1. `registries.@scope` in Mew config

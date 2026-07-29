@@ -56,12 +56,13 @@ Primary package-manager verbs are reserved so scripts cannot shadow them (script
 fallback is MVP **0042**). Unimplemented verbs return `ERR_M_UNIMPLEMENTED`
 (exit **1**) with the owning MVP id in the message.
 
-Stubs on `m` today: `run`, `exec`, `init`, `audit`, `pack`, `publish`, `link`.
+Stubs on `m` today: `run`, `exec`, `init`, `link`.
 
 Shipped built-ins (also reserved): `version`, `features`, `development`,
 `config`, `project`, `pkg`, `cache`, `view`, `resolve`, `fetch`, `lock`,
 `install` (`i`), `add`, `remove` (`rm`), `update`, `ci`, `outdated`, `dedupe`,
-`prune`, `ls` (`list`), `store`, `completion`, `help`, hidden `__dispatch`.
+`prune`, `ls` (`list`), `store`, `audit`, `sbom`, `policy`, `verify`,
+`completion`, `help`, hidden `__dispatch`.
 
 Global flag: `--filter` — workspace package filter (pnpm-style), passed to
 install-family commands. Requires [`workspaces.md`](workspaces.md) gate.
@@ -125,6 +126,61 @@ m fetch --plan-file plan.json [--dir dest] [--json]
 ```
 
 Download, verify, and extract tarballs from a JSON plan. See [`fetch.md`](fetch.md).
+
+## Audit
+
+```text
+m audit [--json] [--fix]
+```
+
+Vulnerability scan against the cached OSV advisory database. `--fix` prints
+suggested safe version bumps without writing manifests. See [`audit.md`](audit.md).
+
+## SBOM
+
+```text
+m sbom [--format cyclonedx|spdx] [--redact-internal] [--redact-pattern <regex>]
+```
+
+Export CycloneDX or SPDX from the lock graph. See [`sbom.md`](sbom.md).
+
+## Policy
+
+```text
+m policy check [--json]
+```
+
+Evaluate `mew.policy.json` / `.mew/policy.json` deny rules. Install-family
+commands enforce error-severity violations in the validate phase. See
+[`policy.md`](policy.md).
+
+## Verify
+
+```text
+m verify provenance [<pkg>] [--attestation <path>]
+```
+
+Verify npm provenance attestation JSON against lock integrity. See
+[`pack-publish.md`](pack-publish.md) (publish hook) and MVP **0030** provenance
+fixtures.
+
+## Capsule
+
+```text
+m capsule create [--output <path>]
+m capsule restore <path>
+```
+
+Export or import a portable archive of lock, manifests, and cached blobs for
+air-gapped bootstrap. See [`offline.md`](offline.md).
+
+## Bench
+
+```text
+m bench install [--cold|--warm] [--fixture <path>] [--json]
+```
+
+End-to-end install benchmark with phase timing. See [`performance.md`](performance.md).
 
 ## Lock
 

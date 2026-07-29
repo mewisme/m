@@ -1,0 +1,17 @@
+{
+  "dsseEnvelope": {
+    "payload": "eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJwcmVkaWNhdGVUeXBlIjoiaHR0cHM6Ly9zbHNhLmRldi9wcm92ZW5hbmNlL3YxIiwic3ViamVjdCI6W3siZGlnZXN0Ijp7InNoYTUxMiI6ImVkNWE3MWQ2OWYwN2ViMDlkOGRhMzEwMzIyNDVmNjBiMjE4NDUwMDc5MzY3YzI4MTNmMWM3YzYyYjI1ZDAzMzUxYmFjNGQ0YmQzM2NhN2I5NDM0NTM3Mzg2YTMwZmYwYzMyZjU4YTE0MTU4ZDQ4MmY5MWViM2JlMmFkZGEyNTRjIn0sIm5hbWUiOiJwa2c6bnBtL3NpZ25lZC1maXh0dXJlLXBrZ0AxLjAuMCJ9XX0=",
+    "payloadType": "application/vnd.in-toto+json",
+    "signatures": [
+      {
+        "sig": "TWK3qK72J530fcFW5iNxQnIwjvVOv+XQSgqqorJr9aprmv3TLl6Q30pAiy8UbKqkO8aVld2cc7NjlqcVOmA2DQ=="
+      }
+    ]
+  },
+  "mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json",
+  "verificationMaterial": {
+    "publicKey": {
+      "rawBytes": "0Ibpu+g2+QXz2r+5CU+s3xJDGRMJSPzzzFnwnvD2oEg="
+    }
+  }
+}

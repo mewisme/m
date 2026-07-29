@@ -1,0 +1,10 @@
+{
+  "denyLicenses": ["GPL"],
+  "severityThreshold": "error",
+  "waivers": [
+    {
+      "package": "gpl-pkg",
+      "reason": "approved for integration test"
+    }
+  ]
+}

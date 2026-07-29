@@ -1,0 +1,25 @@
+[
+  {
+    "id": "OSV-TEST-0001",
+    "aliases": ["CVE-2026-0001"],
+    "summary": "Test vulnerability in vuln-pkg 1.0.0",
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "vuln-pkg"
+        },
+        "versions": ["1.0.0"]
+      }
+    ],
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "9.8"
+      }
+    ],
+    "database_specific": {
+      "severity": "critical"
+    }
+  }
+]

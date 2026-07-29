@@ -479,3 +479,17 @@ jobs:
           go-version: "1.26.x"
       - name: Nub lock fixture validation
         run: go test ./tests/conformance/... -count=1 -run TestLockBridgeNubFixtures -v
+
+  bench-regression:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Install bench regression (non-blocking)
+        shell: pwsh
+        run: pwsh tools/bench/check_regression.ps1 -Mode warm

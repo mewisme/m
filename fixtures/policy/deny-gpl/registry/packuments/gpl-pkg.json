@@ -1,0 +1,15 @@
+{
+  "dist-tags": { "latest": "1.0.0" },
+  "name": "gpl-pkg",
+  "versions": {
+    "1.0.0": {
+      "name": "gpl-pkg",
+      "version": "1.0.0",
+      "license": "GPL-3.0",
+      "dist": {
+        "integrity": "sha256-x5ldp76leH3WxhIgdrA8T4y4cNvkHgQUoH8TDKbMC/o=",
+        "tarball": "gpl-pkg-1.0.0.tgz"
+      }
+    }
+  }
+}

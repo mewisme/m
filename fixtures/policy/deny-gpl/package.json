@@ -1,0 +1,7 @@
+{
+  "name": "policy-deny-gpl-test",
+  "version": "1.0.0",
+  "dependencies": {
+    "gpl-pkg": "1.0.0"
+  }
+}

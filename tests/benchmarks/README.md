@@ -131,3 +131,26 @@ uses an in-memory synthetic graph; a 1k+ workspace fixture corpus is deferred.
 
 Fill medians after `go test -bench=... -count=5` on your machine; do not commit
 machine-specific numbers to golden files.
+
+## End-to-end install bench (`m bench install`)
+
+MVP **0029** adds a CLI harness that runs a full install against
+`fixtures/bench/medium-graph` (or `--fixture`) with isolated cache home:
+
+```powershell
+go run ./cmd/m bench install --cold --json
+go run ./cmd/m bench install --warm --json
+```
+
+Published medians: [`benchmarks/install-baseline.json`](../../benchmarks/install-baseline.json).
+
+Regression gate (10% over median fails unless `BENCH_WAIVER=1`):
+
+```powershell
+pwsh tools/bench/check_regression.ps1 -Mode warm
+```
+
+Soak loop: `pwsh tools/soak/install-loop.ps1 -Count 10 -Mode cold`.
+
+See [`docs/performance.md`](../../docs/performance.md) for phase timing,
+worker defaults, and hot-path profiling notes.

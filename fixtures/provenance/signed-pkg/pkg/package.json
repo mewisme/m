@@ -1,0 +1,5 @@
+{
+  "name": "signed-fixture-pkg",
+  "version": "1.0.0",
+  "files": ["index.js"]
+}

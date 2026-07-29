@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
@@ -23,6 +24,11 @@ import (
 	"github.com/mewisme/mew/internal/resolver"
 	"github.com/mewisme/mew/internal/store"
 )
+
+type enrichTarget struct {
+	pkg  *graph.Package
+	base string
+}
 
 func resolveForInstall(ctx context.Context, ac *Context, proj *project.Project, opts InstallOptions, manifestChanged bool) (*resolver.Resolution, error) {
 	if opts.Dedupe {
@@ -252,6 +258,10 @@ func enrichRegistryTarballs(ctx context.Context, ac *Context, proj *project.Proj
 	if eng.Client == nil {
 		return nil
 	}
+	preferOffline := config.Bool(ac.Config, "prefer-offline", false)
+	offline := config.Bool(ac.Config, "offline", false)
+
+	byBase := map[string][]enrichTarget{}
 	for i := range g.Packages {
 		pkg := &g.Packages[i]
 		key := pkg.ID.Key()
@@ -261,21 +271,92 @@ func enrichRegistryTarballs(ctx context.Context, ac *Context, proj *project.Proj
 		if pkg.Integrity == "" {
 			continue
 		}
-		baseVer := registryBaseVersion(pkg.ID.Version)
 		base := registry.ResolveBaseForPackage(ac.Config, proj.Root, proj.Identity, pkg.ID.Name)
-		pack, err := eng.Client.Packument(ctx, base, pkg.ID.Name)
-		if err != nil {
-			return apperr.Wrap(apperr.Network, "app.install.fetch", pkg.ID.Key(), err)
+		if preferOffline || offline {
+			if packumentCached(eng.Client, base, pkg.ID.Name) {
+				if err := applyPackumentTarball(eng.Client, base, pkg); err != nil {
+					return err
+				}
+				continue
+			}
+			if offline {
+				return apperr.New(apperr.Network, "app.install.fetch", pkg.ID.Key(),
+					"packument not in cache (offline mode)")
+			}
 		}
-		meta, ok := pack.Versions[baseVer]
+		byBase[base] = append(byBase[base], enrichTarget{pkg: pkg, base: base})
+	}
+	for base, targets := range byBase {
+		if err := enrichPackumentsBatch(ctx, eng.Client, base, targets); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func enrichPackumentsBatch(ctx context.Context, client *registry.Client, base string, targets []enrichTarget) error {
+	if len(targets) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(targets))
+	seen := map[string]struct{}{}
+	for _, t := range targets {
+		if _, ok := seen[t.pkg.ID.Name]; ok {
+			continue
+		}
+		seen[t.pkg.ID.Name] = struct{}{}
+		names = append(names, t.pkg.ID.Name)
+	}
+	sort.Strings(names)
+	packs, err := client.Packuments(ctx, base, names)
+	if err != nil {
+		if len(targets) == 1 {
+			return apperr.Wrap(apperr.Network, "app.install.fetch", targets[0].pkg.ID.Key(), err)
+		}
+		return apperr.Wrap(apperr.Network, "app.install.fetch", base, err)
+	}
+	for _, t := range targets {
+		pack, ok := packs[t.pkg.ID.Name]
 		if !ok {
-			return apperr.New(apperr.Network, "app.install.fetch", pkg.ID.Key(),
-				fmt.Sprintf("version %q not in packument", baseVer))
+			return apperr.New(apperr.Network, "app.install.fetch", t.pkg.ID.Key(),
+				fmt.Sprintf("packument %q missing from batch response", t.pkg.ID.Name))
 		}
-		pkg.TarballURL = registry.AbsoluteTarballURL(base, pkg.ID.Name, meta.Dist.Tarball)
-		if pkg.TarballURL == "" {
-			pkg.TarballURL = meta.Dist.Tarball
+		if err := applyPackumentVersion(t.base, t.pkg, pack); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func applyPackumentTarball(client *registry.Client, base string, pkg *graph.Package) error {
+	if client == nil || pkg == nil {
+		return nil
+	}
+	cache := client.Cache()
+	if cache == nil {
+		return apperr.New(apperr.Network, "app.install.fetch", pkg.ID.Key(), "packument not in cache")
+	}
+	body, _, ok := cache.Lookup(registry.OriginKey(base), pkg.ID.Name)
+	if !ok {
+		return apperr.New(apperr.Network, "app.install.fetch", pkg.ID.Key(), "packument not in cache")
+	}
+	pack, err := registry.ParsePackument(body)
+	if err != nil {
+		return apperr.Wrap(apperr.Network, "app.install.fetch", pkg.ID.Key(), err)
+	}
+	return applyPackumentVersion(base, pkg, pack)
+}
+
+func applyPackumentVersion(base string, pkg *graph.Package, pack *registry.Packument) error {
+	baseVer := registryBaseVersion(pkg.ID.Version)
+	meta, ok := pack.Versions[baseVer]
+	if !ok {
+		return apperr.New(apperr.Network, "app.install.fetch", pkg.ID.Key(),
+			fmt.Sprintf("version %q not in packument", baseVer))
+	}
+	pkg.TarballURL = registry.AbsoluteTarballURL(base, pkg.ID.Name, meta.Dist.Tarball)
+	if pkg.TarballURL == "" {
+		pkg.TarballURL = meta.Dist.Tarball
 	}
 	return nil
 }

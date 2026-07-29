@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
@@ -187,6 +188,8 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 
 	emitPhase(ac, "resolve", "")
+	phaseResolve := startInstallPhase(ac, "resolve")
+	defer phaseResolve.done()
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
 	if !manifestChanged {
 		drift, driftErr := manifestDriftsFromLock(ctx, proj)
@@ -266,6 +269,8 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 
 	emitPhase(ac, "fetch", "")
+	phaseFetch := startInstallPhase(ac, "fetch")
+	defer phaseFetch.done()
 	extractDir := filepath.Join(stage, "extract")
 	stageNM := filepath.Join(stage, "node_modules")
 	linkerMode, err := resolveLinkerMode(ctx, ac, proj, opts)
@@ -281,6 +286,15 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	localExtracts, err := buildLocalExtractDirs(localRoot, resolution, resolution.Graph)
 	if err != nil {
 		return res, err
+	}
+	if config.Bool(ac.Config, "offline", false) {
+		report, preErr := PreflightOffline(ctx, ac, proj, resolution.Graph, resolution.Extensions, localExtracts)
+		if preErr != nil {
+			return res, preErr
+		}
+		if !report.OK() {
+			return res, offlinePreflightError(report)
+		}
 	}
 	fetchOut, err := fetchPackages(ctx, ac, proj, resolution.Graph, resolution.Extensions, extractDir, useStore, localExtracts)
 	applyFetchOutcome(&res, fetchOut)
@@ -306,6 +320,8 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 
 	emitPhase(ac, "link", "")
+	phaseLink := startInstallPhase(ac, "link")
+	defer phaseLink.done()
 	if err := os.MkdirAll(stageNM, 0o755); err != nil {
 		return res, apperr.Wrap(apperr.IO, "app.install", stageNM, err)
 	}
@@ -368,6 +384,11 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 
 	emitPhase(ac, "validate", "")
+	phaseValidate := startInstallPhase(ac, "validate")
+	defer phaseValidate.done()
+	if err := EnforceInstallPolicy(ctx, ac, resolution.Graph, linkPlan); err != nil {
+		return res, err
+	}
 	if err := validateStaged(stage, linkPlan, resolution.Graph, linkerMode); err != nil {
 		return res, err
 	}
@@ -410,6 +431,8 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 
 	emitPhase(ac, "commit", "")
+	phaseCommit := startInstallPhase(ac, "commit")
+	defer phaseCommit.done()
 	if err := txn.Commit(ctx, nil); err != nil {
 		emitPhase(ac, "rollback", "")
 		return res, err
@@ -462,6 +485,8 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 		return res, err
 	}
 	emitPhase(ac, "resolve", "")
+	phaseResolve := startInstallPhase(ac, "resolve")
+	defer phaseResolve.done()
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
 	if !manifestChanged {
 		drift, driftErr := manifestDriftsFromLock(ctx, proj)
@@ -1210,6 +1235,27 @@ func emitPhase(ac *Context, phase, subject string) {
 		return
 	}
 	ac.Reporter.Progress(diagnostics.Event{V: 1, Type: "progress", Phase: phase, Package: subject})
+}
+
+type installPhaseTimer struct {
+	ac    *Context
+	phase string
+	start time.Time
+}
+
+func startInstallPhase(ac *Context, phase string) installPhaseTimer {
+	return installPhaseTimer{ac: ac, phase: phase, start: time.Now()}
+}
+
+func (t installPhaseTimer) done() {
+	if t.ac == nil || t.ac.Reporter == nil {
+		return
+	}
+	elapsed := time.Since(t.start).Round(time.Millisecond)
+	t.ac.Reporter.Debug("install phase",
+		diagnostics.Attr{Key: "phase", Value: t.phase},
+		diagnostics.Attr{Key: "elapsed", Value: elapsed.String()},
+	)
 }
 
 func emitLinkSummary(ac *Context, summary linker.LinkSummary) {

@@ -1,0 +1,43 @@
+{
+  "lockfileVersion": 3,
+  "checksum": "d17666c3293ba5bb9d923336629cf4854a0eae06e4e9d0fcdc4d5e06e53b1404",
+  "settings": {
+    "linker": "auto",
+    "policy": {
+      "schemaVersion": 1,
+      "scriptTrust": "ask"
+    }
+  },
+  "importers": [
+    {
+      "id": ".",
+      "name": "provenance-verify-fixture",
+      "path": ".",
+      "specifiers": [
+        {
+          "name": "signed-fixture-pkg",
+          "range": "1.0.0",
+          "kind": "prod"
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "id": {
+        "name": "signed-fixture-pkg",
+        "version": "1.0.0"
+      },
+      "integrity": "sha512-7Vpx1p8H6wnY2jEDIkX2CyGEUAeTZ8KBPxx8YrJdAzUbrE1L0zynuUNFNzhqMP8MMvWKFBWNSC+R6zvirdolTA=="
+    }
+  ],
+  "edges": [
+    {
+      "from": ".",
+      "name": "signed-fixture-pkg",
+      "to": "signed-fixture-pkg@1.0.0",
+      "kind": "prod",
+      "range": "1.0.0"
+    }
+  ]
+}

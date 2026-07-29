@@ -46,6 +46,10 @@ digest matches. Signed registry URLs are redacted in error subjects (`?…`).
 | `--prefer-offline` | Cache first; miss uses network |
 | online | GET with Bearer auth when `registry.auth_token_env` is set |
 
+Before fetch, `m install --offline` runs an offline preflight that verifies
+every resolved tarball blob is present in the blob cache (plus registry
+packuments and local/git sources). See [`offline.md`](offline.md).
+
 Metadata offline behavior is unchanged (see [`registry.md`](registry.md)).
 
 ## Safe extraction

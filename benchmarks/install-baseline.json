@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "medium-graph-cold",
+      "totalMsMedian": 60000
+    },
+    {
+      "name": "medium-graph-warm",
+      "totalMsMedian": 10000
+    }
+  ]
+}

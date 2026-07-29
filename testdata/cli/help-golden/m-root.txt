@@ -6,9 +6,11 @@ Usage:
 Available Commands:
   add            Add a dependency
   approve-builds Approve lifecycle scripts for packages (alias for m trust)
-  audit          Audit dependencies
+  audit          Audit dependencies for known vulnerabilities
+  bench          Performance benchmarks
   builds         Lifecycle build script audit
   cache          Manage the download cache
+  capsule        Create and restore portable dependency capsules
   ci             Clean install from lockfile
   completion     Generate shell completion scripts
   config         Get and set configuration
@@ -31,6 +33,7 @@ Available Commands:
   patch          Extract a dependency for patching or commit a patch
   pkg            Read package.json fields
   plan           Preview install mutations
+  policy         Evaluate organizational supply-chain policy
   project        Inspect the current project
   prune          Remove extraneous packages from node_modules
   publish        Publish a package
@@ -39,10 +42,12 @@ Available Commands:
   resolve        Resolve dependencies without installing
   rollback       Restore the previous install snapshot
   run            Run a package script
+  sbom           Export a software bill of materials
   snapshot       Manage install snapshots
   store          Manage the content store
   trust          Trust lifecycle scripts for packages
   update         Update dependencies and refresh the lockfile
+  verify         Verify package attestations
   version        Print version information
   view           View package metadata from the registry
 

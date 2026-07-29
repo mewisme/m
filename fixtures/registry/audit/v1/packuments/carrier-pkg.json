@@ -1,0 +1,19 @@
+{
+  "name": "carrier-pkg",
+  "dist-tags": {
+    "latest": "1.0.0"
+  },
+  "versions": {
+    "1.0.0": {
+      "name": "carrier-pkg",
+      "version": "1.0.0",
+      "dependencies": {
+        "vuln-pkg": "1.0.0"
+      },
+      "dist": {
+        "integrity": "sha256-833a7130fe3af0b0f1cf1ebcda443446b4ac8e64400b230862c77628787c231d",
+        "tarball": "carrier-pkg-1.0.0.tgz"
+      }
+    }
+  }
+}

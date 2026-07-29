@@ -1,0 +1,11 @@
+{
+  "name": "medium-graph",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "pkg-a": "1.0.0",
+    "lodash": "4.17.21",
+    "pkg-cli": "1.0.0",
+    "@scope/pkg": "1.0.0"
+  }
+}

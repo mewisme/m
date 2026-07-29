@@ -2,14 +2,14 @@
 
 ## Program status
 
-- Current MVP: **0029** — Performance, Offline Operation, and Portable Capsules
-- Last updated: 2026-07-29
+- Current MVP: **0031** — Package-Manager Core Stabilization Gate
+- Last updated: 2026-07-30
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
 
 ## Do now
 
-**Next:** [0029 - Performance, Offline Operation, and Portable Capsules](0029-performance-offline-capsules.md)
+**Next:** [0031 - Package-Manager Core Stabilization Gate](0031-core-stabilization.md)
 
 MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/mew/actions/runs/30310739645 (21/21 green).
 
@@ -61,8 +61,8 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 | 0026 | Core MVP 17 — Complete Package-Manager Command Surface | Core / MVP 17 | 0021, 0022, 0023, 0024, 0025 | [x] | [0026](0026-pm-command-surface.md) | [0026-pm-command-surface](cursor/0026-pm-command-surface.plan.md) |
 | 0027 | Core MVP 18 — Advanced Sources, Patches, Pack, and Publish | Core / MVP 18 | 0026 | [x] | [0027](0027-advanced-sources-publish.md) | [0027-advanced-sources-publish](cursor/0027-advanced-sources-publish.plan.md) |
 | 0028 | Core MVP 19 — Explainability, Plans, Semantic Diffs, and ... | Core / MVP 19 | 0017, 0020, 0026 | [x] | [0028](0028-explain-plan-history.md) | [0028-explain-plan-history](cursor/0028-explain-plan-history.plan.md) |
-| 0029 | Core MVP 20 — Performance, Offline Operation, and Portabl... | Core / MVP 20 | 0018, 0026, 0028 | [ ] | [0029](0029-performance-offline-capsules.md) | [0029-performance-offline-capsules](cursor/0029-performance-offline-capsules.plan.md) |
-| 0030 | Core MVP 21 — Audit, SBOM, Provenance, and Supply-Chain P... | Core / MVP 21 | 0012, 0021, 0027, 0029 | [ ] | [0030](0030-security-audit-sbom.md) | [0030-security-audit-sbom](cursor/0030-security-audit-sbom.plan.md) |
+| 0029 | Core MVP 20 — Performance, Offline Operation, and Portabl... | Core / MVP 20 | 0018, 0026, 0028 | [x] | [0029](0029-performance-offline-capsules.md) | [0029-performance-offline-capsules](cursor/0029-performance-offline-capsules.plan.md) |
+| 0030 | Core MVP 21 — Audit, SBOM, Provenance, and Supply-Chain P... | Core / MVP 21 | 0012, 0021, 0027, 0029 | [x] | [0030](0030-security-audit-sbom.md) | [0030-security-audit-sbom](cursor/0030-security-audit-sbom.plan.md) |
 | 0031 | Core MVP 22 — Package-Manager Core Stabilization Gate | Core / Stabilization | 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018, 0019, 0020, 0021, 0022, 0023, 0024, 0025, 0026, 0027, 0028, 0029, 0030 | [ ] | [0031](0031-core-stabilization.md) | [0031-core-stabilization](cursor/0031-core-stabilization.plan.md) |
 | 0040 | Runner MVP 1 — Package Script Runner | Runner / MVP 1 | 0031 | [ ] | [0040](0040-script-runner.md) | [0040-script-runner](cursor/0040-script-runner.plan.md) |
 | 0041 | Runner MVP 2 — Workspace Script Orchestration | Runner / MVP 2 | 0022, 0040 | [ ] | [0041](0041-workspace-runner.md) | [0041-workspace-runner](cursor/0041-workspace-runner.plan.md) |
@@ -1034,69 +1034,71 @@ Deferred: `m shell --snapshot` / `m run --snapshot` → MVP **0045**.
 
 ### 0029 - Core MVP 20 — Performance, Offline Operation, and Portable Capsules
 
-- status: planned
+- status: done
 - plan: [0029-performance-offline-capsules.md](0029-performance-offline-capsules.md)
 - cursor: [cursor/0029-performance-offline-capsules.plan.md](cursor/0029-performance-offline-capsules.plan.md)
 
-- [ ] Profile install phases: resolve, fetch, extract, link, lifecycle
-- [ ] Optimize hot paths identified by profiling
-- [ ] Implement warm-cache fast path skipping redundant metadata fetches
-- [ ] Make --offline first-class: preflight cache completeness check
-- [ ] Implement m capsule create bundling store + lock + metadata
-- [ ] Implement m capsule restore for CI/container bootstrap
-- [ ] Add benchmark harness m bench install with cold/warm modes
-- [ ] Publish baseline benchmark artifacts in repo
-- [ ] Add CI regression gate on critical path benchmarks
-- [ ] Tune worker pool defaults per CPU count
-- [ ] Reduce allocator churn in resolver and linker
-- [ ] Implement metadata batch fetch where registry supports
-- [ ] Document offline workflow for air-gapped environments
-- [ ] Capsule integrity verification on restore
-- [ ] Never sacrifice integrity for performance
-- [ ] Add soak test script for repeated install cycles
-- [ ] Document performance tuning env vars
-- [ ] Acceptance: Warm install measurably faster than cold on benchmark fixture
-- [ ] Acceptance: Offline install succeeds when capsule/cache complete
-- [ ] Acceptance: Capsule round-trip produces identical node_modules hash
-- [ ] Acceptance: Benchmark CI gate fails on >10% regression without waiver
-- [ ] Acceptance: Phase timing diagnostics available via --debug
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Profile install phases: resolve, fetch, extract, link, lifecycle
+- [x] Optimize hot paths identified by profiling
+- [x] Implement warm-cache fast path skipping redundant metadata fetches
+- [x] Make --offline first-class: preflight cache completeness check
+- [x] Implement m capsule create bundling store + lock + metadata
+- [x] Implement m capsule restore for CI/container bootstrap
+- [x] Add benchmark harness m bench install with cold/warm modes
+- [x] Publish baseline benchmark artifacts in repo
+- [x] Add CI regression gate on critical path benchmarks
+- [x] Tune worker pool defaults per CPU count
+- [x] Reduce allocator churn in resolver and linker
+- [x] Implement metadata batch fetch where registry supports
+- [x] Document offline workflow for air-gapped environments
+- [x] Capsule integrity verification on restore
+- [x] Never sacrifice integrity for performance
+- [x] Add soak test script for repeated install cycles
+- [x] Document performance tuning env vars
+- [x] Acceptance: Warm install measurably faster than cold on benchmark fixture
+- [x] Acceptance: Offline install succeeds when capsule/cache complete
+- [x] Acceptance: Capsule round-trip produces identical node_modules hash
+- [x] Acceptance: Benchmark CI gate fails on >10% regression without waiver
+- [x] Acceptance: Phase timing diagnostics available via --debug
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0030 - Core MVP 21 — Audit, SBOM, Provenance, and Supply-Chain Policy
 
-- status: planned
+- status: done
 - plan: [0030-security-audit-sbom.md](0030-security-audit-sbom.md)
 - cursor: [cursor/0030-security-audit-sbom.plan.md](cursor/0030-security-audit-sbom.plan.md)
 
-- [ ] Implement m audit against OSV/npm advisory data
-- [ ] Support offline audit from cached advisory DB
-- [ ] Implement m sbom CycloneDX and SPDX export
-- [ ] Include direct and transitive deps in SBOM
-- [ ] Verify package provenance attestations when present
-- [ ] Implement dependency age policy (minimum release age)
-- [ ] Implement org policy file for deny/warn on licenses and packages
-- [ ] Fail install when policy severity exceeds threshold
-- [ ] Redact internal package names in SBOM if configured
-- [ ] Add audit fixtures with known vulnerable versions
-- [ ] Add SBOM golden tests validating schema
-- [ ] Document trust model integration with 0021 lifecycle policy
-- [ ] Support m audit --fix suggesting safe bumps
-- [ ] Cache advisory DB with signature verification
-- [ ] Never phone home with project source code
-- [ ] Stable JSON schema for audit output
-- [ ] Integrate policy checks into transaction validate phase
-- [ ] Acceptance: m audit reports known CVE on fixture vulnerable package
-- [ ] Acceptance: m sbom output validates against CycloneDX schema
-- [ ] Acceptance: Policy deny blocks install of blocked package
-- [ ] Acceptance: Provenance verify passes on signed fixture package
-- [ ] Acceptance: Audit works offline with cached advisory DB
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement m audit against OSV/npm advisory data
+- [x] Support offline audit from cached advisory DB
+- [x] Implement m sbom CycloneDX and SPDX export
+- [x] Include direct and transitive deps in SBOM
+- [x] Verify package provenance attestations when present
+- [x] Implement dependency age policy (minimum release age)
+- [x] Implement org policy file for deny/warn on licenses and packages
+- [x] Fail install when policy severity exceeds threshold
+- [x] Redact internal package names in SBOM if configured
+- [x] Add audit fixtures with known vulnerable versions
+- [x] Add SBOM golden tests validating schema
+- [x] Document trust model integration with 0021 lifecycle policy
+- [x] Support m audit --fix suggesting safe bumps
+- [x] Cache advisory DB with signature verification
+- [x] Never phone home with project source code
+- [x] Stable JSON schema for audit output
+- [x] Integrate policy checks into transaction validate phase
+- [x] Acceptance: m audit reports known CVE on fixture vulnerable package
+- [x] Acceptance: m sbom output validates against CycloneDX schema
+- [x] Acceptance: Policy deny blocks install of blocked package
+- [x] Acceptance: Provenance verify passes on signed fixture package
+- [x] Acceptance: Audit works offline with cached advisory DB
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+
+Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); reachability-aware vuln reporting; live OSV mirror refresh in CI; Sigstore full chain beyond fixture bundles.
 
 ### 0031 - Core MVP 22 — Package-Manager Core Stabilization Gate
 

@@ -1,0 +1,7 @@
+{
+  "name": "provenance-verify-fixture",
+  "version": "1.0.0",
+  "dependencies": {
+    "signed-fixture-pkg": "1.0.0"
+  }
+}

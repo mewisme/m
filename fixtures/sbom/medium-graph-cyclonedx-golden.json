@@ -1,0 +1,86 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-07-30T00:00:00Z",
+    "component": {
+      "type": "application",
+      "name": "medium-graph"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "@scope/pkg",
+      "version": "1.0.0",
+      "purl": "pkg:npm/@scope%2Fpkg@1.0.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "74829c72b4555b2bad97262457652838d0cf6aa3eeedb028cda054c97bb953da"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "lodash",
+      "version": "4.17.21",
+      "purl": "pkg:npm/lodash@4.17.21",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pkg-a",
+      "version": "1.0.0",
+      "purl": "pkg:npm/pkg-a@1.0.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2e1afab8b566a6ac1019ae2ba9201ea8a036b0ca1463ed2b22673d4cc87b2354"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pkg-b",
+      "version": "1.2.0",
+      "purl": "pkg:npm/pkg-b@1.2.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "24c92f24878bdc43d34f0397c47ebd529869e7e444c28813ecfda1b8a52d2d65"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pkg-c",
+      "version": "1.0.1",
+      "purl": "pkg:npm/pkg-c@1.0.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9b75a3d4e441037d52cbcf35988036a38e8e931c5d77c71d729abc85a89ded6a"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pkg-cli",
+      "version": "1.0.0",
+      "purl": "pkg:npm/pkg-cli@1.0.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6ffb2697417ee0f02ad400c8d92c46cfb5889cf84603cd1f797146fde316b5d0"
+        }
+      ]
+    }
+  ]
+}

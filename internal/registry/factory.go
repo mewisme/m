@@ -2,6 +2,7 @@ package registry
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -34,7 +35,20 @@ func NewFromApp(eff *config.Effective, projectRoot string, identity project.Iden
 		PreferOffline: config.Bool(eff, "prefer-offline", false),
 		AuthToken:     config.AuthToken(eff),
 		HTTPClient:    hc,
+		MaxWorkers:    defaultMaxWorkers(),
 	}), nil
+}
+
+func defaultMaxWorkers() int {
+	// ponytail: cap at 16; NumCPU when unset
+	w := runtime.NumCPU()
+	if w > 16 {
+		w = 16
+	}
+	if w < 1 {
+		w = 1
+	}
+	return w
 }
 
 // ResolveBaseForPackage returns the registry URL for a package name.

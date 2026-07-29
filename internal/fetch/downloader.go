@@ -12,8 +12,6 @@ import (
 	"github.com/mewisme/mew/internal/store"
 )
 
-const defaultWorkers = 8
-
 // DownloadRequest is one tarball fetch.
 type DownloadRequest struct {
 	URL       string
@@ -82,7 +80,7 @@ func (d *Downloader) DownloadAll(ctx context.Context, reqs []DownloadRequest) ([
 	}
 	workers := d.Workers
 	if workers <= 0 {
-		workers = defaultWorkers
+		workers = DefaultWorkers()
 	}
 	sem := make(chan struct{}, workers)
 	out := make([]*Artifact, len(reqs))

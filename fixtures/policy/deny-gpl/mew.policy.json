@@ -1,0 +1,4 @@
+{
+  "denyLicenses": ["GPL"],
+  "severityThreshold": "error"
+}
