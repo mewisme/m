@@ -1,0 +1,51 @@
+---
+description: Prefer Python for repo automation scripts under tools/
+globs: tools/**/*
+alwaysApply: false
+---
+<!-- PYTHON-SCRIPTS_START -->
+# Python automation scripts
+
+Prefer **Python 3** over bash/sh/PowerShell for new automation under `tools/`.
+
+## Rules
+
+- Use **stdlib only** unless the repo already depends on the library.
+- Use **LF** line endings; never CRLF in committed scripts.
+- Executable scripts: `#!/usr/bin/env python3` shebang.
+- CI and Make invoke `python tools/...` (or `python3` on Unix Make targets).
+- Keep thin `.ps1`/`.sh` wrappers only for backward compatibility; they should delegate to Python.
+
+## CI example
+
+```yaml
+# GOOD
+- uses: actions/setup-python@v5
+  with:
+    python-version: "3.12"
+- run: python tools/bench/check_correctness.py --mode warm
+
+# BAD (when a Python script exists)
+- shell: pwsh
+  run: pwsh tools/bench/check_correctness.ps1 -Mode warm
+```
+
+## Local usage (Windows or Linux)
+
+```text
+python tools/ci/verify_plan_generation.py --self-check
+python tools/certification/run_core_cert.py core-cert-fast
+```
+
+## PowerShell exceptions
+
+Keep PowerShell only when **Windows-native behavior is required** and Python has no equivalent. Document the exception in the script header.
+
+| Script | Reason deferred |
+|--------|-----------------|
+| `plans/scripts/enrich-and-generate.ps1` | Large plan generator; Python port tracked separately |
+| `tools/conformance/generate-lock-fixtures.ps1` | Spawns pinned pnpm/Node tooling; Windows path semantics |
+| `tools/install.ps1` | Windows installer UX |
+
+New CI-critical checks should land as Python first (`tools/ci/verify_plan_generation.py` is the pattern).
+<!-- PYTHON-SCRIPTS_END -->
