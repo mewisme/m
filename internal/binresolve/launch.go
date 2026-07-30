@@ -75,9 +75,6 @@ func inspectUnixTarget(path string, hostEnv []string) (LaunchKind, string, strin
 	if err != nil {
 		return "", "", "", apperr.Wrap(apperr.IO, "binresolve.launch", path, err)
 	}
-	if st.Mode()&0o111 != 0 && !st.IsDir() {
-		return LaunchDirect, path, path, nil
-	}
 	f, err := os.Open(path)
 	if err != nil {
 		return "", "", "", apperr.Wrap(apperr.IO, "binresolve.launch", path, err)
@@ -87,21 +84,28 @@ func inspectUnixTarget(path string, hostEnv []string) (LaunchKind, string, strin
 	if err != nil {
 		return "", "", "", err
 	}
+	if line != "" {
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			return "", "", "", apperr.New(apperr.Exec, "binresolve.launch", path, "malformed shebang")
+		}
+		interp := parts[1]
+		if interp == "node" || strings.HasSuffix(interp, "/node") || strings.HasSuffix(interp, "/node.exe") {
+			node, err := TrustedNodePath(hostEnv)
+			if err != nil {
+				return "", "", "", err
+			}
+			return LaunchNode, node, path, nil
+		}
+	}
+	if !st.IsDir() && st.Mode()&0o111 != 0 {
+		return LaunchDirect, path, path, nil
+	}
 	if line == "" {
 		return LaunchDirect, path, path, nil
 	}
 	parts := strings.Fields(line)
-	if len(parts) < 2 {
-		return "", "", "", apperr.New(apperr.Exec, "binresolve.launch", path, "malformed shebang")
-	}
 	interp := parts[1]
-	if interp == "node" || strings.HasSuffix(interp, "/node") || strings.HasSuffix(interp, "/node.exe") {
-		node, err := TrustedNodePath(hostEnv)
-		if err != nil {
-			return "", "", "", err
-		}
-		return LaunchNode, node, path, nil
-	}
 	return "", "", "", apperr.New(apperr.Unsupported, "binresolve.launch", interp, "unsupported interpreter shebang")
 }
 

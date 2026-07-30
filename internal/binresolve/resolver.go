@@ -155,9 +155,13 @@ func candidateFromRecord(rec binmeta.Record, nodeModules, command string) (binme
 			shim = filepath.Join(nodeModules, rec.MaterializedShim)
 		}
 	}
-	target := filepath.Join(rec.PackageDir, rec.DeclaredBin)
-	if rec.PackageDir != "" {
-		target = filepath.Join(rec.PackageDir, filepath.Base(rec.DeclaredBin))
+	target := shim
+	if target == "" {
+		if filepath.IsAbs(rec.MaterializedShim) {
+			target = rec.MaterializedShim
+		} else {
+			target = filepath.Join(nodeModules, filepath.FromSlash(rec.MaterializedShim))
+		}
 	}
 	return binmeta.BinCandidate{
 		Command:           command,

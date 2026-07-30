@@ -2,6 +2,7 @@ package conformance
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/mewisme/mew/internal/testkit"
@@ -17,6 +18,9 @@ func TestLoadRunnerManifest(t *testing.T) {
 		t.Fatalf("manifest=%+v", m)
 	}
 	for _, suite := range m.Suites {
+		if !runnerSuiteSupportedOnPlatform(suite, runtime.GOOS) {
+			continue
+		}
 		if err := ValidateExpectedTestsRegex(root, suite); err != nil {
 			t.Fatalf("suite %s: %v", suite.ID, err)
 		}

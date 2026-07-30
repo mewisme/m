@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -382,6 +383,9 @@ func goosToPlatform(goos string) string {
 
 // ValidateExpectedTestsRegex proves the run regex matches exactly expectedTests.
 func ValidateExpectedTestsRegex(repoRoot string, suite RunnerSuite) error {
+	if !runnerSuiteSupportedOnPlatform(suite, runtime.GOOS) {
+		return nil
+	}
 	matched, err := listTestsForSuite(repoRoot, suite, nil)
 	if err != nil {
 		return err

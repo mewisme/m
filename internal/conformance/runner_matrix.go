@@ -119,6 +119,9 @@ func RunRunner(ctx context.Context, opts RunnerRunOptions) (RunnerReport, error)
 	}
 	if !opts.DryRun {
 		for _, suite := range selected {
+			if !runnerSuiteSupportedOnPlatform(suite, runtime.GOOS) {
+				continue
+			}
 			if err := ValidateExpectedTestsRegex(repoRoot, suite); err != nil {
 				return RunnerReport{}, apperr.Wrap(apperr.Manifest, "conformance.runner.manifest", suite.ID, err)
 			}
