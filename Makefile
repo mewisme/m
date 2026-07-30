@@ -3,7 +3,7 @@
 GO ?= go
 BIN_DIR := bin
 
-.PHONY: test vet lint race fuzz-smoke conformance core-cert vuln build allowlist
+.PHONY: test vet lint race fuzz-smoke conformance core-cert core-cert-fast core-cert-security core-cert-crash core-cert-performance vuln build allowlist
 
 test:
 	$(GO) test ./... -count=1
@@ -25,10 +25,30 @@ fuzz-smoke:
 conformance:
 	$(GO) test ./tests/conformance/... -count=1
 
+core-cert-fast:
+	@if command -v pwsh >/dev/null 2>&1; then pwsh -File tools/certification/run-core-cert.ps1 -Target core-cert-fast; \
+	elif command -v powershell >/dev/null 2>&1; then powershell -File tools/certification/run-core-cert.ps1 -Target core-cert-fast; \
+	else sh tools/certification/run-core-cert.sh core-cert-fast; fi
+
 core-cert:
-	$(GO) run ./cmd/m conformance run core
-	$(GO) run ./tools/conformance/verify-fixtures
-	$(GO) run ./tools/ci/verify-crash-shards
+	@if command -v pwsh >/dev/null 2>&1; then pwsh -File tools/certification/run-core-cert.ps1 -Target core-cert; \
+	elif command -v powershell >/dev/null 2>&1; then powershell -File tools/certification/run-core-cert.ps1 -Target core-cert; \
+	else sh tools/certification/run-core-cert.sh core-cert; fi
+
+core-cert-security:
+	@if command -v pwsh >/dev/null 2>&1; then pwsh -File tools/certification/run-core-cert.ps1 -Target core-cert-security; \
+	elif command -v powershell >/dev/null 2>&1; then powershell -File tools/certification/run-core-cert.ps1 -Target core-cert-security; \
+	else sh tools/certification/run-core-cert.sh core-cert-security; fi
+
+core-cert-crash:
+	@if command -v pwsh >/dev/null 2>&1; then pwsh -File tools/certification/run-core-cert.ps1 -Target core-cert-crash; \
+	elif command -v powershell >/dev/null 2>&1; then powershell -File tools/certification/run-core-cert.ps1 -Target core-cert-crash; \
+	else sh tools/certification/run-core-cert.sh core-cert-crash; fi
+
+core-cert-performance:
+	@if command -v pwsh >/dev/null 2>&1; then pwsh -File tools/certification/run-core-cert.ps1 -Target core-cert-performance; \
+	elif command -v powershell >/dev/null 2>&1; then powershell -File tools/certification/run-core-cert.ps1 -Target core-cert-performance; \
+	else sh tools/certification/run-core-cert.sh core-cert-performance; fi
 
 vuln:
 	govulncheck ./...

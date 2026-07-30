@@ -368,7 +368,8 @@ go test ./tests/conformance/... -count=1
 go run ./tools/conformance/verify-fixtures
 go run ./tools/ci/verify-crash-shards
 go run ./cmd/m conformance run core
-make core-cert    # when Make is available
+make core-cert           # full manifest (tools/certification/core-manifest.json)
+make core-cert-fast      # fixture + crash-shard + conformance list smoke
 ```
 
 **Fuzz smoke:** `make fuzz-smoke` or `tools/fuzz-smoke.ps1`.

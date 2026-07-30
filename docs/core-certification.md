@@ -10,9 +10,16 @@ Related: [`security-pm-core.md`](security-pm-core.md),
 
 ## Certification entry points
 
+Machine-readable step list: [`tools/certification/core-manifest.json`](../tools/certification/core-manifest.json).
+
 | Command | Purpose |
 |---|---|
-| `make core-cert` | Full local gate: core conformance + fixture verify + crash-shard verify |
+| `make core-cert` | Full local gate (manifest `core-cert` target) |
+| `make core-cert-fast` | Fixture verify + crash-shard verify + conformance list |
+| `make core-cert-security` | Audit/SBOM/provenance focused tests |
+| `make core-cert-crash` | Crash-shard assignment verify (full `-tags crash` suite is separate) |
+| `make core-cert-performance` | Bench correctness + advisory regression |
+| `pwsh tools/certification/run-core-cert.ps1 -Target <name>` | Direct runner (same manifest as Make) |
 | `go run ./cmd/m conformance run core [--json]` | Execute the core-matrix test suites |
 | `go run ./cmd/m conformance list` | List suite ids from `tests/conformance/core-matrix/manifest.json` |
 | `go run ./cmd/m doctor [--json] [--strict]` | Project and PM health checks |

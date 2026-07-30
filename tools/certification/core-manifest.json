@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "core-cert-fast": {
+      "description": "Fast smoke: fixture verify, crash-shard verify, conformance list",
+      "steps": [
+        "fixture-verify",
+        "crash-shard-verify",
+        "conformance-list"
+      ]
+    },
+    "core-cert": {
+      "description": "Full local PM core certification manifest",
+      "steps": [
+        "go-test",
+        "go-vet",
+        "build-binaries",
+        "allowlist",
+        "fixture-verify",
+        "crash-shard-verify",
+        "conformance-core",
+        "doctor",
+        "soak-short",
+        "bench-correctness",
+        "govulncheck"
+      ]
+    },
+    "core-cert-security": {
+      "description": "Audit, SBOM, and provenance focused tests",
+      "steps": [
+        "security-tests"
+      ]
+    },
+    "core-cert-crash": {
+      "description": "Crash shard verification (full crash suite is separate, expensive)",
+      "steps": [
+        "crash-shard-verify"
+      ]
+    },
+    "core-cert-performance": {
+      "description": "Bench correctness and platform-matched regression",
+      "steps": [
+        "bench-correctness",
+        "bench-regression"
+      ]
+    }
+  },
+  "steps": {
+    "go-test": {
+      "id": "go-test",
+      "command": "go test ./... -count=1",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "env": { "CGO_ENABLED": "0" }
+    },
+    "go-vet": {
+      "id": "go-vet",
+      "command": "go vet ./...",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "env": { "CGO_ENABLED": "0" }
+    },
+    "build-binaries": {
+      "id": "build-binaries",
+      "command": "go build ./cmd/m ./cmd/mx",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "env": { "CGO_ENABLED": "0" }
+    },
+    "allowlist": {
+      "id": "allowlist",
+      "command": "go run ./tools/check-license; go run ./tools/check-deps",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "env": { "CGO_ENABLED": "0" },
+      "shell": "pwsh"
+    },
+    "fixture-verify": {
+      "id": "fixture-verify",
+      "command": "go run ./tools/conformance/verify-fixtures",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "env": { "CGO_ENABLED": "0" }
+    },
+    "crash-shard-verify": {
+      "id": "crash-shard-verify",
+      "command": "go run ./tools/ci/verify-crash-shards",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "env": { "CGO_ENABLED": "0" }
+    },
+    "conformance-list": {
+      "id": "conformance-list",
+      "command": "go run ./cmd/m conformance list",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "env": { "CGO_ENABLED": "0" }
+    },
+    "conformance-core": {
+      "id": "conformance-core",
+      "command": "go run ./cmd/m conformance run core",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "requiresTools": ["node", "pnpm"],
+      "env": {
+        "CGO_ENABLED": "0",
+        "MEW_CONFORMANCE_REQUIRE_TOOLS": "1"
+      }
+    },
+    "doctor": {
+      "id": "doctor",
+      "command": "go run ./cmd/m --cwd fixtures/projects/mlock-greenfield doctor --json",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "env": { "CGO_ENABLED": "0" }
+    },
+    "soak-short": {
+      "id": "soak-short",
+      "command": "pwsh tools/soak/install-loop.ps1 -Count 10 -Mode warm",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "shell": "pwsh"
+    },
+    "bench-correctness": {
+      "id": "bench-correctness",
+      "command": "pwsh tools/bench/check_correctness.ps1 -Mode warm",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "shell": "pwsh"
+    },
+    "bench-regression": {
+      "id": "bench-regression",
+      "command": "pwsh tools/bench/check_regression.ps1 -Mode warm",
+      "blocking": false,
+      "platform": ["linux", "darwin", "windows"],
+      "shell": "pwsh"
+    },
+    "govulncheck": {
+      "id": "govulncheck",
+      "command": "govulncheck ./...",
+      "blocking": false,
+      "platform": ["linux", "darwin", "windows"],
+      "requiresTools": ["govulncheck"]
+    },
+    "security-tests": {
+      "id": "security-tests",
+      "command": "go test ./internal/archive/... ./internal/sbom/... ./internal/provenance/... ./internal/advisory/... ./internal/pack/... -count=1",
+      "blocking": true,
+      "platform": ["linux", "darwin", "windows"],
+      "env": { "CGO_ENABLED": "0" }
+    }
+  }
+}

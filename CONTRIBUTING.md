@@ -33,7 +33,18 @@ make fuzz-smoke
 make vuln
 make build
 make allowlist
+make core-cert
+make core-cert-fast
+make core-cert-security
+make core-cert-crash
+make core-cert-performance
 ```
+
+Core certification steps are defined in
+[`tools/certification/core-manifest.json`](tools/certification/core-manifest.json)
+and executed by `tools/certification/run-core-cert.ps1` (or the Make targets above).
+Race tests and the full `-tags crash` integration suite are expensive and remain
+separate (`make race`; see [`docs/core-certification.md`](docs/core-certification.md)).
 
 Install pinned lint/vuln tools:
 
