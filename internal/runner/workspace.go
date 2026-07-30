@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"path/filepath"
 	"sort"
 
@@ -53,6 +54,9 @@ type WorkspaceRunOptions struct {
 	Bail          bool
 	HostEnv       []string
 	TempDir       string // workspace-run spill dir; empty = derive from project
+	// Suspend / Resume pause presentation around child launch when tasks inherit TTYs.
+	Suspend func(context.Context) error
+	Resume  func(context.Context) error
 }
 
 // WorkspaceTask is one scheduled package script execution.

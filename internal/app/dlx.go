@@ -67,7 +67,8 @@ func DLX(ctx context.Context, ac *Context, opts DLXOptions) (runner.ExecResult, 
 		Leases:    envexec.DLXLeaseManager{MXCacheRoot: MXCacheRoot(ac)},
 		Reporter:  ac.Reporter,
 	}
-	return orch.Execute(ctx, deps, envexec.ExecutionRequest{
+	started := time.Now()
+	result, err := orch.Execute(ctx, deps, envexec.ExecutionRequest{
 		Source: envexec.DLXSource{
 			Packages: opts.PackageSpecs,
 			Mode:     mode,
@@ -84,7 +85,15 @@ func DLX(ctx context.Context, ac *Context, opts DLXOptions) (runner.ExecResult, 
 			Stdout: opts.Stdout,
 			Stderr: opts.Stderr,
 		},
+		Suspend: ac.SuspendUI,
+		Resume:  ac.ResumeUI,
 	})
+	name := opts.Command
+	if name == "" && len(opts.PackageSpecs) > 0 {
+		name = opts.PackageSpecs[0].Name
+	}
+	emitExecCompletion(ac, name, time.Since(started), result.ExitCode, err)
+	return result, err
 }
 
 // PruneMXCache prunes stale mx execution environments.

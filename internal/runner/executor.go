@@ -110,6 +110,8 @@ type RealWorkspaceExecutor struct {
 	HostEnv   []string
 	Reporter  diagnostics.Reporter
 	Runner    ScriptRunner
+	Suspend   func(context.Context) error
+	Resume    func(context.Context) error
 }
 
 func (e *RealWorkspaceExecutor) Run(ctx context.Context, task WorkspaceTask, io TaskIO) WorkspaceTaskResult {
@@ -150,6 +152,8 @@ func (e *RealWorkspaceExecutor) Run(ctx context.Context, task WorkspaceTask, io 
 		Stdin:         io.Stdin,
 		Stdout:        io.Stdout,
 		Stderr:        io.Stderr,
+		Suspend:       e.Suspend,
+		Resume:        e.Resume,
 	})
 	if runErr == nil {
 		return WorkspaceTaskResult{Task: task, Status: StatusDone, ExitCode: res.ExitCode}

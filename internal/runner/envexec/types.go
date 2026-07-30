@@ -1,6 +1,7 @@
 package envexec
 
 import (
+	"context"
 	"io"
 
 	"github.com/mewisme/mew/internal/runner/dlx"
@@ -28,6 +29,10 @@ type ExecutionRequest struct {
 	Recursive bool
 	// Filters selects workspace importers for project sources.
 	Filters []string
+
+	// Suspend / Resume pause presentation around child launch (optional).
+	Suspend func(context.Context) error
+	Resume  func(context.Context) error
 }
 
 // SourceRequest is a tagged execution source. Implementations validate

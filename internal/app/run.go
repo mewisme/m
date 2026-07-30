@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"path/filepath"
+	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/runner"
@@ -70,7 +71,10 @@ func Run(ctx context.Context, ac *Context, opts RunOptions) (runner.RunResult, e
 		hostEnv = ac.Config.Env.Environ()
 	}
 
-	return runner.NewDefaultRunner().Run(ctx, runner.RunOptions{
+	emitProjectExecPrep(ac, opts.Selector, pkgName)
+
+	started := time.Now()
+	result, err := runner.NewDefaultRunner().Run(ctx, runner.RunOptions{
 		ProjectRoot:   ac.CWD,
 		PackageDir:    packageDir,
 		NodeModules:   filepath.Join(packageDir, "node_modules"),
@@ -82,7 +86,11 @@ func Run(ctx context.Context, ac *Context, opts RunOptions) (runner.RunResult, e
 		ForwardedArgs: opts.ForwardedArgs,
 		HostEnv:       hostEnv,
 		Reporter:      ac.Reporter,
+		Suspend:       ac.SuspendUI,
+		Resume:        ac.ResumeUI,
 	})
+	emitExecCompletion(ac, opts.Selector, time.Since(started), result.ExitCode, err)
+	return result, err
 }
 
 func runWorkspace(ctx context.Context, ac *Context, opts RunOptions) (runner.WorkspaceResult, error) {

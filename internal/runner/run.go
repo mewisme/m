@@ -94,6 +94,8 @@ func (r *DefaultRunner) Run(ctx context.Context, opts RunOptions) (RunResult, er
 				stdout:  stdout,
 				stderr:  stderr,
 				subject: stage.Event,
+				suspend: opts.Suspend,
+				resume:  opts.Resume,
 			})
 			result.ExitCode = code
 			if runErr != nil {
@@ -112,6 +114,8 @@ type runStageInput struct {
 	stdout  io.Writer
 	stderr  io.Writer
 	subject string
+	suspend func(context.Context) error
+	resume  func(context.Context) error
 }
 
 func (r *DefaultRunner) supervisor() process.ProcessSupervisor {
@@ -134,6 +138,12 @@ func runStage(ctx context.Context, sup process.ProcessSupervisor, in runStageInp
 		Stdin:  in.stdin,
 		Stdout: in.stdout,
 		Stderr: in.stderr,
+	}
+	if in.suspend != nil {
+		_ = in.suspend(ctx)
+	}
+	if in.resume != nil {
+		defer func() { _ = in.resume(ctx) }()
 	}
 	h, err := sup.Start(ctx, spec)
 	if err != nil {

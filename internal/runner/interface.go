@@ -43,6 +43,9 @@ type RunOptions struct {
 	Stdin         io.Reader
 	Stdout        io.Writer
 	Stderr        io.Writer
+	// Suspend / Resume pause presentation around child Start/Wait (optional).
+	Suspend func(context.Context) error
+	Resume  func(context.Context) error
 }
 
 // RunResult summarizes script execution outcome.

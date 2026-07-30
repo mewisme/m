@@ -31,6 +31,9 @@ type ExecOptions struct {
 	Stdin           io.Reader
 	Stdout          io.Writer
 	Stderr          io.Writer
+	// Suspend / Resume pause presentation around child Start/Wait (optional).
+	Suspend func(context.Context) error
+	Resume  func(context.Context) error
 }
 
 // ExecResult summarizes binary execution.
@@ -104,6 +107,12 @@ func Exec(ctx context.Context, opts ExecOptions, sup process.ProcessSupervisor) 
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,
+	}
+	if opts.Suspend != nil {
+		_ = opts.Suspend(ctx)
+	}
+	if opts.Resume != nil {
+		defer func() { _ = opts.Resume(ctx) }()
 	}
 	h, err := sup.Start(ctx, spec)
 	if err != nil {
