@@ -10,6 +10,7 @@ agents and humans.
 |---|---|
 | [package-map.md](package-map.md) | Full directory listing with one-line purpose per path |
 | [forbidden-imports.md](forbidden-imports.md) | Import edges that must never exist |
+| [cli-presentation.md](cli-presentation.md) | Output modes, streams, Charm boundary, UX rollout stages |
 | [interfaces.md](interfaces.md) | Core interfaces, immutability, extension points |
 | [../data-model.md](../data-model.md) | Canonical graph, IDs, plan/snapshot/loss models |
 | [../testing.md](../testing.md) | Fixtures, clean-home, registry, fuzz, conformance |

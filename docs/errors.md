@@ -3,6 +3,11 @@
 Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DETAIL>`
 (see [`naming.md`](naming.md)). Nub `ERR_NUB_*` codes are behavioral references only.
 
+Human modes render typed failures through presentation `ErrorView` (title, message,
+context, code, hints) on stderr. Structured `json` / `ndjson` error documents are
+unchanged. See [`architecture/cli-presentation.md`](architecture/cli-presentation.md)
+and [`reporters.md`](reporters.md).
+
 ## Registry (MVP 0005)
 
 | Code | Exit | Meaning |

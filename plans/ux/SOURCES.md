@@ -42,7 +42,7 @@ Exact versions are deliberately not frozen in these plans. Each implementation p
 ## Important assumptions
 
 - `UX-0001` through `UX-0008` form an independent numbering namespace.
-- These files are intended to live under a standalone directory such as `plans/cli-ux/`.
+- These files live under `plans/ux/` (standalone UX program directory).
 - The root repository roadmap may link to this program, but does not own its numbering or checklist.
 - Existing machine-output schemas and error mappings remain authoritative.
 - Existing runner stabilization and process behavior remain prerequisites.

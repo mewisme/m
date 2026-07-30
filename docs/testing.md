@@ -196,6 +196,19 @@ CI jobs: `conformance-runner-linux`, `conformance-runner-windows`,
 Docs: [`runner-compatibility.md`](../docs/runner-compatibility.md),
 [`runner-waivers.md`](../docs/runner-waivers.md).
 
+### CLI UX certification (UX-0008)
+
+Manifest: [`tests/conformance/cli-ux/manifest.json`](../tests/conformance/cli-ux/manifest.json).
+
+```powershell
+$env:CGO_ENABLED = "0"
+go run ./cmd/m conformance run cli-ux --json
+```
+
+Evidence and performance: [`docs/evidence/cli-ux/`](evidence/cli-ux/),
+[`plans/ux/performance-baseline.md`](../plans/ux/performance-baseline.md).
+Architecture: [`architecture/cli-presentation.md`](architecture/cli-presentation.md).
+
 ```powershell
 go test ./internal/app/... -run Merge -count=1
 go test ./internal/snapshot/... -count=1

@@ -44,3 +44,47 @@ Deterministic top-to-bottom stderr lines; no cursor-up redraw:
 
 Manual screen-reader walkthrough is recorded here as checklist evidence for UX-0006;
 full multi-platform a11y certification remains UX-0008.
+
+---
+
+# UX-0008 accessibility certification checklist
+
+**Date:** 2026-07-31
+**User doc:** [`docs/accessibility.md`](../../docs/accessibility.md)
+**Platform evidence:** [`docs/evidence/cli-ux/`](../../docs/evidence/cli-ux/)
+
+## Automated (required)
+
+| Check | Evidence |
+|---|---|
+| Accessible / plain / CI / pipe emit no CSI | presentation resolve + renderer tests; Windows redirected smoke in `windows-2026-07-31.md` |
+| Numbered prompt parse / EOF / safe default | `internal/presentation/prompt` |
+| Policy: no prompt in CI / structured / non-TTY | `internal/prompt` |
+| Completions ANSI-free | `internal/cli` `TestCompletionNoANSI` |
+| Width 40/60/80/120 for static + accessible text | design-system / prompt width tests |
+
+## Manual checklist (operator)
+
+Perform on at least one Windows console host (done 2026-07-31 for UX-0006 path)
+and record Linux/macOS when those evidence slots are filled:
+
+1. Enable `--accessible` (or `MEW_ACCESSIBLE=1`).
+2. Confirm install/help/version output is append-only top-to-bottom (no cursor-up).
+3. Confirm readable without color (`NO_COLOR` or `--color=never`).
+4. Confirm ASCII path with `--unicode=never` still conveys status.
+5. Keyboard-only lifecycle trust prompt: Enter → deny; `2` → allow-once; EOF → deny.
+6. Force width ~40 columns: title wraps; options remain numbered; no CSI.
+7. Structured mode (`--output=json`): no prompt, no human ANSI on stdout.
+
+## Platform notes
+
+| Platform | Status |
+|---|---|
+| Windows native | Checklist + UX-0006 keyboard steps recorded on build 26200 |
+| Linux | Slot open — Docker daemon unavailable on measurement host; fill with Docker or Ubuntu CI |
+| macOS | Slot open — record via GitHub Actions job SHA |
+
+## Explicit non-claim
+
+This is not a screen-reader lab certification. It is product-checklist evidence
+plus automated append-only / no-ANSI coverage.

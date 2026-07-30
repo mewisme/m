@@ -3,7 +3,7 @@
 ## Program status
 
 - Current standalone plan: **UX-0008 — CLI UX Certification and Rollout**
-- Status: active standalone program
+- Status: active — docs/evidence track recorded; conformance matrix + CI owned by sibling
 - Recommended repository path: `plans/ux/`
 - Numbering namespace: `UX-0001` through `UX-0008`
 - Main roadmap status: independent; no `00xx` IDs are consumed
@@ -107,19 +107,19 @@
 
 ## UX-0008 — CLI UX Certification and Rollout
 
-- [ ] Create versioned conformance matrix.
-- [ ] Certify output modes.
-- [ ] Certify stdout/stderr byte ownership.
-- [ ] Certify terminal cleanup.
-- [ ] Certify Linux, macOS, and Windows.
-- [ ] Certify widths, themes, no-color, Unicode, and ASCII.
-- [ ] Certify accessibility.
-- [ ] Certify JSON/NDJSON and completions.
-- [ ] Benchmark startup, binary size, and live rendering.
-- [ ] Review licenses, vulnerabilities, and dependency pins.
-- [ ] Execute staged rollout.
-- [ ] Update docs, inventory, plan index, and checklist.
-- [ ] Remove temporary legacy path after stability window.
+- [ ] Create versioned conformance matrix. *(sibling: `tests/conformance/cli-ux`)*
+- [ ] Certify output modes. *(sibling matrix suites)*
+- [ ] Certify stdout/stderr byte ownership. *(sibling matrix suites)*
+- [ ] Certify terminal cleanup. *(sibling matrix suites)*
+- [ ] Certify Linux, macOS, and Windows. *(Windows measured; Linux Docker / macOS CI slots open — `docs/evidence/cli-ux/`)*
+- [ ] Certify widths, themes, no-color, Unicode, and ASCII. *(sibling + existing presentation tests)*
+- [x] Certify accessibility. *(checklist extended in `accessibility-evidence.md`; lab certification out of scope)*
+- [ ] Certify JSON/NDJSON and completions. *(sibling + existing coverage)*
+- [x] Benchmark startup, binary size, and live rendering. *(advisory — `performance-baseline.md`)*
+- [x] Review licenses, vulnerabilities, and dependency pins. *(charm review refreshed; govulncheck findings recorded)*
+- [x] Execute staged rollout. *(Stage 4 current; Stage 5 deferred — see `cli-presentation.md`)*
+- [x] Update docs, inventory, plan index, and checklist.
+- [ ] Remove temporary legacy path after stability window. *(deferred one milestone — keep `--presentation-legacy` / `MEW_PRESENTATION=legacy`)*
 
 ## Global non-negotiable gates
 

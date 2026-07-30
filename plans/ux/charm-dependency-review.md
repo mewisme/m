@@ -1,6 +1,7 @@
 # Charm dependency evaluation
 
-**Date:** 2026-07-31  
+**Date:** 2026-07-31 (UX-0008 remeasure)
+**Owner:** CLI UX certification (UX-0008)
 **Status:** Lip Gloss v2.0.5 + Bubble Tea v2.0.8 + Bubbles v2.1.1 + Huh v2.0.3 +
 Glamour v2.0.1 pinned for `internal/presentation` only.
 
@@ -129,10 +130,41 @@ present in `go list -m all`.
 `charm.land/glamour/v2`, and transitive Charm / clipperhouse / catppuccin /
 goldmark / chroma modules listed in the file.
 
+## UX-0008 remeasure (Windows, `CGO_ENABLED=0`)
+
+Commit `8d1ba8f91ccd6b0773abda9340e402edd099af59`, go1.26.5 windows/amd64.
+
+| Binary | Bytes |
+|---|---:|
+| `cmd/m` | 31,494,656 |
+| `cmd/mx` | 27,945,984 |
+
+Pins unchanged (`go list -m`): Lip Gloss v2.0.5, Bubble Tea v2.0.8, Bubbles
+v2.1.1, Huh v2.0.3, Glamour v2.0.1.
+
+Startup median/p95: [`performance-baseline.md`](performance-baseline.md).
+Platform artifact: [`docs/evidence/cli-ux/windows-2026-07-31.md`](../../docs/evidence/cli-ux/windows-2026-07-31.md).
+
+### License / allowlist / vuln (2026-07-31)
+
+| Gate | Result |
+|---|---|
+| `go run ./tools/check-license` | ok (Apache-2.0) |
+| `go run ./tools/check-deps` | ok (64 modules) |
+| `govulncheck ./...` | **open findings** (not clean) |
+
+Recorded call-path findings (do not claim clean):
+
+1. `GO-2026-5970` — `golang.org/x/text@v0.24.0` (fixed in v0.39.0); trace via
+   diagnostics / `norm.Form.Properties`.
+2. `GO-2026-5320` — `github.com/yuin/goldmark@v1.7.8` (fixed in v1.7.17); trace
+   via Glamour topic help HTML renderer. Topic content is curated/embedded
+   (no network fetch); upgrade path is Charm/Glamour transitive pin bump.
+
 ## Fallback
 
 - `MEW_PRESENTATION=legacy` / hidden `--presentation-legacy` forces pre-Charm
-  human reporter path until UX-0008 removes the switch.
+  human reporter path until Stage 5 (deferred one milestone after UX-0008).
 - `auto` progress downgrades to plain on non-TTY, CI, `TERM=dumb`, or accessible mode.
 - Forced `--progress=always` without a stderr TTY fails before mutation start
   (`RichUnsupportedError`).

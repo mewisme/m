@@ -2,7 +2,7 @@
 
 This directory is a **standalone implementation program** for modernizing Mew's human-facing CLI without changing package-manager, transaction, runner, or runtime semantics.
 
-The `UX-` prefix creates an independent numbering namespace. These plans are intentionally separate from the repository's primary `plans/00xx-*` delivery train and do not consume IDs from that roadmap. The recommended repository location is `plans/cli-ux/`. The main roadmap may link to this program, but the program keeps its own index, checklist, sequencing, and completion state.
+The `UX-` prefix creates an independent numbering namespace. These plans are intentionally separate from the repository's primary `plans/00xx-*` delivery train and do not consume IDs from that roadmap. The repository location is `plans/ux/`. The main roadmap may link to this program, but the program keeps its own index, checklist, sequencing, and completion state.
 
 ## Program principles
 

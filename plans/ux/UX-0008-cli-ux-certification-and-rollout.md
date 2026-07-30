@@ -442,8 +442,8 @@ docs/architecture/cli-presentation.md
 docs/accessibility.md
 CONTRIBUTING.md
 README.md, concise user-facing update only
-plans/cli-ux/INDEX.md
-plans/cli-ux/CHECKLIST.md
+plans/ux/INDEX.md
+plans/ux/CHECKLIST.md
 features/inventory.json
 plans/INDEX.md, link to the standalone program only when desired
 ```

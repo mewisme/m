@@ -6,7 +6,7 @@ This directory is a standalone implementation program for modernizing the human-
 
 - Local plan IDs use the `UX-` namespace.
 - The program owns its own [`INDEX.md`](INDEX.md) and [`CHECKLIST.md`](CHECKLIST.md).
-- The recommended repository location is `plans/cli-ux/`.
+- The repository location is `plans/ux/`.
 - The root roadmap may contain one link to this directory, but it does not need to duplicate the individual UX plans.
 - Main-roadmap plans referenced by this program are prerequisites, not members of this numbering sequence.
 - Completing a UX plan must not automatically advance the main product MVP.

@@ -96,6 +96,12 @@ m exec <binary> [-- args]
 mx <package-spec> --yes -- <args>   # non-interactive consent for CI
 ```
 
+Human terminal output defaults to rich styling only on eligible interactive
+terminals (`--output=auto`). Use `--output=plain`, `--accessible`, or
+`MEW_PRESENTATION=legacy` when you need append-only / pre-Charm paths. See
+[`docs/architecture/cli-presentation.md`](docs/architecture/cli-presentation.md)
+and [`docs/accessibility.md`](docs/accessibility.md).
+
 ## Command overview
 
 | Area | Commands | Purpose |

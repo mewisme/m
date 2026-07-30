@@ -51,6 +51,52 @@ func baselineFeatures() []Feature {
 		rowWithTests("foundation.testing-strategy", "fixtures, fuzzing, and conformance harness", "foundation", shipped, shipped, parity, "0008", []string{"internal/testkit", "tests/integration", "tests/conformance"}),
 		rowWithTests("foundation.release-train", "MVP dependency graph and release train", "foundation", shipped, shipped, parity, "0009", []string{"internal/releasetrain"}),
 		rowWithTests("foundation.cli", "m and mx CLI foundation", "foundation", shipped, shipped, parity, "0010", []string{"internal/cli", "cmd/m", "cmd/mx", "internal/app"}),
+		rowWithTests("cli.presentation-foundation", "CLI presentation contract and capability resolver", "cli", omit, shipped, ext, "0010", []string{
+			"internal/presentation",
+			"internal/archcheck",
+			"docs/architecture/cli-presentation.md",
+		}),
+		rowWithTests("cli.rich-human-output", "rich human static output and design system", "cli", omit, shipped, ext, "0010", []string{
+			"internal/presentation",
+			"internal/cli",
+		}),
+		rowWithTests("cli.accessible-output", "accessible append-only output and numbered prompts", "cli", omit, shipped, ext, "0010", []string{
+			"internal/presentation/prompt",
+			"internal/prompt",
+			"docs/accessibility.md",
+			"plans/ux/accessibility-evidence.md",
+		}),
+		rowWithTests("cli.rich-errors", "typed ErrorView human errors", "cli", omit, shipped, ext, "0010", []string{
+			"internal/presentation",
+			"internal/diagnostics",
+			"internal/cli",
+		}),
+		rowWithTests("cli.install-progress", "plain and rich install-family progress", "cli", omit, shipped, ext, "0010", []string{
+			"internal/presentation",
+			"internal/cli",
+		}),
+		rowWithTests("cli.runner-progress", "runner and workspace presentation with suspend/resume", "cli", omit, shipped, ext, "0010", []string{
+			"internal/presentation",
+			"internal/cli",
+			"docs/runner.md",
+		}),
+		rowWithTests("cli.prompt-system", "prompt policy and Huh/accessible adapters", "cli", omit, shipped, ext, "0010", []string{
+			"internal/prompt",
+			"internal/presentation/prompt",
+			"internal/lifecycle",
+		}),
+		rowWithTests("cli.markdown-help", "topic help Markdown and optional pager", "cli", omit, shipped, ext, "0010", []string{
+			"internal/help",
+			"internal/presentation/help",
+			"internal/presentation/pager",
+			"internal/cli",
+		}),
+		rowWithTests("cli.ux-certification", "CLI UX conformance matrix and platform evidence", "cli", omit, inProgress, ext, "0010", []string{
+			"docs/evidence/cli-ux",
+			"plans/ux/performance-baseline.md",
+			"plans/ux/charm-dependency-review.md",
+			"tests/conformance/cli-ux",
+		}),
 		rowWithTests("foundation.manifest-discovery", "package.json and project discovery", "foundation", shipped, shipped, parity, "0011", []string{"internal/manifest", "internal/project", "internal/workspace", "internal/cli"}),
 		rowWithTests("foundation.core-stabilization", "package-manager core stabilization gate", "foundation", shipped, shipped, parity, "0031", []string{
 			"docs/core-certification.md",

@@ -148,6 +148,7 @@ Logic tests: `bash scripts/lib/devinstall_test.sh`, `pwsh -NoProfile -File scrip
 - Keep changes inside the assigned MVP scope.
 - Run `gofmt -w` on changed Go files, then `go test ./... -count=1`, `go vet ./...`, and `golangci-lint run ./...` before pushing.
 - Update [`features/inventory.json`](features/inventory.json) when public behavior ships (see [`docs/features-maintenance.md`](docs/features-maintenance.md)).
+- CLI UX certification entry: `go run ./cmd/m conformance run cli-ux --json` (see [`docs/testing.md`](docs/testing.md) and [`docs/evidence/cli-ux/`](docs/evidence/cli-ux/)).
 - Resolving PRs must include `Closes #N`, `Fixes #N`, or `Resolves #N`.
 
 ## Agent orientation

@@ -141,7 +141,10 @@ Optional completion summary on stderr after the child exits:
 Suppressed by `--no-summary`, structured/silent modes, and interactive intent.
 Live presentation Suspend/Resume surrounds child Start/Wait so Bubble Tea does
 not own the terminal while the child runs. Child stdin/stdout/stderr stay raw
-passthrough for single-task runs.
+passthrough for single-task runs. Presentation contract:
+[`architecture/cli-presentation.md`](architecture/cli-presentation.md). Runner
+child-stream certification remains in the runner matrix (cross-linked from the
+cli-ux matrix; do not duplicate).
 
 ## Command shape
 
