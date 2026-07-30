@@ -118,9 +118,17 @@
       "id": "help-pager",
       "title": "Pager resolve and write paths",
       "package": "./internal/presentation/pager",
-      "run": "Test",
+      "run": "^(TestSplitCommand|TestResolveNever|TestResolveAutoMissingPager|TestResolveAlwaysMissingPager|TestWritePagedDirect|TestLineCount)",
       "required": true,
       "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "help-pager-windows",
+      "title": "Windows pager default policy (no assumed less)",
+      "package": "./internal/presentation/pager",
+      "run": "TestResolveWindowsNoDefaultLess",
+      "required": true,
+      "platforms": ["windows"]
     },
     {
       "id": "cert-output-modes",

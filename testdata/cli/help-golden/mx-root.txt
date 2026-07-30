@@ -13,7 +13,7 @@ Configuration and development
 
 Flags:
       --accessible           accessible append-only output
-      --color string         color: auto|always|never (default "auto")
+      --color string         color: auto|always|never
       --config string        JSONC config file overlay path
       --cwd string           project working directory
       --debug                verbose diagnostics (env MEW_DEBUG or M_LOG=debug)
