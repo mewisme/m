@@ -135,7 +135,7 @@ func (r *WorkspaceAggregateRenderer) WorkspaceSummary(ev diagnostics.WorkspaceSu
 	if ev.Failed > 0 {
 		b.WriteString(sym.Error)
 		b.WriteByte(' ')
-		b.WriteString(fmt.Sprintf("%d of %d tasks failed", ev.Failed, totalTasks(ev)))
+		fmt.Fprintf(&b, "%d of %d tasks failed", ev.Failed, totalTasks(ev))
 		b.WriteByte('\n')
 		if len(failed) > 0 {
 			b.WriteString("\n  Failed\n")
@@ -145,7 +145,7 @@ func (r *WorkspaceAggregateRenderer) WorkspaceSummary(ev diagnostics.WorkspaceSu
 				b.WriteString("  ")
 				b.WriteString(row.Script)
 				if row.Exit != nil {
-					b.WriteString(fmt.Sprintf("  exit %d", *row.Exit))
+					fmt.Fprintf(&b, "  exit %d", *row.Exit)
 				}
 				b.WriteByte('\n')
 			}
@@ -154,7 +154,7 @@ func (r *WorkspaceAggregateRenderer) WorkspaceSummary(ev diagnostics.WorkspaceSu
 	} else {
 		b.WriteString(sym.Success)
 		b.WriteByte(' ')
-		b.WriteString(fmt.Sprintf("%d tasks completed", ev.Completed))
+		fmt.Fprintf(&b, "%d tasks completed", ev.Completed)
 		b.WriteByte('\n')
 		b.WriteByte('\n')
 	}

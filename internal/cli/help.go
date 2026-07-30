@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -14,11 +13,10 @@ type helpGroup struct {
 }
 
 type cmdHelpMeta struct {
-	group      string
-	examples   []string
-	related    []string
-	workflow   int // lower ranks first in Common workflows
-	hiddenRoot bool
+	group    string
+	examples []string
+	related  []string
+	workflow int // lower ranks first in Common workflows
 }
 
 var helpGroups = []helpGroup{
@@ -217,12 +215,4 @@ func renderCommandSections(cmd *cobra.Command) string {
 		}
 	}
 	return b.String()
-}
-
-// writeHelp executes help for tests and golden capture.
-func writeHelp(w io.Writer, root *cobra.Command, args ...string) error {
-	root.SetOut(w)
-	root.SetErr(w)
-	root.SetArgs(args)
-	return root.Execute()
 }

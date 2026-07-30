@@ -31,7 +31,7 @@ func TestLockDiffFromToHuman(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("lock diff exit=%d out=%s", code, out)
 	}
-	for _, want := range []string{"+a@2.0.0", "-a@1.0.0"} {
+	for _, want := range []string{"+ a  2.0.0", "- a  1.0.0"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}
@@ -107,7 +107,7 @@ func TestLockDiffIncumbentAgainstOtherLock(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("lock diff exit=%d out=%s", code, out)
 	}
-	for _, want := range []string{"+a@2.0.0", "-a@1.0.0"} {
+	for _, want := range []string{"+ a  2.0.0", "- a  1.0.0"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}

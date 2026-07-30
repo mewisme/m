@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -178,22 +177,4 @@ func ValidateCommandPresentation(cmd *cobra.Command, g *globalFlags) error {
 
 func presentationOutcome(err error) presentation.Outcome {
 	return presentation.Outcome{Err: err}
-}
-
-func reportCLIError(cmd *cobra.Command, g *globalFlags, err error) {
-	if err == nil {
-		return
-	}
-	err = classifyCLIError(err)
-	rep := g.mustReporter(cmd, nil)
-	rep.Error(err)
-}
-
-func reportCLIErrorWithExit(cmd *cobra.Command, g *globalFlags, err error) int {
-	reportCLIError(cmd, g, err)
-	return apperr.ExitCode(classifyCLIError(err))
-}
-
-func formatPresentationHelp(mode string) string {
-	return fmt.Sprintf("see --output (%s)", mode)
 }

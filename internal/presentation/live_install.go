@@ -320,7 +320,7 @@ func (m liveModel) View() tea.View {
 		b.WriteByte(' ')
 		b.WriteString(label)
 		if ph.Total != nil && *ph.Total > 0 {
-			b.WriteString(fmt.Sprintf("  %d/%d", ph.Completed, *ph.Total))
+			fmt.Fprintf(&b, "  %d/%d", ph.Completed, *ph.Total)
 		} else if ph.Status == "active" || ph.Status == "pending" {
 			b.WriteString("  pending")
 		}

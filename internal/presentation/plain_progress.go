@@ -103,9 +103,9 @@ func (p *PlainProgressRenderer) OperationCompleted(ev diagnostics.OperationCompl
 		b.WriteString(name)
 		b.WriteByte('=')
 		if m.Value == float64(int64(m.Value)) {
-			b.WriteString(fmt.Sprintf("%d", int64(m.Value)))
+			fmt.Fprintf(&b, "%d", int64(m.Value))
 		} else {
-			b.WriteString(fmt.Sprintf("%g", m.Value))
+			fmt.Fprintf(&b, "%g", m.Value)
 		}
 	}
 	p.writeln(b.String())

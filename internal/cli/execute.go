@@ -67,9 +67,9 @@ func (g *globalFlags) bind(cmd *cobra.Command) {
 	g.bindPresentation(cmd)
 	cmd.PersistentFlags().StringVar(&g.reporter, "reporter", "", "output reporter: default|ndjson|json|silent (alias for --output; env MEW_LOG_FORMAT)")
 	cmd.PersistentFlags().BoolVar(&g.debug, "debug", false, "verbose diagnostics (env MEW_DEBUG or M_LOG=debug)")
-		// Empty default (not "auto"): a literal "auto" would shadow MEW_COLOR / ui.color
-		// via firstNonEmpty in presentation.Resolve. Unset resolves to TriAuto there.
-		cmd.PersistentFlags().StringVar(&g.color, "color", "", "color: auto|always|never")
+	// Empty default (not "auto"): a literal "auto" would shadow MEW_COLOR / ui.color
+	// via firstNonEmpty in presentation.Resolve. Unset resolves to TriAuto there.
+	cmd.PersistentFlags().StringVar(&g.color, "color", "", "color: auto|always|never")
 	cmd.PersistentFlags().BoolVar(&g.noColor, "no-color", false, "disable ANSI color")
 	cmd.PersistentFlags().BoolVar(&g.unsafe, "unsafe-diagnostics", false, "disable secret redaction (dangerous)")
 	_ = cmd.PersistentFlags().MarkHidden("unsafe-diagnostics")
@@ -82,31 +82,6 @@ func (g *globalFlags) bind(cmd *cobra.Command) {
 
 func (g *globalFlags) bindRecursive(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(&g.recursive, "recursive", "r", false, "workspace recursive mode (consumed by m run)")
-}
-
-func (g *globalFlags) resolveFormat() string {
-	if g.output != "" {
-		in := g.presentationInput(nil)
-		resolved, err := presentation.Resolve(in, presentation.Capabilities{})
-		if err == nil {
-			return resolved.ReporterFormat()
-		}
-	}
-	if g.reporter != "" {
-		return g.reporter
-	}
-	// intentional: pre-app.New presentation flags read ambient env before snapshot exists.
-	if v := os.Getenv("MEW_LOG_FORMAT"); v != "" {
-		return v
-	}
-	if v := os.Getenv("MEW_OUTPUT"); v != "" {
-		in := presentation.Input{Env: map[string]string{"MEW_OUTPUT": v}}
-		resolved, err := presentation.Resolve(in, presentation.Capabilities{})
-		if err == nil {
-			return resolved.ReporterFormat()
-		}
-	}
-	return "default"
 }
 
 func (g *globalFlags) newReporter(cmd *cobra.Command) diagnostics.Reporter {
@@ -122,16 +97,6 @@ func (g *globalFlags) resolveDebug() bool {
 		return true
 	}
 	return strings.EqualFold(os.Getenv("M_LOG"), "debug")
-}
-
-func (g *globalFlags) resolveColor() diagnostics.ColorMode {
-	if g.noColor || strings.EqualFold(g.color, "never") {
-		return diagnostics.ColorNever
-	}
-	if strings.EqualFold(g.color, "always") {
-		return diagnostics.ColorAlways
-	}
-	return diagnostics.ColorAuto
 }
 
 func attachGlobals(root *cobra.Command) *globalFlags {

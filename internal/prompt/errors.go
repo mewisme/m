@@ -60,9 +60,7 @@ func ValidateRequest(req PromptRequest) error {
 	if req.Kind == PromptSelect && len(req.Options) == 0 {
 		return &ValidationError{Message: "select prompt requires options"}
 	}
-	if req.Kind == PromptConfirm && len(req.Options) == 0 {
-		// adapters synthesize approve/reject when omitted
-	}
+	// Confirm may omit options; adapters synthesize approve/reject.
 	if req.DefaultID != "" && len(req.Options) > 0 {
 		if _, ok := seen[req.DefaultID]; !ok {
 			return &ValidationError{Message: fmt.Sprintf("default id %q not in options", req.DefaultID)}
