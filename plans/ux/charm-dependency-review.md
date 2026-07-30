@@ -1,8 +1,8 @@
 # Charm dependency evaluation
 
 **Date:** 2026-07-31  
-**Status:** Lip Gloss v2.0.5 + Bubble Tea v2.0.8 + Bubbles v2.1.1 pinned for
-`internal/presentation` only.
+**Status:** Lip Gloss v2.0.5 + Bubble Tea v2.0.8 + Bubbles v2.1.1 + Huh v2.0.3
+pinned for `internal/presentation` only.
 
 ## Proposed modules
 
@@ -11,13 +11,13 @@
 | `charm.land/lipgloss/v2` | Static styling, tables, colors | UX-0002 | **Pinned v2.0.5** |
 | `charm.land/bubbletea/v2` | Live inline install renderer | UX-0004 | **Pinned v2.0.8** |
 | `charm.land/bubbles/v2` | Spinner (progress bar reserved) | UX-0004 | **Pinned v2.1.1** |
-| `charm.land/huh/v2` | Accessible prompts | UX-0006 | Deferred |
+| `charm.land/huh/v2` | Rich prompts (accessible adapter is Mew-owned) | UX-0006 | **Pinned v2.0.3** |
 | `charm.land/glamour/v2` | Markdown help | UX-0007 | Deferred |
 
 ## License
 
-Lip Gloss, Bubble Tea, and Bubbles are MIT (`LICENSE` in module cache). Transitive
-Charm / clipperhouse modules are MIT-compatible for Mew.
+Lip Gloss, Bubble Tea, Bubbles, and Huh are MIT (`LICENSE` in module cache).
+Transitive Charm / clipperhouse / catppuccin modules are MIT-compatible for Mew.
 `go run ./tools/check-license` reports `ok: LICENSE is Apache-2.0`.
 
 ## Integration boundary
@@ -27,10 +27,13 @@ Charm / clipperhouse modules are MIT-compatible for Mew.
 - Forbidden: domain packages (`internal/app`, `internal/runner`,
   `internal/transaction`, `internal/resolver`, `internal/linker`,
   `internal/store`, `internal/lifecycle`, …).
+- Prompt contract: `internal/prompt` (stdlib only). Adapters:
+  `internal/presentation/prompt`.
 - Enforced by `internal/archcheck` import-edge tests.
 - Do **not** import `charm.land/lipgloss/v2/compat` (global stdin/stdout probes).
 - Live Bubble Tea programs: `tea.WithOutput(stderr)`, `tea.WithInput(nil)`,
   no alternate screen, no signal ownership.
+- Huh forms: `WithOutput(stderr)`, injected `WithInput`, no global I/O.
 - No package `init` terminal I/O in Mew code.
 
 ## Pin evidence (Windows, `CGO_ENABLED=0`)
@@ -62,11 +65,36 @@ Startup smoke (local PowerShell, 7 runs, average wall time; no hard fail thresho
 Cold-start cost is modest (~10 ms). Binary size increase is accepted for live
 install progress; plain/CI paths do not start a Bubble Tea program.
 
+### Huh (UX-0006)
+
+Measured 2026-07-31 after pinning `charm.land/huh/v2@v2.0.3`:
+
+| Binary | After Bubble Tea (bytes) | After Huh (bytes) | Delta |
+|---|---:|---:|---:|
+| `cmd/m` | 22,908,928 | 22,998,016 | +89,088 (~87 KiB) |
+| `cmd/mx` | 19,343,872 | 19,434,496 | +90,624 (~88 KiB) |
+
+Startup smoke (5 runs, average wall time):
+
+| Command | After Bubble Tea avg (ms) | After Huh avg (ms) |
+|---|---:|---:|
+| `m version` | 57.2 | 68.4 |
+| `mx version` | 52.2 | 61.2 |
+
+Huh is presentation-only. Accessible numbered prompts are Mew-owned
+(append-only) and do not require Huh's accessible mode. Non-interactive /
+structured paths never construct a Huh form.
+
+New allowlist entries from Huh: `charm.land/huh/v2`, `github.com/catppuccin/go`,
+`github.com/charmbracelet/x/exp/ordered`, `github.com/charmbracelet/x/exp/strings`,
+`github.com/mitchellh/hashstructure/v2`, plus optional transitive PTY helpers
+(`x/xpty`, `creack/pty`, `x/conpty`) when present in `go.sum`.
+
 ## Allowlist
 
 `tools/allowlist/modules.txt` includes: `charm.land/lipgloss/v2`,
-`charm.land/bubbletea/v2`, `charm.land/bubbles/v2`, and transitive Charm /
-clipperhouse modules listed in the file.
+`charm.land/bubbletea/v2`, `charm.land/bubbles/v2`, `charm.land/huh/v2`,
+and transitive Charm / clipperhouse / catppuccin modules listed in the file.
 
 ## Fallback
 
@@ -78,10 +106,5 @@ clipperhouse modules listed in the file.
 - Mid-mutation live renderer failure: product cleanup completes; presentation
   error surfaces afterward.
 - Plain renderer is first-class (zero ANSI), not rich-with-strip.
-
-## References
-
-- https://charm.land/libs/
-- https://charm.land/blog/v2/
-- Modules: `charm.land/lipgloss/v2@v2.0.5`, `charm.land/bubbletea/v2@v2.0.8`,
-  `charm.land/bubbles/v2@v2.1.1` (Go ≥ 1.25; repo Go 1.26.5)
+- Prompt `auto` never prompts in CI/structured/non-TTY; `always` still requires
+  stdin TTY (typed error, no hang).
