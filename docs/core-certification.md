@@ -86,9 +86,9 @@ restore, and workspace snapshot paths. Windows runs in dedicated shards
 (snapshot, install/txn, update) per
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
-See [`transaction.md`](transaction.md) and stabilization scorecards
-(`.agents/stabilization-pass20-score.md`, `.agents/pass32-score.md`) for
-patch-sandbox, provenance, store-integrity, and capsule evidence.
+See [`transaction.md`](transaction.md) and
+[`docs/evidence/core/pass20-security-controls.md`](evidence/core/pass20-security-controls.md)
+for patch-sandbox, provenance, store-integrity, and capsule evidence.
 
 ## Pass 32 hardening evidence (core subset)
 
@@ -162,6 +162,6 @@ Human checklist (0087-aligned, PM-core subset):
 | Code SHA (Pass 32 fixes) | `f19f3f73bd7dc4169a8a95c598a645b2077b9539` (run [`30486713425`](https://github.com/mewisme/mew/actions/runs/30486713425)) |
 | Matrix | 38 jobs success (ubuntu, macOS, Windows test/race/cross/platform-lock/crash/conformance/core-stabilization) |
 | Core certification artifact | `core-certification-report` from `core-stabilization` job |
-| Scorecard | [`.agents/pass32-score.md`](../.agents/pass32-score.md) |
+| Scorecard | [`docs/evidence/core/pass32-ci.md`](evidence/core/pass32-ci.md) |
 
 Note: Windows `platform-lock` required one failed-job rerun on the same SHA (transient dual-winner flake). `bench-regression` and core-stabilization bench steps remain advisory (`continue-on-error: true`).

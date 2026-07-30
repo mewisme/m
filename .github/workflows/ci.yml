@@ -350,6 +350,18 @@ jobs:
         shell: pwsh
         run: pwsh tools/ci/verify-plan-generation.ps1
 
+  markdown-link-check:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Check Markdown relative links
+        run: go run ./tools/check-links
+
   conformance-pnpm-9:
     runs-on: ubuntu-latest
     env:

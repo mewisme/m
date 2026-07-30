@@ -46,7 +46,7 @@ Implementation: `internal/registry`, `internal/fetch`, `internal/diagnostics`.
 
 Implementation: `internal/archive/patch_*.go`, `internal/resolver/patch.go`.
 
-Pass 20 shipped controls (evidence: `.agents/stabilization-pass20-score.md`):
+Pass 20 shipped controls (evidence: [`docs/evidence/core/pass20-security-controls.md`](evidence/core/pass20-security-controls.md)):
 
 - `resolvePatchTarget` + `fsx.GuardAncestors` — patch paths cannot escape package root
 - Store copy-on-write — patched derivatives staged, not written into global store paths

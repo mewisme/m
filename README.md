@@ -413,7 +413,7 @@ Delivery order (see [`plans/INDEX.md`](plans/INDEX.md)):
 7. **Product tooling and distribution** — init, plugins, releases, CI integrations (**0070–0074**)
 8. **Compatibility, security, performance, governance** — conformance program, threat model, definition of done (**0080–0089**)
 
-Progress rollup: [`plans/CHECKLIST.md`](plans/CHECKLIST.md). Numbered `plans/00xx-*.md` files are canonical; generated cursor plans are execution aids only.
+Progress rollup: [`plans/CHECKLIST.md`](plans/CHECKLIST.md). Numbered `plans/00xx-*.md` files are canonical.
 
 ## Contributing
 

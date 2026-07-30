@@ -19,7 +19,7 @@ Evidence index: [`docs/core-certification.md`](../../docs/core-certification.md)
 - [x] All crash-integration shards green (`crash-integration`, Windows shards)
 - [x] Crash-shard verifier passes (`crash-shard-verify`)
 - [x] Interrupted install leaves incumbent bytes restorable (`tests/integration` crash tags)
-- [x] Patch apply is fail-closed and sandboxed (pass 20 evidence in `.agents/stabilization-pass20-score.md`)
+- [x] Patch apply is fail-closed and sandboxed ([`docs/evidence/core/pass20-security-controls.md`](../../docs/evidence/core/pass20-security-controls.md))
 
 ## Conformance and compatibility
 
