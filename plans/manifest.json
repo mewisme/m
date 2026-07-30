@@ -15,7 +15,7 @@
     "commit": "08a804359ef301ef8b9307f1258cc185b3270698"
   },
   "plan_file_count": 66,
-  "markdown_file_count": 71,
+  "markdown_file_count": 87,
   "validation_errors": [],
   "files": [
     {
@@ -360,8 +360,8 @@
     },
     {
       "path": "INDEX.md",
-      "bytes": 13892,
-      "sha256": "311548cbb7f2180fd0bd382093a128c6fa906dece34feff25edf00749b348ae8"
+      "bytes": 13967,
+      "sha256": "52ce9de32326afec30afc26c314534887ade4bd27b294260faa19cd2065b3d67"
     },
     {
       "path": "scripts/enrich-and-generate.ps1",
@@ -422,6 +422,86 @@
       "path": "status.json",
       "bytes": 761,
       "sha256": "8a8402e3b5e8c5effe90dc74adbc93470450bef7b3dd3500b48ba90a323ff5ec"
+    },
+    {
+      "path": "ux/accessibility-evidence.md",
+      "bytes": 3574,
+      "sha256": "371b7578fde5d8df3a157b28c8202279792d27bc54a36fd437b8e6075c613b05"
+    },
+    {
+      "path": "ux/charm-dependency-review.md",
+      "bytes": 7297,
+      "sha256": "78df93b82c60e79ac505eb1d09e77f53119feabff754e0d8cdad893278693aae"
+    },
+    {
+      "path": "ux/CHECKLIST.md",
+      "bytes": 6474,
+      "sha256": "66c6550fbd6d9a47d743aeb640ca97bc2ef69c3300bf4914d3fdfc686ae3316c"
+    },
+    {
+      "path": "ux/INDEX.md",
+      "bytes": 5244,
+      "sha256": "42a327af4730f82092137597c7341dbb3d62ce0fd77661f8198e8725fafb0f38"
+    },
+    {
+      "path": "ux/output-site-inventory.md",
+      "bytes": 10361,
+      "sha256": "4fd1541d96dfd75ddeed256e25c8986513a9d99fa417035796e2deb69bc497fb"
+    },
+    {
+      "path": "ux/performance-baseline.md",
+      "bytes": 2375,
+      "sha256": "f0eca49fbb5fd3a5bba3a29546cca9ac41536c72a3fc2a2dcea55aa3f8a9310d"
+    },
+    {
+      "path": "ux/README.md",
+      "bytes": 1941,
+      "sha256": "a031a4676f8aeda1e638c231099dc20d210ec3daa73ce28f65159adb187eb56b"
+    },
+    {
+      "path": "ux/SOURCES.md",
+      "bytes": 1761,
+      "sha256": "30897c8ff1e3132efd340d837e0f18805e588ea4238a0c6f7470be9dc0903206"
+    },
+    {
+      "path": "ux/UX-0001-cli-presentation-contract.md",
+      "bytes": 18125,
+      "sha256": "3229f118be3091a541459802ae74df66c972b633a621792589cbb038d83a2bc6"
+    },
+    {
+      "path": "ux/UX-0002-terminal-capabilities-and-design-system.md",
+      "bytes": 13498,
+      "sha256": "269a106b16586942bafa4722ddea6a594fe60ccbc6d6c49ecb81de61f4bd0739"
+    },
+    {
+      "path": "ux/UX-0003-errors-help-and-static-output.md",
+      "bytes": 13272,
+      "sha256": "015ab11a2eb9d522cba8fbc75d7e7e0d6a0d9c78fc2ea8e6aaa8ab879f9bd893"
+    },
+    {
+      "path": "ux/UX-0004-install-and-mutation-experience.md",
+      "bytes": 13921,
+      "sha256": "36dd788355a026564069ff1b6c11fa0ee8477acf993b420b2fa2decf638b6dc4"
+    },
+    {
+      "path": "ux/UX-0005-runner-and-workspace-experience.md",
+      "bytes": 13137,
+      "sha256": "a5a981930eed2c1d5366320f4c8708649c3a6db2cf407415716b751e05eb803d"
+    },
+    {
+      "path": "ux/UX-0006-prompts-and-accessibility.md",
+      "bytes": 11505,
+      "sha256": "dd2eac425b5c03db86cd9972e6519ef2b0c3dedaca4456bcc24b681587f4e1ca"
+    },
+    {
+      "path": "ux/UX-0007-advanced-help-pager-and-markdown.md",
+      "bytes": 9118,
+      "sha256": "8689c4bf48397c9d1d84e5104317d13a624436f2f09a534fafd46a611fed9a6b"
+    },
+    {
+      "path": "ux/UX-0008-cli-ux-certification-and-rollout.md",
+      "bytes": 13783,
+      "sha256": "a7b52adeaf9fc128ee425c451849921aa5ce8fe6fa1a33d7ebccd8110a108a8d"
     }
   ]
 }
