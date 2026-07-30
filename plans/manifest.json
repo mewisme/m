@@ -395,8 +395,8 @@
     },
     {
       "path": "scripts/generate-checklist.ps1",
-      "bytes": 124,
-      "sha256": "8dcf085847bcbbe610250b3f830cad3208bccb27b9e2b68bf33eb8c5e10688ce"
+      "bytes": 122,
+      "sha256": "285677fe0ae1bd5cf12da172a207d41e3f044298d3a91eb8246661f8a960c5d3"
     },
     {
       "path": "scripts/Read-Status.ps1",
@@ -405,8 +405,8 @@
     },
     {
       "path": "scripts/update-manifest.ps1",
-      "bytes": 124,
-      "sha256": "8dcf085847bcbbe610250b3f830cad3208bccb27b9e2b68bf33eb8c5e10688ce"
+      "bytes": 122,
+      "sha256": "285677fe0ae1bd5cf12da172a207d41e3f044298d3a91eb8246661f8a960c5d3"
     },
     {
       "path": "sources/compatibility-targets.md",
