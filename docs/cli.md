@@ -63,6 +63,38 @@ cache/store, configuration). Per-command help may include `Examples` and `Relate
 sections when registered in `internal/cli/help.go`. Completion scripts remain
 plain text with no ANSI.
 
+### Topic help
+
+Long-form terminal topics are optional and embedded (no network fetch):
+
+```text
+m help <topic>
+m help errors
+m help errors ERR_M_LOCKFILE
+m help runner
+m help lifecycle-trust
+```
+
+If a name is both a command and a topic id/alias, **the command wins**
+(`m help trust` shows the `trust` command; use `m help lifecycle-trust` for the
+topic). Ordinary `m <command> --help` stays concise and does not open a pager.
+
+Topic sources live under [`docs/terminal-help/`](terminal-help/) and are curated
+separately from authoritative docs; each topic ends with a See also pointer.
+
+### Topic pager
+
+```text
+m help --pager=auto|always|never <topic>
+```
+
+Precedence for the pager executable: `--pager` mode flag selects auto/always/never;
+the command string comes from `MEW_PAGER` → `ui.pager` → `PAGER` → none
+(Windows has no assumed `less`). Auto pages only on a human stdout TTY when
+content is long enough and not in CI/accessible mode. Missing pager in auto
+writes directly to stdout. Pager argv is split safely (no shell); content is
+passed on stdin.
+
 ## Human errors
 
 Typed CLI failures render through `ErrorView` (title, message, context, code,

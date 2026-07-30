@@ -50,6 +50,7 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 | `ui.accessible` | bool | `false` — numbered prompts + append-only output (`MEW_ACCESSIBLE`) |
 | `ui.summary` | bool | `true` |
 | `ui.theme` | string | empty/`auto` — `auto`\|`light`\|`dark`\|`accessible`\|`none` |
+| `ui.pager` | string | empty — optional pager command for `m help` topics (`MEW_PAGER` / `PAGER`) |
 | `log.level` | string | `error` |
 
 Environment:

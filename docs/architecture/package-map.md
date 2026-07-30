@@ -18,6 +18,10 @@ Every path named in [`AGENTS.md`](../../AGENTS.md) repository shape must appear 
 | `internal/config/` | Layered configuration loader | exists | shipped |
 | `internal/diagnostics/` | Errors, progress, redaction, reporters | exists | shipped |
 | `internal/presentation/` | Output modes, capabilities, themes, static renderers | exists | partial |
+| `internal/presentation/help/` | Plain + Glamour Markdown renderers for topic help | exists | shipped |
+| `internal/presentation/pager/` | Safe optional pager resolve/exec for topic help | exists | shipped |
+| `internal/help/` | Embedded terminal-help topic registry (no Charm) | exists | shipped |
+| `docs/terminal-help/` | Curated embedded topic Markdown + embed FS | exists | shipped |
 | `internal/prompt/` | Interactive policy and Prompter contract (stdlib only) | exists | shipped |
 | `internal/presentation/prompt/` | Huh rich + accessible numbered prompt adapters | exists | shipped |
 | `internal/apperr/` | Typed ERR_M_* errors and exit mapping | exists | shipped |

@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current standalone plan: **UX-0007 — Advanced Help, Pager, and Markdown**
+- Current standalone plan: **UX-0008 — CLI UX Certification and Rollout**
 - Status: active standalone program
 - Recommended repository path: `plans/ux/`
 - Numbering namespace: `UX-0001` through `UX-0008`
@@ -95,15 +95,15 @@
 
 ## UX-0007 — Advanced Help, Pager, and Markdown
 
-- [ ] Resolve help-topic grammar.
-- [ ] Define topic registry and content ownership.
-- [ ] Evaluate/pin Glamour v2.
-- [ ] Implement plain topic renderer.
-- [ ] Implement styled Markdown renderer.
-- [ ] Implement safe optional pager.
-- [ ] Add error, compatibility, lifecycle, snapshot/capsule, and runner topics.
-- [ ] Validate links and examples.
-- [ ] Pass Windows/no-pager, width, no-color, accessible, and broken-pipe tests.
+- [x] Resolve help-topic grammar.
+- [x] Define topic registry and content ownership.
+- [x] Evaluate/pin Glamour v2.
+- [x] Implement plain topic renderer.
+- [x] Implement styled Markdown renderer.
+- [x] Implement safe optional pager.
+- [x] Add error, compatibility, lifecycle, snapshot/capsule, and runner topics.
+- [x] Validate links and examples.
+- [x] Pass Windows/no-pager, width, no-color, accessible, and broken-pipe tests.
 
 ## UX-0008 — CLI UX Certification and Rollout
 

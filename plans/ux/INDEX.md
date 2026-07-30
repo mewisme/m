@@ -36,7 +36,7 @@ charm.land/lipgloss/v2
 charm.land/bubbletea/v2
 charm.land/bubbles/v2
 charm.land/huh/v2
-charm.land/glamour/v2    # introduced only by UX-0007 if approved
+charm.land/glamour/v2    # pinned UX-0007 for topic Markdown (presentation only)
 ```
 
 The dependency review must record exact versions, licenses, transitive dependency impact, binary-size impact, startup impact, security posture, and upgrade policy before merge.
