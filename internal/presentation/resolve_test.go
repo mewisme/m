@@ -228,8 +228,9 @@ func TestDowngradeRichEmitsDebug(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !resolved.DowngradedRich {
-		// auto on CI becomes plain without downgrade flag when never requested rich
+	// auto on CI becomes plain without DowngradedRich when rich was never requested.
+	if resolved.DowngradedRich {
+		t.Fatalf("unexpected DowngradedRich for auto+CI: %+v", resolved)
 	}
 	resolved.Debug = true
 	resolved.DowngradedRich = true

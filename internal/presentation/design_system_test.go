@@ -125,10 +125,12 @@ func TestUnicodeSymbolsAndWidths(t *testing.T) {
 	if !strings.HasPrefix(out, "✓ ") {
 		t.Fatalf("%q", out)
 	}
-	if bad := presentation.ValidateSymbolWidths(presentation.UnicodeSymbols); len(bad) == 0 {
-		// ✓ is often width 1 with rune count 1; arrow → may differ on some tables.
+	if bad := presentation.ValidateSymbolWidths(presentation.UnicodeSymbols); len(bad) != 0 {
+		t.Fatalf("unicode symbol widths: %v", bad)
 	}
-	_ = presentation.ValidateSymbolWidths(presentation.ASCIISymbols)
+	if bad := presentation.ValidateSymbolWidths(presentation.ASCIISymbols); len(bad) != 0 {
+		t.Fatalf("ascii symbol widths: %v", bad)
+	}
 	deltas := r.PackageDeltas([]presentation.PackageDelta{
 		{Kind: presentation.DeltaAdded, Name: "zod", Version: "4.0.14"},
 		{Kind: presentation.DeltaUpdated, Name: "react", From: "19.1.0", To: "19.1.1"},

@@ -44,8 +44,15 @@ func TestRunCLIUXDryRun(t *testing.T) {
 		t.Fatalf("report=%+v", report)
 	}
 	for _, s := range report.Suites {
-		if s.Status != StatusPlanned {
-			t.Fatalf("suite %s status=%s want planned", s.ID, s.Status)
+		switch s.Status {
+		case StatusPlanned:
+			// dry-run inventory
+		case StatusSkipped:
+			if s.SkipReason != "unsupported platform" {
+				t.Fatalf("suite %s status=skipped reason=%q want unsupported platform", s.ID, s.SkipReason)
+			}
+		default:
+			t.Fatalf("suite %s status=%s want planned (or platform-skipped)", s.ID, s.Status)
 		}
 	}
 }

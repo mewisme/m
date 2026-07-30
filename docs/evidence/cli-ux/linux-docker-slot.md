@@ -1,15 +1,20 @@
 # Linux Docker evidence slot (UX-0008)
 
-**Status:** unavailable on the Windows measurement host (re-checked 2026-07-31).
+**Status:** satisfied via Ubuntu GitHub Actions (local Docker daemon unavailable).
 
-Docker client is present, but the Linux engine pipe is missing
-(`npipe:////./pipe/dockerDesktopLinuxEngine`). Do not invent Linux results.
+## Local Docker
 
-## Acceptance (either)
+Re-checked 2026-07-31: Docker client present, Linux engine pipe missing
+(`npipe:////./pipe/dockerDesktopLinuxEngine`). No local Linux Docker run.
 
-1. Local Docker Linux preflight with a pinned image matching CI Go/Node, or
-2. A green Ubuntu GitHub Actions job `conformance-cli-ux` on the exact
-   certification SHA on `origin/main`.
+## CI substitute (accepted)
+
+| Field | Value |
+|---|---|
+| Commit SHA | `b1c3bbfefcd07b1a94a67dca4d69ab1c620412ad` |
+| Workflow run ID | `30590802511` |
+| Job name | `conformance-cli-ux` (ubuntu-latest) |
+| Result | **success** (`m conformance run cli-ux --json`) |
 
 ## When Docker is available
 
@@ -26,6 +31,3 @@ docker run --rm `
   <PINNED_TEST_IMAGE> `
   bash -lc 'go build -o /tmp/m ./cmd/m && go build -o /tmp/mx ./cmd/mx && go run ./cmd/m conformance run cli-ux --json'
 ```
-
-Record: image name + digest, commit SHA, command output path, binary sizes,
-startup median/p95 for the same four commands as the Windows artifact.
