@@ -375,6 +375,8 @@ func registryBaseVersion(version string) string {
 type FetchOutcome struct {
 	Extracts                 map[string]string
 	LinkSummary              *linker.LinkSummary
+	Downloaded               int
+	Reused                   int
 	CleanupWarningCodes      []string
 	CleanupWarnings          []string
 	StoreCleanupIncomplete   bool
@@ -472,6 +474,7 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preEx
 		key := pkg.ID.Key()
 		if dir, ok := preExtracts[key]; ok {
 			out.Extracts[key] = dir
+			out.Reused++
 			continue
 		}
 		if strings.TrimSpace(pkg.TarballURL) == "" {
@@ -498,6 +501,7 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preEx
 			return out, err
 		}
 		out.Extracts[key] = pkgStore.PackagePath(pkgKey)
+		out.Downloaded++
 	}
 	out.LinkSummary = &linker.LinkSummary{}
 	return out, nil

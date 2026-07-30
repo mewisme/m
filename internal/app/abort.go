@@ -21,6 +21,11 @@ func abortMutation(ctx context.Context, sess *MutationSession, txn *transaction.
 	if primary == nil {
 		return res, nil
 	}
+	var ac *Context
+	if sess != nil {
+		ac, _ = sess.AppContext()
+	}
+	phRollback := beginInstallPhase(ac, newInstallOpID(), phaseRollback)
 	fr, cleanupErr, rolledBack := rollbackSession(ctx, sess, txn)
 	res.RolledBack = rolledBack
 	if !rolledBack {
@@ -29,8 +34,17 @@ func abortMutation(ctx context.Context, sess *MutationSession, txn *transaction.
 		if cleanupErr != nil {
 			res.CleanupWarnings = append(res.CleanupWarnings, cleanupErr.Error())
 		}
+		phRollback.Complete(statusFailed)
+	} else {
+		phRollback.Complete(statusOK)
 	}
+	phCleanup := beginInstallPhase(ac, newInstallOpID(), phaseCleanup)
 	populateAbortCleanup(&res, fr)
+	if cleanupErr != nil || res.CleanupIncomplete {
+		phCleanup.Complete(statusFailed)
+	} else {
+		phCleanup.Complete(statusOK)
+	}
 	return res, apperr.JoinCleanup(primary, cleanupErr)
 }
 

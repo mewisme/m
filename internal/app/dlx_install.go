@@ -58,7 +58,7 @@ func buildDLXEnvironment(ctx context.Context, ac *Context, opts DLXOptions, reso
 		return err
 	}
 	if lifecycle.Enabled(ac.Config) {
-		_ = runLifecyclePhase(ctx, ac, proj, InstallOptions{IgnoreScripts: true}, stageNM, resolved.Resolution.Graph, linkPlan)
+		_ = runLifecyclePhase(ctx, ac, proj, InstallOptions{IgnoreScripts: true}, stageNM, resolved.Resolution.Graph, linkPlan, "", nil)
 	}
 	if err := validateDLXUsability(stageNM, opts, resolved); err != nil {
 		return err

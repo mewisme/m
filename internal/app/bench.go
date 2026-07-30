@@ -83,6 +83,19 @@ func (p *phaseReporter) Progress(ev diagnostics.Event) {
 	}
 }
 
+func (p *phaseReporter) notePhase(phase string) {
+	phase = strings.TrimSpace(phase)
+	if phase == "" || phase == p.lastPhase {
+		return
+	}
+	now := time.Now()
+	if p.lastPhase != "" {
+		p.phases[p.lastPhase] += now.Sub(p.phaseStart).Milliseconds()
+	}
+	p.lastPhase = phase
+	p.phaseStart = now
+}
+
 func (p *phaseReporter) Error(err error) {
 	if p.inner != nil {
 		p.inner.Error(err)
@@ -121,6 +134,7 @@ func (p *phaseReporter) EnvironmentPrepared(ev diagnostics.EnvironmentPreparedEv
 }
 
 func (p *phaseReporter) OperationStarted(ev diagnostics.OperationStartedEvent) {
+	p.notePhase(ev.Kind)
 	if p.inner != nil {
 		p.inner.OperationStarted(ev)
 	}

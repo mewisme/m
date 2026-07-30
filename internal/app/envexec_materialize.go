@@ -74,7 +74,7 @@ func (m appFrozenMaterializer) Materialize(ctx context.Context, spec envexec.Fro
 		return err
 	}
 	if spec.LifecyclePolicy != envexec.LifecycleForbidden && lifecycle.Enabled(m.ac.Config) {
-		_ = runLifecyclePhase(ctx, m.ac, proj, InstallOptions{IgnoreScripts: true}, stageNM, g, linkPlan)
+		_ = runLifecyclePhase(ctx, m.ac, proj, InstallOptions{IgnoreScripts: true}, stageNM, g, linkPlan, "", nil)
 	}
 	return nil
 }

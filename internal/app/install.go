@@ -66,6 +66,11 @@ type InstallResult struct {
 	Removed                      int        `json:"removed"`
 	Changed                      int        `json:"changed"`
 	Packages                     int        `json:"packages"`
+	Downloaded                   int        `json:"downloaded,omitempty"`
+	Reused                       int        `json:"reused,omitempty"`
+	ScriptsRun                   int        `json:"scriptsRun,omitempty"`
+	ScriptsBlocked               int        `json:"scriptsBlocked,omitempty"`
+	DurationMs                   int64      `json:"durationMs,omitempty"`
 	Plan                         *plan.Plan `json:"plan,omitempty"`
 	Committed                    bool       `json:"committed,omitempty"`
 	RolledBack                   bool       `json:"rolledBack,omitempty"`
@@ -233,6 +238,8 @@ func applyFetchOutcome(res *InstallResult, out FetchOutcome) {
 	if res == nil {
 		return
 	}
+	res.Downloaded += out.Downloaded
+	res.Reused += out.Reused
 	mergeStoreCleanupIntoResult(res, out.CleanupWarningCodes, out.CleanupWarnings)
 	if out.StoreCleanupIncomplete {
 		res.StoreCleanupIncomplete = true

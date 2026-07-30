@@ -138,6 +138,11 @@ func dedupeCleanupPairs(codes, warnings []string) (outCodes, outWarns []string) 
 // runInstallInSession performs resolve through commit while the session holds the project lock.
 func runInstallInSession(ctx context.Context, sess *MutationSession, opts InstallOptions, edit manifestEditFn, prepare mutationPrepareFn) (InstallResult, error) {
 	var res InstallResult
+	opID := newInstallOpID()
+	installStart := time.Now()
+	defer func() {
+		res.DurationMs = time.Since(installStart).Milliseconds()
+	}()
 
 	proj, err := sess.ReopenProject(ctx)
 	if err != nil {
@@ -187,13 +192,14 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		return res, err
 	}
 
-	emitPhase(ac, "resolve", "")
-	phaseResolve := startInstallPhase(ac, "resolve")
-	defer phaseResolve.done()
+	phResolve := beginInstallPhase(ac, opID, phaseResolve)
+	var resolveErr error
+	defer func() { phResolve.CompleteErr(resolveErr) }()
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
 	if !manifestChanged {
 		drift, driftErr := manifestDriftsFromLock(ctx, proj)
 		if driftErr != nil {
+			resolveErr = driftErr
 			return res, driftErr
 		}
 		if drift {
@@ -202,6 +208,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 	if edit != nil {
 		if err := edit(proj); err != nil {
+			resolveErr = err
 			return res, err
 		}
 	}
@@ -217,15 +224,18 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	} else {
 		resolution, err = resolveForInstall(ctx, ac, proj, opts, manifestChanged)
 		if err != nil {
+			resolveErr = err
 			return res, err
 		}
 	}
 	if err := guardLocalInstall(ac, resolution); err != nil {
+		resolveErr = err
 		return res, err
 	}
 	if workspace.Enabled(ac.Config) && len(opts.Filter) > 0 {
 		prior, priorErr := readLockHints(ctx, ac, proj)
 		if priorErr != nil {
+			resolveErr = priorErr
 			return res, priorErr
 		}
 		if prior != nil {
@@ -238,15 +248,19 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 			untouched := untouchedImporterIDs(prior, resolution.Graph)
 			merged, mergeErr := mergeFilteredWorkspaceResolution(prior, priorExt, resolution, untouched)
 			if mergeErr != nil {
+				resolveErr = mergeErr
 				return res, mergeErr
 			}
 			resolution = merged
 		}
 	}
 	if err := transaction.InvokeTestHook("post_resolve", 0); err != nil {
-		return res, apperr.Wrap(apperr.Transaction, "app.install", "resolve", err)
+		resolveErr = apperr.Wrap(apperr.Transaction, "app.install", "resolve", err)
+		return res, resolveErr
 	}
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
+	resolveErr = nil
+	phResolve.Complete(statusOK)
 
 	stage := txn.StagePath()
 	lockName := IncumbentLockBasename(proj)
@@ -268,13 +282,15 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		manifestChanged = true
 	}
 
-	emitPhase(ac, "fetch", "")
-	phaseFetch := startInstallPhase(ac, "fetch")
-	defer phaseFetch.done()
+	pkgTotal := int64(len(resolution.Graph.Packages))
+	phFetch := beginInstallPhaseLabeled(ac, opID, phaseFetch, phaseFetch, &pkgTotal, "packages")
+	var fetchErr error
+	defer func() { phFetch.CompleteErr(fetchErr) }()
 	extractDir := filepath.Join(stage, "extract")
 	stageNM := filepath.Join(stage, "node_modules")
 	linkerMode, err := resolveLinkerMode(ctx, ac, proj, opts)
 	if err != nil {
+		fetchErr = err
 		return res, err
 	}
 	useStore := config.UseGlobalStore(ac.Config)
@@ -285,45 +301,59 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 	localExtracts, err := buildLocalExtractDirs(localRoot, resolution, resolution.Graph)
 	if err != nil {
+		fetchErr = err
 		return res, err
 	}
 	if config.Bool(ac.Config, "offline", false) {
 		report, preErr := PreflightOffline(ctx, ac, proj, resolution.Graph, resolution.Extensions, localExtracts)
 		if preErr != nil {
+			fetchErr = preErr
 			return res, preErr
 		}
 		if !report.OK() {
-			return res, offlinePreflightError(report)
+			fetchErr = offlinePreflightError(report)
+			return res, fetchErr
 		}
 	}
 	fetchOut, err := fetchPackages(ctx, ac, proj, resolution.Graph, resolution.Extensions, extractDir, useStore, localExtracts)
 	applyFetchOutcome(&res, fetchOut)
 	if err != nil {
+		fetchErr = err
 		return res, err
 	}
 	var storeRoot string
 	if useStore {
 		storeRoot, err = config.StoreRoot(ac.Config)
 		if err != nil {
+			fetchErr = err
 			return res, err
 		}
 	}
 	if err := stagePatchDerivatives(ctx, stage, storeRoot, resolution.Extensions, fetchOut.Extracts); err != nil {
+		fetchErr = err
 		return res, err
 	}
 	if err := applyPatchesToExtracts(ctx, resolution.Graph, resolution.Extensions, fetchOut.Extracts); err != nil {
+		fetchErr = err
 		return res, err
 	}
 	extracts := fetchOut.Extracts
 	if err := transaction.InvokeTestHook("post_fetch", 0); err != nil {
-		return res, apperr.Wrap(apperr.Transaction, "app.install", "fetch", err)
+		fetchErr = apperr.Wrap(apperr.Transaction, "app.install", "fetch", err)
+		return res, fetchErr
 	}
+	fetchErr = nil
+	phFetch.Complete(statusOK,
+		diagnostics.Metric{Name: "downloaded", Value: float64(res.Downloaded), Unit: "packages"},
+		diagnostics.Metric{Name: "reused", Value: float64(res.Reused), Unit: "packages"},
+	)
 
-	emitPhase(ac, "link", "")
-	phaseLink := startInstallPhase(ac, "link")
-	defer phaseLink.done()
+	phLink := beginInstallPhaseLabeled(ac, opID, phaseLink, phaseLink, &pkgTotal, "packages")
+	var linkErr error
+	defer func() { phLink.CompleteErr(linkErr) }()
 	if err := os.MkdirAll(stageNM, 0o755); err != nil {
-		return res, apperr.Wrap(apperr.IO, "app.install", stageNM, err)
+		linkErr = apperr.Wrap(apperr.IO, "app.install", stageNM, err)
+		return res, linkErr
 	}
 	var caps planner.Capabilities
 	if linkerMode == "isolated" {
@@ -339,45 +369,56 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	})
 	linkPlan, err := lnk.Plan(ctx, resolution.Graph)
 	if err != nil {
+		linkErr = err
 		return res, err
 	}
 	if err := lnk.Apply(ctx, linkPlan); err != nil {
+		linkErr = err
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_link", 0); err != nil {
-		return res, apperr.Wrap(apperr.Transaction, "app.install", "link", err)
+		linkErr = apperr.Wrap(apperr.Transaction, "app.install", "link", err)
+		return res, linkErr
 	}
 	emitLinkSummary(ac, linkPlan.LinkSummary)
 	if linkerMode == "isolated" {
-		emitPhase(ac, "link", fmt.Sprintf("linker=isolated packages=%d", len(resolution.Graph.Packages)))
+		phLink.Progress(pkgTotal, fmt.Sprintf("linker=isolated packages=%d", len(resolution.Graph.Packages)))
 		if err := writeModulesMetadata(stageNM, resolution.Graph); err != nil {
+			linkErr = err
 			return res, err
 		}
 	}
 	graphDigest, err := snapshot.GraphDigest(resolution.Graph)
 	if err != nil {
+		linkErr = err
 		return res, err
 	}
 	genBind, err := publishLinkBinMetadata(stage, linkPlan, linkerMode, graphDigest)
 	if err != nil {
+		linkErr = err
 		return res, err
 	}
 	if err := WriteGenerationBinding(stage, genBind); err != nil {
+		linkErr = err
 		return res, err
 	}
 
 	if len(opts.StagedLock) > 0 {
 		if err := os.WriteFile(filepath.Join(stage, lockName), opts.StagedLock, 0o644); err != nil {
-			return res, apperr.Wrap(apperr.IO, "app.install", lockName, err)
+			linkErr = apperr.Wrap(apperr.IO, "app.install", lockName, err)
+			return res, linkErr
 		}
 	} else if err := writeStagedLock(stage, ac, proj, resolution, opts); err != nil {
+		linkErr = err
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_lockfile", 0); err != nil {
-		return res, apperr.Wrap(apperr.Transaction, "app.install", "lockfile", err)
+		linkErr = apperr.Wrap(apperr.Transaction, "app.install", "lockfile", err)
+		return res, linkErr
 	}
 	if useStore {
 		if err := writeStagedStoreManifest(stage, resolution.Graph); err != nil {
+			linkErr = err
 			return res, err
 		}
 	}
@@ -386,28 +427,35 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	if !opts.SkipSnapshot {
 		snapID, err = stageSnapshot(ctx, stage, proj, resolution, opts)
 		if err != nil {
+			linkErr = err
 			return res, err
 		}
 	}
+	linkErr = nil
+	phLink.Complete(statusOK)
 
-	if err := runLifecyclePhase(ctx, ac, proj, opts, stageNM, resolution.Graph, linkPlan); err != nil {
+	if err := runLifecyclePhase(ctx, ac, proj, opts, stageNM, resolution.Graph, linkPlan, opID, &res); err != nil {
 		return res, err
 	}
 
-	emitPhase(ac, "validate", "")
-	phaseValidate := startInstallPhase(ac, "validate")
-	defer phaseValidate.done()
+	phValidate := beginInstallPhase(ac, opID, phaseValidate)
+	var validateErr error
+	defer func() { phValidate.CompleteErr(validateErr) }()
 	if err := EnforceInstallPolicy(ctx, ac, resolution.Graph, linkPlan); err != nil {
+		validateErr = err
 		return res, err
 	}
 	if err := validateStaged(stage, linkPlan, resolution.Graph, linkerMode); err != nil {
+		validateErr = err
 		return res, err
 	}
 	if err := txn.SetState(transaction.StateValidated); err != nil {
+		validateErr = err
 		return res, err
 	}
 	if err := transaction.InvokeTestHook("post_validate", 0); err != nil {
-		return res, apperr.Wrap(apperr.Transaction, "app.install", "validate", err)
+		validateErr = apperr.Wrap(apperr.Transaction, "app.install", "validate", err)
+		return res, validateErr
 	}
 
 	plan := buildCommitPlan(commitPlanInput{
@@ -418,6 +466,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		lockBasename:    lockName,
 	})
 	if err := txn.SetPlan(plan); err != nil {
+		validateErr = err
 		return res, err
 	}
 
@@ -437,18 +486,26 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 			continue
 		}
 		if err := txn.RecordBackup(rel); err != nil {
-			emitPhase(ac, "rollback", rel)
+			validateErr = err
+			phRollback := beginInstallPhaseLabeled(ac, opID, phaseRollback, phaseRollback, nil, "")
+			phRollback.Complete(statusFailed)
 			return res, err
 		}
 	}
+	validateErr = nil
+	phValidate.Complete(statusOK)
 
-	emitPhase(ac, "commit", "")
-	phaseCommit := startInstallPhase(ac, "commit")
-	defer phaseCommit.done()
+	phCommit := beginInstallPhase(ac, opID, phaseCommit)
+	var commitErr error
+	defer func() { phCommit.CompleteErr(commitErr) }()
 	if err := txn.Commit(ctx, nil); err != nil {
-		emitPhase(ac, "rollback", "")
+		commitErr = err
+		phRollback := beginInstallPhase(ac, opID, phaseRollback)
+		phRollback.Complete(statusFromErr(err))
 		return res, err
 	}
+	commitErr = nil
+	phCommit.Complete(statusOK)
 
 	if err := pruneSnapshots(ac, proj); err != nil {
 		if ac != nil && ac.Reporter != nil {
@@ -496,13 +553,14 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 	if err := gateYarnPnPInstall(proj); err != nil {
 		return res, err
 	}
-	emitPhase(ac, "resolve", "")
-	phaseResolve := startInstallPhase(ac, "resolve")
-	defer phaseResolve.done()
+	phResolve := beginInstallPhase(ac, newInstallOpID(), phaseResolve)
+	var resolveErr error
+	defer func() { phResolve.CompleteErr(resolveErr) }()
 	manifestChanged := opts.WriteManifest || len(opts.StagedManifest) > 0 || len(opts.MemberEdits) > 0 || len(opts.StagedMemberManifests) > 0
 	if !manifestChanged {
 		drift, driftErr := manifestDriftsFromLock(ctx, proj)
 		if driftErr != nil {
+			resolveErr = driftErr
 			return res, driftErr
 		}
 		if drift {
@@ -511,6 +569,7 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 	}
 	if edit != nil {
 		if err := edit(proj); err != nil {
+			resolveErr = err
 			return res, err
 		}
 	}
@@ -526,10 +585,12 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 	} else {
 		resolution, err = resolveForInstall(ctx, ac, proj, opts, manifestChanged)
 		if err != nil {
+			resolveErr = err
 			return res, err
 		}
 	}
 	if err := guardLocalInstall(ac, resolution); err != nil {
+		resolveErr = err
 		return res, err
 	}
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
@@ -541,6 +602,8 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 	}); err == nil {
 		res.Plan = p
 	}
+	resolveErr = nil
+	phResolve.Complete(statusOK)
 	return res, nil
 }
 
@@ -1246,34 +1309,6 @@ func installSegments(name string) []string {
 	}
 	return []string{name}
 }
-func emitPhase(ac *Context, phase, subject string) {
-	if ac == nil || ac.Reporter == nil {
-		return
-	}
-	ac.Reporter.Progress(diagnostics.Event{V: 1, Type: "progress", Phase: phase, Package: subject})
-}
-
-type installPhaseTimer struct {
-	ac    *Context
-	phase string
-	start time.Time
-}
-
-func startInstallPhase(ac *Context, phase string) installPhaseTimer {
-	return installPhaseTimer{ac: ac, phase: phase, start: time.Now()}
-}
-
-func (t installPhaseTimer) done() {
-	if t.ac == nil || t.ac.Reporter == nil {
-		return
-	}
-	elapsed := time.Since(t.start).Round(time.Millisecond)
-	t.ac.Reporter.Debug("install phase",
-		diagnostics.Attr{Key: "phase", Value: t.phase},
-		diagnostics.Attr{Key: "elapsed", Value: elapsed.String()},
-	)
-}
-
 func emitLinkSummary(ac *Context, summary linker.LinkSummary) {
 	if ac == nil || ac.Reporter == nil {
 		return
@@ -1283,7 +1318,11 @@ func emitLinkSummary(ac *Context, summary linker.LinkSummary) {
 	}
 	subject := fmt.Sprintf("hardlink=%d reflink=%d copy=%d symlink=%d junction=%d mkdir=%d",
 		summary.Hardlink, summary.Reflink, summary.Copy, summary.Symlink, summary.Junction, summary.Mkdir)
-	ac.Reporter.Progress(diagnostics.Event{V: 1, Type: "progress", Phase: "link", Package: subject})
+	if legacyProgressEnabled() {
+		ac.Reporter.Progress(diagnostics.Event{V: 1, Type: "progress", Phase: "link", Package: subject})
+		return
+	}
+	ac.Reporter.Debug("link summary", diagnostics.Attr{Key: "ops", Value: subject})
 }
 
 func guardLocalInstall(ac *Context, res *resolver.Resolution) error {
