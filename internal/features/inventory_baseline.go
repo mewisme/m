@@ -38,7 +38,11 @@ func baselineFeatures() []Feature {
 	return []Feature{
 		// Foundation and cross-cutting
 		row("foundation.charter", "program charter and product contract", "foundation", shipped, shipped, parity, "0001"),
-		row("foundation.features-inventory", "feature inventory and parity matrix", "foundation", omit, inProgress, ext, "0002"),
+		rowWithTests("foundation.features-inventory", "feature inventory and parity matrix", "foundation", omit, shipped, ext, "0002", []string{
+			"internal/features",
+			"features/inventory.json",
+			"internal/cli",
+		}),
 		rowWithTests("foundation.architecture", "target Go architecture and boundaries", "foundation", shipped, shipped, parity, "0003", []string{"internal/archcheck"}),
 		rowWithTests("foundation.repository-bootstrap", "repository bootstrap and quality gates", "foundation", shipped, shipped, parity, "0004", []string{"internal/testkit", "internal/bootstrap", "internal/cli"}),
 		rowWithTests("foundation.error-model", "stable error codes and diagnostics", "foundation", shipped, shipped, parity, "0005", []string{"internal/apperr", "internal/diagnostics", "internal/trace", "internal/cli"}),

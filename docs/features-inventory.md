@@ -2,6 +2,10 @@
 
 Machine-readable source: [`features/inventory.json`](../features/inventory.json)
 
+Ongoing inventory curation (status tweaks, notes, test links) is normal maintenance
+and does not imply MVP **0002** is incomplete — the schema, CLI, and consistency
+tests shipped with that MVP.
+
 Maintenance: [`features-maintenance.md`](features-maintenance.md)
 
 ## Summary by module

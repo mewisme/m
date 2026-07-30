@@ -16,10 +16,14 @@
       "name": "feature inventory and parity matrix",
       "module": "foundation",
       "nub_status": "intentional-omit",
-      "mew_status": "in-progress",
+      "mew_status": "shipped",
       "compatibility_class": "extension",
       "primary_mvp": "0002",
-      "tests": []
+      "tests": [
+        "internal/features",
+        "features/inventory.json",
+        "internal/cli"
+      ]
     },
     {
       "id": "foundation.architecture",

@@ -3,102 +3,105 @@
 Authoritative listing of repository paths and one-line purposes.
 Every path named in [`AGENTS.md`](../../AGENTS.md) repository shape must appear here.
 
-Status column: `shipped` means a Go package or documented dir exists today;
-`planned` means reserved for a later MVP (directory may be absent).
+**Path state** — `absent` (no directory), `reserved` (documented placeholder), `exists` (on disk today).
+
+**Capability state** — `scaffolded`, `experimental`, `partial`, `shipped`, `certified`, `planned`, or `deferred`.
 
 ## Entry and presentation
 
-| Path | Purpose | Status |
-|---|---|---|
-| `cmd/m/` | Primary CLI entrypoint binary | shipped |
-| `cmd/mx/` | Package executor entrypoint binary | shipped |
-| `internal/app/` | Process-level orchestration across domains | shipped |
-| `internal/cli/` | Parsing, dispatch, help, completions | shipped |
-| `internal/config/` | Layered configuration loader | shipped |
-| `internal/diagnostics/` | Errors, progress, redaction, reporters | shipped |
-| `internal/apperr/` | Typed ERR_M_* errors and exit mapping | shipped |
-| `internal/trace/` | Lightweight in-process spans (no OTel) | shipped |
-| `internal/charter/` | Charter consistency tests (docs gate) | shipped |
-| `internal/archcheck/` | Import-graph and package-map acceptance tests | shipped |
-| `internal/bootstrap/` | Clean-clone style repository gate tests | shipped |
+| Path | Purpose | Path state | Capability state |
+|---|---|---|---|
+| `cmd/m/` | Primary CLI entrypoint binary | exists | shipped |
+| `cmd/mx/` | Package executor entrypoint binary | exists | shipped |
+| `internal/app/` | Process-level orchestration across domains | exists | shipped |
+| `internal/cli/` | Parsing, dispatch, help, completions | exists | shipped |
+| `internal/config/` | Layered configuration loader | exists | shipped |
+| `internal/diagnostics/` | Errors, progress, redaction, reporters | exists | shipped |
+| `internal/apperr/` | Typed ERR_M_* errors and exit mapping | exists | shipped |
+| `internal/trace/` | Lightweight in-process spans (no OTel) | exists | shipped |
+| `internal/charter/` | Charter consistency tests (docs gate) | exists | shipped |
+| `internal/archcheck/` | Import-graph and package-map acceptance tests | exists | shipped |
+| `internal/bootstrap/` | Clean-clone style repository gate tests | exists | shipped |
 
 ## Package-manager domain
 
-| Path | Purpose | Status |
-|---|---|---|
-| `internal/manifest/` | package.json read/normalize/edit | shipped |
-| `internal/project/` | Project root discovery and identity | shipped |
-| `internal/workspace/` | Workspace graph, filters, catalogs | shipped |
-| `internal/registry/` | Registry clients, auth, metadata cache | shipped |
-| `internal/resolver/` | Semver + graph resolution + traces | shipped |
-| `internal/semver/` | npm-compatible range satisfaction (Masterminds/v3) | shipped |
-| `internal/lockfile/` | Canonical graph + format adapters | shipped |
-| `internal/lockfile/mlock/` | Native m.lock codec | shipped |
-| `internal/fetch/` | Concurrent tarball download | shipped |
-| `internal/archive/` | Safe extraction and path validation | shipped |
-| `internal/store/` | Content-addressed global store | shipped |
-| `internal/linker/` | Hoisted/isolated layouts + bins | shipped |
-| `internal/linker/planner/` | hardlink/reflink/copy/symlink/junction | shipped |
-| `internal/transaction/` | Stage, journal, commit, rollback | shipped |
-| `internal/lifecycle/` | Dependency lifecycle scripts | shipped |
-| `internal/policy/` | Trust and sandbox policy | shipped |
-| `internal/graph/` | Shared canonical graph helpers | shipped |
-| `internal/plan/` | Mutation plan types | shipped |
-| `internal/snapshot/` | Install history snapshots | shipped |
-| `internal/journal/` | Crash-recovery journals | planned |
+| Path | Purpose | Path state | Capability state |
+|---|---|---|---|
+| `internal/manifest/` | package.json read/normalize/edit | exists | shipped |
+| `internal/project/` | Project root discovery and identity | exists | shipped |
+| `internal/workspace/` | Workspace graph, filters, catalogs | exists | shipped |
+| `internal/registry/` | Registry clients, auth, metadata cache | exists | shipped |
+| `internal/resolver/` | Semver + graph resolution + traces | exists | shipped |
+| `internal/semver/` | npm-compatible range satisfaction (Masterminds/v3) | exists | shipped |
+| `internal/lockfile/` | Canonical graph + format adapters | exists | shipped |
+| `internal/lockfile/mlock/` | Native m.lock codec | exists | shipped |
+| `internal/fetch/` | Concurrent tarball download | exists | shipped |
+| `internal/archive/` | Safe extraction and path validation | exists | shipped |
+| `internal/store/` | Content-addressed global store | exists | shipped |
+| `internal/linker/` | Hoisted/isolated layouts + bins | exists | experimental |
+| `internal/linker/planner/` | hardlink/reflink/copy/symlink/junction | exists | shipped |
+| `internal/transaction/` | Stage, journal, commit, rollback | exists | shipped |
+| `internal/lifecycle/` | Dependency lifecycle scripts | exists | shipped |
+| `internal/policy/` | Trust and sandbox policy | exists | shipped |
+| `internal/graph/` | Shared canonical graph helpers | exists | shipped |
+| `internal/plan/` | Mutation plan types | exists | shipped |
+| `internal/snapshot/` | Install history snapshots | exists | shipped |
+| `internal/journal/` | Crash-recovery journals | reserved | planned |
 
 ## Runner and runtime
 
-| Path | Purpose | Status |
-|---|---|---|
-| `internal/runner/` | Scripts, exec, dlx environment builder | shipped |
-| `internal/process/` | Signals, shells, child execution | shipped |
-| `internal/runtime/` | Node launch orchestration | shipped |
-| `internal/runtime/assets/` | Embedded loader/preload JS | shipped |
-| `internal/transform/` | Go transform service + IPC | shipped |
-| `internal/node/` | Node discovery and provisioning | shipped |
-| `internal/pmmanager/` | External PM detect/pin/invoke | shipped |
-| `internal/shim/` | Cross-platform shims | planned |
-| `runtime/` | Source for go:embed runtime assets | shipped |
+| Path | Purpose | Path state | Capability state |
+|---|---|---|---|
+| `internal/runner/` | Scripts, exec, dlx environment builder | exists | scaffolded |
+| `internal/process/` | Signals, shells, child execution | exists | shipped |
+| `internal/runtime/` | Node launch orchestration | exists | scaffolded |
+| `internal/runtime/assets/` | Embedded loader/preload JS | exists | scaffolded |
+| `internal/transform/` | Go transform service + IPC | exists | scaffolded |
+| `internal/node/` | Node discovery and provisioning | exists | scaffolded |
+| `internal/pmmanager/` | External PM detect/pin/invoke | exists | shipped |
+| `internal/shim/` | Cross-platform shims | reserved | planned |
+| `runtime/` | Source for go:embed runtime assets | exists | scaffolded |
 
 ## Compatibility, security, distribution
 
-| Path | Purpose | Status |
-|---|---|---|
-| `internal/compat/` | Nub/npm/pnpm/Yarn/Bun adapters | shipped |
-| `internal/audit/` | Advisory normalization | planned |
-| `internal/sbom/` | CycloneDX/SPDX export | planned |
-| `internal/provenance/` | Signature/provenance verify/emit | planned |
-| `internal/capsule/` | Portable dependency capsules (descriptors) | shipped |
-| `internal/plugin/` | External m-\<verb\> discovery (no in-process load) | planned |
-| `internal/analysis/phantom/` | Optional phantom-dependency analysis | planned |
+| Path | Purpose | Path state | Capability state |
+|---|---|---|---|
+| `internal/compat/` | Nub/npm/pnpm/Yarn/Bun adapters | exists | shipped |
+| `internal/audit/` | Advisory normalization | reserved | planned |
+| `internal/sbom/` | CycloneDX/SPDX export | exists | certified |
+| `internal/provenance/` | Signature/provenance verify/emit | exists | shipped |
+| `internal/capsule/` | Portable dependency capsules (descriptors) | exists | shipped |
+| `internal/plugin/` | External m-\<verb\> discovery (no in-process load) | reserved | planned |
+| `internal/analysis/phantom/` | Optional phantom-dependency analysis | reserved | planned |
+
+Certified SBOM evidence: [`docs/evidence/core/pass32-ci.md`](../evidence/core/pass32-ci.md).
 
 ## Support and fixtures
 
-| Path | Purpose | Status |
-|---|---|---|
-| `internal/testkit/` | Fixtures, clean-home, local registry | shipped |
-| `internal/features/` | Feature inventory schema/runtime | shipped |
-| `internal/releasetrain/` | MVP dependency graph validation | shipped |
-| `fixtures/registry/` | Local packuments and tarballs | shipped |
-| `fixtures/projects/` | Project corpora | shipped |
-| `tests/` | Conformance, integration, soak, and benchmark suites | shipped |
-| `tests/conformance/` | Differential conformance suites | shipped |
-| `tests/integration/` | End-to-end integration suites | shipped |
-| `benchmarks/` | Perf baselines | planned |
+| Path | Purpose | Path state | Capability state |
+|---|---|---|---|
+| `internal/testkit/` | Fixtures, clean-home, local registry | exists | shipped |
+| `internal/features/` | Feature inventory schema/runtime | exists | shipped |
+| `internal/releasetrain/` | MVP dependency graph validation | exists | shipped |
+| `fixtures/registry/` | Local packuments and tarballs | exists | shipped |
+| `fixtures/projects/` | Project corpora | exists | shipped |
+| `tests/` | Conformance, integration, soak, and benchmark suites | exists | shipped |
+| `tests/conformance/` | Differential conformance suites | exists | shipped |
+| `tests/integration/` | End-to-end integration suites | exists | shipped |
+| `benchmarks/` | Perf baselines and waivers | exists | partial |
 
 ## Release and docs
 
-| Path | Purpose | Status |
-|---|---|---|
-| `release/` | Release metadata and notes | planned |
-| `install/` | install.sh / install.ps1 sources | planned |
-| `.github/actions/` | GitHub Action sources | planned |
-| `docker/` | Container images and Dockerfiles | planned |
-| `docs/` | User and architecture docs | shipped |
-| `docs/adr/` | Architecture decision records | shipped |
-| `docs/architecture/` | This package map and boundary docs | shipped |
-| `plans/` | Implementation archive | shipped |
+| Path | Purpose | Path state | Capability state |
+|---|---|---|---|
+| `release/` | Release metadata and notes | reserved | planned |
+| `install/` | install.sh / install.ps1 sources | reserved | planned |
+| `.github/actions/` | GitHub Action sources | reserved | planned |
+| `docker/` | Container images and Dockerfiles | reserved | planned |
+| `docs/` | User and architecture docs | exists | shipped |
+| `docs/adr/` | Architecture decision records | exists | shipped |
+| `docs/architecture/` | This package map and boundary docs | exists | shipped |
+| `plans/` | Implementation archive | exists | shipped |
 
 ## Deferred package decisions
 
