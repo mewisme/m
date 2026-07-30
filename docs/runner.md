@@ -104,9 +104,44 @@ After all tasks finish, buffered output replays with `[<package-name>]` prefixes
 Structured JSON/NDJSON emits `workspace-task`, `child-output`, and
 `workspace-summary` events only — raw child bytes never land on structured stdout.
 
+### Human workspace status (UX-0005)
+
+Human mode prints append-only task status lines on stderr
+(`pkg  ● test  running`), then a final summary block after `workspace-summary`
+(failed list + Completed/Failed/Not run counts). Stream mode keeps
+`PrefixWriter` framing unchanged; there is no live table repaint.
+
 ### Deferred
 
 Changed-only filters and resume metadata are **not** implemented in 0041.
+
+## Execution presentation (UX-0005)
+
+Before a single-task child starts, human mode may print a concise stderr prep
+banner:
+
+```text
+→ Running eslint
+  Source   project
+  Package  eslint
+```
+
+`mx` cold path may also print stage lines (`Resolving`, `Checking consent`,
+`Fetching package`, `Preparing environment`) before the banner. Warm cache and
+snapshot/capsule use safe labels only (`warm cache`, `snapshot <short-id>`,
+`capsule`, `Network disabled`, `Environment verified`) — never absolute cache
+paths. Digests appear only with `--debug`.
+
+Optional completion summary on stderr after the child exits:
+
+```text
+✓ eslint completed in 1.2s
+```
+
+Suppressed by `--no-summary`, structured/silent modes, and interactive intent.
+Live presentation Suspend/Resume surrounds child Start/Wait so Bubble Tea does
+not own the terminal while the child runs. Child stdin/stdout/stderr stay raw
+passthrough for single-task runs.
 
 ## Command shape
 

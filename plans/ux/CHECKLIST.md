@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current standalone plan: **UX-0005 — Runner and Workspace Experience**
+- Current standalone plan: **UX-0006 — Prompts and Accessibility**
 - Status: active standalone program
 - Recommended repository path: `plans/ux/`
 - Numbering namespace: `UX-0001` through `UX-0008`
@@ -69,16 +69,16 @@
 
 ## UX-0005 — Runner and Workspace Experience
 
-- [ ] Audit child terminal and stream contracts.
-- [ ] Add concise execution-preparation views.
-- [ ] Implement renderer suspend/resume.
-- [ ] Preserve raw single-child stdout/stderr/stdin.
-- [ ] Implement workspace aggregate renderer.
-- [ ] Implement workspace stream renderer.
-- [ ] Coordinate `mx` consent stages.
-- [ ] Add snapshot/capsule safe labels.
-- [ ] Certify signals, exits, cancellation, and interactive children.
-- [ ] Pass PTY/console, partial-line, binary, Windows shim, and race tests.
+- [x] Audit child terminal and stream contracts.
+- [x] Add concise execution-preparation views.
+- [x] Implement renderer suspend/resume.
+- [x] Preserve raw single-child stdout/stderr/stdin.
+- [x] Implement workspace aggregate renderer.
+- [x] Implement workspace stream renderer.
+- [x] Coordinate `mx` consent stages.
+- [x] Add snapshot/capsule safe labels.
+- [x] Certify signals, exits, cancellation, and interactive children.
+- [x] Pass PTY/console, partial-line, binary, Windows shim, and race tests.
 
 ## UX-0006 — Prompts and Accessibility
 

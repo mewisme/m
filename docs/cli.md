@@ -283,6 +283,11 @@ members. Workspace-only flags (invalid without `-r` or `--filter`):
 
 See [`runner.md`](runner.md).
 
+Human mode may print a short stderr prep banner and optional completion summary
+(`--no-summary` suppresses the summary). Workspace human status is append-only
+on stderr; child streams stay on stdout/stderr with `[pkg]` prefixes in stream
+mode.
+
 ## Exec
 
 ```text

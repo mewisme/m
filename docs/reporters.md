@@ -86,6 +86,18 @@ suppresses that success summary but never suppresses errors or lifecycle/securit
 notices. JSON/NDJSON result documents are unchanged (additive `InstallResult`
 metric fields only).
 
+### Runner and workspace presentation (UX-0005)
+
+Human reporters invoke presentation hooks for:
+
+- `environment-prepared` → execution prep banner on stderr (safe labels only)
+- `workspace-task` / `workspace-summary` → append-only status + final counts
+- human-only `prep-stage` / `exec-prep` / `exec-summary` Progress types (not emitted on NDJSON)
+
+JSON/NDJSON keep the frozen `environment-prepared`, `workspace-task`, and
+`workspace-summary` schemas. Reporter failure after lease acquire still releases
+the lease. Live install progress Suspend/Resume also covers runner children.
+
 ## Errors
 
 Schema: [`schemas/diagnostics/error.schema.json`](../schemas/diagnostics/error.schema.json).
