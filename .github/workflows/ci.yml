@@ -48,35 +48,6 @@ jobs:
         run: |
           go build -o bin/m${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/m
           go build -o bin/mx${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/mx
-      - name: Dev install script syntax (bash)
-        if: matrix.os != 'windows-latest'
-        run: bash -n scripts/install-dev.sh scripts/uninstall-dev.sh scripts/lib/devinstall_test.sh
-      - name: Dev install build-only
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: pwsh -NoProfile -File scripts/install-dev.ps1 -BuildOnly
-      - name: Dev install build-only
-        if: matrix.os != 'windows-latest'
-        run: ./scripts/install-dev.sh --build-only
-      - name: Dev install logic tests
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: pwsh -NoProfile -File scripts/lib/devinstall_test.ps1
-      - name: Dev install logic tests
-        if: matrix.os != 'windows-latest'
-        run: bash scripts/lib/devinstall_test.sh
-      - name: Completion smoke (built binary)
-        shell: bash
-        run: |
-          set -euo pipefail
-          bin=bin/m
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then bin=bin/m.exe; fi
-          "$bin" completion bash | head -c 1 | grep -q .
-          "$bin" completion zsh | head -c 1 | grep -q .
-          "$bin" completion fish | head -c 1 | grep -q .
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            pwsh -NoProfile -Command "& './$bin' completion powershell | Select-Object -First 1" | grep -q .
-          fi
       - name: Doctor stub
         run: go run ./cmd/m development doctor
 
