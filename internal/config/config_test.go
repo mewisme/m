@@ -139,3 +139,47 @@ func TestListSorted(t *testing.T) {
 		}
 	}
 }
+
+func TestEnvVarKnownKeys(t *testing.T) {
+	if got := config.EnvVar("ui.color"); got != "MEW_COLOR" {
+		t.Fatalf("ui.color env=%q want MEW_COLOR", got)
+	}
+	if got := config.EnvVar("registry"); got != "MEW_REGISTRY" {
+		t.Fatalf("registry env=%q want MEW_REGISTRY", got)
+	}
+	if got := config.EnvVar("install.linker"); got != "" {
+		t.Fatalf("install.linker env=%q want empty", got)
+	}
+}
+
+func TestListIncludesEnvColumn(t *testing.T) {
+	eff, err := config.Load(context.Background(), config.LoadOptions{
+		CWD: t.TempDir(), ProjectRoot: t.TempDir(),
+		GlobalPath: filepath.Join(t.TempDir(), "x"),
+		Env:        []string{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var color, registry, linker config.Entry
+	var foundColor, foundRegistry, foundLinker bool
+	for _, e := range config.List(eff) {
+		switch e.Key {
+		case "ui.color":
+			color, foundColor = e, true
+		case "registry":
+			registry, foundRegistry = e, true
+		case "install.linker":
+			linker, foundLinker = e, true
+		}
+	}
+	if !foundColor || color.Env != "MEW_COLOR" {
+		t.Fatalf("ui.color entry=%+v found=%v", color, foundColor)
+	}
+	if !foundRegistry || registry.Env != "MEW_REGISTRY" {
+		t.Fatalf("registry entry=%+v found=%v", registry, foundRegistry)
+	}
+	if !foundLinker || linker.Env != "" {
+		t.Fatalf("install.linker entry=%+v found=%v", linker, foundLinker)
+	}
+}

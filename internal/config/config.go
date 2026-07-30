@@ -45,6 +45,7 @@ type Effective struct {
 type Entry struct {
 	Key    string
 	Value  string
+	Env    string // env var that can set Key; empty when none
 	Source Source
 	Path   string
 }
@@ -266,8 +267,46 @@ func mergeFile(eff *Effective, path string, src Source, required bool) error {
 	return nil
 }
 
+// envVarByKey is the authoritative config-key → env-var map for mergeEnv and
+// `m config list`. Only names that real resolution reads belong here.
+var envVarByKey = map[string]string{
+	"cache.dir":                      "MEW_CACHE_DIR",
+	"store.dir":                      "MEW_STORE_DIR",
+	"offline":                        "MEW_OFFLINE",
+	"prefer-offline":                 "MEW_PREFER_OFFLINE",
+	"resolve.autoInstallPeers":       "MEW_RESOLVE_AUTO_INSTALL_PEERS",
+	"resolve.strictPeerDependencies": "MEW_RESOLVE_STRICT_PEER_DEPS",
+	"resolve.rejectDeprecated":       "MEW_RESOLVE_REJECT_DEPRECATED",
+	"registry":                       "MEW_REGISTRY",
+	"registry.auth_token_env":        "MEW_REGISTRY_AUTH_TOKEN_ENV",
+	"lifecycle.enabled":              "MEW_EXPERIMENTAL_LIFECYCLE",
+	"lifecycle.script_timeout":       "MEW_LIFECYCLE_SCRIPT_TIMEOUT",
+	"workspaces.enabled":             "MEW_EXPERIMENTAL_WORKSPACES",
+	"runner.direct_scripts.enabled":  "MEW_EXPERIMENTAL_DIRECT_SCRIPTS",
+	"provenance.trusted_public_key":  "MEW_PROVENANCE_TRUSTED_PUBLIC_KEY",
+	"runner.mx.cache.dir":            "MEW_MX_CACHE_DIR",
+	"link.use_global_store":          "MEW_EXPERIMENTAL_GLOBAL_STORE",
+	"ui.output":                      "MEW_OUTPUT",
+	"ui.color":                       "MEW_COLOR",
+	"ui.progress":                    "MEW_PROGRESS",
+	"ui.unicode":                     "MEW_UNICODE",
+	"ui.interactive":                 "MEW_INTERACTIVE",
+	"ui.accessible":                  "MEW_ACCESSIBLE",
+	"ui.pager":                       "MEW_PAGER",
+	"log.level":                      "MEW_LOG_LEVEL",
+}
+
+// EnvVar returns the environment variable that can set key, or "" when none.
+func EnvVar(key string) string {
+	return envVarByKey[key]
+}
+
 func mergeEnv(eff *Effective, snap EnvSnapshot) {
-	set := func(key, envKey string, coerce func(string) (any, error)) {
+	set := func(key string, coerce func(string) (any, error)) {
+		envKey := envVarByKey[key]
+		if envKey == "" {
+			return
+		}
 		v, ok := snap.Lookup(envKey)
 		if !ok || v == "" {
 			return
@@ -278,20 +317,23 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) {
 		}
 		eff.Values[key] = Value{Raw: raw, Source: SourceEnv, Path: envKey}
 	}
-	set("cache.dir", "MEW_CACHE_DIR", func(s string) (any, error) { return s, nil })
-	set("store.dir", "MEW_STORE_DIR", func(s string) (any, error) { return s, nil })
-	set("offline", "MEW_OFFLINE", parseBool)
-	set("prefer-offline", "MEW_PREFER_OFFLINE", parseBool)
-	set("resolve.autoInstallPeers", "MEW_RESOLVE_AUTO_INSTALL_PEERS", parseBool)
-	set("resolve.strictPeerDependencies", "MEW_RESOLVE_STRICT_PEER_DEPS", parseBool)
-	set("resolve.rejectDeprecated", "MEW_RESOLVE_REJECT_DEPRECATED", parseBool)
-	set("registry", "MEW_REGISTRY", func(s string) (any, error) { return s, nil })
-	set("registry.auth_token_env", "MEW_REGISTRY_AUTH_TOKEN_ENV", func(s string) (any, error) { return s, nil })
-	set("lifecycle.enabled", "MEW_EXPERIMENTAL_LIFECYCLE", parseBool)
-	set("lifecycle.script_timeout", "MEW_LIFECYCLE_SCRIPT_TIMEOUT", func(s string) (any, error) { return s, nil })
-	set("workspaces.enabled", "MEW_EXPERIMENTAL_WORKSPACES", parseBool)
-	set("runner.direct_scripts.enabled", "MEW_EXPERIMENTAL_DIRECT_SCRIPTS", parseBool)
-	set("provenance.trusted_public_key", "MEW_PROVENANCE_TRUSTED_PUBLIC_KEY", func(s string) (any, error) { return s, nil })
+	identity := func(s string) (any, error) { return s, nil }
+	// Only keys that Load merges into Effective (presentation/path gates may
+	// still list env names in envVarByKey for `m config list` without merging).
+	set("cache.dir", identity)
+	set("store.dir", identity)
+	set("offline", parseBool)
+	set("prefer-offline", parseBool)
+	set("resolve.autoInstallPeers", parseBool)
+	set("resolve.strictPeerDependencies", parseBool)
+	set("resolve.rejectDeprecated", parseBool)
+	set("registry", identity)
+	set("registry.auth_token_env", identity)
+	set("lifecycle.enabled", parseBool)
+	set("lifecycle.script_timeout", identity)
+	set("workspaces.enabled", parseBool)
+	set("runner.direct_scripts.enabled", parseBool)
+	set("provenance.trusted_public_key", identity)
 }
 
 func parseBool(s string) (any, error) {
@@ -449,6 +491,7 @@ func List(eff *Effective) []Entry {
 		out = append(out, Entry{
 			Key:    k,
 			Value:  formatRaw(v.Raw),
+			Env:    EnvVar(k),
 			Source: v.Source,
 			Path:   v.Path,
 		})

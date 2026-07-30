@@ -23,6 +23,9 @@ m config list --sources
 m config get store.dir
 ```
 
+`m config list` columns: `KEY`, `VALUE`, `ENV` (or `-`). `--sources` adds
+`SOURCE` and `PATH`.
+
 ## UI-related keys
 
 | Key | Meaning |

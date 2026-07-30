@@ -83,32 +83,35 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 			}
 			r := g.mustStaticRenderer(cmd, eff)
 			entries := config.List(eff)
+			cols := []presentation.TableColumn{
+				{Key: "key", Header: "KEY", MinWidth: 8, Prefer: 28, Primary: true, Truncate: presentation.TruncateMiddle},
+				{Key: "value", Header: "VALUE", MinWidth: 4, Prefer: 32, Truncate: presentation.TruncateMiddle},
+				{Key: "env", Header: "ENV", MinWidth: 3, Prefer: 28, Truncate: presentation.TruncateMiddle},
+			}
 			if sources {
-				cols := []presentation.TableColumn{
-					{Key: "key", Header: "KEY", MinWidth: 8, Prefer: 28, Primary: true, Truncate: presentation.TruncateMiddle},
-					{Key: "value", Header: "VALUE", MinWidth: 4, Prefer: 32, Truncate: presentation.TruncateMiddle},
-					{Key: "source", Header: "SOURCE", MinWidth: 4, Prefer: 12},
-					{Key: "path", Header: "PATH", MinWidth: 4, Prefer: 24, Truncate: presentation.TruncateMiddle},
-				}
-				rows := make([]map[string]string, 0, len(entries))
-				for _, e := range entries {
-					rows = append(rows, map[string]string{
-						"key":    e.Key,
-						"value":  diagnostics.Redact(e.Value),
-						"source": string(e.Source),
-						"path":   e.Path,
-					})
-				}
-				return writeStaticOut(cmd, r.Table(presentation.TableModel{Columns: cols, Rows: rows}))
+				cols = append(cols,
+					presentation.TableColumn{Key: "source", Header: "SOURCE", MinWidth: 4, Prefer: 12},
+					presentation.TableColumn{Key: "path", Header: "PATH", MinWidth: 4, Prefer: 24, Truncate: presentation.TruncateMiddle},
+				)
 			}
-			kvs := make([]presentation.KeyValue, 0, len(entries))
+			rows := make([]map[string]string, 0, len(entries))
 			for _, e := range entries {
-				kvs = append(kvs, presentation.KeyValue{
-					Key:   e.Key,
-					Value: diagnostics.Redact(e.Value),
-				})
+				env := e.Env
+				if env == "" {
+					env = "-"
+				}
+				row := map[string]string{
+					"key":   e.Key,
+					"value": diagnostics.Redact(e.Value),
+					"env":   env,
+				}
+				if sources {
+					row["source"] = string(e.Source)
+					row["path"] = e.Path
+				}
+				rows = append(rows, row)
 			}
-			return writeStaticOut(cmd, r.KeyValues(kvs))
+			return writeStaticOut(cmd, r.Table(presentation.TableModel{Columns: cols, Rows: rows}))
 		},
 	}
 	cmd.Flags().BoolVar(&sources, "sources", false, "include source provenance")

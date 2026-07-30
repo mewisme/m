@@ -117,6 +117,39 @@ func TestConfigListSources(t *testing.T) {
 	}
 }
 
+func TestConfigListEnvColumn(t *testing.T) {
+	root := NewMRoot(BuildInfo{Version: "0.0.0-test"})
+	buf := new(bytes.Buffer)
+	root.SetOut(buf)
+	root.SetErr(buf)
+	modRoot, err := findModuleRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := filepath.Join(modRoot, "fixtures", "identity", "mew-native")
+	root.SetArgs([]string{"--cwd", fixture, "--color", "never", "config", "list"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "ENV") {
+		t.Fatalf("missing ENV header:\n%s", out)
+	}
+	if !strings.Contains(out, "MEW_COLOR") {
+		t.Fatalf("missing MEW_COLOR for ui.color:\n%s", out)
+	}
+	if !strings.Contains(out, "MEW_REGISTRY") {
+		t.Fatalf("missing MEW_REGISTRY for registry:\n%s", out)
+	}
+	// ui.color row should pair key with its env var on the same line when width allows.
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "ui.color") && strings.Contains(line, "MEW_COLOR") {
+			return
+		}
+	}
+	t.Fatalf("ui.color row missing MEW_COLOR on same line:\n%s", out)
+}
+
 func TestRecoverPanic(t *testing.T) {
 	var errW bytes.Buffer
 	rep := diagnostics.NewReporter(diagnostics.Options{
