@@ -82,6 +82,20 @@ topic). Ordinary `m <command> --help` stays concise and does not open a pager.
 Topic sources live under [`docs/terminal-help/`](terminal-help/) and are curated
 separately from authoritative docs; each topic ends with a See also pointer.
 
+Auto mode uses Glamour on a human color stdout TTY. Pipe, CI, `TERM=dumb`,
+accessible, `--color=never`, and `--output=plain` stay on the plain renderer
+(headings keep `#` markers; no ANSI). IDE terminals that report non-TTY still
+get Glamour when color is forced:
+
+```text
+m --color=always help --pager=never runner
+```
+
+`--color=always` overrides `NO_COLOR` for help the same way it does for other
+human output. Structured modes (`json` / `ndjson`) never use Glamour.
+`--output=rich` also selects Glamour for topic help when rich mode is accepted
+(interactive stderr); use `--color=always` when the terminal is non-TTY.
+
 ### Topic pager
 
 ```text

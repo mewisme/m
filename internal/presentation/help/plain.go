@@ -16,6 +16,9 @@ type RenderOptions struct {
 	Accessible bool
 	Hyperlinks bool
 	Style      string // glamour standard style: dark|light
+	// ForceColor keeps Glamour ANSI even when the process stdout is non-TTY
+	// (skips lipgloss profile downsampling that would strip SGR).
+	ForceColor bool
 }
 
 // Render selects plain or rich Markdown rendering.
@@ -25,11 +28,7 @@ func Render(md string, opts RenderOptions) (string, error) {
 	if opts.Plain || opts.Accessible {
 		return RenderPlain(md, opts), nil
 	}
-	out, err := RenderRich(md, opts)
-	if err != nil {
-		return RenderPlain(md, opts), nil
-	}
-	return out, nil
+	return RenderRich(md, opts)
 }
 
 var (

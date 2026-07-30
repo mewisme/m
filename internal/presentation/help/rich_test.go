@@ -63,3 +63,19 @@ func TestRenderPlainFlagSkipsGlamour(t *testing.T) {
 		t.Fatalf("missing plain content:\n%s", out)
 	}
 }
+
+func TestRenderForceColorKeepsANSI(t *testing.T) {
+	md := "# Hello\n\n- item\n"
+	out, err := helpmd.Render(md, helpmd.RenderOptions{
+		Width: 80, Style: "dark", ForceColor: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "\x1b[") {
+		t.Fatalf("ForceColor should keep Glamour SGR:\n%q", out)
+	}
+	if strings.Contains(out, "# Hello") {
+		t.Fatalf("expected Glamour heading, got plain markdown:\n%s", out)
+	}
+}

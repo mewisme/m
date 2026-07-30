@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/mewisme/mew/internal/presentation"
 )
 
 // TestHelpViaExecutePath covers Phase A direct dispatch: "help" must fall through
@@ -53,6 +55,68 @@ func TestHelpTopicRunner(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "m run") {
 		t.Fatalf("topic help missing content:\n%s", out)
+	}
+}
+
+func TestTopicHelpUsePlainColorAlwaysForcesRich(t *testing.T) {
+	caps := presentation.Capabilities{
+		StdoutTTY:    false,
+		StderrTTY:    false,
+		CI:           false,
+		DumbTerminal: false,
+		NoColorEnv:   true,
+		ColorProfile: presentation.ColorProfileASCII,
+	}
+	opts := presentation.ResolvedOptions{
+		RequestedOutput: presentation.OutputAuto,
+		EffectiveOutput: presentation.OutputPlain,
+		Color:           presentation.TriAlways,
+	}
+	eff := presentation.Effective(opts, caps)
+	if topicHelpUsePlain(opts, caps, eff) {
+		t.Fatal("expected Glamour path for --color=always on non-TTY")
+	}
+}
+
+func TestTopicHelpUsePlainAutoNonTTYStaysPlain(t *testing.T) {
+	caps := presentation.Capabilities{
+		StdoutTTY:    false,
+		StderrTTY:    false,
+		ColorProfile: presentation.ColorProfileTrueColor,
+	}
+	opts := presentation.ResolvedOptions{
+		RequestedOutput: presentation.OutputAuto,
+		EffectiveOutput: presentation.OutputPlain,
+		Color:           presentation.TriAuto,
+	}
+	eff := presentation.Effective(opts, caps)
+	if !topicHelpUsePlain(opts, caps, eff) {
+		t.Fatal("expected plain path for auto color on non-TTY")
+	}
+}
+
+func TestHelpTopicColorAlwaysForcesGlamour(t *testing.T) {
+	// strings.Builder stdout is non-TTY; --color=always must still select Glamour.
+	t.Setenv("CI", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("NO_COLOR", "")
+	root := NewMRoot(testBuildInfo())
+	buf := new(strings.Builder)
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"--color=always", "help", "--pager=never", "runner"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if strings.Contains(out, "# Runner") {
+		t.Fatalf("plain renderer still selected (# heading):\n%s", out)
+	}
+	if !strings.Contains(out, "\x1b[") {
+		t.Fatalf("expected ANSI from Glamour with --color=always:\n%q", out)
+	}
+	if !strings.Contains(out, "•") {
+		t.Fatalf("expected Glamour bullet:\n%s", out)
 	}
 }
 

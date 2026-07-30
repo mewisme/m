@@ -99,9 +99,9 @@ func writeTopicHelp(cmd *cobra.Command, body []byte, pagerFlag string) error {
 	eff := presentation.Effective(opts, caps)
 
 	structured := opts.Structured()
-	plain := structured || opts.EffectiveOutput == presentation.OutputPlain ||
-		!caps.StdoutTTY || caps.CI || caps.DumbTerminal || caps.NoColorEnv ||
-		opts.Color == presentation.TriNever || eff.Accessible || !eff.UseColor
+	plain := topicHelpUsePlain(opts, caps, eff)
+	forceColor := !plain && (opts.Color == presentation.TriAlways ||
+		opts.RequestedOutput == presentation.OutputRich)
 	human := !structured
 	// Match presentation ThemeMode (explicit --theme / config), not raw COLORFGBG alone.
 	style := "dark"
@@ -115,6 +115,7 @@ func writeTopicHelp(cmd *cobra.Command, body []byte, pagerFlag string) error {
 		Accessible: eff.Accessible,
 		Hyperlinks: caps.Hyperlinks && !plain && !eff.Accessible,
 		Style:      style,
+		ForceColor: forceColor,
 	})
 	if err != nil {
 		return err
@@ -139,6 +140,24 @@ func writeTopicHelp(cmd *cobra.Command, body []byte, pagerFlag string) error {
 		return err
 	}
 	return pager.WritePaged(cmd.Context(), cmd.OutOrStdout(), rendered, plan)
+}
+
+// topicHelpUsePlain decides whether topic Markdown uses the plain renderer.
+// Explicit --color=always or --output=rich forces Glamour even when stdout is
+// non-TTY (common in IDE/Cursor terminals). Auto rich still requires a human
+// color TTY path.
+func topicHelpUsePlain(opts presentation.ResolvedOptions, caps presentation.Capabilities, eff presentation.EffectiveSettings) bool {
+	if opts.Structured() || eff.Accessible || opts.Color == presentation.TriNever {
+		return true
+	}
+	if opts.Color == presentation.TriAlways || opts.RequestedOutput == presentation.OutputRich {
+		return false
+	}
+	if opts.EffectiveOutput == presentation.OutputRich &&
+		caps.StdoutTTY && !caps.CI && !caps.DumbTerminal && eff.UseColor {
+		return false
+	}
+	return true
 }
 
 func topicHelpCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

@@ -30,8 +30,11 @@ func RenderRich(md string, opts RenderOptions) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Glamour is pure and does not downsample; Lip Gloss maps colors to the
-	// terminal profile (same role as lipgloss.Print in the Glamour README).
-	out = lipgloss.Sprint(out)
+	// Glamour is pure and does not downsample. Lip Gloss maps colors to the
+	// detected stdout profile — which strips SGR when stdout is non-TTY.
+	// Skip that when the caller forced color (--color=always / --output=rich).
+	if !opts.ForceColor {
+		out = lipgloss.Sprint(out)
+	}
 	return strings.TrimRight(out, "\n") + "\n", nil
 }
