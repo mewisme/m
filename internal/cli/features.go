@@ -58,8 +58,7 @@ func runFeatures(cmd *cobra.Command, format, module, status string) error {
 	case "table":
 		g := ownerFlags(cmd.Root())
 		r := g.mustStaticRenderer(cmd, nil)
-		_, err := fmt.Fprintln(out, r.Table(featuresTableModel(filtered)))
-		return err
+		return writeStaticOut(cmd, r.Table(featuresTableModel(filtered)))
 	default:
 		return fmt.Errorf("unsupported format %q", format)
 	}
@@ -67,7 +66,7 @@ func runFeatures(cmd *cobra.Command, format, module, status string) error {
 
 func featuresTableModel(rows []features.Feature) presentation.TableModel {
 	cols := []presentation.TableColumn{
-		{Key: "id", Header: "ID", MinWidth: 8, Prefer: 28, Primary: true, Truncate: presentation.TruncateMiddle},
+		{Key: "id", Header: "ID", MinWidth: 12, Prefer: 32, Primary: true, Truncate: presentation.TruncateEnd},
 		{Key: "module", Header: "MODULE", MinWidth: 6, Prefer: 16, Truncate: presentation.TruncateMiddle},
 		{Key: "feature", Header: "FEATURE", MinWidth: 8, Prefer: 28, Truncate: presentation.TruncateMiddle},
 		{Key: "nub", Header: "NUB", MinWidth: 4, Prefer: 12},

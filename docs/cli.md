@@ -56,6 +56,19 @@ set them. JSON object fields: `binary`, `version`, `commit`, `buildDate`.
 Build metadata is injected at link time (`-X main.version=…` etc.). Dev default:
 `0.0.0-dev`.
 
+## Help
+
+Root `m --help` lists commands in workflow groups (install, inspect, security,
+cache/store, configuration). Per-command help may include `Examples` and `Related`
+sections when registered in `internal/cli/help.go`. Completion scripts remain
+plain text with no ANSI.
+
+## Human errors
+
+Typed CLI failures render through `ErrorView` (title, message, context, code,
+hints) on stderr in human modes. `--presentation-legacy` keeps the pre-UX-0003
+error format. JSON/NDJSON error documents are unchanged.
+
 ## Completion
 
 ```text

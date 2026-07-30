@@ -1,12 +1,12 @@
 package cli
 
 import (
-	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/presentation"
 )
 
 func newCapsuleCmd() *cobra.Command {
@@ -36,8 +36,9 @@ func newCapsuleCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_, err = fmt.Fprint(cmd.OutOrStdout(), app.FormatCapsuleCreateLine(res))
-			return err
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticPrint(cmd, r.PlainText(app.FormatCapsuleCreateLine(res)))
 		},
 	}
 	cmd.Flags().StringVar(&outputPath, "output", "", "capsule archive path (default ./mew.capsule)")
@@ -60,8 +61,16 @@ func newCapsuleRestoreCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), app.FormatInstallSummary(res))
-			return err
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			summary := presentation.Summary{
+				Status: presentation.StatusSuccess,
+				Title:  "Capsule restored",
+				Metrics: []presentation.KeyValue{
+					{Key: "summary", Value: app.FormatInstallSummary(res)},
+				},
+			}
+			return writeStaticOut(cmd, r.Summary(summary))
 		},
 	}
 	return cmd

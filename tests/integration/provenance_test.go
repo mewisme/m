@@ -30,7 +30,7 @@ func TestVerifyProvenanceAttestationPass(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit=%d out=%s", code, out)
 	}
-	if !strings.Contains(out, "verified provenance") {
+	if !strings.Contains(out, "Provenance verified") {
 		t.Fatalf("stdout %q", out)
 	}
 }

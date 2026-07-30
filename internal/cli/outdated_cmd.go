@@ -51,12 +51,12 @@ func newOutdatedCmd() *cobra.Command {
 				enc.SetIndent("", "  ")
 				return enc.Encode(report.Entries)
 			}
-			text := app.FormatOutdatedTable(report.Entries)
-			if text == "" {
+			if len(report.Entries) == 0 {
 				return nil
 			}
-			_, err = cmd.OutOrStdout().Write([]byte(text + "\n"))
-			return err
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.Table(outdatedTableModel(report.Entries)))
 		},
 	}
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "include all workspace importers")

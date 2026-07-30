@@ -56,6 +56,13 @@ func NewController(resolved ResolvedOptions, caps Capabilities, streams StreamWr
 		Err:       streams.Err,
 		TermWidth: resolved.TermWidth,
 	}
+	if !resolved.Legacy && !resolved.Structured() {
+		settings := Effective(resolved, caps)
+		mapOpts := MapOptions{Debug: resolved.Debug, Redact: diagnostics.Redact}
+		opts.HumanErrorRender = func(err error) string {
+			return NewStaticRenderer(settings).Error(MapError(err, mapOpts))
+		}
+	}
 	c := &controller{
 		resolved:    resolved,
 		caps:        caps,

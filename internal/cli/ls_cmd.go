@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -10,6 +9,7 @@ import (
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/presentation"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/workspace"
 )
@@ -88,8 +88,9 @@ func runLsDepTree(cmd *cobra.Command, proj *project.Project, depth int, prodOnly
 	if text == "" {
 		return nil
 	}
-	_, err = cmd.OutOrStdout().Write([]byte(text + "\n"))
-	return err
+	gf := ownerFlags(cmd.Root())
+	r := gf.mustStaticRenderer(cmd, nil)
+	return writeStaticOut(cmd, r.PlainText(text))
 }
 
 func runLsWorkspace(cmd *cobra.Command, ac *app.Context, proj *project.Project, recursive bool, depth int) error {
@@ -102,8 +103,12 @@ func runLsWorkspace(cmd *cobra.Command, ac *app.Context, proj *project.Project, 
 		return err
 	}
 	if len(patterns) == 0 {
-		_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", proj.Normalized.Name, proj.Doc.Version)
-		return err
+		g := ownerFlags(cmd.Root())
+		r := g.mustStaticRenderer(cmd, nil)
+		return writeStaticOut(cmd, r.KeyValues([]presentation.KeyValue{
+			{Key: "name", Value: proj.Normalized.Name, Style: presentation.ValuePackage},
+			{Key: "version", Value: proj.Doc.Version, Style: presentation.ValueVersion},
+		}))
 	}
 	wg, err := workspace.BuildGraph(proj.Root)
 	if err != nil {
@@ -121,9 +126,15 @@ func runLsWorkspace(cmd *cobra.Command, ac *app.Context, proj *project.Project, 
 	} else if recursive {
 		paths = wg.MemberPaths()
 	} else {
-		_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s %s .\n", proj.Normalized.Name, proj.Doc.Version)
-		return err
+		g := ownerFlags(cmd.Root())
+		r := g.mustStaticRenderer(cmd, nil)
+		return writeStaticOut(cmd, r.KeyValues([]presentation.KeyValue{
+			{Key: "name", Value: proj.Normalized.Name, Style: presentation.ValuePackage},
+			{Key: "version", Value: proj.Doc.Version, Style: presentation.ValueVersion},
+			{Key: "path", Value: ".", Style: presentation.ValuePath},
+		}))
 	}
+	var rows []workspaceListRow
 	for _, p := range paths {
 		if p == "." {
 			continue
@@ -135,12 +146,11 @@ func runLsWorkspace(cmd *cobra.Command, ac *app.Context, proj *project.Project, 
 		if !ok {
 			continue
 		}
-		_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s %s %s\n", mem.Name, mem.Version, p)
-		if err != nil {
-			return err
-		}
+		rows = append(rows, workspaceListRow{Name: mem.Name, Version: mem.Version, Path: p})
 	}
-	return nil
+	g := ownerFlags(cmd.Root())
+	r := g.mustStaticRenderer(cmd, nil)
+	return writeStaticOut(cmd, r.Table(workspaceListTable(rows)))
 }
 
 func pathDepth(p string) int {

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -37,19 +36,13 @@ func newHistoryCmd() *cobra.Command {
 				return enc.Encode(snapshotEntriesWithDelta(list))
 			}
 			if len(list) == 0 {
-				_, err := fmt.Fprintln(cmd.OutOrStdout(), "no snapshots")
-				return err
+				g := ownerFlags(cmd.Root())
+				r := g.mustStaticRenderer(cmd, nil)
+				return writeStaticOut(cmd, r.Notice(emptyNotice("no snapshots")))
 			}
-			for i, s := range list {
-				var older *snapshot.Snapshot
-				if i+1 < len(list) {
-					older = &list[i+1]
-				}
-				if err := formatSnapshotLine(cmd.OutOrStdout(), s, older); err != nil {
-					return err
-				}
-			}
-			return nil
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.Table(snapshotTableModel(list)))
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print timeline as JSON")

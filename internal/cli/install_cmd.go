@@ -2,12 +2,12 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/presentation"
 )
 
 func newInstallCmd() *cobra.Command {
@@ -203,10 +203,18 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 	if !result.Committed && !dryRun {
 		return nil
 	}
+	g := ownerFlags(cmd.Root())
+	r := g.mustStaticRenderer(cmd, nil)
 	prefix := ""
 	if dryRun {
 		prefix = "dry-run: "
 	}
-	_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s%s\n", prefix, app.FormatInstallSummary(result))
-	return err
+	summary := presentation.Summary{
+		Status: presentation.StatusSuccess,
+		Title:  prefix + "Install plan",
+		Metrics: []presentation.KeyValue{
+			{Key: "summary", Value: app.FormatInstallSummary(result)},
+		},
+	}
+	return writeStaticOut(cmd, r.Summary(summary))
 }

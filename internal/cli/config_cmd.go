@@ -99,8 +99,7 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 						"path":   e.Path,
 					})
 				}
-				_, err = fmt.Fprintln(cmd.OutOrStdout(), r.Table(presentation.TableModel{Columns: cols, Rows: rows}))
-				return err
+				return writeStaticOut(cmd, r.Table(presentation.TableModel{Columns: cols, Rows: rows}))
 			}
 			kvs := make([]presentation.KeyValue, 0, len(entries))
 			for _, e := range entries {
@@ -109,8 +108,7 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 					Value: diagnostics.Redact(e.Value),
 				})
 			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), r.KeyValues(kvs))
-			return err
+			return writeStaticOut(cmd, r.KeyValues(kvs))
 		},
 	}
 	cmd.Flags().BoolVar(&sources, "sources", false, "include source provenance")

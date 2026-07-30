@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -47,9 +46,9 @@ func newVerifyProvenanceCmd() *cobra.Command {
 			if subject == "" {
 				subject = res.PackageName + "@" + res.PackageVersion
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "verified provenance for %s (%s:%s)\n",
-				subject, res.DigestAlgo, res.DigestHex)
-			return err
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.Summary(verifyProvenanceSummary(subject, res.DigestAlgo, res.DigestHex)))
 		},
 	}
 	cmd.Flags().StringVar(&attestationPath, "attestation", "", "path to attestation JSON")

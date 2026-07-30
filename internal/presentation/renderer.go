@@ -8,8 +8,10 @@ type StaticRenderer interface {
 	Summary(Summary) string
 	Notice(Notice) string
 	Hint(Hint) string
+	Error(ErrorView) string
 	Table(TableModel) string
 	PackageDeltas([]PackageDelta) string
+	PlainText(string) string
 	Settings() EffectiveSettings
 }
 

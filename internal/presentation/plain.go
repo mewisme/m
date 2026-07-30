@@ -72,6 +72,12 @@ func (r *plainRenderer) Table(m TableModel) string {
 	return formatTable(m, r.settings, false, Theme{})
 }
 
+func (r *plainRenderer) Error(view ErrorView) string {
+	return formatError(view, r.settings, false, Theme{})
+}
+
+func (r *plainRenderer) PlainText(s string) string { return s }
+
 func statusSymbol(s Symbols, st Status) string {
 	switch st {
 	case StatusSuccess:

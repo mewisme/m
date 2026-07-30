@@ -8,7 +8,7 @@ Go-powered JavaScript package manager and toolchain built around stock Node.js.
 
 **MewJS** (abbreviated **Mew**) is a Go control plane for JavaScript projects: transactional dependency management, lockfile adapters, script and executable execution, and supply-chain tooling. It runs **stock Node.js** — Mew does not fork, patch, embed, or replace Node.
 
-The primary binary is **`m`** (alias **`mew`**). The package executable runner is **`mx`** (alias **`mewx`**). New Mew-owned projects use the native lockfile **`m.lock`**.
+The primary binary is **`m`** (alias **`mew`**). The package executable runner is **`mx`** (alias **`mewx`**). Installer-shipped aliases are not distributed automatically with release binaries; use the [development installer](CONTRIBUTING.md#development-installation) for local `mew` / `mewx` shims. New Mew-owned projects use the native lockfile **`m.lock`**.
 
 > **Status:** Active development. Build from source — there are no published GitHub releases or official installers yet. A [development installer](CONTRIBUTING.md#development-installation) (`scripts/install-dev.*`) is available for local use only.
 >

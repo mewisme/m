@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -38,8 +37,15 @@ func newPMDoctorCmd() *cobra.Command {
 				}
 				return app.DoctorExitError(report)
 			}
-			if _, err := fmt.Fprint(cmd.OutOrStdout(), app.FormatDoctorReport(report)); err != nil {
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			if err := writeStaticOut(cmd, r.Summary(doctorSummary(report))); err != nil {
 				return err
+			}
+			if table := r.Table(doctorTableModel(report)); table != "" {
+				if err := writeStaticOut(cmd, table); err != nil {
+					return err
+				}
 			}
 			return app.DoctorExitError(report)
 		},

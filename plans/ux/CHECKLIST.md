@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current standalone plan: **UX-0003 — Errors, Help, and Static Command Output**
+- Current standalone plan: **UX-0004 — Install and Mutation Experience**
 - Status: active standalone program
 - Recommended repository path: `plans/ux/`
 - Numbering namespace: `UX-0001` through `UX-0008`
@@ -41,17 +41,17 @@
 
 ## UX-0003 — Errors, Help, and Static Command Output
 
-- [ ] Implement typed ErrorView.
-- [ ] Implement title and hint catalogs.
-- [ ] Preserve error codes and exits.
-- [ ] Implement grouped root help.
-- [ ] Implement command help sections and examples.
-- [ ] Certify completion output is ANSI-free.
-- [ ] Migrate low-risk static commands.
-- [ ] Migrate inspection/diagnostic commands.
-- [ ] Migrate security/artifact commands.
-- [ ] Add direct-printing static check or allowlist.
-- [ ] Pass human/plain/structured/redaction snapshots.
+- [x] Implement typed ErrorView.
+- [x] Implement title and hint catalogs.
+- [x] Preserve error codes and exits.
+- [x] Implement grouped root help.
+- [x] Implement command help sections and examples.
+- [x] Certify completion output is ANSI-free.
+- [x] Migrate low-risk static commands.
+- [x] Migrate inspection/diagnostic commands.
+- [x] Migrate security/artifact commands.
+- [x] Add direct-printing static check or allowlist.
+- [x] Pass human/plain/structured/redaction snapshots.
 
 ## UX-0004 — Install and Mutation Experience
 

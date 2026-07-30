@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -42,17 +41,13 @@ func newBuildsListCmd() *cobra.Command {
 				return enc.Encode(entries)
 			}
 			if len(entries) == 0 {
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "no lifecycle audit entries")
-				return nil
+				g := ownerFlags(cmd.Root())
+				r := g.mustStaticRenderer(cmd, nil)
+				return writeStaticOut(cmd, r.Notice(emptyNotice("no lifecycle audit entries")))
 			}
-			for _, e := range entries {
-				_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s %s %s exit=%d %dms\n",
-					e.TS, e.Package, e.Script, e.ExitCode, e.DurationMs)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.Table(buildsTableModel(entries)))
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print audit entries as JSON")

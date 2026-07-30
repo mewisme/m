@@ -115,6 +115,9 @@ Precedence (single resolver in `internal/presentation`):
 ## Migration status
 
 - UX-0001: contract, resolver, controller, event types, inventory (this document)
-- UX-0003: migrate `internal/cli` direct prints
+- UX-0003: ErrorView human errors, grouped help, static command migrations
+  (doctor, ls, outdated, plan, history, snapshot, cache/store status, audit,
+  policy, verify, builds, pack, capsule); `writeStaticOut` bridge; archcheck
+  allowlist for pending commands
 - UX-0004: install progress emitters
 - UX-0005: runner presentation coordination

@@ -3,56 +3,68 @@ MewJS (Mew) is a Go-based JavaScript toolchain and package manager for package m
 Usage:
   m [command]
 
-Available Commands:
-  add            Add a dependency
-  approve-builds Approve lifecycle scripts for packages (alias for m trust)
-  audit          Audit dependencies for known vulnerabilities
-  benchmark      Performance benchmarks
-  builds         Lifecycle build script audit
-  cache          Manage the download cache
-  capsule        Create and restore portable dependency capsules
-  ci             Clean install from lockfile
-  completion     Generate shell completion scripts
-  config         Get and set configuration
-  conformance    Run certification conformance suites
-  dedupe         Reduce duplicate dependencies in the lockfile
-  development    Developer tooling
-  diff           Diff project artifacts
-  doctor         Check project and package-manager health
-  env            Inspect execution environments
-  exec           Execute a local package binary
-  explain        Explain resolution decisions
-  features       List capability inventory and parity status
-  fetch          Download and extract packages from a fetch plan
-  help           Help about any command
-  history        Show install snapshot timeline
-  init           Initialize a project
+
+Common workflows
   install        Install dependencies
+  add            Add a dependency
+  run            Run a package script
+  exec           Execute a local package binary
+  ci             Clean install from lockfile
+  update         Update dependencies and refresh the lockfile
+
+Project and dependencies
+  init           Initialize a project
+  remove         Remove a dependency
   link           Link a local package
+  dedupe         Reduce duplicate dependencies in the lockfile
+  prune          Remove extraneous packages from node_modules
+  resolve        Resolve dependencies without installing
+  fetch          Download and extract packages from a fetch plan
   lock           Lockfile utilities
+  patch          Extract a dependency for patching or commit a patch
+  publish        Publish a package
+  pkg            Read package.json fields
+  project        Inspect the current project
+
+Run and execute
+  env            Inspect execution environments
+  view           View package metadata from the registry
+
+Inspect and diagnose
   ls             List dependency tree or workspace packages
   outdated       Check for outdated package versions
-  pack           Create a package tarball
-  patch          Extract a dependency for patching or commit a patch
-  pkg            Read package.json fields
+  explain        Explain resolution decisions
   plan           Preview install mutations
-  policy         Evaluate organizational supply-chain policy
-  project        Inspect the current project
-  prune          Remove extraneous packages from node_modules
-  publish        Publish a package
-  recover        Recover from an interrupted install transaction
-  remove         Remove a dependency
-  resolve        Resolve dependencies without installing
-  rollback       Restore the previous install snapshot
-  run            Run a package script
-  sbom           Export a software bill of materials
+  history        Show install snapshot timeline
   snapshot       Manage install snapshots
-  store          Manage the content store
-  trust          Trust lifecycle scripts for packages
-  update         Update dependencies and refresh the lockfile
+  doctor         Check project and package-manager health
+  features       List capability inventory and parity status
+  diff           Diff project artifacts
+  recover        Recover from an interrupted install transaction
+  rollback       Restore the previous install snapshot
+
+Security and policy
+  audit          Audit dependencies for known vulnerabilities
+  policy         Evaluate organizational supply-chain policy
   verify         Verify package attestations
+  sbom           Export a software bill of materials
+  builds         Lifecycle build script audit
+  trust          Trust lifecycle scripts for packages
+  approve-builds Approve lifecycle scripts for packages (alias for m trust)
+
+Cache, store, and artifacts
+  cache          Manage the download cache
+  store          Manage the content store
+  pack           Create a package tarball
+  capsule        Create and restore portable dependency capsules
+
+Configuration and development
+  config         Get and set configuration
+  development    Developer tooling
+  benchmark      Performance benchmarks
+  conformance    Run certification conformance suites
   version        Print version information
-  view           View package metadata from the registry
+  completion     Generate shell completion scripts
 
 Flags:
       --accessible           accessible append-only output

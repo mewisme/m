@@ -47,8 +47,9 @@ func newCacheVerifyCmd() *cobra.Command {
 				enc.SetEscapeHTML(false)
 				return enc.Encode(res)
 			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "ok=%d bad=%d skip=%d\n", res.OK, res.Bad, res.Skip)
-			return nil
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.Summary(cacheVerifySummary(res.OK, res.Bad, res.Skip)))
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print as JSON")

@@ -95,3 +95,9 @@ func (r *richRenderer) PackageDeltas(deltas []PackageDelta) string {
 func (r *richRenderer) Table(m TableModel) string {
 	return formatTable(m, r.settings, true, r.theme)
 }
+
+func (r *richRenderer) Error(view ErrorView) string {
+	return formatError(view, r.settings, true, r.theme)
+}
+
+func (r *richRenderer) PlainText(s string) string { return s }

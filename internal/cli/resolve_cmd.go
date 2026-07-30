@@ -51,7 +51,7 @@ func newResolveCmd() *cobra.Command {
 				len(g.Packages), len(g.Edges), len(res.Decisions))
 			if trace {
 				for _, d := range res.Decisions {
-					line := fmt.Sprintf("%s@%s → %s (%s)", d.Package, d.Requested, d.Selected, d.Reason)
+					line := fmt.Sprintf("%s@%s â†’ %s (%s)", d.Package, d.Requested, d.Selected, d.Reason)
 					if len(d.PeerProviders) > 0 {
 						line += fmt.Sprintf(" peerProviders=%v", d.PeerProviders)
 					}

@@ -2,12 +2,12 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/presentation"
 	"github.com/mewisme/mew/internal/snapshot"
 )
 
@@ -47,19 +47,13 @@ func newSnapshotListCmd() *cobra.Command {
 				return enc.Encode(list)
 			}
 			if len(list) == 0 {
-				_, err := fmt.Fprintln(cmd.OutOrStdout(), "no snapshots")
-				return err
+				g := ownerFlags(cmd.Root())
+				r := g.mustStaticRenderer(cmd, nil)
+				return writeStaticOut(cmd, r.Notice(emptyNotice("no snapshots")))
 			}
-			for i, s := range list {
-				var older *snapshot.Snapshot
-				if i+1 < len(list) {
-					older = &list[i+1]
-				}
-				if err := formatSnapshotLine(cmd.OutOrStdout(), s, older); err != nil {
-					return err
-				}
-			}
-			return nil
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.Table(snapshotTableModel(list)))
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print snapshots as JSON")
@@ -113,8 +107,12 @@ func newRecoverCmd() *cobra.Command {
 				enc.SetIndent("", "  ")
 				return enc.Encode(result)
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "recover: %s\n", result.Action)
-			return err
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.Status(presentation.StatusLine{
+				Status: presentation.StatusSuccess,
+				Text:   "recover: " + result.Action,
+			}))
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print result as JSON")

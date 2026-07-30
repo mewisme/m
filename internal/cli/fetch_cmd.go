@@ -43,7 +43,7 @@ func newFetchCmd() *cobra.Command {
 				return enc.Encode(results)
 			}
 			for _, r := range results {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s@%s → %s\n", r.Name, r.Version, r.Dest)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s@%s â†’ %s\n", r.Name, r.Version, r.Dest)
 			}
 			return nil
 		},

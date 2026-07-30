@@ -84,6 +84,7 @@ func NewMRoot(info BuildInfo) *cobra.Command {
 	root.AddCommand(newEnvCmd())
 	registerStubs(root)
 	root.ValidArgsFunction = rootScriptCompletion
+	configureGroupedHelp(root)
 
 	return root
 }
@@ -112,6 +113,7 @@ func NewMXRoot(info BuildInfo) *cobra.Command {
 	root.AddCommand(newVersionCmd(use, info))
 	root.AddCommand(newCompletionCmd(root))
 	root.AddCommand(newMXCacheCmd())
+	configureGroupedHelp(root)
 
 	return root
 }

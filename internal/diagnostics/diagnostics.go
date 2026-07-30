@@ -203,6 +203,8 @@ type Options struct {
 	Debug     bool
 	Unsafe    bool // skip redaction (requires explicit flag)
 	TermWidth int  // 0 = default 80
+	// HumanErrorRender renders human errors; nil keeps legacy formatHumanError.
+	HumanErrorRender func(error) string
 }
 
 // ColorMode controls ANSI color.
@@ -333,6 +335,11 @@ func (r *humanReporter) Progress(ev Event) {
 func (r *humanReporter) Error(err error) {
 	r.base.mu.Lock()
 	defer r.base.mu.Unlock()
+	if r.base.opts.HumanErrorRender != nil {
+		msg := r.base.redact(r.base.opts.HumanErrorRender(err))
+		fmt.Fprintln(r.base.opts.Err, msg)
+		return
+	}
 	msg := r.base.redact(formatHumanError(err))
 	if r.base.colorEnabled(r.base.opts.Err) {
 		fmt.Fprintf(r.base.opts.Err, "\x1b[31m%s\x1b[0m\n", msg)

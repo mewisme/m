@@ -62,8 +62,9 @@ func newStoreStatusCmd() *cobra.Command {
 				enc.SetEscapeHTML(false)
 				return enc.Encode(st)
 			}
-			_, err = fmt.Fprint(cmd.OutOrStdout(), app.FormatStoreStatus(st))
-			return err
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.KeyValues(storeStatusView(st)))
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print as JSON")
@@ -95,8 +96,9 @@ func newStorePruneCmd() *cobra.Command {
 				enc.SetEscapeHTML(false)
 				return enc.Encode(res)
 			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "removed=%d kept=%d dry_run=%v\n", res.Removed, res.Kept, res.DryRun)
-			return nil
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.Summary(storePruneSummary(res.Removed, res.Kept, res.DryRun)))
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "report packages that would be removed without deleting")

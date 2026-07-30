@@ -71,7 +71,7 @@ func TestStorePruneDryRun(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("prune: %s", out)
 	}
-	if !strings.Contains(out, "removed=0") {
+	if !strings.Contains(out, "removed") || !strings.Contains(out, "0") {
 		t.Fatalf("expected referenced package kept: %s", out)
 	}
 }

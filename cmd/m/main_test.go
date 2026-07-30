@@ -36,7 +36,7 @@ func TestFeaturesTableFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(out)
-	if !strings.Contains(text, "runner.interactive-select") {
+	if !strings.Contains(text, "runner") || !strings.Contains(text, "planned") || !strings.Contains(text, "0090") {
 		t.Fatalf("expected planned runner features in output:\n%s", text)
 	}
 	if strings.Contains(text, "foundation.charter") {

@@ -73,6 +73,18 @@ Emitters for install/runner operations land in later UX plans.
 Schema: [`schemas/diagnostics/error.schema.json`](../schemas/diagnostics/error.schema.json).
 Codes: [`errors.md`](errors.md).
 
+Human errors (default/plain/rich reporters) map typed `apperr` failures to an
+`ErrorView` in `internal/presentation`: title, message, optional context rows,
+`ERR_M_*` code, and up to three deterministic hints. Rich mode applies semantic
+error styling; plain mode prefixes `ERROR` with no ANSI. Debug mode may append a
+short cause chain.
+
+`diagnostics.Options.HumanErrorRender` injects the presentation renderer without
+import cycles. When `--presentation-legacy` or `MEW_PRESENTATION=legacy` is set,
+human errors keep the legacy `formatHumanError` path (including optional red ANSI).
+
+JSON and NDJSON error documents are unchanged.
+
 ## Redaction
 
 Default and debug modes always redact URL userinfo, Bearer tokens, and common

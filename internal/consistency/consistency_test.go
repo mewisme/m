@@ -136,7 +136,7 @@ func TestREADMECertifiedClaimMatchesInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(readme), "**Certified**") {
+	if !strings.Contains(string(readme), "**Certified:") {
 		t.Fatal("README missing certified PM core claim")
 	}
 	inv, err := features.LoadFile(filepath.Join(root, "features", "inventory.json"))

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -50,14 +49,16 @@ func newAuditCmd() *cobra.Command {
 					return err
 				}
 			} else {
+				g := ownerFlags(cmd.Root())
+				r := g.mustStaticRenderer(cmd, nil)
 				if text := advisory.FormatTable(result.Report); text != "" {
-					if _, err := fmt.Fprintln(cmd.OutOrStdout(), text); err != nil {
+					if err := writeStaticOut(cmd, r.PlainText(text)); err != nil {
 						return err
 					}
 				}
 				if fix {
 					if fixes := advisory.FormatFixSuggestions(result.Fixes); fixes != "" {
-						if _, err := fmt.Fprintln(cmd.OutOrStdout(), fixes); err != nil {
+						if err := writeStaticOut(cmd, r.PlainText(fixes)); err != nil {
 							return err
 						}
 					}

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -46,21 +45,21 @@ func newPolicyCheckCmd() *cobra.Command {
 				}
 				return nil
 			}
-			return formatPolicyResult(result, cmd.OutOrStdout())
+			return formatPolicyResult(result, cmd)
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print policy result as JSON")
 	return cmd
 }
 
-func formatPolicyResult(result policy.PolicyResult, w interface{ Write([]byte) (int, error) }) error {
-	if result.Passed && len(result.Violations) == 0 {
-		_, err := fmt.Fprintln(w, "policy check passed")
+func formatPolicyResult(result policy.PolicyResult, cmd *cobra.Command) error {
+	g := ownerFlags(cmd.Root())
+	r := g.mustStaticRenderer(cmd, nil)
+	if err := writeStaticOut(cmd, r.Summary(policySummary(result))); err != nil {
 		return err
 	}
-	for _, v := range result.Violations {
-		line := fmt.Sprintf("%s %s: %s", v.Severity, v.Package, v.Message)
-		if _, err := fmt.Fprintln(w, line); err != nil {
+	if len(result.Violations) > 0 {
+		if err := writeStaticOut(cmd, r.Table(policyTableModel(result))); err != nil {
 			return err
 		}
 	}

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -31,8 +30,9 @@ func newPackCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_, err = fmt.Fprint(cmd.OutOrStdout(), app.FormatPackLine(res))
-			return err
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticPrint(cmd, r.PlainText(app.FormatPackLine(res)))
 		},
 	}
 	cmd.Flags().StringVar(&packDestination, "pack-destination", "", "directory for the .tgz (default cwd)")
