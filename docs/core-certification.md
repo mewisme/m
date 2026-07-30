@@ -18,7 +18,8 @@ Related: [`security-pm-core.md`](security-pm-core.md),
 | `go run ./cmd/m doctor [--json] [--strict]` | Project and PM health checks |
 | `go run ./cmd/m bench install [--warm\|--cold] [--json]` | Install benchmark (see [`performance.md`](performance.md)) |
 | `pwsh tools/soak/install-loop.ps1 -Count <n> -Mode warm` | Repeated install soak (CI: `-Count 10`; manual: `-Count 100`) |
-| `pwsh tools/bench/check_regression.ps1 -Mode warm` | Install performance regression gate (median/p95 vs baseline) |
+| `pwsh tools/bench/check_correctness.ps1 -Mode warm` | Install bench correctness (≥7 samples, digest) |
+| `pwsh tools/bench/check_regression.ps1 -Mode warm` | Install performance regression (platform-matched; advisory on CI until Ubuntu baseline) |
 
 `m benchmark` is the compatibility alias for `m bench` (0031 plan surface).
 
@@ -46,7 +47,8 @@ Related: [`security-pm-core.md`](security-pm-core.md),
 | Conformance negative probes | `go run ./cmd/m conformance run core --filter integration.cert-negative-*` (must fail) | `cert-negative-probes` |
 | PM health | `go run ./cmd/m doctor --json` | `core-stabilization` |
 | Soak (short) | `pwsh tools/soak/install-loop.ps1 -Count 10 -Mode warm` | `core-stabilization` |
-| Install bench regression | `pwsh tools/bench/check_regression.ps1 -Mode warm` | `bench-regression` (median/p95, 10% budget) |
+| Install bench correctness | `pwsh tools/bench/check_correctness.ps1 -Mode warm` | `bench-correctness` (blocking) |
+| Install bench regression | `pwsh tools/bench/check_regression.ps1 -Mode warm` | `bench-regression` (advisory; structured waiver) |
 | License + dependency allowlist | `go run ./tools/check-license`; `go run ./tools/check-deps` | `gate-probe` |
 
 Pinned pnpm producer versions: `tools/conformance/pnpm-versions.env` (9.15.9 /

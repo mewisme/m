@@ -46,6 +46,7 @@ type BenchResult struct {
 	Arch          string           `json:"arch"`
 	Commit        string           `json:"commit"`
 	FixtureDigest string           `json:"fixtureDigest"`
+	RunnerClass   string           `json:"runnerClass,omitempty"`
 }
 
 type phaseReporter struct {
@@ -177,6 +178,7 @@ func BenchInstall(ctx context.Context, ac *Context, opts BenchInstallOptions) (B
 		Arch:          goarch,
 		Commit:        ac.Commit,
 		FixtureDigest: fixtureDigest,
+		RunnerClass:   benchRunnerClass(),
 	}
 	if opts.Baseline {
 		if err := UpdateInstallBaseline(moduleRoot, result); err != nil {

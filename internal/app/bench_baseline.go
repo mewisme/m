@@ -5,12 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/fsx"
 )
 
-const installBaselineSchemaVersion = 2
+const installBaselineSchemaVersion = 3
 
 // InstallBaselineCase is one published install benchmark case.
 type InstallBaselineCase struct {
@@ -21,6 +22,8 @@ type InstallBaselineCase struct {
 	GoVersion     string  `json:"goVersion,omitempty"`
 	OS            string  `json:"os,omitempty"`
 	Arch          string  `json:"arch,omitempty"`
+	RunnerClass   string  `json:"runnerClass,omitempty"`
+	BenchmarkMode string  `json:"benchmarkMode,omitempty"`
 	Commit        string  `json:"commit,omitempty"`
 	FixtureDigest string  `json:"fixtureDigest,omitempty"`
 }
@@ -33,6 +36,48 @@ type InstallBaseline struct {
 
 func installBaselinePath(moduleRoot string) string {
 	return filepath.Join(moduleRoot, "benchmarks", "install-baseline.json")
+}
+
+func baselineCaseKey(c InstallBaselineCase) string {
+	parts := []string{
+		c.Name,
+		strings.ToLower(c.OS),
+		strings.ToLower(c.Arch),
+		c.GoVersion,
+		strings.ToLower(c.RunnerClass),
+		strings.ToLower(c.BenchmarkMode),
+	}
+	return strings.Join(parts, "|")
+}
+
+// MatchInstallBaselineCase selects a baseline row for the current host metadata.
+func MatchInstallBaselineCase(baseline InstallBaseline, result BenchResult) (InstallBaselineCase, bool) {
+	want := baselineCaseKey(InstallBaselineCase{
+		Name:          result.Case,
+		OS:            result.OS,
+		Arch:          result.Arch,
+		GoVersion:     result.GoVersion,
+		RunnerClass:   result.RunnerClass,
+		BenchmarkMode: result.Mode,
+	})
+	for _, c := range baseline.Cases {
+		if baselineCaseKey(c) == want {
+			return c, true
+		}
+	}
+	// ponytail: legacy v2 rows keyed by name+os+arch+mode only when runnerClass empty.
+	if result.RunnerClass == "" {
+		for _, c := range baseline.Cases {
+			if c.Name == result.Case &&
+				strings.EqualFold(c.OS, result.OS) &&
+				strings.EqualFold(c.Arch, result.Arch) &&
+				strings.EqualFold(c.BenchmarkMode, result.Mode) &&
+				c.RunnerClass == "" {
+				return c, true
+			}
+		}
+	}
+	return InstallBaselineCase{}, false
 }
 
 // UpdateInstallBaseline merges one bench result into benchmarks/install-baseline.json.
@@ -55,12 +100,15 @@ func UpdateInstallBaseline(moduleRoot string, result BenchResult) error {
 		GoVersion:     result.GoVersion,
 		OS:            result.OS,
 		Arch:          result.Arch,
+		RunnerClass:   result.RunnerClass,
+		BenchmarkMode: result.Mode,
 		Commit:        result.Commit,
 		FixtureDigest: result.FixtureDigest,
 	}
+	key := baselineCaseKey(entry)
 	updated := false
 	for i := range baseline.Cases {
-		if baseline.Cases[i].Name == entry.Name {
+		if baselineCaseKey(baseline.Cases[i]) == key {
 			baseline.Cases[i] = entry
 			updated = true
 			break
@@ -82,5 +130,5 @@ func UpdateInstallBaseline(moduleRoot string, result BenchResult) error {
 }
 
 func sortBaselineCases(cases []InstallBaselineCase) {
-	sort.Slice(cases, func(i, j int) bool { return cases[i].Name < cases[j].Name })
+	sort.Slice(cases, func(i, j int) bool { return baselineCaseKey(cases[i]) < baselineCaseKey(cases[j]) })
 }

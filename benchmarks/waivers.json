@@ -1,0 +1,28 @@
+{
+  "waivers": [
+    {
+      "case": "medium-graph-warm",
+      "os": "linux",
+      "arch": "amd64",
+      "runnerClass": "github-actions-ubuntu-latest",
+      "benchmarkMode": "warm",
+      "owner": "mew-core",
+      "reason": "Install baseline captured on Windows only; Ubuntu regression is advisory until a stable dedicated runner baseline is committed.",
+      "issue": "https://github.com/mewisme/mew/issues/1",
+      "expires": "2026-12-31",
+      "followUp": "Capture ubuntu-latest baseline on dedicated runner and remove waiver"
+    },
+    {
+      "case": "medium-graph-cold",
+      "os": "linux",
+      "arch": "amd64",
+      "runnerClass": "github-actions-ubuntu-latest",
+      "benchmarkMode": "cold",
+      "owner": "mew-core",
+      "reason": "No committed cold baseline for ubuntu-latest CI runners.",
+      "issue": "https://github.com/mewisme/mew/issues/1",
+      "expires": "2026-12-31",
+      "followUp": "Capture ubuntu-latest cold baseline when runner pool is stable"
+    }
+  ]
+}

@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 )
 
 const (
 	benchDefaultWarmup  = 1
-	benchDefaultSamples = 5
+	benchDefaultSamples = 7
 )
 
 func benchWarmupCount(n int) int {
@@ -60,6 +61,20 @@ func benchP95(samples []int64) int64 {
 
 func benchRuntimeMetadata(commit string) (goVersion, goos, goarch string) {
 	return runtime.Version(), runtime.GOOS, runtime.GOARCH
+}
+
+func benchRunnerClass() string {
+	if v := strings.TrimSpace(os.Getenv("MEW_BENCH_RUNNER_CLASS")); v != "" {
+		return v
+	}
+	if strings.EqualFold(os.Getenv("GITHUB_ACTIONS"), "true") {
+		runner := strings.TrimSpace(os.Getenv("RUNNER_OS"))
+		if runner == "" {
+			runner = runtime.GOOS
+		}
+		return "github-actions-" + strings.ToLower(runner)
+	}
+	return "local-" + runtime.GOOS
 }
 
 func fixtureTreeDigest(root string) (string, error) {

@@ -82,9 +82,22 @@ JSON shape:
 
 Phase keys mirror install progress; values are milliseconds.
 
-## Baselines and CI gate
+## Baselines and CI gates
 
-Published medians live in [`benchmarks/install-baseline.json`](../benchmarks/install-baseline.json).
+Published medians live in [`benchmarks/install-baseline.json`](../benchmarks/install-baseline.json)
+(schema v3: keyed by `name`, `os`, `arch`, `goVersion`, `runnerClass`, `benchmarkMode`).
+
+| Gate | Blocking? | Command |
+|---|---|---|
+| Bench correctness | **Yes** | `pwsh tools/bench/check_correctness.ps1 -Mode warm` |
+| Bench regression | **No** (advisory until Ubuntu baseline exists) | `pwsh tools/bench/check_regression.ps1 -Mode warm` |
+
+Correctness validates JSON shape, fixture digest presence, and **≥7** measured samples
+(default warmup 1 → 8 total iterations). Regression compares median/p95 against a
+**platform-matched** baseline row; fixture digest mismatch fails closed.
+
+Structured waivers live in [`benchmarks/waivers.json`](../benchmarks/waivers.json).
+`BENCH_WAIVER=1` is deprecated — use waivers with owner, reason, issue, and expiry.
 
 Check regression locally:
 
@@ -92,10 +105,6 @@ Check regression locally:
 pwsh tools/bench/check_regression.ps1 -Mode warm
 pwsh tools/bench/check_regression.ps1 -Mode cold
 ```
-
-Fails when `totalMs` exceeds baseline median by more than 10%. Set
-`BENCH_WAIVER=1` to warn instead of fail (CI uses a non-blocking warm check
-today).
 
 Soak repeated installs:
 

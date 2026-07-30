@@ -508,14 +508,41 @@ jobs:
     continue-on-error: true
     env:
       CGO_ENABLED: "0"
+      MEW_BENCH_RUNNER_CLASS: github-actions-ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
-      - name: Install bench regression (non-blocking)
+      - name: Install bench regression (advisory)
         shell: pwsh
         run: pwsh tools/bench/check_regression.ps1 -Mode warm
+      - name: Upload bench result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-regression-result
+          path: bench-result.json
+          if-no-files-found: ignore
+
+  bench-correctness:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+      MEW_BENCH_RUNNER_CLASS: github-actions-ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Install bench correctness (blocking)
+        shell: pwsh
+        run: pwsh tools/bench/check_correctness.ps1 -Mode warm
+      - name: Upload bench result
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-correctness-result
+          path: bench-result.json
 
   core-stabilization:
     runs-on: ubuntu-latest
@@ -564,10 +591,9 @@ jobs:
       - name: Soak install loop
         shell: pwsh
         run: pwsh tools/soak/install-loop.ps1 -Count 10 -Mode warm
-      - name: Bench regression warm
-        continue-on-error: true
+      - name: Bench correctness warm
         shell: pwsh
-        run: pwsh tools/bench/check_regression.ps1 -Mode warm
+        run: pwsh tools/bench/check_correctness.ps1 -Mode warm
       - name: Upload core certification report
         uses: actions/upload-artifact@v4
         with:

@@ -37,6 +37,7 @@ func TestUpdateInstallBaselineRoundTrip(t *testing.T) {
 		GoVersion:     "go1.26.0",
 		OS:            "linux",
 		Arch:          "amd64",
+		RunnerClass:   "github-actions-ubuntu-latest",
 		Commit:        "abc123",
 		FixtureDigest: "fixture-digest",
 	}
