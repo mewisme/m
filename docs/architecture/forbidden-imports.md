@@ -12,6 +12,7 @@ Enforced by [`internal/archcheck`](../../internal/archcheck/) tests.
 | `internal/resolver` | `linker`, `transaction`, `runner`, `fetch`, `store` | Resolve completes before mutate |
 | `internal/apperr`, `internal/diagnostics`, `internal/trace` | `registry`, `fetch`, `linker` | Diagnostics stay free of PM engine |
 | `internal/app`, `internal/runner`, `internal/transaction`, `internal/resolver`, `internal/linker`, `internal/store`, `internal/lifecycle` | `internal/presentation`, `charm.land/*`, `github.com/charmbracelet/*` | Domain stays free of presentation and Charm |
+| Domain / `internal/prompt` | `charm.land/*`, `github.com/charmbracelet/*`, `internal/presentation` | Prompt contract is stdlib-only; adapters live under `internal/presentation/prompt` |
 | `internal/config`, `internal/project` | `resolver`, `linker`, `fetch` | Config/identity stay free of mutate path |
 | `internal/graph`, `plan`, `snapshot`, `manifest`, `policy`, `capsule` | `fetch`, `linker`, `registry` | Canonical models stay free of network/mutate |
 

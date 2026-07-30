@@ -39,10 +39,37 @@ migration to `internal/presentation`.
 - JSON/NDJSON errors: stdout (`jsonReporter`, `ndjsonReporter`)
 - CLI `execute` routes Cobra errors through `rep.Error`
 
-### Prompts
+### Prompts (UX-0006)
 
-- `internal/runner/dlx/prompt.go` — consent `[y/N]` on stderr
-- `trust_cmd` — interactive approval path
+| Site | Path | Kind | Default | Streams | Non-TTY / CI / structured |
+|---|---|---|---|---|---|
+| Lifecycle trust ask | `internal/lifecycle/policy.go` via `internal/prompt` | select: deny / allow-once / trust-project | deny | stderr + stdin | fail-closed `ERR_M_POLICY` (hint: `m trust` / `m builds`) |
+| `m trust --interactive` | `internal/cli/trust_cmd.go` | confirm (trust package) | deny | stderr + stdin | `ERR_M_USAGE` when NeedTTY |
+| `mx` fetch consent | `internal/runner/dlx/prompt.go` | confirm | deny | stderr + stdin | `ERR_M_USAGE` (`--yes` required); order via `EvaluateConsent` |
+
+Policy matrix (`--interactive` / `ui.interactive` / `MEW_INTERACTIVE`):
+
+| Policy | Prompt when |
+|---|---|
+| `auto` | stdin TTY, human mode, !CI, !structured/silent, no child-owned terminal, adapter available |
+| `always` | same TTY requirement (never hang without TTY → typed usage/policy error) |
+| `never` | never prompt; domain fail-closed |
+
+Adapters: `internal/presentation/prompt` (Huh rich + accessible numbered). Contract: `internal/prompt` (stdlib only). Domain must not import presentation/Charm.
+
+### Destructive confirmation audit (UX-0006 Phase 6 — audit only)
+
+No interactive confirmation prompts exist for destructive commands. Do **not** invent new confirms.
+
+| Command | Safety valve today | Interactive confirm |
+|---|---|---|
+| `m prune` / `m remove` | `--dry-run`; mutation txn | none |
+| `m store prune` | `--dry-run` | none |
+| `m publish` | `--dry-run` | none |
+| recover / rollback / snapshot restore | flags + txn recovery | none |
+| migration | dry-run / explicit | none |
+
+`--dry-run` and explicit flags remain the non-interactive safety valve.
 
 ### Help
 
