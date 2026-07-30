@@ -11,15 +11,15 @@ inventory consistency, advisory range cleanup).
 | Reviewed baseline | `050291cafb0ee0bed95b2edd8684e0149d1244a7` |
 | Stabilization series (6 commits) | `02e8858` … `6bc9dfa` |
 | Follow-up fixes | `dba1cc8`, `1ecbcff`, `4513ddb` |
-| **Final implementation SHA** | `4513ddb0248e44a99fe9c999a8b709e9d122c450` |
+| **Final implementation SHA** | `fa49800795752e4283b46399348ef921d01255b3` |
 
 ## CI evidence
 
 | Field | Value |
 |---|---|
-| Workflow run ID | [`30536840869`](https://github.com/mewisme/mew/actions/runs/30536840869) |
-| `head_sha` | `4513ddb0248e44a99fe9c999a8b709e9d122c450` |
-| Conclusion | **success** (full `ci` workflow on `main`) |
+| Workflow run ID | [`30538066438`](https://github.com/mewisme/mew/actions/runs/30538066438) |
+| `head_sha` | `fa49800795752e4283b46399348ef921d01255b3` |
+| Conclusion | **success** (full `ci` workflow on `main`; `platform-lock` Windows shard rerun) |
 
 ## Gates added or corrected
 
