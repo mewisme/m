@@ -346,9 +346,11 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Verify plan generation idempotency
-        shell: pwsh
-        run: pwsh tools/ci/verify-plan-generation.ps1
+        run: python tools/ci/verify_plan_generation.py
 
   markdown-link-check:
     runs-on: ubuntu-latest
@@ -514,9 +516,11 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install bench regression (advisory)
-        shell: pwsh
-        run: pwsh tools/bench/check_regression.ps1 -Mode warm
+        run: python tools/bench/check_regression.py --mode warm
       - name: Upload bench result
         if: always()
         uses: actions/upload-artifact@v4
@@ -535,9 +539,11 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install bench correctness (blocking)
-        shell: pwsh
-        run: pwsh tools/bench/check_correctness.ps1 -Mode warm
+        run: python tools/bench/check_correctness.py --mode warm
       - name: Upload bench result
         uses: actions/upload-artifact@v4
         with:
@@ -554,6 +560,9 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Load pnpm versions
         id: pnpm
         run: |
@@ -589,11 +598,9 @@ jobs:
       - name: PM doctor health check
         run: go run ./cmd/m --cwd fixtures/projects/mlock-greenfield doctor --json
       - name: Soak install loop
-        shell: pwsh
-        run: pwsh tools/soak/install-loop.ps1 -Count 10 -Mode warm
+        run: python tools/soak/install_loop.py --count 10 --mode warm
       - name: Bench correctness warm
-        shell: pwsh
-        run: pwsh tools/bench/check_correctness.ps1 -Mode warm
+        run: python tools/bench/check_correctness.py --mode warm
       - name: Upload core certification report
         uses: actions/upload-artifact@v4
         with:

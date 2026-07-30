@@ -116,24 +116,21 @@
     },
     "soak-short": {
       "id": "soak-short",
-      "command": "pwsh tools/soak/install-loop.ps1 -Count 10 -Mode warm",
+      "command": "python tools/soak/install_loop.py --count 10 --mode warm",
       "blocking": true,
-      "platform": ["linux", "darwin", "windows"],
-      "shell": "pwsh"
+      "platform": ["linux", "darwin", "windows"]
     },
     "bench-correctness": {
       "id": "bench-correctness",
-      "command": "pwsh tools/bench/check_correctness.ps1 -Mode warm",
+      "command": "python tools/bench/check_correctness.py --mode warm",
       "blocking": true,
-      "platform": ["linux", "darwin", "windows"],
-      "shell": "pwsh"
+      "platform": ["linux", "darwin", "windows"]
     },
     "bench-regression": {
       "id": "bench-regression",
-      "command": "pwsh tools/bench/check_regression.ps1 -Mode warm",
+      "command": "python tools/bench/check_regression.py --mode warm",
       "blocking": false,
-      "platform": ["linux", "darwin", "windows"],
-      "shell": "pwsh"
+      "platform": ["linux", "darwin", "windows"]
     },
     "govulncheck": {
       "id": "govulncheck",
