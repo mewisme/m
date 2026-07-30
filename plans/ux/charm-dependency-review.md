@@ -1,8 +1,8 @@
 # Charm dependency evaluation
 
 **Date:** 2026-07-31  
-**Status:** Lip Gloss v2.0.5 + Bubble Tea v2.0.8 + Bubbles v2.1.1 + Huh v2.0.3
-pinned for `internal/presentation` only.
+**Status:** Lip Gloss v2.0.5 + Bubble Tea v2.0.8 + Bubbles v2.1.1 + Huh v2.0.3 +
+Glamour v2.0.1 pinned for `internal/presentation` only.
 
 ## Proposed modules
 
@@ -12,12 +12,13 @@ pinned for `internal/presentation` only.
 | `charm.land/bubbletea/v2` | Live inline install renderer | UX-0004 | **Pinned v2.0.8** |
 | `charm.land/bubbles/v2` | Spinner (progress bar reserved) | UX-0004 | **Pinned v2.1.1** |
 | `charm.land/huh/v2` | Rich prompts (accessible adapter is Mew-owned) | UX-0006 | **Pinned v2.0.3** |
-| `charm.land/glamour/v2` | Markdown help | UX-0007 | Deferred |
+| `charm.land/glamour/v2` | Markdown help | UX-0007 | **Pinned v2.0.1** |
 
 ## License
 
-Lip Gloss, Bubble Tea, Bubbles, and Huh are MIT (`LICENSE` in module cache).
-Transitive Charm / clipperhouse / catppuccin modules are MIT-compatible for Mew.
+Lip Gloss, Bubble Tea, Bubbles, Huh, and Glamour are MIT (`LICENSE` in module cache).
+Transitive Charm / clipperhouse / catppuccin / goldmark / chroma modules are
+MIT-compatible for Mew (bluemonday is BSD-3-Clause).
 `go run ./tools/check-license` reports `ok: LICENSE is Apache-2.0`.
 
 ## Integration boundary
@@ -29,6 +30,8 @@ Transitive Charm / clipperhouse / catppuccin modules are MIT-compatible for Mew.
   `internal/store`, `internal/lifecycle`, …).
 - Prompt contract: `internal/prompt` (stdlib only). Adapters:
   `internal/presentation/prompt`.
+- Topic registry: `internal/help` (stdlib + embed only). Renderers/pager:
+  `internal/presentation/help`, `internal/presentation/pager`.
 - Enforced by `internal/archcheck` import-edge tests.
 - Do **not** import `charm.land/lipgloss/v2/compat` (global stdin/stdout probes).
 - Live Bubble Tea programs: `tea.WithOutput(stderr)`, `tea.WithInput(nil)`,
@@ -90,11 +93,41 @@ New allowlist entries from Huh: `charm.land/huh/v2`, `github.com/catppuccin/go`,
 `github.com/mitchellh/hashstructure/v2`, plus optional transitive PTY helpers
 (`x/xpty`, `creack/pty`, `x/conpty`) when present in `go.sum`.
 
+### Glamour (UX-0007)
+
+Measured 2026-07-31 after pinning `charm.land/glamour/v2@v2.0.1`:
+
+| Binary | After Huh (bytes) | After Glamour (bytes) | Delta |
+|---|---:|---:|---:|
+| `cmd/m` | 22,998,016 | 31,422,464 | +8,424,448 (~8.03 MiB) |
+| `cmd/mx` | 19,434,496 | 27,905,536 | +8,471,040 (~8.08 MiB) |
+
+Startup smoke (5 runs, average wall time):
+
+| Command | After Huh avg (ms) | After Glamour avg (ms) |
+|---|---:|---:|
+| `m version` | 68.4 | 94.4 |
+| `mx version` | 61.2 | 86.5 |
+
+Binary growth is material (goldmark/chroma/bluemonday). Mitigation already in
+product policy: plain renderer is first-class; Glamour runs only for rich human
+color TTYs on topic help. Accessible / CI / pipe / no-color stay plain. Topic
+content is curated and embedded (no network fetch).
+
+New allowlist entries from Glamour: `charm.land/glamour/v2`,
+`github.com/alecthomas/chroma/v2`, `github.com/yuin/goldmark`,
+`github.com/yuin/goldmark-emoji`, `github.com/microcosm-cc/bluemonday`,
+`github.com/aymerick/douceur`, `github.com/gorilla/css`,
+`github.com/dlclark/regexp2`, `github.com/charmbracelet/x/exp/slice`,
+`golang.org/x/net`, `golang.org/x/text`, and related test-only assert modules
+present in `go list -m all`.
+
 ## Allowlist
 
 `tools/allowlist/modules.txt` includes: `charm.land/lipgloss/v2`,
 `charm.land/bubbletea/v2`, `charm.land/bubbles/v2`, `charm.land/huh/v2`,
-and transitive Charm / clipperhouse / catppuccin modules listed in the file.
+`charm.land/glamour/v2`, and transitive Charm / clipperhouse / catppuccin /
+goldmark / chroma modules listed in the file.
 
 ## Fallback
 
