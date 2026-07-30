@@ -187,6 +187,122 @@ func TestRichThemeEmitsANSI(t *testing.T) {
 	}
 }
 
+func TestEffectiveOutputGatesStaticColor(t *testing.T) {
+	richCaps := presentation.Capabilities{
+		StdoutTTY: true, StderrTTY: true,
+		ColorProfile: presentation.ColorProfileTrueColor,
+		Width:        80, Unicode: true,
+	}
+	status := presentation.StatusLine{Status: presentation.StatusSuccess, Text: "ok"}
+
+	t.Run("tty auto rich emits ANSI", func(t *testing.T) {
+		opts, err := presentation.Resolve(presentation.Input{}, richCaps)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if opts.EffectiveOutput != presentation.OutputRich {
+			t.Fatalf("effective=%s", opts.EffectiveOutput)
+		}
+		eff := presentation.Effective(opts, richCaps)
+		if !eff.UseColor {
+			t.Fatal("expected UseColor")
+		}
+		out := presentation.NewStaticRenderer(eff).Status(status)
+		if !strings.Contains(out, "\x1b") {
+			t.Fatalf("expected ANSI: %q", out)
+		}
+	})
+
+	t.Run("explicit plain no ANSI on color TTY", func(t *testing.T) {
+		opts, err := presentation.Resolve(presentation.Input{OutputFlag: "plain"}, richCaps)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if opts.EffectiveOutput != presentation.OutputPlain {
+			t.Fatalf("effective=%s", opts.EffectiveOutput)
+		}
+		eff := presentation.Effective(opts, richCaps)
+		if eff.UseColor {
+			t.Fatal("expected no UseColor for --output=plain")
+		}
+		out := presentation.NewStaticRenderer(eff).Status(status)
+		if strings.ContainsAny(out, "\x1b") {
+			t.Fatalf("ANSI in plain mode: %q", out)
+		}
+	})
+
+	t.Run("color never no ANSI", func(t *testing.T) {
+		opts, err := presentation.Resolve(presentation.Input{ColorFlag: "never"}, richCaps)
+		if err != nil {
+			t.Fatal(err)
+		}
+		eff := presentation.Effective(opts, richCaps)
+		if eff.UseColor {
+			t.Fatal("expected no UseColor")
+		}
+		out := presentation.NewStaticRenderer(eff).Status(status)
+		if strings.ContainsAny(out, "\x1b") {
+			t.Fatalf("ANSI with --color=never: %q", out)
+		}
+	})
+
+	t.Run("force color on non-TTY stdout", func(t *testing.T) {
+		caps := presentation.Capabilities{
+			StdoutTTY: false, StderrTTY: false,
+			ColorProfile: presentation.ColorProfileASCII,
+			NoColorEnv:   true,
+		}
+		opts := presentation.ResolvedOptions{
+			RequestedOutput: presentation.OutputAuto,
+			EffectiveOutput: presentation.OutputPlain,
+			Color:           presentation.TriAlways,
+		}
+		eff := presentation.Effective(opts, caps)
+		if !eff.UseColor {
+			t.Fatal("expected UseColor for --color=always on non-TTY")
+		}
+		out := presentation.NewStaticRenderer(eff).Status(status)
+		if !strings.Contains(out, "\x1b") {
+			t.Fatalf("expected ANSI with ForceColor: %q", out)
+		}
+	})
+
+	t.Run("requested rich forces color on non-TTY", func(t *testing.T) {
+		caps := presentation.Capabilities{
+			StdoutTTY: false, StderrTTY: true,
+			ColorProfile: presentation.ColorProfileTrueColor,
+		}
+		// RichEligible needs stderr TTY, not CI/dumb — EffectiveOutput can be rich.
+		opts := presentation.ResolvedOptions{
+			RequestedOutput: presentation.OutputRich,
+			EffectiveOutput: presentation.OutputRich,
+			Color:           presentation.TriAuto,
+		}
+		eff := presentation.Effective(opts, caps)
+		if !eff.UseColor {
+			t.Fatal("expected UseColor for requested --output=rich")
+		}
+		out := presentation.NewStaticRenderer(eff).Status(status)
+		if !strings.Contains(out, "\x1b") {
+			t.Fatalf("expected ANSI: %q", out)
+		}
+	})
+
+	t.Run("plain wins over color always", func(t *testing.T) {
+		opts, err := presentation.Resolve(presentation.Input{
+			OutputFlag: "plain",
+			ColorFlag:  "always",
+		}, richCaps)
+		if err != nil {
+			t.Fatal(err)
+		}
+		eff := presentation.Effective(opts, richCaps)
+		if eff.UseColor {
+			t.Fatal("--output=plain must suppress ANSI even with --color=always")
+		}
+	})
+}
+
 func TestMiddleTruncateAndCJK(t *testing.T) {
 	got := presentation.MiddleTruncate("abcdefghijklmnopqrstuvwxyz", 10, "...")
 	if presentation.CellWidth(got) > 10 {

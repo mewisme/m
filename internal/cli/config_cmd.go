@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,12 +24,16 @@ func newConfigCmd(g *globalFlags) *cobra.Command {
 	}
 	cmd.AddCommand(newConfigGetCmd(g))
 	cmd.AddCommand(newConfigSetCmd(g))
+	cmd.AddCommand(newConfigUnsetCmd(g))
 	cmd.AddCommand(newConfigListCmd(g))
+	cmd.AddCommand(newConfigPathCmd(g))
+	cmd.AddCommand(newConfigPathsCmd(g))
 	return cmd
 }
 
 func newConfigGetCmd(g *globalFlags) *cobra.Command {
-	return &cobra.Command{
+	var showSource bool
+	cmd := &cobra.Command{
 		Use:   "get <key>",
 		Short: "Print an effective config value",
 		Args:  cobra.ExactArgs(1),
@@ -37,21 +42,44 @@ func newConfigGetCmd(g *globalFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			v, err := config.Get(eff, args[0])
+			key := args[0]
+			v, err := config.Get(eff, key)
 			if err != nil {
 				return err
 			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), formatConfigValue(v.Raw))
-			return err
+			val := formatConfigValue(v.Raw)
+			if !showSource {
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), val)
+				return err
+			}
+			src := displayConfigSource(v.Source)
+			if configOutputStructured(g, cmd) {
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetEscapeHTML(false)
+				return enc.Encode(map[string]any{
+					"key":    key,
+					"value":  v.Raw,
+					"source": src,
+					"path":   v.Path,
+				})
+			}
+			r := g.mustStaticRenderer(cmd, eff)
+			out := val + "\n\n" + r.KeyValues([]presentation.KeyValue{
+				{Key: "Source", Value: src},
+				{Key: "Path", Value: v.Path, Style: presentation.ValuePath},
+			})
+			return writeStaticOut(cmd, out)
 		},
 	}
+	cmd.Flags().BoolVar(&showSource, "source", false, "include provenance source and path")
+	return cmd
 }
 
 func newConfigSetCmd(g *globalFlags) *cobra.Command {
-	var global bool
+	var flags configWriteFlags
 	cmd := &cobra.Command{
 		Use:   "set <key> <value>",
-		Short: "Set a config key in project or global JSONC",
+		Short: "Set a config key (default: user config)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key, raw := args[0], args[1]
@@ -59,15 +87,87 @@ func newConfigSetCmd(g *globalFlags) *cobra.Command {
 			if err != nil {
 				return apperr.Wrap(apperr.Usage, "config.set", key, err)
 			}
-			path, err := configWritePath(g, global)
+			target, err := resolveConfigWriteTarget(flags.options(g))
 			if err != nil {
 				return err
 			}
-			return config.SetFile(path, key, val)
+			if err := config.SetFile(target.Path, key, val); err != nil {
+				return err
+			}
+			return writeConfigMutationResult(g, cmd, "Set", key, formatConfigValue(val), target)
 		},
 	}
-	cmd.Flags().BoolVar(&global, "global", false, "write user global config.jsonc")
+	flags.bind(cmd)
 	return cmd
+}
+
+func newConfigUnsetCmd(g *globalFlags) *cobra.Command {
+	var flags configWriteFlags
+	cmd := &cobra.Command{
+		Use:   "unset <key>",
+		Short: "Remove a config key (default: user config)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			key := args[0]
+			target, err := resolveConfigWriteTarget(flags.options(g))
+			if err != nil {
+				return err
+			}
+			if err := config.UnsetFile(target.Path, key); err != nil {
+				return err
+			}
+			return writeConfigMutationResult(g, cmd, "Removed", key, "", target)
+		},
+	}
+	flags.bind(cmd)
+	return cmd
+}
+
+func newConfigPathCmd(g *globalFlags) *cobra.Command {
+	var flags configWriteFlags
+	cmd := &cobra.Command{
+		Use:   "path",
+		Short: "Print a config write-target path",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			target, err := resolveConfigWriteTarget(flags.options(g))
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), target.Path)
+			return err
+		},
+	}
+	flags.bind(cmd)
+	return cmd
+}
+
+func newConfigPathsCmd(g *globalFlags) *cobra.Command {
+	return &cobra.Command{
+		Use:   "paths",
+		Short: "Print user and project config paths",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			userPath := config.GlobalConfigPath()
+			projectPath := "unavailable"
+			cwd := g.cwd
+			if cwd == "" {
+				var err error
+				cwd, err = os.Getwd()
+				if err != nil {
+					return apperr.Wrap(apperr.IO, "config.paths", "cwd", err)
+				}
+			}
+			if root, err := project.FindRoot(cwd); err == nil {
+				projectPath = filepath.Join(root, "m.jsonc")
+			}
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.KeyValues([]presentation.KeyValue{
+				{Key: "User", Value: userPath, Style: presentation.ValuePath},
+				{Key: "Project", Value: projectPath, Style: presentation.ValuePath},
+			}))
+		},
+	}
 }
 
 func newConfigListCmd(g *globalFlags) *cobra.Command {
@@ -106,7 +206,7 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 					"values": values,
 				}
 				if sources {
-					row["source"] = string(e.Source)
+					row["source"] = displayConfigSource(e.Source)
 					row["path"] = e.Path
 				}
 				rows = append(rows, row)
@@ -116,6 +216,41 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&sources, "sources", false, "include source provenance")
 	return cmd
+}
+
+func writeConfigMutationResult(g *globalFlags, cmd *cobra.Command, verb, key, value string, target configWriteTarget) error {
+	if configOutputQuiet(g, cmd) {
+		return nil
+	}
+	r := g.mustStaticRenderer(cmd, nil)
+	var headline string
+	if value == "" {
+		headline = fmt.Sprintf("%s %s", verb, key)
+	} else {
+		headline = fmt.Sprintf("%s %s = %s", verb, key, diagnostics.Redact(value))
+	}
+	body := r.KeyValues([]presentation.KeyValue{
+		{Key: "Scope", Value: string(target.Scope)},
+		{Key: "Path", Value: target.Path, Style: presentation.ValuePath},
+	})
+	return writeStaticOut(cmd, headline+"\n\n"+body)
+}
+
+func configOutputStructured(g *globalFlags, cmd *cobra.Command) bool {
+	ctrl, err := g.controller(cmd, nil)
+	if err != nil {
+		return false
+	}
+	return ctrl.Options().Structured()
+}
+
+func configOutputQuiet(g *globalFlags, cmd *cobra.Command) bool {
+	ctrl, err := g.controller(cmd, nil)
+	if err != nil {
+		return false
+	}
+	opts := ctrl.Options()
+	return opts.Structured() || opts.EffectiveOutput == presentation.OutputSilent
 }
 
 // loadEffective rebuilds config for m config subcommands (not the mutation reload path).
@@ -200,26 +335,6 @@ func loadFileOverlay(path string) (map[string]any, error) {
 	}
 	_ = parsed
 	return out, nil
-}
-
-func configWritePath(g *globalFlags, global bool) (string, error) {
-	if global {
-		// intentional: m config set --global writes ambient user config path.
-		return config.GlobalConfigPath(), nil
-	}
-	cwd := g.cwd
-	if cwd == "" {
-		var err error
-		cwd, err = os.Getwd()
-		if err != nil {
-			return "", err
-		}
-	}
-	root, err := project.FindRoot(cwd)
-	if err != nil {
-		root = cwd
-	}
-	return filepath.Join(root, "m.jsonc"), nil
 }
 
 func formatConfigValue(v any) string {

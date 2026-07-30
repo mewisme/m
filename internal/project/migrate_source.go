@@ -3,7 +3,6 @@ package project
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
 )
@@ -14,13 +13,15 @@ type LockCandidate struct {
 	ID   Identity
 }
 
+// migratableLockPrecedence is the auto-select order when --from is omitted and
+// the manifest is silent: npm → pnpm → bun → yarn → nub.
 var migratableLockPrecedence = []LockCandidate{
-	{File: "nub.lock", ID: IdentityNub},
-	{File: "pnpm-lock.yaml", ID: IdentityPNPM},
 	{File: npmShrinkwrapJSON, ID: IdentityNPM},
 	{File: packageLockJSON, ID: IdentityNPM},
-	{File: "yarn.lock", ID: IdentityYarn},
+	{File: "pnpm-lock.yaml", ID: IdentityPNPM},
 	{File: "bun.lock", ID: IdentityBun},
+	{File: "yarn.lock", ID: IdentityYarn},
+	{File: "nub.lock", ID: IdentityNub},
 }
 
 // MigratableLockCandidates lists incumbent locks that can be migrated to m.lock.
@@ -117,23 +118,15 @@ func resolveMigrateFromManifest(root string, fieldID Identity) (Identity, string
 
 func resolveMigrateFromLocks(root string) (Identity, string, error) {
 	cands := MigratableLockCandidates(root)
-	switch len(cands) {
-	case 0:
+	if len(cands) == 0 {
 		if _, ok := IncumbentLockPath(root, IdentityMew); ok {
 			return "", "", apperr.New(apperr.Usage, "lock.migrate", "m.lock", "nothing to migrate; project already uses m.lock")
 		}
 		return "", "", apperr.New(apperr.Usage, "lock.migrate", root, "nothing to migrate")
-	case 1:
-		path := filepath.Join(root, cands[0].File)
-		return cands[0].ID, path, nil
-	default:
-		names := make([]string, len(cands))
-		for i, c := range cands {
-			names[i] = c.File
-		}
-		msg := "multiple lockfiles present; pass --from nub|pnpm|npm|bun|yarn\nfound: " + strings.Join(names, ", ")
-		return "", "", apperr.New(apperr.Usage, "lock.migrate", root, msg)
 	}
+	// First present in precedence order (npm → pnpm → bun → yarn → nub).
+	path := filepath.Join(root, cands[0].File)
+	return cands[0].ID, path, nil
 }
 
 func parseMigrateFromFlag(from string) (Identity, error) {

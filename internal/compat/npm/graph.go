@@ -135,13 +135,19 @@ func appendDepEdges(g *graph.Graph, packages map[string]PackageEntry, idx *Packa
 			if err != nil {
 				return err
 			}
+			opt := field.opt
+			if field.kind == graph.DepPeer {
+				if meta, ok := entry.PeerDependenciesMeta[depName]; ok && meta.Optional {
+					opt = true
+				}
+			}
 			g.Edges = append(g.Edges, graph.Edge{
 				From:     from,
 				Name:     depName,
 				To:       targetKey,
 				Kind:     field.kind,
 				Range:    spec,
-				Optional: field.opt,
+				Optional: opt,
 			})
 		}
 	}
@@ -165,6 +171,7 @@ func FromGraph(g *graph.Graph, prior *Document, det lockfile.Detection) (*Docume
 		cloned := prior.Clone()
 		doc.LockfileVersion = cloned.LockfileVersion
 		doc.Name = cloned.Name
+		doc.Version = cloned.Version
 		doc.Extensions = cloned.Extensions
 	}
 	if doc.LockfileVersion == 0 {
@@ -224,9 +231,16 @@ func FromGraph(g *graph.Graph, prior *Document, det lockfile.Detection) (*Docume
 		doc.Packages[path] = entry
 	}
 
+	applyOptionalPeerMeta(doc, g, pathByKey)
+
 	if prior != nil {
 		preservePriorPackageFields(doc, prior)
 		restoreWorkspaceLinks(doc, prior)
+	}
+	if doc.Version == "" {
+		if root, ok := doc.Packages[""]; ok && root.Version != "" {
+			doc.Version = root.Version
+		}
 	}
 	return doc, nil
 }
@@ -318,6 +332,29 @@ func applyDepField(entry *PackageEntry, kind graph.DepKind, deps map[string]stri
 		entry.PeerDependencies = cloneStringMap(deps)
 	default:
 		entry.Dependencies = cloneStringMap(deps)
+	}
+}
+
+func applyOptionalPeerMeta(doc *Document, g *graph.Graph, pathByKey map[string]string) {
+	if doc == nil || g == nil {
+		return
+	}
+	for _, e := range g.Edges {
+		if e.Kind != graph.DepPeer || !e.Optional || e.Name == "" {
+			continue
+		}
+		path := e.From
+		if e.From == string(graph.RootImporter) {
+			path = ""
+		} else if p, ok := pathByKey[e.From]; ok {
+			path = p
+		}
+		entry := doc.Packages[path]
+		if entry.PeerDependenciesMeta == nil {
+			entry.PeerDependenciesMeta = map[string]PeerMeta{}
+		}
+		entry.PeerDependenciesMeta[e.Name] = PeerMeta{Optional: true}
+		doc.Packages[path] = entry
 	}
 }
 

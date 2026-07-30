@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
@@ -155,6 +156,10 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 	if err != nil {
 		return out, err
 	}
+	migrateExt, err := preservePnpmMigrateLoss(fromID, prior, &loss)
+	if err != nil {
+		return out, err
+	}
 	mext, ok := lockfile.ExtAdapterFor(project.IdentityMew)
 	if !ok {
 		return out, lockfile.NewUnsupported("lock.migrate", "m.lock", "m.lock adapter not registered")
@@ -184,7 +189,7 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 			return out, err
 		}
 	}
-	encodeRes, encErr := lockfile.EncodePreserving(ctx, mext, filepath.Join(proj.Root, "m.lock"), g, nil, nil, det)
+	encodeRes, encErr := lockfile.EncodePreserving(ctx, mext, filepath.Join(proj.Root, "m.lock"), g, nil, migrateExt, det)
 	if encErr != nil {
 		var rep *lockfile.RepresentabilityError
 		if errors.As(encErr, &rep) {
@@ -236,6 +241,10 @@ func commitMigratedLock(ctx context.Context, ac *Context, proj *project.Project,
 		return apperr.Wrap(apperr.IO, "lock.migrate", stageLock, err)
 	}
 	plan := []transaction.Op{{Kind: transaction.OpRename, Path: "m.lock", Backup: filepath.Join("stage", "m.lock")}}
+	foreign := foreignLocksPresent(proj.Root)
+	for _, name := range foreign {
+		plan = append(plan, transaction.Op{Kind: transaction.OpRemove, Path: name})
+	}
 	if err := txn.SetPlan(plan); err != nil {
 		_, _ = sess.Abort(ctx)
 		return err
@@ -246,12 +255,38 @@ func commitMigratedLock(ctx context.Context, ac *Context, proj *project.Project,
 			return err
 		}
 	}
+	for _, name := range foreign {
+		if err := txn.RecordBackup(name); err != nil {
+			_, _ = sess.Abort(ctx)
+			return err
+		}
+	}
+	// #region agent log
+	agentMigrateDebugLog("migrate_lock.go:commit", "C", "migrate commit plan", map[string]any{
+		"foreignRemoves": foreign, "root": proj.Root,
+	})
+	// #endregion
 	if err := txn.Commit(ctx, nil); err != nil {
 		_, _ = sess.Abort(ctx)
 		return err
 	}
 	_, err = sess.Finish(ctx, false)
 	return err
+}
+
+// foreignLocksPresent lists non-m.lock identity lockfiles that must leave after migrate.
+func foreignLocksPresent(root string) []string {
+	names := []string{
+		"nub.lock", "pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json",
+		"yarn.lock", "bun.lock", "bun.lockb",
+	}
+	var out []string
+	for _, name := range names {
+		if _, err := os.Stat(filepath.Join(root, name)); err == nil {
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 func lockfileSemanticLoss(loss lockfile.LossReport) []lockfile.LossItem {
@@ -404,3 +439,24 @@ func EncodeLossReportJSON(report lockfile.LossReport) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+// #region agent log
+func agentMigrateDebugLog(location, hypothesisId, message string, data map[string]any) {
+	payload := map[string]any{
+		"sessionId": "d57042", "timestamp": time.Now().UnixMilli(),
+		"location": location, "message": message, "data": data,
+		"hypothesisId": hypothesisId, "runId": "post-fix",
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	f, err := os.OpenFile(`f:\Project\package-managers\mew\debug-d57042.log`, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer func() { _ = f.Close() }()
+	_, _ = f.Write(append(b, '\n'))
+}
+
+// #endregion

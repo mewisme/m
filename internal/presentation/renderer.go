@@ -16,7 +16,8 @@ type StaticRenderer interface {
 }
 
 // NewStaticRenderer returns a plain or rich renderer from settings.
-// Legacy and ThemeNone always use the plain renderer (zero ANSI).
+// Legacy, ThemeNone, and !UseColor always use the plain renderer (zero ANSI).
+// UseColor is derived by Effective from EffectiveOutput / ForceColor policy.
 func NewStaticRenderer(settings EffectiveSettings) StaticRenderer {
 	if settings.Legacy || settings.ThemeMode == ThemeNone || !settings.UseColor {
 		return newPlainRenderer(settings)

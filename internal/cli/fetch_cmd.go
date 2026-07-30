@@ -8,6 +8,7 @@ import (
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/presentation"
 )
 
 func newFetchCmd() *cobra.Command {
@@ -42,8 +43,17 @@ func newFetchCmd() *cobra.Command {
 				enc.SetIndent("", "  ")
 				return enc.Encode(results)
 			}
-			for _, r := range results {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s@%s â†’ %s\n", r.Name, r.Version, r.Dest)
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			arrow := r.Settings().Symbols.Arrow
+			for _, res := range results {
+				if err := writeStaticOut(cmd, r.Status(presentation.StatusLine{
+					Status: presentation.StatusSuccess,
+					Text:   fmt.Sprintf("%s@%s", res.Name, res.Version),
+					Detail: arrow + " " + res.Dest,
+				})); err != nil {
+					return err
+				}
 			}
 			return nil
 		},

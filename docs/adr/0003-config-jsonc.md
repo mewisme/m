@@ -34,6 +34,8 @@ suggested TOML vs JSON vs YAML. [`docs/naming.md`](../naming.md) already names
 ### Neutral
 
 - Pass-through npmrc keys remain adapter-owned for non-Mew identities.
+- CLI default write scope is user config; `--local` selects project `m.jsonc`
+  (ADR path contract unchanged).
 
 ## Alternatives considered
 

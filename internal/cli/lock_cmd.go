@@ -2,8 +2,8 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -11,6 +11,7 @@ import (
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/lockfile/mlock"
+	"github.com/mewisme/mew/internal/presentation"
 	"github.com/mewisme/mew/internal/project"
 )
 
@@ -63,15 +64,23 @@ func newLockFormatCmd() *cobra.Command {
 				enc.SetEscapeHTML(false)
 				return enc.Encode(map[string]any{"changed": changed, "path": path})
 			}
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
 			if changed {
 				if err := mlock.WriteAtomic(path, doc); err != nil {
 					return err
 				}
-				_, err = fmt.Fprintln(cmd.OutOrStdout(), "formatted", path)
-				return err
+				return writeStaticOut(cmd, r.Status(presentation.StatusLine{
+					Status: presentation.StatusSuccess,
+					Text:   "formatted",
+					Detail: path,
+				}))
 			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), "unchanged", path)
-			return err
+			return writeStaticOut(cmd, r.Status(presentation.StatusLine{
+				Status: presentation.StatusInfo,
+				Text:   "unchanged",
+				Detail: path,
+			}))
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "report changed/unchanged as JSON")
@@ -106,22 +115,42 @@ func newLockValidateCmd() *cobra.Command {
 					"ok": true, "path": result.Path, "frozen": frozen, "detection": result.Detection,
 				})
 			}
-			if result.Detection.Format != "" {
-				_, err = fmt.Fprintf(cmd.OutOrStdout(), "ok %s format=%s major=%d confidence=%s\n",
-					result.Path, result.Detection.Format, result.Detection.ProducerMajor, result.Detection.Confidence)
-				if len(result.Detection.Evidence) > 0 {
-					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "evidence: %s\n", strings.Join(result.Detection.Evidence, ", "))
-				}
-				return err
-			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), "ok", result.Path)
-			return err
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, lockValidateView(r, result))
 		},
 	}
 	cmd.Flags().BoolVar(&frozen, "frozen", false, "also check manifest specifiers match lock")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "report result as JSON")
 	cmd.Flags().IntVar(&pnpmMajor, "pnpm-major", 0, "disambiguate v9-shaped pnpm locks (9, 10, or 11)")
 	return cmd
+}
+
+func lockValidateView(r presentation.StaticRenderer, result app.ValidateLockResult) string {
+	if result.Detection.Format == "" {
+		return r.Status(presentation.StatusLine{
+			Status: presentation.StatusSuccess,
+			Text:   "ok",
+			Detail: result.Path,
+		})
+	}
+	s := presentation.Summary{
+		Status: presentation.StatusSuccess,
+		Title:  "ok",
+		Metrics: []presentation.KeyValue{
+			{Key: "path", Value: result.Path, Style: presentation.ValuePath},
+			{Key: "format", Value: result.Detection.Format},
+			{Key: "major", Value: strconv.Itoa(result.Detection.ProducerMajor), Style: presentation.ValueNumber},
+			{Key: "confidence", Value: string(result.Detection.Confidence)},
+		},
+	}
+	if len(result.Detection.Evidence) > 0 {
+		s.Notices = append(s.Notices, presentation.Notice{
+			Status:  presentation.StatusInfo,
+			Message: "evidence: " + strings.Join(result.Detection.Evidence, ", "),
+		})
+	}
+	return r.Summary(s)
 }
 
 func newLockDiffCmd() *cobra.Command {
@@ -144,7 +173,7 @@ func newLockDiffCmd() *cobra.Command {
 			if len(args) > 0 {
 				opts.OtherPath = args[0]
 			}
-			return runLockDiff(cmd.Context(), cmd.OutOrStdout(), ac, opts, asJSON)
+			return runLockDiff(cmd, ac, opts, asJSON)
 		},
 	}
 	cmd.Flags().StringVar(&fromPath, "from", "", "left lockfile path (requires --to)")
@@ -190,8 +219,16 @@ func newLockMigrateCmd() *cobra.Command {
 				enc.SetEscapeHTML(false)
 				return enc.Encode(payload)
 			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), "migrated", result.Path)
-			return err
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			return writeStaticOut(cmd, r.Summary(presentation.Summary{
+				Status: presentation.StatusSuccess,
+				Title:  "migrated",
+				Metrics: []presentation.KeyValue{
+					{Key: "path", Value: result.Path, Style: presentation.ValuePath},
+					{Key: "from", Value: string(result.SourceIdentity)},
+				},
+			}))
 		},
 	}
 	cmd.Flags().StringVar(&from, "from", "", "source identity: nub, pnpm, npm, bun, or yarn (optional; auto-detect from packageManager/devEngines or sole lockfile)")

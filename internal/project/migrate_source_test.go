@@ -38,7 +38,7 @@ func TestMigratableLockCandidatesPrecedence(t *testing.T) {
 	if len(cands) != 2 {
 		t.Fatalf("got %d candidates: %+v", len(cands), cands)
 	}
-	if cands[0].File != "pnpm-lock.yaml" || cands[1].File != "npm-shrinkwrap.json" {
+	if cands[0].File != "npm-shrinkwrap.json" || cands[1].File != "pnpm-lock.yaml" {
 		t.Fatalf("order=%+v", cands)
 	}
 }
@@ -87,28 +87,18 @@ func TestResolveMigrateSourceShrinkwrapOverPackageLock(t *testing.T) {
 	}
 }
 
-func TestResolveMigrateSourceAmbiguousMultiLock(t *testing.T) {
+func TestResolveMigrateSourceMultiLockPicksPrecedence(t *testing.T) {
 	dir := t.TempDir()
 	writeMigrateFixture(t, dir, `{"name":"x"}`, map[string]string{
 		"pnpm-lock.yaml": "lock",
 		"yarn.lock":      "lock",
 	})
-	_, _, err := project.ResolveMigrateSource(dir, "")
-	if err == nil {
-		t.Fatal("expected ambiguity error")
+	id, path, err := project.ResolveMigrateSource(dir, "")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if apperr.CodeOf(err) != apperr.Usage {
-		t.Fatalf("code=%s", apperr.CodeOf(err))
-	}
-	msg := err.Error()
-	if !strings.Contains(msg, "multiple lockfiles present") {
-		t.Fatalf("msg=%q", msg)
-	}
-	if !strings.Contains(msg, "pnpm-lock.yaml") || !strings.Contains(msg, "yarn.lock") {
-		t.Fatalf("msg=%q", msg)
-	}
-	if !strings.Contains(msg, "--from") {
-		t.Fatalf("msg=%q", msg)
+	if id != project.IdentityPNPM || !strings.HasSuffix(path, "pnpm-lock.yaml") {
+		t.Fatalf("id=%s path=%s", id, path)
 	}
 }
 

@@ -38,7 +38,7 @@ var commandHelpRegistry = map[string]cmdHelpMeta{
 	"exec":     {group: "Common workflows", workflow: 4, examples: []string{"m exec eslint ."}},
 	"ci":       {group: "Common workflows", workflow: 5, examples: []string{"m ci"}},
 	"update":   {group: "Common workflows", workflow: 6, examples: []string{"m update", "m update lodash"}},
-	"config":   {group: "Configuration and development", examples: []string{"m config list", "m config get store.dir"}},
+	"config":   {group: "Configuration and development", examples: []string{"m config list", "m config get store.dir", "m config set ui.color always", "m config set install.linker isolated --local"}},
 	"doctor":   {group: "Inspect and diagnose", examples: []string{"m doctor", "m doctor --json"}},
 	"ls":       {group: "Inspect and diagnose", examples: []string{"m ls", "m ls -r"}},
 	"outdated": {group: "Inspect and diagnose", examples: []string{"m outdated", "m outdated --json"}},

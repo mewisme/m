@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/manifest"
@@ -95,6 +96,19 @@ func DetectIdentity(root string) (*Project, error) {
 		p.Signals = append(p.Signals, Signal{Kind: "lockfile", Detail: f.file, Path: filepath.Join(root, f.file)})
 	}
 	if len(idSet) > 1 {
+		// #region agent log
+		files := make([]string, 0, len(found))
+		ids := make([]string, 0, len(idSet))
+		for _, f := range found {
+			files = append(files, f.file+"="+string(f.id))
+		}
+		for id := range idSet {
+			ids = append(ids, string(id))
+		}
+		agentIdentityDebugLog("identity.go:conflict", "A", "conflicting lockfiles", map[string]any{
+			"root": root, "fieldID": string(fieldID), "locks": files, "identities": ids,
+		})
+		// #endregion
 		return nil, apperr.New(apperr.Config, "identity", root, "conflicting lockfiles present")
 	}
 	p.Identity = found[0].id
@@ -190,3 +204,24 @@ func listLockfiles(root string) []lockCand {
 func ReadsBrandedConfig(id Identity) bool {
 	return id != IdentityMew
 }
+
+// #region agent log
+func agentIdentityDebugLog(location, hypothesisId, message string, data map[string]any) {
+	payload := map[string]any{
+		"sessionId": "d57042", "timestamp": time.Now().UnixMilli(),
+		"location": location, "message": message, "data": data,
+		"hypothesisId": hypothesisId, "runId": "post-fix",
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	f, err := os.OpenFile(`f:\Project\package-managers\mew\debug-d57042.log`, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer func() { _ = f.Close() }()
+	_, _ = f.Write(append(b, '\n'))
+}
+
+// #endregion

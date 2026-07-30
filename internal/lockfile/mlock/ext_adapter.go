@@ -2,7 +2,9 @@ package mlock
 
 import (
 	"context"
+	"os"
 
+	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/lockfile"
 )
@@ -23,11 +25,20 @@ func (ExtAdapter) Write(ctx context.Context, path string, g *graph.Graph) error 
 }
 
 func (ExtAdapter) ReadWithExtensions(ctx context.Context, path string) (*graph.Graph, lockfile.Extensions, error) {
-	g, err := Adapter{}.Read(ctx, path)
+	_ = ctx
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, apperr.Wrap(apperr.IO, "mlock.read", path, err)
+	}
+	doc, err := Decode(data)
 	if err != nil {
 		return nil, nil, err
 	}
-	return g, lockfile.Extensions{}, nil
+	g, err := ToGraph(doc)
+	if err != nil {
+		return nil, nil, err
+	}
+	return g, doc.Extensions, nil
 }
 
 func (a ExtAdapter) WritePreserving(
@@ -53,7 +64,7 @@ func (ExtAdapter) EncodePreserving(
 	_ string,
 	g *graph.Graph,
 	prior []byte,
-	_ lockfile.Extensions,
+	ext lockfile.Extensions,
 	det lockfile.Detection,
 ) (lockfile.WriteResult, error) {
 	if len(prior) > 0 {
@@ -80,6 +91,9 @@ func (ExtAdapter) EncodePreserving(
 	doc, err := FromGraph(g, specs, DefaultSettings())
 	if err != nil {
 		return lockfile.WriteResult{}, err
+	}
+	if len(ext) > 0 {
+		doc.Extensions = ext
 	}
 	data, err := Encode(doc)
 	if err != nil {

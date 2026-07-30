@@ -34,7 +34,7 @@ func Effective(resolved ResolvedOptions, caps Capabilities) EffectiveSettings {
 	}
 	width = ClampWidth(width)
 
-	useColor := resolveUseColor(resolved.Color, caps)
+	useColor := resolveUseColor(resolved, caps)
 	useUnicode := resolveUseUnicode(resolved.Unicode, caps)
 	useProgress := resolveUseProgress(resolved, caps)
 	useInteractive := resolveUseInteractive(resolved.Interactive, caps)
@@ -53,15 +53,32 @@ func Effective(resolved ResolvedOptions, caps Capabilities) EffectiveSettings {
 	}
 }
 
-func resolveUseColor(color TriState, caps Capabilities) bool {
-	switch color {
-	case TriAlways:
-		return true
-	case TriNever:
+// resolveUseColor decides whether static rich styling (Lip Gloss ANSI) is allowed.
+// Explicit --output=plain, accessible, legacy, structured, silent, and --color=never
+// never get color. ForceColor (--color=always or requested --output=rich) keeps
+// color on non-TTY stdout (IDE parity), including when auto downgraded to plain.
+func resolveUseColor(resolved ResolvedOptions, caps Capabilities) bool {
+	if resolved.Legacy || resolved.Accessible || caps.ScreenReader {
 		return false
-	default:
-		return caps.StdoutTTY && !caps.DumbTerminal && caps.SupportsColor()
 	}
+	if resolved.Color == TriNever {
+		return false
+	}
+	if resolved.Structured() || resolved.EffectiveOutput == OutputSilent {
+		return false
+	}
+	// Explicit --output=plain: zero ANSI even on a color TTY / with --color=always.
+	if resolved.RequestedOutput == OutputPlain {
+		return false
+	}
+	// ForceColor: IDE / non-TTY parity with topic help.
+	if resolved.Color == TriAlways || resolved.RequestedOutput == OutputRich {
+		return true
+	}
+	if resolved.EffectiveOutput != OutputRich {
+		return false
+	}
+	return caps.StdoutTTY && !caps.DumbTerminal && caps.SupportsColor()
 }
 
 func resolveUseUnicode(unicode TriState, caps Capabilities) bool {

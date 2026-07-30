@@ -6,7 +6,7 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 ## Precedence (low → high)
 
 1. `defaults` — built-in
-2. `global` — user `config.jsonc`
+2. `user` — user `config.jsonc` (internal provenance label remains `global`)
 3. `project` — project `m.jsonc`
 4. `env` — `MEW_*` and mapped env keys
 5. `cli` — `--offline`, `--prefer-offline`, `--config` overlays
@@ -15,8 +15,11 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 
 | Layer | Path |
 |---|---|
-| Global | `$MEW_CONFIG_DIR/config.jsonc` or platform default (`~/.config/github.com/mewisme/mew/…`, `%AppData%\mew\…`) |
+| User | `$MEW_CONFIG_DIR/config.jsonc`, else `$MEW_HOME/config/config.jsonc`, else platform default (`~/.config/mew/…`, `%AppData%\mew\…`) |
 | Project | `<project-root>/m.jsonc` |
+
+Portable setups set `MEW_HOME=…` (writes land in `$MEW_HOME/config/config.jsonc`).
+Config is never written beside the `m` executable.
 
 `MEW_HOME` influences derived dirs when specific overrides are unset.
 
@@ -97,14 +100,43 @@ environment. Use this in tests and hermetic CI to prove snapshot isolation.
 ## Commands
 
 ```text
-m config get <key>
-m config set <key> <value> [--global]
+m config get <key> [--source]
+m config set <key> <value> [--local | --file <path>] [--global]
+m config unset <key> [--local | --file <path>] [--global]
 m config list [--sources]
+m config path [--local | --file <path>] [--global]
+m config paths
 ```
 
+### Write scopes
+
+| Scope | Flag | Path |
+|---|---|---|
+| User (default) | _(none)_ | user `config.jsonc` via `GlobalConfigPath` |
+| Project | `--local` | `<project-root>/m.jsonc` (requires `package.json`; no cwd fallback) |
+| Explicit | `--file <path>` | path resolved against CLI `--cwd` |
+
+`--local`, `--file`, and `--global` are mutually exclusive.
+`--global` is a deprecated alias for the default user scope.
+`--config` remains a read-only CLI overlay; it is not a write target.
+
+`m config set` now writes user configuration by default.
+Use `--local` to write `<project-root>/m.jsonc`.
+
+`m config path` prints one write-target path. `m config paths` prints User and
+Project lines (`Project` is `unavailable` when no project root is found).
+
+`m config get --source` prints the value plus Source/Path. In `--output=json`,
+the object is `{key,value,source,path}` with source `user` for the user layer.
+
 `m config list` prints a table with `KEY`, `VALUE`, and `VALUES` (pipe-joined
-allowed values, or `-` when free-form). `--sources` adds `SOURCE` and `PATH`.
-## Global flags
+allowed values, or `-` when free-form). `--sources` adds `SOURCE` and `PATH`
+(user layer displayed as `user`).
+
+`m config edit` is deferred (no editor runner yet).
+
+Set/unset rewrite deterministic pretty JSON and fail closed when the file
+contains comments ([ADR 0003](adr/0003-config-jsonc.md)).## Global flags
 
 | Flag | Effect |
 |---|---|

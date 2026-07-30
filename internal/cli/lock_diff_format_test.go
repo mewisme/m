@@ -22,7 +22,7 @@ func TestFormatLockDiffHuman(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	for _, want := range []string{"+a@2.0.0", "-a@1.0.0", "~ . a prod: ^1.0.0 -> ^2.0.0"} {
+	for _, want := range []string{"+ a  2.0.0", "- a  1.0.0", "~ . a prod: ^1.0.0 -> ^2.0.0"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}

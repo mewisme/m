@@ -3,11 +3,13 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/presentation"
 	"github.com/mewisme/mew/internal/resolver"
 )
 
@@ -46,12 +48,24 @@ func newResolveCmd() *cobra.Command {
 				enc.SetIndent("", "  ")
 				return enc.Encode(res)
 			}
-			g := res.Graph
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "packages=%d edges=%d decisions=%d\n",
-				len(g.Packages), len(g.Edges), len(res.Decisions))
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			graph := res.Graph
+			arrow := r.Settings().Symbols.Arrow
+			if err := writeStaticOut(cmd, r.Summary(presentation.Summary{
+				Status: presentation.StatusSuccess,
+				Title:  "resolved",
+				Metrics: []presentation.KeyValue{
+					{Key: "packages", Value: strconv.Itoa(len(graph.Packages)), Style: presentation.ValueNumber},
+					{Key: "edges", Value: strconv.Itoa(len(graph.Edges)), Style: presentation.ValueNumber},
+					{Key: "decisions", Value: strconv.Itoa(len(res.Decisions)), Style: presentation.ValueNumber},
+				},
+			})); err != nil {
+				return err
+			}
 			if trace {
 				for _, d := range res.Decisions {
-					line := fmt.Sprintf("%s@%s â†’ %s (%s)", d.Package, d.Requested, d.Selected, d.Reason)
+					line := fmt.Sprintf("%s@%s %s %s (%s)", d.Package, d.Requested, arrow, d.Selected, d.Reason)
 					if len(d.PeerProviders) > 0 {
 						line += fmt.Sprintf(" peerProviders=%v", d.PeerProviders)
 					}
@@ -61,7 +75,9 @@ func newResolveCmd() *cobra.Command {
 					if len(d.Rejected) > 0 {
 						line += fmt.Sprintf(" rejected=%v", d.Rejected)
 					}
-					_, _ = fmt.Fprintln(cmd.OutOrStdout(), line)
+					if err := writeStaticOut(cmd, r.PlainText(line)); err != nil {
+						return err
+					}
 				}
 			}
 			return nil

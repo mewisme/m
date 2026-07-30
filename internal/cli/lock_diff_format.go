@@ -1,17 +1,19 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/lockfile"
+	"github.com/mewisme/mew/internal/presentation"
 )
 
-func runLockDiff(ctx context.Context, w io.Writer, ac *app.Context, opts app.LockDiffOptions, asJSON bool) error {
-	diff, err := app.LockDiff(ctx, ac, opts)
+func runLockDiff(cmd *cobra.Command, ac *app.Context, opts app.LockDiffOptions, asJSON bool) error {
+	diff, err := app.LockDiff(cmd.Context(), ac, opts)
 	if err != nil {
 		return err
 	}
@@ -20,44 +22,80 @@ func runLockDiff(ctx context.Context, w io.Writer, ac *app.Context, opts app.Loc
 		if err != nil {
 			return err
 		}
-		_, err = w.Write(data)
+		_, err = cmd.OutOrStdout().Write(data)
 		return err
 	}
-	return formatLockDiffHuman(w, diff)
+	g := ownerFlags(cmd.Root())
+	r := g.mustStaticRenderer(cmd, nil)
+	return writeStaticOut(cmd, formatLockDiffHuman(r, diff))
 }
 
-// FormatLockDiffHuman writes a human-readable lock diff summary.
+// FormatLockDiffHuman writes a human-readable lock diff summary (plain renderer).
 func FormatLockDiffHuman(w io.Writer, diff *lockfile.GraphDiff) error {
-	return formatLockDiffHuman(w, diff)
+	r := presentation.NewStaticRenderer(presentation.EffectiveSettings{
+		ThemeMode:  presentation.ThemeNone,
+		Width:      80,
+		UseUnicode: false,
+		Symbols:    presentation.ASCIISymbols,
+	})
+	text := formatLockDiffHuman(r, diff)
+	if text == "" {
+		return nil
+	}
+	_, err := fmt.Fprintln(w, text)
+	return err
 }
 
-func formatLockDiffHuman(w io.Writer, diff *lockfile.GraphDiff) error {
+func formatLockDiffHuman(r presentation.StaticRenderer, diff *lockfile.GraphDiff) string {
 	if diff == nil {
-		return nil
+		return ""
 	}
 	empty := len(diff.PackagesAdded) == 0 && len(diff.PackagesRemoved) == 0 &&
 		len(diff.EdgesAdded) == 0 && len(diff.EdgesRemoved) == 0 && len(diff.Specifiers) == 0
 	if empty {
-		_, err := fmt.Fprintln(w, "no changes")
-		return err
+		return r.Notice(emptyNotice("no changes"))
 	}
+
+	var parts []string
+	var deltas []presentation.PackageDelta
 	for _, pkg := range diff.PackagesAdded {
-		if _, err := fmt.Fprintf(w, "+%s\n", pkg); err != nil {
-			return err
-		}
+		name, ver := splitLockPkgID(pkg)
+		deltas = append(deltas, presentation.PackageDelta{
+			Kind: presentation.DeltaAdded, Name: name, Version: ver,
+		})
 	}
 	for _, pkg := range diff.PackagesRemoved {
-		if _, err := fmt.Fprintf(w, "-%s\n", pkg); err != nil {
-			return err
-		}
+		name, ver := splitLockPkgID(pkg)
+		deltas = append(deltas, presentation.PackageDelta{
+			Kind: presentation.DeltaRemoved, Name: name, Version: ver,
+		})
+	}
+	if len(deltas) > 0 {
+		parts = append(parts, r.PackageDeltas(deltas))
 	}
 	for _, sp := range diff.Specifiers {
-		line := formatSpecifierDiff(sp)
-		if _, err := fmt.Fprintln(w, line); err != nil {
-			return err
-		}
+		parts = append(parts, r.PlainText(formatSpecifierDiff(sp)))
 	}
-	return nil
+	return strings.Join(parts, "\n")
+}
+
+func splitLockPkgID(id string) (name, version string) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return "", ""
+	}
+	if strings.HasPrefix(id, "@") {
+		i := strings.LastIndex(id, "@")
+		if i > 0 {
+			return id[:i], id[i+1:]
+		}
+		return id, ""
+	}
+	name, version, ok := strings.Cut(id, "@")
+	if !ok {
+		return id, ""
+	}
+	return name, version
 }
 
 func formatSpecifierDiff(sp lockfile.ImporterSpecifierDiff) string {

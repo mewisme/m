@@ -116,6 +116,51 @@ func TestRoundTripSemantic(t *testing.T) {
 	}
 }
 
+func TestFieldLossAuditTopLevelVersionAndPeerMeta(t *testing.T) {
+	raw := []byte(`{
+  "name": "peer-meta",
+  "version": "1.0.0",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "peer-meta",
+      "version": "1.0.0",
+      "dependencies": { "debug": "^4.0.0" }
+    },
+    "node_modules/debug": {
+      "version": "4.4.3",
+      "peerDependenciesMeta": {
+        "supports-color": { "optional": true }
+      }
+    }
+  }
+}`)
+	doc, err := npm.Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Version != "1.0.0" {
+		t.Fatalf("doc.Version=%q want 1.0.0", doc.Version)
+	}
+	if _, ok := doc.Extensions["version"]; ok {
+		t.Fatal("top-level version must not land in Extensions")
+	}
+	entry := doc.Packages["node_modules/debug"]
+	if entry.PeerDependenciesMeta["supports-color"].Optional != true {
+		t.Fatal("expected peerDependenciesMeta.supports-color.optional")
+	}
+	if _, ok := entry.Extra["peerDependenciesMeta"]; ok {
+		t.Fatal("peerDependenciesMeta must not land in Extra")
+	}
+	report := npm.FieldLossAudit(doc)
+	for _, item := range report.Items {
+		if item.Semantic {
+			t.Fatalf("unexpected semantic loss: %+v", item)
+		}
+	}
+}
+
 func TestEncodePreservingNoOp(t *testing.T) {
 	path := filepath.Join(moduleRoot(t), "fixtures", "locks", "npm", "v2-basic", "package-lock.json")
 	data, err := os.ReadFile(path)

@@ -83,18 +83,21 @@ Topic sources live under [`docs/terminal-help/`](terminal-help/) and are curated
 separately from authoritative docs; each topic ends with a See also pointer.
 
 Auto mode uses Glamour on a human color stdout TTY. Pipe, CI, `TERM=dumb`,
-accessible, `--color=never`, and `--output=plain` stay on the plain renderer
-(headings keep `#` markers; no ANSI). IDE terminals that report non-TTY still
-get Glamour when color is forced:
+accessible, `--color=never`, and explicit `--output=plain` stay on the plain
+renderer (headings keep `#` markers; no ANSI). The same gate applies to static
+design-system output (version, lock, resolve, summaries, errors). IDE terminals
+that report non-TTY still get styled output when color is forced:
 
 ```text
 m --color=always help --pager=never runner
+m --color=always version
 ```
 
-`--color=always` overrides `NO_COLOR` for help the same way it does for other
-human output. Structured modes (`json` / `ndjson`) never use Glamour.
-`--output=rich` also selects Glamour for topic help when rich mode is accepted
+`--color=always` overrides `NO_COLOR` for help and other human static output.
+Structured modes (`json` / `ndjson`) never use Glamour or Lip Gloss.
+`--output=rich` also selects styled output when rich mode is accepted
 (interactive stderr); use `--color=always` when the terminal is non-TTY.
+Explicit `--output=plain` wins over `--color=always` for static and topic help.
 
 Glamour's standard style follows effective `ui.theme` (`auto`\|`light`\|`dark`;
 `accessible`/`none` map to Glamour `notty`). `auto` uses the terminal background
@@ -119,6 +122,27 @@ passed on stdin.
 Typed CLI failures render through `ErrorView` (title, message, context, code,
 hints) on stderr in human modes. `--presentation-legacy` keeps the pre-UX-0003
 error format. JSON/NDJSON error documents are unchanged.
+
+## Configuration commands
+
+```text
+m config get <key> [--source]
+m config set <key> <value> [--local | --file <path>]
+m config unset <key> [--local | --file <path>]
+m config list [--sources]
+m config path [--local | --file <path>]
+m config paths
+```
+
+Default `m config set` / `unset` / `path` write (or report) **user** config.
+`--local` targets `<project-root>/m.jsonc` and fails with `ERR_M_NOT_FOUND` when
+no project root exists (no cwd fallback). `--file` writes an exact path resolved
+against `--cwd`. `--global` is a deprecated alias for user scope and cannot
+combine with `--local` or `--file`. Global `--config` remains a read overlay
+only. See [`config.md`](config.md).
+
+Migration: `m config set` now writes user configuration by default. Use
+`--local` to write `<project-root>/m.jsonc`.
 
 ## Completion
 

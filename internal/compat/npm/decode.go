@@ -12,6 +12,7 @@ import (
 var knownTopLevel = map[string]struct{}{
 	"lockfileVersion": {},
 	"name":            {},
+	"version":         {},
 	"requires":        {},
 	"packages":        {},
 	"dependencies":    {},
@@ -21,7 +22,8 @@ var knownPackageFields = map[string]struct{}{
 	"name": {}, "version": {}, "resolved": {}, "integrity": {}, "link": {},
 	"dev": {}, "devOptional": {}, "optional": {},
 	"dependencies": {}, "devDependencies": {}, "optionalDependencies": {},
-	"peerDependencies": {}, "bundledDependencies": {}, "workspaces": {},
+	"peerDependencies": {}, "peerDependenciesMeta": {},
+	"bundledDependencies": {}, "workspaces": {},
 	"license": {}, "engines": {}, "funding": {}, "cpu": {}, "os": {},
 	"deprecated": {}, "bin": {}, "hasInstallScript": {},
 }
@@ -71,6 +73,9 @@ func Decode(data []byte) (*Document, error) {
 
 	if nameRaw, ok := raw["name"]; ok {
 		_ = json.Unmarshal(nameRaw, &doc.Name)
+	}
+	if verName, ok := raw["version"]; ok {
+		_ = json.Unmarshal(verName, &doc.Version)
 	}
 	if reqRaw, ok := raw["requires"]; ok {
 		_ = json.Unmarshal(reqRaw, &doc.Requires)
@@ -172,6 +177,8 @@ func decodePackageEntry(raw json.RawMessage) (PackageEntry, error) {
 			entry.OptionalDependencies = decodeStringMap(v)
 		case "peerDependencies":
 			entry.PeerDependencies = decodeStringMap(v)
+		case "peerDependenciesMeta":
+			_ = json.Unmarshal(v, &entry.PeerDependenciesMeta)
 		case "bundledDependencies":
 			_ = json.Unmarshal(v, &entry.BundledDependencies)
 		case "workspaces":

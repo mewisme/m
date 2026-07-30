@@ -67,6 +67,13 @@ func FieldLossAudit(doc *Document) lockfile.LossReport {
 				SourceFormat: format, Semantic: false, ProducerMajor: major, Category: "mapped",
 			})
 		}
+		if len(entry.PeerDependenciesMeta) > 0 {
+			report.Items = append(report.Items, lockfile.LossItem{
+				Field:        "packages." + path + ".peerDependenciesMeta",
+				Reason:       "optional peer metadata mapped to edge.optional when peerDependencies present",
+				SourceFormat: format, Semantic: false, ProducerMajor: major, Category: "mapped",
+			})
+		}
 	}
 	return report
 }

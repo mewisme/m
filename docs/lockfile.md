@@ -94,8 +94,9 @@ When `--from` is omitted, Mew auto-detects the incumbent lock to migrate:
    beside `pnpm-lock.yaml` with `packageManager: pnpm@…`).
 2. **Lockfiles** — only when the manifest is silent. Scan in precedence order,
    excluding `m.lock` and `bun.lockb`:
-   `nub.lock` → `pnpm-lock.yaml` → `npm-shrinkwrap.json` (over
-   `package-lock.json`) → `package-lock.json` → `yarn.lock` → `bun.lock`.
+   `npm-shrinkwrap.json` (over `package-lock.json`) → `package-lock.json` →
+   `pnpm-lock.yaml` → `bun.lock` → `yarn.lock` → `nub.lock`.
+   When several are present, auto-select the first in that order.
 
 | Outcome | Behavior |
 |---|---|
@@ -105,8 +106,7 @@ When `--from` is omitted, Mew auto-detects the incumbent lock to migrate:
 | `packageManager: mew` / `m` + only `m.lock` | `nothing to migrate` |
 | `packageManager: mew` / `m` + foreign lock(s) | Pass explicit `--from` |
 | 0 migratable locks | `nothing to migrate` |
-| 1 migratable lock | Auto-select |
-| 2+ migratable locks | Fail with ranked list; pass `--from` |
+| 1+ migratable locks (no manifest) | Auto-select by precedence; override with `--from` |
 
 ### `mew.resolver/local`
 
@@ -239,10 +239,10 @@ CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
 | Generation | Read | Byte no-op | Semantic rewrite | Migrate to m.lock | Frozen pnpm CI |
 |---|---|---|---|---|---|
 | pnpm v5–v8 | **rejected** | — | — | — | `conformance-pnpm-unsupported` |
-| pnpm v9 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-9` + `MutationSuite` |
-| pnpm v10 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-10` + `MutationSuite` |
-| pnpm v11 | yes | yes | yes with `--pnpm-major` | dry-run loss report; non-dry-run fail-closed on semantic loss | `conformance-pnpm-11` + `MutationSuite` |
-| nub | yes | yes | policy from incumbent bytes | yes (loss report) | `conformance-nub-fixtures` (6 families) |
+| pnpm v9 | yes | yes | yes with `--pnpm-major` | yes; unmapped fields preserved in `extensions.mew.migrate/pnpm` | `conformance-pnpm-9` + `MutationSuite` |
+| pnpm v10 | yes | yes | yes with `--pnpm-major` | yes; unmapped fields preserved in `extensions.mew.migrate/pnpm` | `conformance-pnpm-10` + `MutationSuite` |
+| pnpm v11 | yes | yes | yes with `--pnpm-major` | yes; unmapped fields preserved in `extensions.mew.migrate/pnpm` | `conformance-pnpm-11` + `MutationSuite` |
+| nub | yes | yes | policy from incumbent bytes | yes; unmapped fields preserved in `extensions.mew.migrate/nub` | `conformance-nub-fixtures` (6 families) |
 | npm v2/v3 | yes | yes | preserve lockfileVersion | yes (loss report) | `conformance-npm` |
 | m.lock v3 | yes | yes | yes | n/a | n/a |
 

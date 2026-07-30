@@ -33,7 +33,7 @@ Frozen identifiers for MewJS public surfaces. Changes require an ADR and compati
 |---|---|---|
 | `m.jsonc` | Project | Neutral Mew project config (name subject to ADR) |
 | `.github.com/mewisme/mew/` | Project | Mew-owned auxiliary data (policy, local state) |
-| Global config | User | `~/.config/github.com/mewisme/mew/config.jsonc` (Linux/macOS); `%AppData%\mew\config.jsonc` (Windows) |
+| User config | User | `config.jsonc` under `MEW_CONFIG_DIR`, else `MEW_HOME/config`, else `~/.config/mew/` (Linux/macOS) or `%AppData%\mew\` (Windows) |
 | Pass-through | Project | `.npmrc`, incumbent manager configs via compatibility adapters only |
 
 Mew does not read another package manager's branded config as authority for an Mew-identity project unless explicitly importing.

@@ -15,11 +15,17 @@ const (
 type Document struct {
 	LockfileVersion int                     `json:"lockfileVersion"`
 	Name            string                  `json:"name,omitempty"`
+	Version         string                  `json:"version,omitempty"`
 	Requires        bool                    `json:"requires,omitempty"`
 	Packages        map[string]PackageEntry `json:"packages,omitempty"`
 	Dependencies    map[string]LegacyDep    `json:"dependencies,omitempty"`
 	Extensions      lockfile.Extensions     `json:"-"`
 	Detection       lockfile.Detection      `json:"-"`
+}
+
+// PeerMeta is optional metadata for a peer dependency in npm locks.
+type PeerMeta struct {
+	Optional bool `json:"optional,omitempty"`
 }
 
 // PackageEntry is one packages-map record in npm lock v2/v3.
@@ -36,6 +42,7 @@ type PackageEntry struct {
 	DevDependencies      map[string]string          `json:"devDependencies,omitempty"`
 	OptionalDependencies map[string]string          `json:"optionalDependencies,omitempty"`
 	PeerDependencies     map[string]string          `json:"peerDependencies,omitempty"`
+	PeerDependenciesMeta map[string]PeerMeta        `json:"peerDependenciesMeta,omitempty"`
 	BundledDependencies  []string                   `json:"bundledDependencies,omitempty"`
 	Workspaces           []string                   `json:"workspaces,omitempty"`
 	Extra                map[string]json.RawMessage `json:"-"`
@@ -77,6 +84,12 @@ func (e PackageEntry) clone() PackageEntry {
 	out.DevDependencies = cloneStringMap(e.DevDependencies)
 	out.OptionalDependencies = cloneStringMap(e.OptionalDependencies)
 	out.PeerDependencies = cloneStringMap(e.PeerDependencies)
+	if len(e.PeerDependenciesMeta) > 0 {
+		out.PeerDependenciesMeta = make(map[string]PeerMeta, len(e.PeerDependenciesMeta))
+		for k, v := range e.PeerDependenciesMeta {
+			out.PeerDependenciesMeta[k] = v
+		}
+	}
 	if len(e.BundledDependencies) > 0 {
 		out.BundledDependencies = append([]string(nil), e.BundledDependencies...)
 	}

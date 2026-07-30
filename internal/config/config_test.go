@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mewisme/mew/internal/config"
@@ -104,6 +105,108 @@ func TestSetRefusesComments(t *testing.T) {
 	}
 	err := config.SetFile(path, "offline", true)
 	if err == nil {
+		t.Fatal("expected comment refuse")
+	}
+}
+
+func TestSetFileDurablePublish(t *testing.T) {
+	home := testkit.TempHome(t)
+	path := filepath.Join(home, "nested", "config.jsonc")
+	if err := config.SetFile(path, "offline", true); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"offline": true`) {
+		t.Fatalf("contents:\n%s", b)
+	}
+	// Second write replaces atomically.
+	if err := config.SetFile(path, "prefer-offline", true); err != nil {
+		t.Fatal(err)
+	}
+	b, err = os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"prefer-offline": true`) || !strings.Contains(string(b), `"offline": true`) {
+		t.Fatalf("contents after second set:\n%s", b)
+	}
+}
+
+func TestSetFileInvalidJSONCNotOverwritten(t *testing.T) {
+	home := testkit.TempHome(t)
+	path := filepath.Join(home, "m.jsonc")
+	orig := []byte("{not json")
+	if err := os.WriteFile(path, orig, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.SetFile(path, "offline", true); err == nil {
+		t.Fatal("expected parse failure")
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(orig) {
+		t.Fatalf("file mutated on failure: %q", got)
+	}
+}
+
+func TestUnsetFileSiblingsAndIdempotent(t *testing.T) {
+	home := testkit.TempHome(t)
+	path := filepath.Join(home, "m.jsonc")
+	if err := config.SetFile(path, "install.linker", "hoisted"); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.SetFile(path, "offline", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.UnsetFile(path, "install.linker"); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "linker") || strings.Contains(string(b), `"install"`) {
+		t.Fatalf("empty install object should be dropped:\n%s", b)
+	}
+	if !strings.Contains(string(b), `"offline": true`) {
+		t.Fatalf("sibling offline lost:\n%s", b)
+	}
+	// Idempotent missing key.
+	if err := config.UnsetFile(path, "install.linker"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(b) {
+		t.Fatalf("idempotent unset rewrote file")
+	}
+}
+
+func TestUnsetFileMissingFileIdempotent(t *testing.T) {
+	home := testkit.TempHome(t)
+	path := filepath.Join(home, "missing.jsonc")
+	if err := config.UnsetFile(path, "offline"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("should not create file: %v", err)
+	}
+}
+
+func TestUnsetFileRefusesComments(t *testing.T) {
+	home := testkit.TempHome(t)
+	path := filepath.Join(home, "m.jsonc")
+	if err := os.WriteFile(path, []byte("{\n  // comment\n  \"offline\": true\n}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.UnsetFile(path, "offline"); err == nil {
 		t.Fatal("expected comment refuse")
 	}
 }

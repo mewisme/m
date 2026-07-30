@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/testkit"
 )
@@ -43,8 +42,14 @@ func TestMigratePnpmDryRunReportsEnginesLoss(t *testing.T) {
 	}
 	found := false
 	for _, item := range result.LossReport.Items {
-		if strings.Contains(item.Field, ".engines") && item.Semantic {
+		if strings.Contains(item.Field, ".engines") {
 			found = true
+			if item.Semantic {
+				t.Fatalf("engines should be preserved in extension, not semantic: %+v", item)
+			}
+			if item.Category != "extension" {
+				t.Fatalf("category=%q want extension", item.Category)
+			}
 			break
 		}
 	}
@@ -53,27 +58,23 @@ func TestMigratePnpmDryRunReportsEnginesLoss(t *testing.T) {
 	}
 }
 
-func TestMigratePnpmFailsOnEnginesLoss(t *testing.T) {
+func TestMigratePnpmPreservesEnginesInExtension(t *testing.T) {
 	ac, proj := testPnpmProjectWithLock(t, testPnpmLockYAML)
-	before, err := os.ReadFile(filepath.Join(proj, "pnpm-lock.yaml"))
+	result, err := MigrateLock(context.Background(), ac, MigrateLockOptions{From: "pnpm", DryRun: false, PnpmMajor: 9})
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = MigrateLock(context.Background(), ac, MigrateLockOptions{From: "pnpm", DryRun: false})
-	if err == nil {
-		t.Fatal("expected lossy migration failure")
+	if _, err := os.Stat(filepath.Join(proj, "pnpm-lock.yaml")); !os.IsNotExist(err) {
+		t.Fatal("source pnpm-lock.yaml must be removed after migrate")
 	}
-	if apperr.CodeOf(err) != apperr.LockUnrepresentable {
-		t.Fatalf("code=%s err=%v", apperr.CodeOf(err), err)
-	}
-	after, err := os.ReadFile(filepath.Join(proj, "pnpm-lock.yaml"))
+	data, err := os.ReadFile(filepath.Join(proj, "m.lock"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(before) != string(after) {
-		t.Fatal("incumbent lock must be unchanged on migration failure")
+	if !strings.Contains(string(data), mewMigratePnpmExt) {
+		t.Fatalf("m.lock missing %s extension; path=%s", mewMigratePnpmExt, result.Path)
 	}
-	if _, err := os.Stat(filepath.Join(proj, "m.lock")); err == nil {
-		t.Fatal("m.lock must not be created on migration failure")
+	if !strings.Contains(string(data), `"engines"`) {
+		t.Fatal("m.lock extension must retain package engines")
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
 // Source identifies which layer provided a value.
@@ -178,7 +179,7 @@ func defaults() map[string]any {
 }
 
 // GlobalConfigPath resolves the user config.jsonc path.
-// intentional: ambient env for m config set --global outside app.New snapshot.
+// intentional: ambient env for m config writes outside app.New snapshot.
 func GlobalConfigPath() string {
 	if d := os.Getenv("MEW_CONFIG_DIR"); d != "" {
 		return filepath.Join(d, "config.jsonc")
@@ -540,42 +541,79 @@ func formatRaw(v any) string {
 }
 
 // SetFile writes a single key into a JSONC file (pure JSON rewrite).
+// Comments are not preserved: files with comments fail closed.
 func SetFile(path, key string, raw any) error {
 	if err := validateKeyValue(key, normalizeForWrite(raw)); err != nil {
 		return apperr.Wrap(apperr.Config, "config.set", key, err)
 	}
 	raw = normalizeForWrite(raw)
+	return mutateFile(path, "config.set", func(existing map[string]any) (bool, error) {
+		setNested(existing, key, raw)
+		return true, nil
+	})
+}
+
+// UnsetFile removes a dotted key from a JSONC file (pure JSON rewrite).
+// Missing keys are idempotent. Empty parent objects left by the key path are dropped.
+// Comments are not preserved: files with comments fail closed.
+func UnsetFile(path, key string) error {
+	if _, err := validateKeyOwned(key); err != nil {
+		return apperr.Wrap(apperr.Config, "config.unset", key, err)
+	}
+	return mutateFile(path, "config.unset", func(existing map[string]any) (bool, error) {
+		return unsetNested(existing, key), nil
+	})
+}
+
+func mutateFile(path, op string, mutate func(map[string]any) (changed bool, err error)) error {
 	var existing map[string]any
 	b, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
-		return apperr.Wrap(apperr.IO, "config.set", path, err)
+		return apperr.Wrap(apperr.IO, op, path, err)
 	}
 	if err == nil {
 		if HasJSONCComments(b) {
-			return apperr.New(apperr.Config, "config.set", path, "file contains comments; edit manually or remove comments before set")
+			return apperr.New(apperr.Config, op, path, "file contains comments; edit manually or remove comments before mutating")
 		}
 		parsed, err := ParseJSONC(b)
 		if err != nil {
-			return apperr.Wrap(apperr.Config, "config.set", path, err)
+			return apperr.Wrap(apperr.Config, op, path, err)
 		}
 		m, ok := parsed.(map[string]any)
 		if !ok {
-			return apperr.New(apperr.Config, "config.set", path, "root must be object")
+			return apperr.New(apperr.Config, op, path, "root must be object")
 		}
 		existing = m
 	} else {
 		existing = map[string]any{}
 	}
-	setNested(existing, key, raw)
+	changed, err := mutate(existing)
+	if err != nil {
+		return err
+	}
+	if !changed {
+		return nil
+	}
 	out, err := json.MarshalIndent(existing, "", "  ")
 	if err != nil {
-		return apperr.Wrap(apperr.Internal, "config.set", path, err)
+		return apperr.Wrap(apperr.Internal, op, path, err)
 	}
 	out = append(out, '\n')
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return apperr.Wrap(apperr.IO, "config.set", path, err)
+	if err := fsx.PublishFileDurable(path, out, 0o644); err != nil {
+		return apperr.Wrap(apperr.IO, op, path, err)
 	}
-	return os.WriteFile(path, out, 0o644)
+	return nil
+}
+
+func validateKeyOwned(key string) (string, error) {
+	kind, ok := ownedKeys[key]
+	if !ok && strings.HasPrefix(key, "registries.") {
+		return "string", nil
+	}
+	if !ok {
+		return "", fmt.Errorf("unknown key %q", key)
+	}
+	return kind, nil
 }
 
 func normalizeForWrite(v any) any {
@@ -633,6 +671,34 @@ func setNested(m map[string]any, dotted string, v any) {
 		}
 		cur = next
 	}
+}
+
+// unsetNested removes a dotted key. Empty parent maps created only by that path are dropped.
+// Returns whether the document changed.
+func unsetNested(m map[string]any, dotted string) bool {
+	return unsetNestedParts(m, strings.Split(dotted, "."))
+}
+
+func unsetNestedParts(m map[string]any, parts []string) bool {
+	if len(parts) == 0 {
+		return false
+	}
+	if len(parts) == 1 {
+		if _, ok := m[parts[0]]; !ok {
+			return false
+		}
+		delete(m, parts[0])
+		return true
+	}
+	next, ok := m[parts[0]].(map[string]any)
+	if !ok {
+		return false
+	}
+	changed := unsetNestedParts(next, parts[1:])
+	if changed && len(next) == 0 {
+		delete(m, parts[0])
+	}
+	return changed
 }
 
 // ParseJSONC strips // and /* */ comments then unmarshals JSON.

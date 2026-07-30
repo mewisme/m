@@ -7,7 +7,9 @@ How users move between incumbent package managers and Mew. Full commands ship in
 1. **No silent migration** — lockfile or identity changes require an explicit user action.
 2. **Preserve round-trip** — when Mew writes an incumbent format, the result must pass that manager's frozen install where certified.
 3. **Graph equality** — no-churn installs leave a semantically equal lockfile untouched.
-4. **One lockfile authority** — multiple lockfiles without declaration is an error (parity with Nub ambiguity rules).
+4. **One lockfile authority** — install identity rejects conflicting lock signals;
+   `m lock migrate` without `--from` auto-selects by precedence
+   (npm → pnpm → bun → yarn → nub).
 
 ## npm users
 
@@ -49,17 +51,18 @@ How users move between incumbent package managers and Mew. Full commands ship in
 
 `nub.lock` beside a foreign lockfile without `packageManager` declaration is ambiguous — Mew errors with `ERR_M_LOCKFILE_AMBIGUOUS` (parity intent).
 
-### Multi-lock migrate ambiguity
+### Multi-lock migrate precedence
 
 `m lock migrate` without `--from` on a project with multiple incumbent locks and
-no manifest hint fails closed:
+no manifest hint auto-selects the first present in this order:
 
-```text
-ERR_M_USAGE lock.migrate: multiple lockfiles present; pass --from nub|pnpm|npm|bun|yarn
-found: pnpm-lock.yaml, yarn.lock
-```
+`npm` (`npm-shrinkwrap.json` over `package-lock.json`) → `pnpm` → `bun` → `yarn` → `nub`
 
-Pass `--from pnpm` (or another supported identity) to select the source lock.
+Pass `--from pnpm` (or another supported identity) to override the selection.
+
+On success, migrate writes `m.lock` and **removes other incumbent lockfiles**
+(`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `nub.lock`, …)
+in the same transaction so `m install` can open the project as Mew identity.
 
 ## Greenfield Mew projects
 

@@ -270,17 +270,46 @@ func TestMigrateDryRunNeverTouchesIncumbent(t *testing.T) {
 	}
 }
 
-func TestMigrateFailClosedOnLoss(t *testing.T) {
+func TestMigrateNubPreservesLossInExtension(t *testing.T) {
 	ac, proj := testIncumbentProject(t, "nub.lock")
-	_, err := MigrateLock(context.Background(), ac, MigrateLockOptions{From: "nub"})
-	if err == nil {
-		t.Fatal("expected lossy migration failure")
+	result, err := MigrateLock(context.Background(), ac, MigrateLockOptions{From: "nub"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if apperr.CodeOf(err) != apperr.LockUnrepresentable {
-		t.Fatalf("code=%s err=%v", apperr.CodeOf(err), err)
+	data, err := os.ReadFile(filepath.Join(proj, "m.lock"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(proj, "m.lock")); err == nil {
-		t.Fatal("failed migration must not create m.lock")
+	if !strings.Contains(string(data), mewMigrateNubExt) {
+		t.Fatalf("m.lock missing %s extension; path=%s", mewMigrateNubExt, result.Path)
+	}
+	if _, err := os.Stat(filepath.Join(proj, "nub.lock")); !os.IsNotExist(err) {
+		t.Fatal("source nub.lock must be removed after migrate")
+	}
+}
+
+func TestMigrateRemovesConflictingForeignLocks(t *testing.T) {
+	ac, proj := testIncumbentProject(t, "pnpm-lock.yaml")
+	if err := os.WriteFile(filepath.Join(proj, "yarn.lock"), []byte("# yarn\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := MigrateLock(context.Background(), ac, MigrateLockOptions{From: "pnpm", PnpmMajor: 9}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(proj, "m.lock")); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"pnpm-lock.yaml", "yarn.lock"} {
+		if _, err := os.Stat(filepath.Join(proj, name)); !os.IsNotExist(err) {
+			t.Fatalf("%s must be removed after migrate", name)
+		}
+	}
+	p, err := project.DetectIdentity(proj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Identity != project.IdentityMew {
+		t.Fatalf("identity=%s want mew", p.Identity)
 	}
 }
 
@@ -554,23 +583,19 @@ snapshots:
 	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
 }
 
-func TestMigrateLockAmbiguousMultiLockWithoutFrom(t *testing.T) {
+func TestMigrateLockMultiLockWithoutFromPicksPrecedence(t *testing.T) {
 	ac, proj := testIncumbentProject(t, "pnpm-lock.yaml")
 	if err := os.WriteFile(filepath.Join(proj, "yarn.lock"), []byte("# yarn\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := MigrateLock(context.Background(), ac, MigrateLockOptions{DryRun: true})
-	if err == nil {
-		t.Fatal("expected ambiguity error")
+	result, err := MigrateLock(context.Background(), ac, MigrateLockOptions{DryRun: true})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if apperr.CodeOf(err) != apperr.Usage {
-		t.Fatalf("code=%s err=%v", apperr.CodeOf(err), err)
+	if result.SourceIdentity != "pnpm" {
+		t.Fatalf("sourceIdentity=%q want pnpm", result.SourceIdentity)
 	}
-	msg := err.Error()
-	if !strings.Contains(msg, "multiple lockfiles present") {
-		t.Fatalf("msg=%q", msg)
-	}
-	if !strings.Contains(msg, "pnpm-lock.yaml") || !strings.Contains(msg, "yarn.lock") {
-		t.Fatalf("msg=%q", msg)
+	if !strings.HasSuffix(result.SourceLockPath, "pnpm-lock.yaml") {
+		t.Fatalf("sourceLockPath=%q", result.SourceLockPath)
 	}
 }

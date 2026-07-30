@@ -12,6 +12,9 @@ func encodePayload(doc *Document) map[string]any {
 	if doc.Name != "" {
 		out["name"] = doc.Name
 	}
+	if doc.Version != "" {
+		out["version"] = doc.Version
+	}
 	if doc.Requires {
 		out["requires"] = true
 	}
@@ -84,6 +87,19 @@ func encodePackageEntry(entry PackageEntry) map[string]any {
 	encodeStringMap(out, "devDependencies", entry.DevDependencies)
 	encodeStringMap(out, "optionalDependencies", entry.OptionalDependencies)
 	encodeStringMap(out, "peerDependencies", entry.PeerDependencies)
+	if len(entry.PeerDependenciesMeta) > 0 {
+		keys := sortedStringKeysPeerMeta(entry.PeerDependenciesMeta)
+		meta := make(map[string]any, len(keys))
+		for _, k := range keys {
+			m := entry.PeerDependenciesMeta[k]
+			entryOut := map[string]any{}
+			if m.Optional {
+				entryOut["optional"] = true
+			}
+			meta[k] = entryOut
+		}
+		out["peerDependenciesMeta"] = meta
+	}
 	if len(entry.BundledDependencies) > 0 {
 		bundled := append([]string(nil), entry.BundledDependencies...)
 		sort.Strings(bundled)
@@ -112,6 +128,15 @@ func encodeStringMap(out map[string]any, key string, m map[string]string) {
 		encoded[k] = m[k]
 	}
 	out[key] = encoded
+}
+
+func sortedStringKeysPeerMeta(m map[string]PeerMeta) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func encodeLegacyDeps(m map[string]LegacyDep) map[string]any {

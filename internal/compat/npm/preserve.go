@@ -23,6 +23,16 @@ func preservePriorPackageFields(doc, prior *Document) {
 		if len(priorEntry.BundledDependencies) > 0 && len(entry.BundledDependencies) == 0 {
 			entry.BundledDependencies = append([]string(nil), priorEntry.BundledDependencies...)
 		}
+		if len(priorEntry.PeerDependenciesMeta) > 0 {
+			if entry.PeerDependenciesMeta == nil {
+				entry.PeerDependenciesMeta = make(map[string]PeerMeta, len(priorEntry.PeerDependenciesMeta))
+			}
+			for k, v := range priorEntry.PeerDependenciesMeta {
+				if _, ok := entry.PeerDependenciesMeta[k]; !ok {
+					entry.PeerDependenciesMeta[k] = v
+				}
+			}
+		}
 		doc.Packages[path] = entry
 	}
 }

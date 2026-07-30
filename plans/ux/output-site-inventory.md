@@ -215,3 +215,7 @@ Allowed: `project`, `warm cache`, `snapshot <short-id>`, `capsule`, `dlx`. Never
   status, TerminalIntent, completion summary (see contracts above)
 - UX-0006: `internal/prompt` contract; Huh + accessible adapters; lifecycle ask +
   mx consent migration; destructive confirm audit (no new prompts); a11y evidence
+- Follow-up: `Effective.UseColor` gates on requested/effective output (explicit
+  `--output=plain` stays plain; ForceColor for `--color=always` / requested
+  `--output=rich`); lock format/validate/migrate/diff, trust, resolve, and fetch
+  human success paths use `StaticRenderer` + `writeStaticOut`/`writeStaticErr`

@@ -8,6 +8,7 @@ import (
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/lifecycle"
+	"github.com/mewisme/mew/internal/presentation"
 	"github.com/mewisme/mew/internal/prompt"
 )
 
@@ -32,11 +33,19 @@ func newTrustCmd() *cobra.Command {
 			if len(args) == 0 {
 				return apperr.New(apperr.Usage, "trust", "", "package name required (or use --interactive)")
 			}
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
 			for _, pkg := range args {
 				if err := store.AddTrusted(pkg); err != nil {
 					return err
 				}
-				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "trusted %s\n", pkg)
+				if err := writeStaticErr(cmd, r.Status(presentation.StatusLine{
+					Status: presentation.StatusSuccess,
+					Text:   "trusted",
+					Detail: pkg,
+				})); err != nil {
+					return err
+				}
 			}
 			return nil
 		},
@@ -63,11 +72,19 @@ func newApproveBuildsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
 			for _, pkg := range args {
 				if err := store.AddTrusted(pkg); err != nil {
 					return err
 				}
-				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "trusted %s\n", pkg)
+				if err := writeStaticErr(cmd, r.Status(presentation.StatusLine{
+					Status: presentation.StatusSuccess,
+					Text:   "trusted",
+					Detail: pkg,
+				})); err != nil {
+					return err
+				}
 			}
 			return nil
 		},
@@ -83,7 +100,8 @@ func runTrustInteractive(cmd *cobra.Command, ac *app.Context, store *lifecycle.T
 	if ac == nil || !ac.CanPrompt || ac.Prompter == nil {
 		return apperr.New(apperr.Usage, "trust", "", "interactive trust requires a TTY on stdin")
 	}
-	errW := cmd.ErrOrStderr()
+	g := ownerFlags(cmd.Root())
+	r := g.mustStaticRenderer(cmd, nil)
 	for _, pkg := range names {
 		ans, err := ac.Prompter.Prompt(cmd.Context(), prompt.PromptRequest{
 			ID:        "trust.interactive",
@@ -101,13 +119,25 @@ func runTrustInteractive(cmd *cobra.Command, ac *app.Context, store *lifecycle.T
 			return err
 		}
 		if ans.Cancelled || ans.OptionID != prompt.OptionApprove {
-			_, _ = fmt.Fprintf(errW, "skipped %s\n", pkg)
+			if err := writeStaticErr(cmd, r.Status(presentation.StatusLine{
+				Status: presentation.StatusInfo,
+				Text:   "skipped",
+				Detail: pkg,
+			})); err != nil {
+				return err
+			}
 			continue
 		}
 		if err := store.AddTrusted(pkg); err != nil {
 			return err
 		}
-		_, _ = fmt.Fprintf(errW, "trusted %s\n", pkg)
+		if err := writeStaticErr(cmd, r.Status(presentation.StatusLine{
+			Status: presentation.StatusSuccess,
+			Text:   "trusted",
+			Detail: pkg,
+		})); err != nil {
+			return err
+		}
 	}
 	return nil
 }

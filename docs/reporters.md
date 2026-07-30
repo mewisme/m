@@ -45,7 +45,17 @@ Precedence for color:
 4. `NO_COLOR` / `--no-color` force never **unless** `--color=always` was set
 5. Auto requires a suitable stdout TTY, non-dumb `TERM`, and a color-capable profile
 
-Explicit `--color=always` overrides `NO_COLOR`. Plain / pipe / CI / accessible paths use the first-class plain renderer (zero ANSI); rich output is never stripped to fake plain.
+Explicit `--color=always` overrides `NO_COLOR`. Static design-system output
+(status, summaries, tables, errors) and topic help share one color gate:
+
+- Explicit `--output=plain` → plain renderer (zero ANSI), even with `--color=always`
+- `--color=never`, accessible, legacy, structured, and silent → plain
+- `--color=always` or requested `--output=rich` → styled output even when stdout
+  is non-TTY (IDE terminals)
+- Auto rich → styled when effective mode is `rich` and stdout is a color TTY
+
+Plain / pipe / CI / accessible paths use the first-class plain renderer (zero
+ANSI); rich output is never stripped to fake plain.
 
 ### Width and Unicode
 

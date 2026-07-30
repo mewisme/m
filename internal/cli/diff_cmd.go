@@ -36,7 +36,7 @@ func newDiffLockCmd() *cobra.Command {
 			if len(args) > 0 {
 				opts.OtherPath = args[0]
 			}
-			return runLockDiff(cmd.Context(), cmd.OutOrStdout(), ac, opts, asJSON)
+			return runLockDiff(cmd, ac, opts, asJSON)
 		},
 	}
 	cmd.Flags().StringVar(&fromPath, "from", "", "left lockfile path")
