@@ -103,8 +103,9 @@ func writeTopicHelp(cmd *cobra.Command, body []byte, pagerFlag string) error {
 		!caps.StdoutTTY || caps.CI || caps.DumbTerminal || caps.NoColorEnv ||
 		opts.Color == presentation.TriNever || eff.Accessible || !eff.UseColor
 	human := !structured
+	// Match presentation ThemeMode (explicit --theme / config), not raw COLORFGBG alone.
 	style := "dark"
-	if caps.Background == presentation.BackgroundLight {
+	if eff.ThemeMode == presentation.ThemeLight {
 		style = "light"
 	}
 

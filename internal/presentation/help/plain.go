@@ -15,7 +15,7 @@ type RenderOptions struct {
 	Plain      bool
 	Accessible bool
 	Hyperlinks bool
-	Style      string // glamour style path: dark|light
+	Style      string // glamour standard style: dark|light
 }
 
 // Render selects plain or rich Markdown rendering.
