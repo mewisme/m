@@ -88,3 +88,4 @@ Flags:
   -v, --version              version for m
 
 Use "m [command] --help" for more information about a command.
+Use "m help <topic>" for curated topics (errors, runner, lifecycle-trust, …).

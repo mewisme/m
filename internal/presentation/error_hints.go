@@ -24,19 +24,24 @@ type hintRule struct {
 
 var hintRules = []hintRule{
 	{code: apperr.Usage, message: "Run `m <command> --help` for usage."},
+	{code: apperr.Usage, message: "Run `m help errors ERR_M_USAGE` for details."},
 	{code: apperr.Lockfile, operation: "install", message: "Run `m install` to update the lockfile."},
 	{code: apperr.Lockfile, message: "Run `m install` to refresh the lockfile."},
+	{code: apperr.Lockfile, message: "Run `m help errors ERR_M_LOCKFILE` for details."},
 	{code: apperr.NotFound, predicate: func(m ErrorMetadata) bool {
 		return strings.Contains(m.Operation, "run") || strings.Contains(m.Subject, "script")
 	}, message: "Run `m run <script>` or list scripts with `m pkg get scripts`."},
 	{code: apperr.NotFound, message: "Check the project path and package name."},
 	{code: apperr.Policy, operation: "lifecycle.trust", message: "Review and approve with `m trust <package>` or `m builds`."},
 	{code: apperr.Policy, message: "Review policy with `m policy check` or lifecycle trust with `m builds`."},
+	{code: apperr.Policy, message: "Run `m help errors ERR_M_POLICY` for details."},
 	{code: apperr.Config, message: "Run `m config list` to inspect effective configuration."},
 	{code: apperr.Resolve, message: "Run `m explain <package>` to inspect resolution decisions."},
 	{code: apperr.Transaction, message: "Run `m recover` to inspect incomplete transactions."},
+	{code: apperr.Transaction, message: "Run `m help errors ERR_M_TRANSACTION` for details."},
 	{code: apperr.Integrity, operation: "doctor", message: "Run `m doctor` for a health report."},
 	{code: apperr.Integrity, message: "Run `m verify` or `m doctor` to inspect integrity state."},
+	{code: apperr.Integrity, message: "Run `m help errors ERR_M_INTEGRITY` for details."},
 	{code: apperr.Network, message: "Check network connectivity or use `--offline` when cache is warm."},
 	{code: apperr.Manifest, message: "Validate package.json syntax and required fields."},
 	{code: apperr.Store, message: "Run `m store status` to inspect the content store."},

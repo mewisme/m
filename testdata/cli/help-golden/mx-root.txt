@@ -32,3 +32,4 @@ Flags:
   -v, --version              version for mx
 
 Use "mx [command] --help" for more information about a command.
+Use "mx help <topic>" for curated topics (errors, runner, lifecycle-trust, …).

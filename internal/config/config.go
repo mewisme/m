@@ -99,6 +99,7 @@ var ownedKeys = map[string]string{
 	"ui.accessible":                  "bool",
 	"ui.summary":                     "bool",
 	"ui.theme":                       "string",
+	"ui.pager":                       "string",
 	"log.level":                      "string",
 }
 
@@ -145,6 +146,7 @@ func defaults() map[string]any {
 		"ui.accessible":                  false,
 		"ui.summary":                     true,
 		"ui.theme":                       "",
+		"ui.pager":                       "",
 		"log.level":                      "error",
 	}
 }

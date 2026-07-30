@@ -61,6 +61,7 @@ func configureGroupedHelp(root *cobra.Command) {
 	for _, cmd := range root.Commands() {
 		applyCommandHelp(cmd)
 	}
+	configureTopicHelp(root)
 }
 
 func applyCommandHelp(cmd *cobra.Command) {
@@ -107,6 +108,7 @@ Additional help topics:
 {{- end}}
 
 Use "{{.CommandPath}} [command] --help" for more information about a command.
+Use "{{.CommandPath}} help <topic>" for curated topics (errors, runner, lifecycle-trust, …).
 `
 
 const groupedUsageTemplate = `Usage:{{if .Runnable}}

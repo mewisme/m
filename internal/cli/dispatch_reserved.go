@@ -64,9 +64,6 @@ func driftAgainstShippedBuiltins(root *cobra.Command) []string {
 	tree := reservedSetForRoot(root)
 	var missing []string
 	for _, name := range shippedBuiltins {
-		if name == "help" {
-			continue // default help command is disabled on the m root
-		}
 		if _, ok := tree[name]; !ok {
 			missing = append(missing, name)
 		}
