@@ -375,8 +375,8 @@
     },
     {
       "path": "scripts/enrichment-core.json",
-      "bytes": 76944,
-      "sha256": "52c0dff21aab923c90ce24b49e7039567ca9a25bc5d1ff4653eee0f3037ce2f5"
+      "bytes": 75396,
+      "sha256": "3226dcea95651a62ebaaf4ea94f42471c4cf23873410b0d8697c962d10bffa52"
     },
     {
       "path": "scripts/enrichment-cross.json",
@@ -390,8 +390,8 @@
     },
     {
       "path": "scripts/enrichment-runners-runtime.json",
-      "bytes": 91155,
-      "sha256": "bd3b833dbdea0bb8a64ea3d5b7ee311e5dc882806b14232bf0f5a95860e2ed9b"
+      "bytes": 89472,
+      "sha256": "823d7adad7c25915e0328850c2eadf66ffa5bc617361aba09a1462e01bb71620"
     },
     {
       "path": "scripts/generate-checklist.ps1",
