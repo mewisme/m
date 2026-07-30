@@ -53,6 +53,11 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 | `ui.pager` | string | empty — optional pager command for `m help` topics (`MEW_PAGER` / `PAGER`) |
 | `log.level` | string | `error` |
 
+Presentation modes, streams, and rollout stages:
+[`architecture/cli-presentation.md`](architecture/cli-presentation.md).
+Accessible mode: [`accessibility.md`](accessibility.md).
+`MEW_PRESENTATION=legacy` / `--presentation-legacy` remains until Stage 5 cleanup.
+
 Environment:
 
 | Variable | Effect |

@@ -1,14 +1,16 @@
 # macOS CI evidence slot (UX-0008)
 
-**Status:** planned — no local macOS measurement.
+**Status:** pending — fill after a green `conformance-cli-ux` run on the tip
+SHA pushed for UX-0008 certification. No local macOS measurement on this host.
 
-Record the GitHub Actions `test` / `cli-ux` (or equivalent) job that runs:
+Record the GitHub Actions job that runs:
 
 ```text
 go run ./cmd/m conformance run cli-ux --json
 ```
 
-on `macos-*` for the **exact** certification commit SHA already on `origin/main`.
+on `macos-latest` (workflow job name: `conformance-cli-ux`) for the **exact**
+certification commit SHA already on `origin/main`.
 
 ## Required fields when filled
 
@@ -16,7 +18,7 @@ on `macos-*` for the **exact** certification commit SHA already on `origin/main`
 |---|---|
 | Commit SHA | full 40-character SHA |
 | Workflow run ID | numeric Actions run id |
-| Job name | e.g. `test (macos-…)` or dedicated `cli-ux` |
+| Job name | `conformance-cli-ux` (macos-latest) |
 | OS / arch | darwin / amd64 or arm64 |
 | Go version | from job log |
 | Result | green / fail with root cause |

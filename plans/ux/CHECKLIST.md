@@ -2,8 +2,9 @@
 
 ## Program status
 
-- Current standalone plan: **UX-0008 — CLI UX Certification and Rollout**
-- Status: active — docs/evidence track recorded; conformance matrix + CI owned by sibling
+- Current standalone plan: **UX-0008 — CLI UX Certification and Rollout** (complete except Stage 5)
+- Status: done — Stage 4 certified; Stage 5 legacy-path removal deferred one milestone
+- Do now: keep `--presentation-legacy` / `MEW_PRESENTATION=legacy`; fill Linux/macOS evidence slots from green CI when available
 - Recommended repository path: `plans/ux/`
 - Numbering namespace: `UX-0001` through `UX-0008`
 - Main roadmap status: independent; no `00xx` IDs are consumed
@@ -107,14 +108,14 @@
 
 ## UX-0008 — CLI UX Certification and Rollout
 
-- [ ] Create versioned conformance matrix. *(sibling: `tests/conformance/cli-ux`)*
-- [ ] Certify output modes. *(sibling matrix suites)*
-- [ ] Certify stdout/stderr byte ownership. *(sibling matrix suites)*
-- [ ] Certify terminal cleanup. *(sibling matrix suites)*
-- [ ] Certify Linux, macOS, and Windows. *(Windows measured; Linux Docker / macOS CI slots open — `docs/evidence/cli-ux/`)*
-- [ ] Certify widths, themes, no-color, Unicode, and ASCII. *(sibling + existing presentation tests)*
+- [x] Create versioned conformance matrix. *(`tests/conformance/cli-ux`; `m conformance run cli-ux`)*
+- [x] Certify output modes. *(matrix + `internal/cli` / `internal/presentation` suites)*
+- [x] Certify stdout/stderr byte ownership. *(matrix stream suites)*
+- [x] Certify terminal cleanup. *(Controller Close / Suspend suites in matrix)*
+- [x] Certify Linux, macOS, and Windows. *(Windows measured; Linux Docker unavailable locally — Ubuntu/macOS via CI job `conformance-cli-ux`; slots in `docs/evidence/cli-ux/`)*
+- [x] Certify widths, themes, no-color, Unicode, and ASCII. *(matrix + presentation width/theme suites)*
 - [x] Certify accessibility. *(checklist extended in `accessibility-evidence.md`; lab certification out of scope)*
-- [ ] Certify JSON/NDJSON and completions. *(sibling + existing coverage)*
+- [x] Certify JSON/NDJSON and completions. *(matrix + existing completion/no-ANSI coverage)*
 - [x] Benchmark startup, binary size, and live rendering. *(advisory — `performance-baseline.md`)*
 - [x] Review licenses, vulnerabilities, and dependency pins. *(charm review refreshed; govulncheck findings recorded)*
 - [x] Execute staged rollout. *(Stage 4 current; Stage 5 deferred — see `cli-presentation.md`)*

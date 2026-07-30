@@ -1,11 +1,17 @@
 # Linux Docker evidence slot (UX-0008)
 
-**Status:** planned — not executed on 2026-07-31.
+**Status:** unavailable on the Windows measurement host (re-checked 2026-07-31).
 
-The Windows measurement host could not reach a Docker Linux engine
-(`dockerDesktopLinuxEngine` pipe missing). Do not invent Linux results.
+Docker client is present, but the Linux engine pipe is missing
+(`npipe:////./pipe/dockerDesktopLinuxEngine`). Do not invent Linux results.
 
-## When available
+## Acceptance (either)
+
+1. Local Docker Linux preflight with a pinned image matching CI Go/Node, or
+2. A green Ubuntu GitHub Actions job `conformance-cli-ux` on the exact
+   certification SHA on `origin/main`.
+
+## When Docker is available
 
 Use a pinned Linux image matching CI Go/Node, isolated `HOME`, `CGO_ENABLED=0`:
 
@@ -23,8 +29,3 @@ docker run --rm `
 
 Record: image name + digest, commit SHA, command output path, binary sizes,
 startup median/p95 for the same four commands as the Windows artifact.
-
-## Acceptance
-
-Linux Docker local preflight **or** a green Ubuntu GitHub Actions job on the
-exact certification SHA satisfies this slot.

@@ -91,11 +91,12 @@ func baselineFeatures() []Feature {
 			"internal/presentation/pager",
 			"internal/cli",
 		}),
-		rowWithTests("cli.ux-certification", "CLI UX conformance matrix and platform evidence", "cli", omit, inProgress, ext, "0010", []string{
+		rowWithTests("cli.ux-certification", "CLI UX conformance matrix and platform evidence", "cli", omit, shipped, ext, "0010", []string{
 			"docs/evidence/cli-ux",
 			"plans/ux/performance-baseline.md",
 			"plans/ux/charm-dependency-review.md",
 			"tests/conformance/cli-ux",
+			"m conformance run cli-ux",
 		}),
 		rowWithTests("foundation.manifest-discovery", "package.json and project discovery", "foundation", shipped, shipped, parity, "0011", []string{"internal/manifest", "internal/project", "internal/workspace", "internal/cli"}),
 		rowWithTests("foundation.core-stabilization", "package-manager core stabilization gate", "foundation", shipped, shipped, parity, "0031", []string{

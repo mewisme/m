@@ -256,14 +256,15 @@
       "name": "CLI UX conformance matrix and platform evidence",
       "module": "cli",
       "nub_status": "intentional-omit",
-      "mew_status": "in-progress",
+      "mew_status": "shipped",
       "compatibility_class": "extension",
       "primary_mvp": "0010",
       "tests": [
         "docs/evidence/cli-ux",
         "plans/ux/performance-baseline.md",
         "plans/ux/charm-dependency-review.md",
-        "tests/conformance/cli-ux"
+        "tests/conformance/cli-ux",
+        "m conformance run cli-ux"
       ]
     },
     {

@@ -293,11 +293,16 @@ never mutates the baseline. See [`runner-compatibility.md`](runner-compatibility
 m conformance run core [--json] [--filter <suite-id>]
 m conformance run runner [--json] [--output <path>] [--group <group>] [--filter <suite-id>] [--force]
 m conformance verify runner --report <path>... --output <summary> [--force]
+m conformance run cli-ux [--json] [--filter <suite-id>]
 ```
 
 Runner certification uses [`tests/conformance/runner-matrix/manifest.json`](../tests/conformance/runner-matrix/manifest.json).
 Cross-platform aggregation requires one report per platform. See
 [`runner-compatibility.md`](runner-compatibility.md) and [`runner-waivers.md`](runner-waivers.md).
+
+CLI UX certification uses [`tests/conformance/cli-ux/manifest.json`](../tests/conformance/cli-ux/manifest.json).
+Architecture and rollout: [`architecture/cli-presentation.md`](architecture/cli-presentation.md).
+Evidence: [`evidence/cli-ux/`](evidence/cli-ux/). Accessibility: [`accessibility.md`](accessibility.md).
 
 ## Lock
 
