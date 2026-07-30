@@ -397,6 +397,11 @@ func applyLeadingToGlobalFlags(g *globalFlags, leading leadingDispatchFlags) {
 }
 
 func lookupBuiltin(root *cobra.Command, name string) (DispatchOutcomeKind, string) {
+	// SetHelpCommand registers help outside Commands() until Cobra Execute;
+	// without this, Phase A direct dispatch treats "help" as an unknown selector.
+	if name == "help" {
+		return OutcomeBuiltin, "help"
+	}
 	for _, c := range root.Commands() {
 		if c.Name() == name {
 			return OutcomeBuiltin, c.Name()
