@@ -6,7 +6,7 @@
 - Last updated: 2026-07-30
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
-- Last certified core commit: `f0ce96df82b262819334a121c584b93b1aeaa309`
+- Last certified core commit: `4513ddb0248e44a99fe9c999a8b709e9d122c450`
 
 ## Do now
 
