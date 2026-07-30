@@ -73,7 +73,7 @@ Every new package must expose narrow interfaces, accept `context.Context` for ca
 
 ### Contracts & types
 
-- [ ] Write product charter covering MewJS, Mew, m/mew, mx/mewx, m.lock, and Nub parity goal
+- [ ] Write product charter covering Mew, Mewx, m.lock, and Nub parity goal
 - [ ] Create compatibility-state vocabulary: parity, intentional divergence, extension, deferred
 - [ ] Draft migration narrative outline for npm/pnpm/Yarn/Bun/Nub users
 - [ ] Create ADR template for irreversible decisions
@@ -161,6 +161,10 @@ Secrets must never be written to logs, lockfiles, snapshots, telemetry, crash re
 - [ ] No unresolved correctness, integrity, or data-loss issue remains.
 - [ ] Public behavior and intentional deviations are documented.
 - [ ] The next dependent MVP can consume stable interfaces without reaching into internals.
+
+
+
+
 
 
 

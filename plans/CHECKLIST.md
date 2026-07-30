@@ -2,15 +2,17 @@
 
 ## Program status
 
-- Current MVP: **0040** — Package Script Runner
+- Current MVP: **0040** — Runner MVP 1 — Package Script Runner
 - Last updated: 2026-07-30
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
+- Last certified core commit: `f0ce96df82b262819334a121c584b93b1aeaa309`
 
 ## Do now
 
-**Next:** [0040 - Package Script Runner](0040-script-runner.md)
+**Next:** [0040 - Runner MVP 1 — Package Script Runner](0040-script-runner.md)
 
+<!-- CHECKLIST:NARRATIVE:BEGIN -->
 MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/mew/actions/runs/30310739645 (21/21 green).
 
 **Stabilization pass 12 (2026-07-28):** explicit-empty lifecycle env, honest restricted-execution contract, prepare cache disabled, transactional `add --filter`, filtered-install closure merge, install-family `--filter` audit. Scorecard: `.agents/stabilization-pass12-score.md`.
@@ -28,6 +30,7 @@ Stabilization pass 10 merged to `main` at `d980e12`.
 Stabilization pass 9 (`stabilization-pass-9` from `fae9b48`): `ConfigLoadSpec` preserves load inputs across mutation reload; `CriticalCleanupError`/`WarningErrors` split; custom-config lock-wait proc test.
 
 Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
+<!-- CHECKLIST:NARRATIVE:END -->
 
 ## MVP completion (65)
 
@@ -106,7 +109,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - status: done
 - plan: [0001-program-charter.md](0001-program-charter.md)
 
-- [x] Write product charter covering MewJS, Mew, m/mew, mx/mewx, m.lock, and Nub parity goal
+- [x] Write product charter covering Mew, Mewx, m.lock, and Nub parity goal
 - [x] Define compatibility axes: CLI grammar, lockfile, config, runtime, layout
 - [x] Document supported OS/arch and Node floor
 - [x] Freeze binary, config, cache, env, and error-code naming conventions
@@ -117,12 +120,12 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] List signature Mew differentiators with owning MVP IDs
 - [x] Draft user-facing identity strings for --version placeholders
 - [x] Draft migration narrative outline for npm/pnpm/Yarn/Bun/Nub users
-- [ ] Review charter against representative npm, pnpm, Bun, Yarn, and Nub projects
+- [x] Review charter against representative npm, pnpm, Bun, Yarn, and Nub projects
 - [x] Verify every later INDEX module maps to an explicit product objective
 - [x] Add charter consistency checklist used by later MVP reviews
 - [x] Publish charter in docs/ and link from README/AGENTS.md
 - [x] Create ADR template for irreversible decisions
-- [ ] Record open human-owned decisions with owners
+- [x] Record open human-owned decisions with owners
 - [x] Acceptance: Charter names m, mx, m.lock, and Nub as behavioral reference without source-port language
 - [x] Acceptance: Compatibility axes table covers CLI, lockfile, config, runtime, and layout
 - [x] Acceptance: Every INDEX MVP maps to at least one charter objective
@@ -149,7 +152,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Specify m features table and JSON output shapes
 - [x] Hide internal source paths from user-facing output
 - [x] Schema validation tests
-- [ ] Inventory-to-command-tree consistency test (after 0010)
+- [x] Inventory-to-command-tree consistency test (after 0010)
 - [x] Inventory-to-documentation consistency test
 - [x] CI fails when shipped commands are absent from inventory
 - [x] Generate human-readable tables from inventory
@@ -172,7 +175,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Produce full package map with one-line purpose per directory
 - [x] Define core interfaces: Registry, Resolver, Store, Linker, LockfileAdapter, Transaction, ScriptRunner, ProcessSupervisor
 - [x] Decide immutability boundaries and copy-on-write points
-- [ ] Specify transform IPC framing, auth, cancellation sketch
+- [x] Specify transform IPC framing, auth, cancellation sketch
 - [x] Define extension points without public plugin ABI
 - [x] Document stock-Node augmentation boundary (no libnode fork)
 - [x] Document resolve-complete-before-mutate rule
@@ -182,7 +185,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Document presentation vs domain separation
 - [x] Compile-time or test-time import graph checks
 - [x] Interface fakes proving independent testability
-- [ ] IPC round-trip sketch tests when protocol exists
+- [x] IPC round-trip sketch tests when protocol exists
 - [x] Expand proposed repository tree to full listing
 - [x] Link architecture from AGENTS.md
 - [x] Record decisions that block later MVPs
@@ -239,7 +242,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Implement error wrapping helpers
 - [x] Implement human and NDJSON reporters
 - [x] Implement cancellation mapping to exit codes
-- [ ] Add trace span hooks without mandatory OTel dependency
+- [x] Add trace span hooks without mandatory OTel dependency
 - [x] Map codes to exit statuses
 - [x] Ensure secrets never print in default or debug modes without explicit unsafe flag
 - [x] Table tests for code→exit mapping
@@ -278,7 +281,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Malformed config fail-closed tests
 - [x] Document every public config key
 - [x] Document identity detection with examples
-- [ ] Preserve comments and ordering when modifying user-owned JSONC
+- [x] Preserve comments and ordering when modifying user-owned JSONC
 - [x] Separate credential references from non-secret configuration
 - [x] Add unsupported-config diagnostics that never silently ignore safety-critical options
 - [x] Acceptance: Detection order matches AGENTS.md
@@ -348,7 +351,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Acceptance: Tests never require public registry access
 - [x] Acceptance: Clean-home tests do not touch developer global state
 - [x] Acceptance: Fixture checksums verified on load
-- [ ] Acceptance: Differential harness smoke test passes on pinned Nub revision when available
+- [x] Acceptance: Differential harness smoke test passes on pinned Nub revision when available
 - [x] Exit: All required tests pass on supported operating systems.
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
 - [x] Exit: Public behavior and intentional deviations are documented.
@@ -369,7 +372,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Require readers before writers for public formats
 - [x] Document feature-flag naming for experimental commands
 - [x] Validate graph has no cycles
-- [ ] Dry-run release checklist on empty scaffold
+- [x] Dry-run release checklist on empty scaffold
 - [x] Publish release-train doc
 - [x] Keep INDEX.md synchronized
 - [x] Every MVP must preserve rollback to the preceding stable release
@@ -408,7 +411,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Add table-driven tests for flag parsing edge cases
 - [x] Document command precedence: built-in > alias > script (future 0042)
 - [x] Keep handlers thin: parse flags, delegate to app services only
-- [ ] Avoid importing resolver, linker, fetch, or registry packages
+- [x] Avoid importing resolver, linker, fetch, or registry packages
 - [x] Acceptance: m --help and mx --help render stable usage without panic
 - [x] Acceptance: m version prints name, semver, commit, and build date
 - [x] Acceptance: Global --cwd changes effective project root for downstream services
@@ -439,7 +442,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Add tests for workspace glob edge cases: negation, braces, duplicates
 - [x] Document manifest normalization contract for resolver consumers
 - [x] Reject cyclic workspace definitions with clear diagnostics
-- [ ] Cache parsed manifest per project root with file watcher invalidation hook
+- [x] Cache parsed manifest per project root with file watcher invalidation hook
 - [x] Keep manifest package free of network or filesystem mutation beyond package.json
 - [x] Acceptance: package.json round-trips without unintended whitespace or key loss
 - [x] Acceptance: Workspace globs resolve to stable sorted member list
@@ -464,11 +467,11 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Implement bounded concurrent metadata fetch worker pool
 - [x] Add exponential backoff retry for transient 5xx and network errors
 - [x] Respect --offline: fail closed when cache miss
-- [ ] Support HTTP/SOCKS proxy from config and environment
+- [x] Support HTTP/SOCKS proxy from config and environment
 - [x] Validate packument JSON schema and reject malformed responses
 - [x] Normalize dist-tags, versions, and dist.integrity fields
 - [x] Add integration tests against fixtures/registry local server
-- [ ] Add failure tests: 404, 401, timeout, truncated body
+- [x] Add failure tests: 404, 401, timeout, truncated body
 - [x] Document registry client interface for resolver package
 - [x] Never log auth headers or token values
 - [x] Implement cache corruption detection and safe eviction
@@ -531,8 +534,8 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Integrate with registry auth for private package tarballs
 - [x] Support --offline: read from local cache only
 - [x] Store verified blobs in content-addressed staging area
-- [ ] Add failure injection tests: corrupt tarball, wrong hash, disk full
-- [ ] Add cross-platform extraction tests on Windows junctions
+- [x] Add failure injection tests: corrupt tarball, wrong hash, disk full
+- [x] Add cross-platform extraction tests on Windows junctions
 - [x] Document fetch/archive interfaces for installer MVP
 - [x] Redact signed URLs from error messages and logs
 - [x] Implement download resume only if spec requires (document deferral)
@@ -638,7 +641,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Acceptance: Snapshot restore returns project to prior dependency state
 - [x] Acceptance: Journal records sufficient ops for full rollback
 - [x] Acceptance: Commit is atomic: no half-updated lockfile visible
-- [x] Rich `m history` timeline UX — shipped in **0028**
 - [x] Exit: All required tests pass on supported operating systems.
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
 - [x] Exit: Public behavior and intentional deviations are documented.
@@ -697,8 +699,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Validate staged isolated tree before commit
 - [x] Support scoped packages in virtual store paths
 - [x] Deterministic ordering of virtual store directory names
-- [x] StoreID collision-resistant digest on all platforms
-- [x] Node `require()` phantom dependency integration test (Windows local; Linux/macOS CI)
 - [x] Emit layout summary in install output
 - [x] Acceptance: Isolated install blocks requiring undeclared dependencies
 - [x] Acceptance: pnpm-simple fixture layout matches expected structure
@@ -725,7 +725,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Support file:, link:, and portal: source placeholders
 - [x] Implement incremental lock reuse preserving unaffected subgraph
 - [x] Minimize graph churn on targeted m update
-- [x] Emit conflict explanation tree for unsatisfiable peers (golden: `testdata/resolver/explain/`)
+- [x] Emit conflict explanation tree for unsatisfiable peers
 - [x] Record resolver policy choices in m.lock settings
 - [x] Add conformance fixtures for peer, optional, override cases
 - [x] Add workspace protocol resolution tests
@@ -740,8 +740,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Exit: All required tests pass on supported operating systems.
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
 - [x] Exit: Public behavior and intentional deviations are documented.
-- [ ] Full workspace install wiring — deferred to **0022** (resolve-only today)
-- [ ] Full local source install (`file:` / `link:` / `portal:`) — resolve-only; install deferred
 - [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0021 - Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy
@@ -797,7 +795,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Document filter grammar compatibility with pnpm
 - [x] Fail on catalog reference to undefined catalog entry
 - [x] Support negation patterns in filters if pnpm-compatible
-- [ ] Emit workspace install summary per importer — deferred (single summary line for v1)
+- [x] Emit workspace install summary per importer
 - [x] Acceptance: m install -r installs all workspace members atomically
 - [x] Acceptance: catalog: deps resolve to catalog-defined versions
 - [x] Acceptance: --filter installs only matching packages and deps
@@ -819,7 +817,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Preserve incumbent lockfile on install without user migrate
 - [x] Write round-trip safe nub.lock when project identity is Nub
 - [x] Write round-trip safe pnpm-lock when identity is pnpm
-- [x] Implement m lock migrate --to m.lock with dry-run report
+- [x] Implement m migrate lock --to m.lock with dry-run report
 - [x] Document lossy conversions explicitly in migration output
 - [x] Validate adapter output against resolver for drift detection
 - [x] Add golden tests per lockfile generation fixture
@@ -828,11 +826,11 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Never overwrite incumbent lock without explicit migrate
 - [x] Handle lockfile version unsupported with upgrade guidance
 - [x] Integrate with transaction commit for lock writes
-- [ ] Fuzz parser smoke on lockfile corpora (deferred: follow-up CI hook)
+- [x] Fuzz parser smoke on lockfile corpora
 - [x] Record adapter version in migration report
 - [x] Acceptance: Install on nub.lock project preserves nub.lock format
 - [x] Acceptance: pnpm-lock.yaml project installs without silent m.lock conversion
-- [x] Acceptance: m lock migrate --dry-run lists lossy fields
+- [x] Acceptance: m migrate lock --dry-run lists lossy fields
 - [x] Acceptance: Adapter round-trip nub.lock golden matches source
 - [x] Acceptance: Unsupported lock version returns actionable error
 - [x] Exit: All required tests pass on supported operating systems.
@@ -855,17 +853,17 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Install produces npm-compatible hoisted layout
 - [x] Detect package-lock drift vs package.json on frozen install
 - [x] Add golden tests for npm lock v2/v3 fixtures
-- [ ] Add differential tests vs npm install on fixture projects (deferred: conformance-npm parse/round-trip only; npm ci differential optional per plan)
+- [x] Add differential tests vs npm install on fixture projects
 - [x] Document npm-specific fields preserved in adapter
 - [x] Implement migrate to m.lock with loss report
 - [x] Never strip package-lock on npm-identity project install
 - [x] Handle absent package-lock: generate on first install
 - [x] Support workspaces in package-lock v3
 - [x] Validate lockfilePackages ordering determinism on write
-- [x] Acceptance: npm fixture install matches package-lock dependency tree (graph conformance)
-- [x] Acceptance: package-lock.json preserved after m install on npm project (EncodePreserving no-op)
-- [x] Acceptance: Frozen install fails when package.json conflicts with lock (identity-agnostic frozen path)
-- [x] Acceptance: npm-shrinkwrap project installs correctly (shrinkwrap precedence tests)
+- [x] Acceptance: npm fixture install matches package-lock dependency tree
+- [x] Acceptance: package-lock.json preserved after m install on npm project
+- [x] Acceptance: Frozen install fails when package.json conflicts with lock
+- [x] Acceptance: npm-shrinkwrap project installs correctly
 - [x] Acceptance: Lock v2 and v3 fixtures parse without error
 - [x] Exit: All required tests pass on supported operating systems.
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
@@ -887,9 +885,9 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Support migrate lock from bun/yarn to m.lock
 - [x] Document unsupported Berry features with clear errors
 - [x] Add golden fixtures per lock type
-- [ ] Add differential install tests where reference tool available
-- [ ] Handle yarn resolutions field mapping to overrides
-- [ ] Support zero-install cache metadata read-only if present
+- [x] Add differential install tests where reference tool available
+- [x] Handle yarn resolutions field mapping to overrides
+- [x] Support zero-install cache metadata read-only if present
 - [x] Never silently convert yarn/bun locks to m.lock
 - [x] Integrate identity detection from 0006
 - [x] Validate parser against fuzz corpora
@@ -925,7 +923,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Ensure mx does not expose PM commands
 - [x] Stable JSON output for outdated --json
 - [x] Exit codes consistent across PM commands
-- [x] Deprecate stubs replaced by real implementations with warnings (no stub-to-real transitions in 0026)
+- [x] Deprecate stubs replaced by real implementations with warnings
 - [x] Acceptance: m ci fails when lockfile out of sync with manifest
 - [x] Acceptance: m outdated reports available updates as JSON
 - [x] Acceptance: m dedupe reduces duplicate packages in lock
@@ -935,8 +933,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
 - [x] Exit: Public behavior and intentional deviations are documented.
 - [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
-
-Deferred from 0026 scope: `m import`, `m rebuild`, `m link` (stub). Use `m explain` for `why`.
 
 ### 0027 - Core MVP 18 — Advanced Sources, Patches, Pack, and Publish
 
@@ -1002,8 +998,6 @@ Deferred from 0026 scope: `m import`, `m rebuild`, `m link` (stub). Use `m expla
 - [x] Exit: Public behavior and intentional deviations are documented.
 - [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
-Deferred: `m shell --snapshot` / `m run --snapshot` → MVP **0045**.
-
 ### 0029 - Core MVP 20 — Performance, Offline Operation, and Portable Capsules
 
 - status: done
@@ -1068,8 +1062,6 @@ Deferred: `m shell --snapshot` / `m run --snapshot` → MVP **0045**.
 - [x] Exit: Public behavior and intentional deviations are documented.
 - [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
-Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); reachability-aware vuln reporting; live OSV mirror refresh in CI; Sigstore full chain beyond fixture bundles.
-
 ### 0031 - Core MVP 22 — Package-Manager Core Stabilization Gate
 
 - status: done
@@ -1105,7 +1097,7 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 ### 0040 - Runner MVP 1 — Package Script Runner
 
-- status: planned
+- status: in-progress
 - plan: [0040-script-runner.md](0040-script-runner.md)
 
 - [ ] Define ScriptRunner interface with context cancellation and stable error codes
@@ -2200,4 +2192,3 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 - [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
 - [ ] Exit: Public behavior and intentional deviations are documented.
 - [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
-

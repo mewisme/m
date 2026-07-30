@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "full_name": "MewJS",
+  "short_name": "Mew",
+  "primary_binary": "m",
+  "primary_alias": "mew",
+  "executor_binary": "mx",
+  "executor_alias": "mewx",
+  "native_lockfile": "m.lock"
+}

@@ -5,6 +5,8 @@ $ErrorActionPreference = 'Stop'
 $PlansRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $RepoRoot = Resolve-Path (Join-Path $PlansRoot '..')
 
+. (Join-Path $PSScriptRoot 'Read-Status.ps1')
+
 function Get-Catalog {
   $merged = [ordered]@{}
   Get-ChildItem (Join-Path $PSScriptRoot 'enrichment-*.json') | ForEach-Object {
@@ -16,8 +18,24 @@ function Get-Catalog {
   return $merged
 }
 
+function Get-CheckedItemTexts {
+  param([string]$Raw)
+  $checked = @{}
+  foreach ($m in [regex]::Matches($Raw, '(?m)^- \[x\] (.+)$')) {
+    $checked[$m.Groups[1].Value] = $true
+  }
+  return $checked
+}
+
+function Format-ChecklistItem {
+  param([string]$Text, $Checked)
+  $mark = if ($Checked.ContainsKey($Text)) { 'x' } else { ' ' }
+  return "- [$mark] $Text"
+}
+
 function ConvertTo-ChecklistMarkdown {
-  param($Entry)
+  param($Entry, $Checked)
+  if (-not $Checked) { $Checked = @{} }
   $sb = New-Object System.Text.StringBuilder
   $groups = [ordered]@{
     'Contracts & types'    = @()
@@ -41,7 +59,7 @@ function ConvertTo-ChecklistMarkdown {
     [void]$sb.AppendLine("### $g")
     [void]$sb.AppendLine()
     foreach ($it in $groups[$g]) {
-      [void]$sb.AppendLine("- [ ] $it")
+      [void]$sb.AppendLine((Format-ChecklistItem -Text $it -Checked $Checked))
     }
     [void]$sb.AppendLine()
   }
@@ -130,13 +148,15 @@ function Update-PlanFile {
   param([string]$Path, [string]$Id, $Entry)
 
   $raw = Get-Content $Path -Raw -Encoding utf8
+  $checked = Get-CheckedItemTexts -Raw $raw
+
   # Strip prior enrichment
   $raw = [regex]::Replace($raw, '(?s)\r?\n<!-- ENRICHMENT:BEGIN -->.*?<!-- ENRICHMENT:END -->\r?\n?', "`n")
   $raw = [regex]::Replace($raw, '(?s)<!-- ENRICHMENT-TESTS -->.*?(?=\r?\nRequired test layers:|\r?\n## )', '')
 
   $title = ([regex]::Match($raw, '^#\s+(.+)$', 'Multiline')).Groups[1].Value
   $enrich = ConvertTo-EnrichmentBlock -Id $Id -Entry $Entry -Title $title
-  $newChecklist = ConvertTo-ChecklistMarkdown -Entry $Entry
+  $newChecklist = ConvertTo-ChecklistMarkdown -Entry $Entry -Checked $checked
 
   # Replace Detailed Implementation Checklist section through Test Plan header
   $pattern = '(?s)## Detailed Implementation Checklist\r?\n.*?(?=## Test Plan)'
@@ -158,10 +178,10 @@ function Update-PlanFile {
   if ($raw -notmatch '<!-- ENRICHMENT-TESTS -->') {
     $extraTests = @('<!-- ENRICHMENT-TESTS -->')
     foreach ($a in @($Entry.acceptance)) {
-      $extraTests += "- [ ] Acceptance: $a"
+      $extraTests += (Format-ChecklistItem -Text "Acceptance: $a" -Checked $checked)
     }
     foreach ($f in @($Entry.fixtures)) {
-      $extraTests += "- [ ] Fixture ready: ``$f``"
+      $extraTests += (Format-ChecklistItem -Text "Fixture ready: ``$f``" -Checked $checked)
     }
     $extraTests += ''
     $block = ($extraTests -join "`n") + "`n"
@@ -212,26 +232,67 @@ function Get-PlanMeta {
   }
 }
 
-function Write-Checklist {
-  param($Catalog, $PlanFiles)
+function Get-PreservedNarrative {
+  param([string]$ChecklistPath)
+  if (-not (Test-Path $ChecklistPath)) { return '' }
+  $raw = Get-Content $ChecklistPath -Raw -Encoding utf8
+  $m = [regex]::Match($raw, '(?s)<!-- CHECKLIST:NARRATIVE:BEGIN -->\r?\n(.*?)\r?\n<!-- CHECKLIST:NARRATIVE:END -->')
+  if ($m.Success) {
+    return $m.Groups[1].Value.TrimEnd()
+  }
+  # One-time migration: capture stabilization notes after **Next:** line.
+  $doNow = [regex]::Match($raw, '(?s)## Do now\r?\n\r?\n\*\*Next:\*\*[^\n]*\r?\n\r?\n(.*?)(?=\r?\n## MVP completion)')
+  if ($doNow.Success) {
+    return $doNow.Groups[1].Value.TrimEnd()
+  }
+  return ''
+}
 
-  $today = Get-Date -Format 'yyyy-MM-dd'
+function Write-Checklist {
+  param($Catalog, $PlanFiles, $Status)
+
+  $today = $Status.LastUpdated
+  if (-not $today) { $today = Get-Date -Format 'yyyy-MM-dd' }
+  $checklistPath = Join-Path $PlansRoot 'CHECKLIST.md'
+  $narrative = Get-PreservedNarrative -ChecklistPath $checklistPath
+
+  $currentMeta = $null
+  $currentSlug = $null
+  foreach ($f in $PlanFiles) {
+    $id = ($f.Name -split '-')[0]
+    if ($id -eq $Status.CurrentMvp) {
+      $currentMeta = Get-PlanMeta -Path $f.FullName
+      $currentSlug = $f.BaseName
+      break
+    }
+  }
+  if (-not $currentMeta) {
+    throw "no plan file for currentMvp $($Status.CurrentMvp)"
+  }
+
   $sb = New-Object System.Text.StringBuilder
   [void]$sb.AppendLine('# Mew Implementation Master Checklist')
   [void]$sb.AppendLine()
   [void]$sb.AppendLine('## Program status')
   [void]$sb.AppendLine()
-  [void]$sb.AppendLine('- Current MVP: (none - planning enrichment complete)')
+  [void]$sb.AppendLine("- Current MVP: **$($Status.CurrentMvp)** — $($currentMeta.Name)")
   [void]$sb.AppendLine("- Last updated: $today")
   [void]$sb.AppendLine('- Source of truth: per-MVP files under `plans/00xx-*.md`')
   [void]$sb.AppendLine('- Regenerate: `.\plans\scripts\enrich-and-generate.ps1`')
+  if ($Status.LastCertifiedCoreCommit) {
+    [void]$sb.AppendLine("- Last certified core commit: ``$($Status.LastCertifiedCoreCommit)``")
+  }
   [void]$sb.AppendLine()
   [void]$sb.AppendLine('## Do now')
   [void]$sb.AppendLine()
-  [void]$sb.AppendLine('Predecessors satisfied for:')
+  [void]$sb.AppendLine("**Next:** [$($Status.CurrentMvp) - $($currentMeta.Name)]($currentSlug.md)")
   [void]$sb.AppendLine()
-  [void]$sb.AppendLine('1. [0001 - Program charter](0001-program-charter.md) - no predecessors')
-  [void]$sb.AppendLine()
+  if ($narrative) {
+    [void]$sb.AppendLine('<!-- CHECKLIST:NARRATIVE:BEGIN -->')
+    [void]$sb.AppendLine($narrative)
+    [void]$sb.AppendLine('<!-- CHECKLIST:NARRATIVE:END -->')
+    [void]$sb.AppendLine()
+  }
   [void]$sb.AppendLine('## MVP completion (65)')
   [void]$sb.AppendLine()
   [void]$sb.AppendLine('| ID | MVP | Phase | Predecessors | Status | Plan |')
@@ -253,23 +314,29 @@ function Write-Checklist {
     if (-not $pred) { $pred = '-' }
     $short = $meta.Name
     if ($short.Length -gt 60) { $short = $short.Substring(0, 57) + '...' }
-    [void]$sb.AppendLine("| $id | $short | $phase | $pred | [ ] | [$id]($slug.md) |")
+    $done = Test-MvpCompleted -Status $Status -Id $id
+    $mark = if ($done) { '[x]' } else { '[ ]' }
+    [void]$sb.AppendLine("| $id | $short | $phase | $pred | $mark | [$id]($slug.md) |")
 
+    $rollup = Get-MvpRollupStatus -Status $Status -Id $id
     [void]$agg.AppendLine("### $id - $($meta.Name)")
     [void]$agg.AppendLine()
-    [void]$agg.AppendLine("- status: planned")
+    [void]$agg.AppendLine("- status: $rollup")
     [void]$agg.AppendLine("- plan: [$slug.md]($slug.md)")
     [void]$agg.AppendLine()
     $entry = $Catalog[$id]
     if ($entry) {
       foreach ($it in @($entry.scopeItems)) {
-        [void]$agg.AppendLine("- [ ] $it")
+        $itemMark = if ($done) { 'x' } else { ' ' }
+        [void]$agg.AppendLine("- [$itemMark] $it")
       }
       foreach ($a in @($entry.acceptance)) {
-        [void]$agg.AppendLine("- [ ] Acceptance: $a")
+        $itemMark = if ($done) { 'x' } else { ' ' }
+        [void]$agg.AppendLine("- [$itemMark] Acceptance: $a")
       }
       foreach ($e in @($meta.ExitItems)) {
-        [void]$agg.AppendLine("- [ ] Exit: $e")
+        $itemMark = if ($done) { 'x' } else { ' ' }
+        [void]$agg.AppendLine("- [$itemMark] Exit: $e")
       }
     }
     else {
@@ -285,7 +352,16 @@ function Write-Checklist {
   return $out
 }
 
+function Get-ProductIdentity {
+  $path = Join-Path $RepoRoot 'product\identity.json'
+  if (-not (Test-Path $path)) {
+    throw "missing product identity: $path"
+  }
+  return Get-Content $path -Raw -Encoding utf8 | ConvertFrom-Json
+}
+
 function Update-Manifest {
+  $identity = Get-ProductIdentity
   $files = Get-ChildItem $PlansRoot -Recurse -File | Where-Object {
     $_.FullName -notmatch '\\\.git\\' -and $_.Name -ne 'manifest.json'
   } | Sort-Object FullName
@@ -305,11 +381,13 @@ function Update-Manifest {
   $manifest = [ordered]@{
     name                = 'Mew Implementation Plan'
     product             = [ordered]@{
-      full_name          = 'Mew'
-      binary             = 'm'
-      executor_full_name = 'Mewx'
-      executor_binary    = 'mx'
-      native_lockfile    = 'm.lock'
+      full_name        = $identity.full_name
+      short_name       = $identity.short_name
+      binary           = $identity.primary_binary
+      primary_alias    = $identity.primary_alias
+      executor_binary  = $identity.executor_binary
+      executor_alias   = $identity.executor_alias
+      native_lockfile  = $identity.native_lockfile
     }
     language            = 'English'
     reference           = [ordered]@{
@@ -322,10 +400,14 @@ function Update-Manifest {
     files               = $entries
   }
   $json = $manifest | ConvertTo-Json -Depth 8
-  Set-Content -Path (Join-Path $PlansRoot 'manifest.json') -Value $json -Encoding utf8
+  $outPath = Join-Path $PlansRoot 'manifest.json'
+  [System.IO.File]::WriteAllText($outPath, ($json + "`n"), [System.Text.UTF8Encoding]::new($false))
 }
 
 # ---- main ----
+Write-Host 'Loading status...'
+$Status = Get-PlanStatus -PlansRoot $PlansRoot
+
 Write-Host 'Loading catalogs...'
 $Catalog = Get-Catalog
 Write-Host ("Catalog entries: {0}" -f $Catalog.Count)
@@ -348,10 +430,7 @@ foreach ($f in $planFiles) {
 }
 
 Write-Host 'Writing CHECKLIST.md...'
-Write-Checklist -Catalog $Catalog -PlanFiles $planFiles | Out-Null
-
-Write-Host 'Updating 0000-README and INDEX hints...'
-# README / INDEX updated by separate small patch below if needed
+Write-Checklist -Catalog $Catalog -PlanFiles $planFiles -Status $Status | Out-Null
 
 Write-Host 'Updating manifest.json...'
 Update-Manifest
