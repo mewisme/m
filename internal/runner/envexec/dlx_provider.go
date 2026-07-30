@@ -107,10 +107,25 @@ func (p DLXProvider) planOffline(ctx context.Context, deps ProviderDeps, req Exe
 	}, nil
 }
 
+func emitPrep(deps ProviderDeps, label string) {
+	if deps.PrepStage != nil {
+		deps.PrepStage(label)
+	}
+}
+
 func (p DLXProvider) planRemote(ctx context.Context, deps ProviderDeps, req ExecutionRequest, mxRoot, cacheRoot string) (EnvironmentPlan, error) {
 	if deps.DLX.ResolveMetadata == nil {
 		return EnvironmentPlan{}, apperr.New(apperr.Internal, "envexec.dlx", "", "missing resolve hook")
 	}
+	src := req.Source.(DLXSource)
+	specLabel := "package"
+	if len(src.Packages) > 0 {
+		specLabel = src.Packages[0].Raw
+		if specLabel == "" {
+			specLabel = src.Packages[0].Name
+		}
+	}
+	emitPrep(deps, "Resolving "+specLabel)
 	resolved, err := deps.DLX.ResolveMetadata(ctx, req)
 	if err != nil {
 		return EnvironmentPlan{}, err
@@ -152,7 +167,6 @@ func (p DLXProvider) planRemote(ctx context.Context, deps ProviderDeps, req Exec
 	if err != nil {
 		return EnvironmentPlan{}, err
 	}
-	src := req.Source.(DLXSource)
 	consentKey := dlx.NewConsentKey(resolved.Identity, command, owner)
 	store, err := dlx.LoadConsentStore(dlx.ConsentStorePath(cacheRoot))
 	if err != nil {
@@ -164,6 +178,9 @@ func (p DLXProvider) planRemote(ctx context.Context, deps ProviderDeps, req Exec
 		return EnvironmentPlan{}, dlx.NonInteractiveUsageError()
 	}
 	if !decision.Approved {
+		if !warm {
+			emitPrep(deps, "Checking consent")
+		}
 		ok, perr := dlx.PromptConsent(deps.Stderr, deps.Stdin, resolved.Identity.Digest())
 		if perr != nil {
 			return EnvironmentPlan{}, perr
@@ -221,6 +238,8 @@ func (p DLXProvider) Materialize(ctx context.Context, deps ProviderDeps, plan En
 				envRelease()
 				return PreparedEnvironment{}, apperr.New(apperr.Internal, "envexec.dlx", "", "missing build hook")
 			}
+			emitPrep(deps, "Fetching package")
+			emitPrep(deps, "Preparing environment")
 			if err := deps.DLX.BuildEnvironment(ctx, plan.Request, d.Resolved, envDir); err != nil {
 				envRelease()
 				return PreparedEnvironment{}, err

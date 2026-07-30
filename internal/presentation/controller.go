@@ -25,6 +25,11 @@ type Controller interface {
 	Suspend(ctx context.Context) error
 	Resume(ctx context.Context) error
 	Close(ctx context.Context, outcome Outcome) error
+	SetRunnerCommand(cmd string)
+	SetTerminalIntent(intent TerminalIntent)
+	DisableWorkspaceLiveStatus()
+	TerminalIntent() TerminalIntent
+	ShouldSuspendForChild() bool
 }
 
 type controller struct {
@@ -34,6 +39,8 @@ type controller struct {
 	reporter    diagnostics.Reporter
 	streams     StreamWriters
 	sink        ProgressSink
+	runner      *RunnerPresentation
+	intent      TerminalIntent
 	suspended   bool
 	closed      bool
 	closeErr    error
@@ -73,12 +80,23 @@ func NewController(resolved ResolvedOptions, caps Capabilities, streams StreamWr
 	}
 	attachProgressHooks(&opts, sink)
 
+	var runnerPres *RunnerPresentation
+	if !resolved.Legacy && !resolved.Structured() && resolved.EffectiveOutput != OutputSilent {
+		if settings.Width == 0 {
+			settings = Effective(resolved, caps)
+		}
+		runnerPres = newRunnerPresentation(settings, streams.Err, resolved.Debug, resolved.Summary)
+		attachRunnerHooks(&opts, runnerPres)
+	}
+
 	c := &controller{
 		resolved:    resolved,
 		caps:        caps,
 		reporter:    diagnostics.NewReporter(opts),
 		streams:     streams,
 		sink:        sink,
+		runner:      runnerPres,
+		intent:      TerminalAuto,
 		debugOnDown: resolved.DowngradedRich || downgraded,
 	}
 	if c.debugOnDown {
@@ -131,6 +149,43 @@ func (c *controller) Options() ResolvedOptions { return c.resolved }
 
 func (c *controller) Capabilities() Capabilities { return c.caps }
 
+func (c *controller) SetRunnerCommand(cmd string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.runner != nil {
+		c.runner.SetCommand(cmd)
+	}
+}
+
+func (c *controller) SetTerminalIntent(intent TerminalIntent) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.intent = intent
+	if c.runner != nil {
+		c.runner.SetIntent(intent)
+	}
+}
+
+func (c *controller) TerminalIntent() TerminalIntent {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.intent
+}
+
+func (c *controller) ShouldSuspendForChild() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return ShouldSuspendRichUI(c.intent, c.caps)
+}
+
+func (c *controller) DisableWorkspaceLiveStatus() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.runner != nil {
+		c.runner.DisableWorkspaceLiveStatus()
+	}
+}
+
 func (c *controller) Suspend(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -143,6 +198,9 @@ func (c *controller) Suspend(ctx context.Context) error {
 	c.suspended = true
 	if c.sink != nil {
 		c.sink.Suspend()
+	}
+	if c.runner != nil {
+		c.runner.Suspend()
 	}
 	return nil
 }
@@ -159,6 +217,9 @@ func (c *controller) Resume(ctx context.Context) error {
 	c.suspended = false
 	if c.sink != nil {
 		c.sink.Resume()
+	}
+	if c.runner != nil {
+		c.runner.Resume()
 	}
 	return nil
 }

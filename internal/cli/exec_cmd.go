@@ -112,6 +112,9 @@ func newExecCmd() *cobra.Command {
 			if parsed.packageName == "" {
 				parsed.packageName = pkg
 			}
+			if g := ownerFlags(cmd.Root()); g != nil && g.ctrl != nil {
+				g.ctrl.SetRunnerCommand(parsed.command)
+			}
 			_, err = app.Exec(cmd.Context(), ac, app.ExecOptions{
 				Command:       parsed.command,
 				PackageFilter: parsed.packageName,

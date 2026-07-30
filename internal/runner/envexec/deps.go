@@ -31,6 +31,8 @@ type ProviderDeps struct {
 	Stdin            io.Reader
 	Stdout           io.Writer
 	Stderr           io.Writer
+	// PrepStage emits human-only cold-path stage labels (Resolving, Consent, …).
+	PrepStage func(label string)
 }
 
 // ConfigView is the effective configuration surface providers may read.
@@ -176,5 +178,7 @@ func (DefaultExecAdapter) Exec(ctx context.Context, env PreparedEnvironment, req
 		Stdin:           req.IO.Stdin,
 		Stdout:          req.IO.Stdout,
 		Stderr:          req.IO.Stderr,
+		Suspend:         req.Suspend,
+		Resume:          req.Resume,
 	}, sup)
 }

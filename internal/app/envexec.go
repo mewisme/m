@@ -4,10 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/binmeta"
 	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/diagnostics"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/runner"
 	"github.com/mewisme/mew/internal/runner/dlx"
@@ -78,6 +80,12 @@ func providerDeps(ac *Context) envexec.ProviderDeps {
 		Materializer: appFrozenMaterializer{ac: ac},
 		SnapshotLoad: loadSnapshotForExec,
 		CapsuleOpen:  openCapsuleForExec,
+		PrepStage: func(label string) {
+			if ac == nil || ac.Reporter == nil {
+				return
+			}
+			ac.Reporter.Progress(diagnostics.Event{V: 1, Type: "prep-stage", Phase: label})
+		},
 		DLX: envexec.DLXHooks{
 			ResolveMetadata: func(ctx context.Context, req envexec.ExecutionRequest) (envexec.DLXResolveResult, error) {
 				src := req.Source.(envexec.DLXSource)
@@ -209,7 +217,20 @@ func execViaOrchestrator(ctx context.Context, ac *Context, req envexec.Execution
 	if req.Policy.Network == "" {
 		req.Policy = envexec.LockedProviderPolicy(req.Source.Kind())
 	}
-	return defaultOrchestrator(ac).Execute(ctx, providerDeps(ac), req)
+	if req.Suspend == nil {
+		req.Suspend = ac.SuspendUI
+	}
+	if req.Resume == nil {
+		req.Resume = ac.ResumeUI
+	}
+	started := time.Now()
+	result, err := defaultOrchestrator(ac).Execute(ctx, providerDeps(ac), req)
+	name := req.Command.Name
+	if name == "" {
+		name = "exec"
+	}
+	emitExecCompletion(ac, name, time.Since(started), result.ExitCode, err)
+	return result, err
 }
 
 func dlxLocalIdentity(bind GenerationBinding, imp ExecImporter) envexec.EnvironmentIdentity {

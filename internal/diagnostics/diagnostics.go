@@ -210,6 +210,13 @@ type Options struct {
 	OnOperationProgress  func(OperationProgressEvent)
 	OnOperationCompleted func(OperationCompletedEvent)
 	OnNotice             func(NoticeEvent)
+	// Optional presentation-owned runner hooks (human path).
+	OnEnvironmentPrepared func(EnvironmentPreparedEvent)
+	OnWorkspaceTask       func(WorkspaceTaskEvent)
+	OnWorkspaceSummary    func(WorkspaceSummaryEvent)
+	OnPrepStage           func(label string)
+	OnExecPrep            func(title string, rows []Attr)
+	OnExecSummary         func(name string, durationMs int64, exit int, status string)
 }
 
 // ColorMode controls ANSI color.
@@ -299,6 +306,39 @@ func isTTY(w io.Writer) bool {
 type humanReporter struct{ base *baseReporter }
 
 func (r *humanReporter) Progress(ev Event) {
+	if ev.Type == "prep-stage" {
+		hook := r.base.opts.OnPrepStage
+		if hook != nil {
+			hook(ev.Phase)
+			return
+		}
+		r.base.mu.Lock()
+		defer r.base.mu.Unlock()
+		fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact("  "+ev.Phase), r.base.opts.TermWidth))
+		return
+	}
+	if ev.Type == "exec-prep" {
+		hook := r.base.opts.OnExecPrep
+		if hook != nil {
+			rows := []Attr{}
+			if ev.Message != "" {
+				rows = append(rows, Attr{Key: "Source", Value: ev.Message})
+			}
+			if ev.Package != "" {
+				rows = append(rows, Attr{Key: "Package", Value: ev.Package})
+			}
+			hook(ev.Phase, rows)
+			return
+		}
+	}
+	if ev.Type == "exec-summary" {
+		hook := r.base.opts.OnExecSummary
+		if hook != nil {
+			hook(ev.Phase, ev.Bytes, ev.Exit, ev.Status)
+			return
+		}
+		return
+	}
 	r.base.mu.Lock()
 	defer r.base.mu.Unlock()
 	switch ev.Type {
@@ -324,6 +364,13 @@ func (r *humanReporter) Progress(ev Event) {
 		if !ev.Partial {
 			fmt.Fprintln(out)
 		}
+		return
+	case "exec-prep":
+		line := ev.Phase
+		if ev.Package != "" {
+			line += " " + ev.Package
+		}
+		fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
 		return
 	}
 	line := ev.Phase
@@ -367,6 +414,11 @@ func (r *humanReporter) Debug(msg string, attrs ...Attr) {
 }
 
 func (r *humanReporter) WorkspaceTask(ev WorkspaceTaskEvent) {
+	hook := r.base.opts.OnWorkspaceTask
+	if hook != nil {
+		hook(ev)
+		return
+	}
 	r.base.mu.Lock()
 	defer r.base.mu.Unlock()
 	line := fmt.Sprintf("%s %s %s [%d]", ev.Phase, ev.Package, ev.Status, ev.Index)
@@ -396,6 +448,11 @@ func (r *humanReporter) ChildOutput(ev ChildOutputEvent, mode WorkspaceOutputMod
 }
 
 func (r *humanReporter) WorkspaceSummary(ev WorkspaceSummaryEvent) {
+	hook := r.base.opts.OnWorkspaceSummary
+	if hook != nil {
+		hook(ev)
+		return
+	}
 	r.base.mu.Lock()
 	defer r.base.mu.Unlock()
 	line := fmt.Sprintf("%s completed=%d failed=%d cancelled=%d skipped=%d not-run=%d concurrency=%d",
@@ -403,7 +460,13 @@ func (r *humanReporter) WorkspaceSummary(ev WorkspaceSummaryEvent) {
 	fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
 }
 
-func (r *humanReporter) EnvironmentPrepared(EnvironmentPreparedEvent) error { return nil }
+func (r *humanReporter) EnvironmentPrepared(ev EnvironmentPreparedEvent) error {
+	hook := r.base.opts.OnEnvironmentPrepared
+	if hook != nil {
+		hook(ev)
+	}
+	return nil
+}
 
 func (r *humanReporter) OperationStarted(ev OperationStartedEvent) {
 	// Progress is presentation-owned. Call hooks outside base.mu to avoid deadlock
@@ -446,6 +509,9 @@ func (r *humanReporter) Notice(ev NoticeEvent) {
 type ndjsonReporter struct{ base *baseReporter }
 
 func (r *ndjsonReporter) Progress(ev Event) {
+	if ev.Type == "prep-stage" || ev.Type == "exec-prep" || ev.Type == "exec-summary" {
+		return
+	}
 	if ev.V == 0 {
 		ev.V = 1
 	}

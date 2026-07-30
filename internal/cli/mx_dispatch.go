@@ -44,6 +44,13 @@ func tryMXDispatch(ctx context.Context, root *cobra.Command, g *globalFlags, inf
 		rep.Error(classifyCLIError(err))
 		return apperr.ExitCode(err), true
 	}
+	if g.ctrl != nil {
+		cmdLabel := inv.Command
+		if cmdLabel == "" && len(inv.PackageSpecs) > 0 {
+			cmdLabel = inv.PackageSpecs[0].Raw
+		}
+		g.ctrl.SetRunnerCommand(cmdLabel)
+	}
 	det := dlx.DefaultInteractivityDetector{}
 	interactive := det.IsInteractive(os.Stdin)
 	_, err = app.DLX(ctx, ac, app.DLXOptions{

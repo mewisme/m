@@ -38,6 +38,9 @@ func newRunCmd() *cobra.Command {
 			}
 			if g := ownerFlags(cmd.Root()); g != nil {
 				leading.filter = workspaceFilters(cmd)
+				if g.ctrl != nil {
+					g.ctrl.SetRunnerCommand(args[0])
+				}
 			}
 			inv, err := BuildScriptInvocation(args[0], args, cmd.ArgsLenAtDash(), leading)
 			if err != nil {
