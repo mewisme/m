@@ -1,15 +1,20 @@
 # Stable Naming Conventions
 
-Frozen identifiers for Mew public surfaces. Changes require an ADR and compatibility-axis update.
+Frozen identifiers for MewJS public surfaces. Changes require an ADR and compatibility-axis update.
+
+## Product
+
+| Name | Role |
+|---|---|
+| **MewJS** | Public product name |
+| **Mew** | Abbreviation used in docs and messaging |
 
 ## Binaries
 
-| Binary | Role | Alias status |
+| Binary | Role | Alias |
 |---|---|---|
-| `m` | Primary toolchain CLI | Required |
-| `mx` | Package executable runner (Mewx) | Required |
-| `mew` | Optional installer alias for `m` | Open decision (0072) |
-| `mewx` | Optional installer alias for `mx` | Open decision (0072) |
+| `m` | Primary toolchain CLI | `mew` |
+| `mx` | Package executable runner | `mewx` |
 
 ## Lockfiles
 

@@ -75,8 +75,8 @@ func TestMXRootHelp(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "Mewx") {
-		t.Fatalf("help missing Mewx:\n%s", buf.String())
+	if !strings.Contains(buf.String(), "MewJS") {
+		t.Fatalf("help missing MewJS:\n%s", buf.String())
 	}
 }
 

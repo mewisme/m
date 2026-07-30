@@ -48,3 +48,10 @@ Desktop.ini
 *~
 
 internal/app/AppData/
+
+/m
+/mx
+
+.cache
+
+/.agents

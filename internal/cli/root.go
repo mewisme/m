@@ -21,8 +21,8 @@ func NewMRoot(info BuildInfo) *cobra.Command {
 	}
 	root := &cobra.Command{
 		Use:   use,
-		Short: "Mew — JavaScript toolchain and package manager",
-		Long:  "Mew is a Go implementation of the Nub product model for package management, scripts, and runtime augmentation.",
+		Short: "MewJS — JavaScript toolchain and package manager",
+		Long:  "MewJS (Mew) is a Go-based JavaScript toolchain and package manager for package management, scripts, and runtime augmentation.",
 	}
 	root.Version = info.Version
 	root.CompletionOptions.DisableDefaultCmd = true
@@ -91,8 +91,8 @@ func NewMXRoot(info BuildInfo) *cobra.Command {
 	}
 	root := &cobra.Command{
 		Use:   use,
-		Short: "Mewx — package executable runner",
-		Long:  "Mewx executes local or temporary package binaries.",
+		Short: "MewJS — package executable runner",
+		Long:  "MewJS package executable runner. Executes local or temporary package binaries.",
 	}
 	root.Version = info.Version
 	root.CompletionOptions.DisableDefaultCmd = true

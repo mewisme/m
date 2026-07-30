@@ -69,8 +69,5 @@ Checklist expansion replaces the short checklist between:
 Regenerate with:
 
 ```powershell
-.\plans\scripts\enrich-plans.ps1
-.\plans\scripts\generate-cursor-plans.ps1
-.\plans\scripts\generate-checklist.ps1
-.\plans\scripts\update-manifest.ps1
+.\plans\scripts\enrich-and-generate.ps1
 ```

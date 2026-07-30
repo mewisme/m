@@ -6,11 +6,11 @@ alwaysApply: true
 <!-- MEW-IDENTITY_START -->
 # Mew repository identity
 
-- Product name: **Mew**.
+- Product name: **MewJS** (abbreviated **Mew**).
 - Repository: https://github.com/mewisme/mew
 - Go module: `github.com/mewisme/mew`
-- Primary CLI executable: `m`.
-- Secondary executor executable: `mx`.
+- Primary CLI executable: `m` (alias `mew`).
+- Executor executable: `mx` (alias `mewx`).
 - Work only inside the Mew repository unless the task explicitly requires external temporary files for testing.
 - Do not describe the work as porting, copying, reimplementing, or migrating from Nub, an upstream project, or another source project.
 - Nub behavior may be referenced only as a compatibility target or external behavioral contract.

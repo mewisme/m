@@ -1,4 +1,4 @@
-Mewx executes local or temporary package binaries.
+MewJS package executable runner. Executes local or temporary package binaries.
 
 Usage:
   mx [command]

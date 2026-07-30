@@ -47,10 +47,9 @@ MVP completion must pass [`docs/charter-checklist.md`](docs/charter-checklist.md
 
 ## Product identity
 
-- **Mew** is the project name.
-- **`m`** is the primary binary.
-- **Mewx** is the package executable runner.
-- **`mx`** is the executor binary.
+- **MewJS** is the product name (abbreviated **Mew**).
+- **`m`** is the primary binary (alias **`mew`**).
+- **`mx`** is the package executable runner (alias **`mewx`**).
 - The native lockfile is **`m.lock`**.
 - `nub.lock` is a first-class compatibility target.
 - npm, pnpm, Bun, and Yarn projects keep their incumbent identity by default.

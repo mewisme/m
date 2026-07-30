@@ -16,7 +16,7 @@ func TestMXHelp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(out), "Mewx") {
+	if !strings.Contains(string(out), "MewJS") {
 		t.Fatalf("unexpected help:\n%s", out)
 	}
 }

@@ -1,4 +1,4 @@
-Mew is a Go implementation of the Nub product model for package management, scripts, and runtime augmentation.
+MewJS (Mew) is a Go-based JavaScript toolchain and package manager for package management, scripts, and runtime augmentation.
 
 Usage:
   m [command]

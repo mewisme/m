@@ -1,14 +1,15 @@
-# Mew Program Charter
+# MewJS Program Charter
 
-This document is the product contract for **Mew**: a Go implementation of the [Nub](https://nubjs.com) product model. It defines identity, compatibility policy, delivery priorities, and intentional extensions. Implementation plans live under `plans/`; this charter is the stable reference for later MVPs.
+This document is the product contract for **MewJS** (abbreviated **Mew**): a Go-based JavaScript toolchain and package manager. It defines identity, compatibility policy, delivery priorities, and intentional extensions. Implementation plans live under `plans/`; this charter is the stable reference for later MVPs.
 
 ## Product identity
 
 | Concept | Name | Notes |
 |---|---|---|
-| Project | **Mew** | Public project name |
-| Primary toolchain binary | **`m`** | Package manager, scripts, runtime orchestration |
-| Executable runner | **`mx`** | Local and temporary package binary execution (Mewx) |
+| Product | **MewJS** | Public product name |
+| Abbreviation | **Mew** | Short form in docs and messaging |
+| Primary toolchain binary | **`m`** | Alias **`mew`** — package manager, scripts, runtime orchestration |
+| Executable runner | **`mx`** | Alias **`mewx`** — local and temporary package binary execution |
 | Native lockfile | **`m.lock`** | Default for new Mew-owned projects |
 | Nub lockfile compatibility | **`nub.lock`** | First-class read/write target when project identity is Nub |
 | Behavioral reference | **Nub** | Observable semantics and product positioning — not a source-level port target |
@@ -26,7 +27,7 @@ Invoked basename `mew` / `mewx` changes the help `Use` and version binary label;
 
 ## Long-term goal
 
-**Intentional Nub feature parity** across package management, script execution, runtime augmentation, Node and package-manager management, and distribution — with Mew-specific improvements documented explicitly.
+**Complete toolchain coverage** across package management, script execution, runtime augmentation, Node and package-manager management, and distribution — with Mew-specific improvements documented explicitly.
 
 Delivery priority:
 
@@ -174,7 +175,7 @@ Later MVPs must verify against [`charter-checklist.md`](charter-checklist.md) be
 | Decision | Owner / tracker |
 |---|---|
 | Exact Node LTS floor for v1 | Plans 0084, 0089 |
-| Whether `mew` / `mewx` alias binaries ship in v1 installers | Plan 0072 |
+| Whether v1 installers ship `mew` / `mewx` symlinks alongside `m` / `mx` | Plan 0072 |
 
 ## Related documents
 

@@ -31,73 +31,73 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ## MVP completion (65)
 
-| ID | MVP | Phase | Predecessors | Status | Plan | Cursor plan |
-|----|-----|-------|--------------|--------|------|-------------|
-| 0001 | Program Charter and Product Contract | Foundation | None | [x] | [0001](0001-program-charter.md) | [0001-program-charter](cursor/0001-program-charter.plan.md) |
-| 0002 | Complete Feature Inventory and Parity Matrix | Foundation | 0001 | [x] | [0002](0002-feature-inventory.md) | [0002-feature-inventory](cursor/0002-feature-inventory.plan.md) |
-| 0003 | Target Architecture and Rust-to-Go Boundaries | Foundation | 0001, 0002 | [x] | [0003](0003-target-architecture.md) | [0003-target-architecture](cursor/0003-target-architecture.plan.md) |
-| 0004 | Repository Bootstrap, Tooling, and Engineering Standards | Foundation | 0003 | [x] | [0004](0004-repository-bootstrap.md) | [0004-repository-bootstrap](cursor/0004-repository-bootstrap.plan.md) |
-| 0005 | Stable Error Model, Diagnostics, and Observability | Foundation | 0004 | [x] | [0005](0005-error-observability.md) | [0005-error-observability](cursor/0005-error-observability.plan.md) |
-| 0006 | Configuration and Project Identity Model | Foundation | 0004, 0005 | [x] | [0006](0006-configuration-identity.md) | [0006-configuration-identity](cursor/0006-configuration-identity.plan.md) |
-| 0007 | Canonical Data Model and Core Interfaces | Foundation | 0003, 0006 | [x] | [0007](0007-data-model-interfaces.md) | [0007-data-model-interfaces](cursor/0007-data-model-interfaces.plan.md) |
-| 0008 | Testing, Fixtures, Fuzzing, and Conformance Strategy | Foundation | 0004, 0007 | [x] | [0008](0008-testing-strategy.md) | [0008-testing-strategy](cursor/0008-testing-strategy.plan.md) |
-| 0009 | Release Train and MVP Dependency Graph | Foundation | 0001, 0002, 0003, 0008 | [x] | [0009](0009-release-train-overview.md) | [0009-release-train-overview](cursor/0009-release-train-overview.plan.md) |
-| 0010 | Core MVP 1 — CLI Foundation and Command Dispatch | Core / MVP 1 | 0004, 0005, 0006, 0007 | [x] | [0010](0010-cli-foundation.md) | [0010-cli-foundation](cursor/0010-cli-foundation.plan.md) |
-| 0011 | Core MVP 2 — Manifest Parsing and Project Discovery | Core / MVP 2 | 0010 | [x] | [0011](0011-manifest-project-discovery.md) | [0011-manifest-project-discovery](cursor/0011-manifest-project-discovery.plan.md) |
-| 0012 | Core MVP 3 — Registry Client and Metadata Cache | Core / MVP 3 | 0011 | [x] | [0012](0012-registry-cache.md) | [0012-registry-cache](cursor/0012-registry-cache.plan.md) |
-| 0013 | Core MVP 4 — npm Semver and Basic Dependency Resolver | Core / MVP 4 | 0012 | [x] | [0013](0013-semver-basic-resolver.md) | [0013-semver-basic-resolver](cursor/0013-semver-basic-resolver.plan.md) |
-| 0014 | Core MVP 5 — Tarball Fetch, Integrity, and Safe Extraction | Core / MVP 5 | 0012, 0013 | [x] | [0014](0014-fetch-integrity-extraction.md) | [0014-fetch-integrity-extraction](cursor/0014-fetch-integrity-extraction.plan.md) |
-| 0015 | Core MVP 6 — Native `m.lock` Format | Core / MVP 6 | 0007, 0013 | [x] | [0015](0015-m-lock.md) | [0015-m-lock](cursor/0015-m-lock.plan.md) |
-| 0016 | Core MVP 7 — Basic End-to-End Installer | Core / MVP 7 | 0011, 0013, 0014, 0015 | [x] | [0016](0016-basic-installer.md) | [0016-basic-installer](cursor/0016-basic-installer.plan.md) |
-| 0017 | Core MVP 8 — Transactional Install and Instant Rollback | Core / MVP 8 | 0016 | [x] | [0017](0017-transaction-rollback.md) | [0017-transaction-rollback](cursor/0017-transaction-rollback.plan.md) |
-| 0018 | Core MVP 9 — Global Content Store and Smart Filesystem Pl... | Core / MVP 9 | 0014, 0017 | [x] | [0018](0018-global-store-smart-linker.md) | [0018-global-store-smart-linker](cursor/0018-global-store-smart-linker.plan.md) |
-| 0019 | Core MVP 10 — Isolated Virtual Store and Node Modules Layout | Core / MVP 10 | 0018 | [x] | [0019](0019-isolated-linker.md) | [0019-isolated-linker](cursor/0019-isolated-linker.plan.md) |
-| 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [x] | [0020](0020-advanced-resolver.md) | [0020-advanced-resolver](cursor/0020-advanced-resolver.plan.md) |
-| 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [x] | [0021](0021-lifecycle-sandbox.md) | [0021-lifecycle-sandbox](cursor/0021-lifecycle-sandbox.plan.md) |
-| 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [x] | [0022](0022-workspaces-catalogs.md) | [0022-workspaces-catalogs](cursor/0022-workspaces-catalogs.plan.md) |
-| 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [x] | [0023](0023-nub-pnpm-lock-bridge.md) | [0023-nub-pnpm-lock-bridge](cursor/0023-nub-pnpm-lock-bridge.plan.md) |
-| 0024 | Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility | Core / MVP 15 | 0023 | [x] | [0024](0024-npm-locks.md) | [0024-npm-locks](cursor/0024-npm-locks.plan.md) |
-| 0025 | Core MVP 16 — Bun and Yarn Lockfile Compatibility | Core / MVP 16 | 0023, 0024 | [x] | [0025](0025-bun-yarn-locks.md) | [0025-bun-yarn-locks](cursor/0025-bun-yarn-locks.plan.md) |
-| 0026 | Core MVP 17 — Complete Package-Manager Command Surface | Core / MVP 17 | 0021, 0022, 0023, 0024, 0025 | [x] | [0026](0026-pm-command-surface.md) | [0026-pm-command-surface](cursor/0026-pm-command-surface.plan.md) |
-| 0027 | Core MVP 18 — Advanced Sources, Patches, Pack, and Publish | Core / MVP 18 | 0026 | [x] | [0027](0027-advanced-sources-publish.md) | [0027-advanced-sources-publish](cursor/0027-advanced-sources-publish.plan.md) |
-| 0028 | Core MVP 19 — Explainability, Plans, Semantic Diffs, and ... | Core / MVP 19 | 0017, 0020, 0026 | [x] | [0028](0028-explain-plan-history.md) | [0028-explain-plan-history](cursor/0028-explain-plan-history.plan.md) |
-| 0029 | Core MVP 20 — Performance, Offline Operation, and Portabl... | Core / MVP 20 | 0018, 0026, 0028 | [x] | [0029](0029-performance-offline-capsules.md) | [0029-performance-offline-capsules](cursor/0029-performance-offline-capsules.plan.md) |
-| 0030 | Core MVP 21 — Audit, SBOM, Provenance, and Supply-Chain P... | Core / MVP 21 | 0012, 0021, 0027, 0029 | [x] | [0030](0030-security-audit-sbom.md) | [0030-security-audit-sbom](cursor/0030-security-audit-sbom.plan.md) |
-| 0031 | Core MVP 22 — Package-Manager Core Stabilization Gate | Core / Stabilization | 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018, 0019, 0020, 0021, 0022, 0023, 0024, 0025, 0026, 0027, 0028, 0029, 0030 | [x] | [0031](0031-core-stabilization.md) | [0031-core-stabilization](cursor/0031-core-stabilization.plan.md) |
-| 0040 | Runner MVP 1 — Package Script Runner | Runner / MVP 1 | 0031 | [ ] | [0040](0040-script-runner.md) | [0040-script-runner](cursor/0040-script-runner.plan.md) |
-| 0041 | Runner MVP 2 — Workspace Script Orchestration | Runner / MVP 2 | 0022, 0040 | [ ] | [0041](0041-workspace-runner.md) | [0041-workspace-runner](cursor/0041-workspace-runner.plan.md) |
-| 0042 | Runner MVP 3 — Direct `m <script>` Shortcuts | Runner / Mew Extension | 0010, 0040 | [ ] | [0042](0042-direct-script-shortcuts.md) | [0042-direct-script-shortcuts](cursor/0042-direct-script-shortcuts.plan.md) |
-| 0043 | Runner MVP 4 — Local Package Binary Execution | Runner / MVP 4 | 0019, 0040 | [ ] | [0043](0043-local-exec.md) | [0043-local-exec](cursor/0043-local-exec.plan.md) |
-| 0044 | Runner MVP 5 — `mx` Remote Fetch and Execution | Runner / MVP 5 | 0021, 0029, 0043 | [ ] | [0044](0044-mx-dlx.md) | [0044-mx-dlx](cursor/0044-mx-dlx.plan.md) |
-| 0045 | Runner MVP 6 — Unified Execution and Snapshot Environments | Runner / MVP 6 | 0028, 0029, 0043, 0044 | [ ] | [0045](0045-unified-execution.md) | [0045-unified-execution](cursor/0045-unified-execution.plan.md) |
-| 0046 | Runner Stabilization Gate | Runner / Stabilization | 0040, 0041, 0042, 0043, 0044, 0045 | [ ] | [0046](0046-runner-stabilization.md) | [0046-runner-stabilization](cursor/0046-runner-stabilization.plan.md) |
-| 0050 | Runtime MVP 1 — Node Launch and Compatibility Boundary | Runtime / MVP 1 | 0046 | [ ] | [0050](0050-node-launch-compat.md) | [0050-node-launch-compat](cursor/0050-node-launch-compat.plan.md) |
-| 0051 | Runtime MVP 2 — Go Transform Service and TypeScript Execu... | Runtime / MVP 2 | 0050 | [ ] | [0051](0051-go-transform-service.md) | [0051-go-transform-service](cursor/0051-go-transform-service.plan.md) |
-| 0052 | Runtime MVP 3 — JSX, Decorators, and Source-Map Parity | Runtime / MVP 3 | 0051 | [ ] | [0052](0052-jsx-decorators-sourcemaps.md) | [0052-jsx-decorators-sourcemaps](cursor/0052-jsx-decorators-sourcemaps.plan.md) |
-| 0053 | Runtime MVP 4 — Module Resolution, Path Aliases, and Cust... | Runtime / MVP 4 | 0019, 0025, 0052 | [ ] | [0053](0053-module-resolution-loaders.md) | [0053-module-resolution-loaders](cursor/0053-module-resolution-loaders.plan.md) |
-| 0054 | Runtime MVP 5 — Environment Loading, Workers, Storage, an... | Runtime / MVP 5 | 0050, 0053 | [ ] | [0054](0054-env-modern-apis.md) | [0054-env-modern-apis](cursor/0054-env-modern-apis.plan.md) |
-| 0055 | Runtime MVP 6 — Dependency-Aware Watch Mode | Runtime / MVP 6 | 0040, 0053, 0054 | [ ] | [0055](0055-watch-mode.md) | [0055-watch-mode](cursor/0055-watch-mode.plan.md) |
-| 0056 | Runtime MVP 7 — Debugging, Inspection, and Runtime Diagno... | Runtime / MVP 7 | 0052, 0053, 0055 | [ ] | [0056](0056-debugging-inspection.md) | [0056-debugging-inspection](cursor/0056-debugging-inspection.plan.md) |
-| 0057 | Runtime Stabilization Gate | Runtime / Stabilization | 0050, 0051, 0052, 0053, 0054, 0055, 0056 | [ ] | [0057](0057-runtime-stabilization.md) | [0057-runtime-stabilization](cursor/0057-runtime-stabilization.plan.md) |
-| 0060 | Manager MVP 1 — Node Version Manager | Managers / MVP 1 | 0031, 0050 | [ ] | [0060](0060-node-manager.md) | [0060-node-manager](cursor/0060-node-manager.plan.md) |
-| 0061 | Manager MVP 2 — Package-Manager Meta-Manager | Managers / MVP 2 | 0023, 0024, 0025, 0060 | [ ] | [0061](0061-pm-manager.md) | [0061-pm-manager](cursor/0061-pm-manager.plan.md) |
-| 0062 | Manager MVP 3 — Node, PM, and Self Shims | Managers / MVP 3 | 0010, 0060, 0061 | [ ] | [0062](0062-shims.md) | [0062-shims](cursor/0062-shims.plan.md) |
-| 0070 | Product MVP 1 — TypeScript-First Project Initialization | Product / MVP 1 | 0011, 0031, 0051 | [ ] | [0070](0070-project-init.md) | [0070-project-init](cursor/0070-project-init.plan.md) |
-| 0071 | Product MVP 2 — External Command Plugin Convention | Product / MVP 2 | 0010, 0043, 0062 | [ ] | [0071](0071-plugins.md) | [0071-plugins](cursor/0071-plugins.plan.md) |
-| 0072 | Distribution MVP 1 — Releases, Installers, and Package Ch... | Distribution / MVP 1 | 0031, 0046, 0057, 0062 | [ ] | [0072](0072-installers-releases.md) | [0072-installers-releases](cursor/0072-installers-releases.plan.md) |
-| 0073 | Distribution MVP 2 — GitHub Action and CI Integration | Distribution / MVP 2 | 0029, 0060, 0072 | [ ] | [0073](0073-github-action.md) | [0073-github-action](cursor/0073-github-action.plan.md) |
-| 0074 | Distribution MVP 3 — Docker Images and Hosted Builder Int... | Distribution / MVP 3 | 0029, 0060, 0072 | [ ] | [0074](0074-docker-builders.md) | [0074-docker-builders](cursor/0074-docker-builders.plan.md) |
-| 0080 | Cross-Cutting — Compatibility and Conformance Program | Cross-Cutting | 0002, 0008 | [ ] | [0080](0080-conformance-program.md) | [0080-conformance-program](cursor/0080-conformance-program.plan.md) |
-| 0081 | Cross-Cutting — Performance and Resource Program | Cross-Cutting | 0008, 0010 | [ ] | [0081](0081-performance-program.md) | [0081-performance-program](cursor/0081-performance-program.plan.md) |
-| 0082 | Cross-Cutting — Threat Model and Security Review Plan | Cross-Cutting | 0003, 0005 | [ ] | [0082](0082-threat-model.md) | [0082-threat-model](cursor/0082-threat-model.plan.md) |
-| 0083 | Cross-Cutting — Nub Rust to Mew Go Migration Map | Cross-Cutting | 0002, 0003 | [ ] | [0083](0083-rust-go-migration-map.md) | [0083-rust-go-migration-map](cursor/0083-rust-go-migration-map.plan.md) |
-| 0084 | Cross-Cutting — Versioning, Formats, and Support Policy | Cross-Cutting | 0009 | [ ] | [0084](0084-release-versioning-policy.md) | [0084-release-versioning-policy](cursor/0084-release-versioning-policy.plan.md) |
-| 0085 | Cross-Cutting — Go Dependency Selection Roadmap | Cross-Cutting | 0003, 0004 | [ ] | [0085](0085-dependency-roadmap.md) | [0085-dependency-roadmap](cursor/0085-dependency-roadmap.plan.md) |
-| 0086 | Cross-Cutting — AI Agent Implementation Protocol | Cross-Cutting | 0004, 0008, 0009 | [ ] | [0086](0086-ai-agent-protocol.md) | [0086-ai-agent-protocol](cursor/0086-ai-agent-protocol.plan.md) |
-| 0087 | Cross-Cutting — Global Definition of Done | Cross-Cutting | 0009, 0080, 0081, 0082, 0084 | [ ] | [0087](0087-definition-of-done.md) | [0087-definition-of-done](cursor/0087-definition-of-done.plan.md) |
-| 0088 | Reference Index and Research Sources | Cross-Cutting | 0002, 0083 | [ ] | [0088](0088-reference-index.md) | [0088-reference-index](cursor/0088-reference-index.plan.md) |
-| 0089 | Open Research Spikes and Decision Gates | Cross-Cutting | 0003, 0085 | [ ] | [0089](0089-research-spikes.md) | [0089-research-spikes](cursor/0089-research-spikes.plan.md) |
-| 0090 | Future Extensions Beyond Nub Parity | Future | 0087 | [ ] | [0090](0090-future-backlog.md) | [0090-future-backlog](cursor/0090-future-backlog.plan.md) |
+| ID | MVP | Phase | Predecessors | Status | Plan |
+|----|-----|-------|--------------|--------|------|
+| 0001 | Program Charter and Product Contract | Foundation | None | [x] | [0001](0001-program-charter.md) |
+| 0002 | Complete Feature Inventory and Parity Matrix | Foundation | 0001 | [x] | [0002](0002-feature-inventory.md) |
+| 0003 | Target Architecture and Rust-to-Go Boundaries | Foundation | 0001, 0002 | [x] | [0003](0003-target-architecture.md) |
+| 0004 | Repository Bootstrap, Tooling, and Engineering Standards | Foundation | 0003 | [x] | [0004](0004-repository-bootstrap.md) |
+| 0005 | Stable Error Model, Diagnostics, and Observability | Foundation | 0004 | [x] | [0005](0005-error-observability.md) |
+| 0006 | Configuration and Project Identity Model | Foundation | 0004, 0005 | [x] | [0006](0006-configuration-identity.md) |
+| 0007 | Canonical Data Model and Core Interfaces | Foundation | 0003, 0006 | [x] | [0007](0007-data-model-interfaces.md) |
+| 0008 | Testing, Fixtures, Fuzzing, and Conformance Strategy | Foundation | 0004, 0007 | [x] | [0008](0008-testing-strategy.md) |
+| 0009 | Release Train and MVP Dependency Graph | Foundation | 0001, 0002, 0003, 0008 | [x] | [0009](0009-release-train-overview.md) |
+| 0010 | Core MVP 1 — CLI Foundation and Command Dispatch | Core / MVP 1 | 0004, 0005, 0006, 0007 | [x] | [0010](0010-cli-foundation.md) |
+| 0011 | Core MVP 2 — Manifest Parsing and Project Discovery | Core / MVP 2 | 0010 | [x] | [0011](0011-manifest-project-discovery.md) |
+| 0012 | Core MVP 3 — Registry Client and Metadata Cache | Core / MVP 3 | 0011 | [x] | [0012](0012-registry-cache.md) |
+| 0013 | Core MVP 4 — npm Semver and Basic Dependency Resolver | Core / MVP 4 | 0012 | [x] | [0013](0013-semver-basic-resolver.md) |
+| 0014 | Core MVP 5 — Tarball Fetch, Integrity, and Safe Extraction | Core / MVP 5 | 0012, 0013 | [x] | [0014](0014-fetch-integrity-extraction.md) |
+| 0015 | Core MVP 6 — Native `m.lock` Format | Core / MVP 6 | 0007, 0013 | [x] | [0015](0015-m-lock.md) |
+| 0016 | Core MVP 7 — Basic End-to-End Installer | Core / MVP 7 | 0011, 0013, 0014, 0015 | [x] | [0016](0016-basic-installer.md) |
+| 0017 | Core MVP 8 — Transactional Install and Instant Rollback | Core / MVP 8 | 0016 | [x] | [0017](0017-transaction-rollback.md) |
+| 0018 | Core MVP 9 — Global Content Store and Smart Filesystem Pl... | Core / MVP 9 | 0014, 0017 | [x] | [0018](0018-global-store-smart-linker.md) |
+| 0019 | Core MVP 10 — Isolated Virtual Store and Node Modules Layout | Core / MVP 10 | 0018 | [x] | [0019](0019-isolated-linker.md) |
+| 0020 | Core MVP 11 — Full Dependency Resolver | Core / MVP 11 | 0019 | [x] | [0020](0020-advanced-resolver.md) |
+| 0021 | Core MVP 12 — Lifecycle Scripts, Trust, and Sandbox Policy | Core / MVP 12 | 0018, 0020 | [x] | [0021](0021-lifecycle-sandbox.md) |
+| 0022 | Core MVP 13 — Workspaces, Catalogs, and Filtering | Core / MVP 13 | 0011, 0020, 0021 | [x] | [0022](0022-workspaces-catalogs.md) |
+| 0023 | Core MVP 14 — Nub and pnpm Lockfile Bridge | Core / MVP 14 | 0015, 0020, 0022 | [x] | [0023](0023-nub-pnpm-lock-bridge.md) |
+| 0024 | Core MVP 15 — npm Lockfile and Shrinkwrap Compatibility | Core / MVP 15 | 0023 | [x] | [0024](0024-npm-locks.md) |
+| 0025 | Core MVP 16 — Bun and Yarn Lockfile Compatibility | Core / MVP 16 | 0023, 0024 | [x] | [0025](0025-bun-yarn-locks.md) |
+| 0026 | Core MVP 17 — Complete Package-Manager Command Surface | Core / MVP 17 | 0021, 0022, 0023, 0024, 0025 | [x] | [0026](0026-pm-command-surface.md) |
+| 0027 | Core MVP 18 — Advanced Sources, Patches, Pack, and Publish | Core / MVP 18 | 0026 | [x] | [0027](0027-advanced-sources-publish.md) |
+| 0028 | Core MVP 19 — Explainability, Plans, Semantic Diffs, and ... | Core / MVP 19 | 0017, 0020, 0026 | [x] | [0028](0028-explain-plan-history.md) |
+| 0029 | Core MVP 20 — Performance, Offline Operation, and Portabl... | Core / MVP 20 | 0018, 0026, 0028 | [x] | [0029](0029-performance-offline-capsules.md) |
+| 0030 | Core MVP 21 — Audit, SBOM, Provenance, and Supply-Chain P... | Core / MVP 21 | 0012, 0021, 0027, 0029 | [x] | [0030](0030-security-audit-sbom.md) |
+| 0031 | Core MVP 22 — Package-Manager Core Stabilization Gate | Core / Stabilization | 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018, 0019, 0020, 0021, 0022, 0023, 0024, 0025, 0026, 0027, 0028, 0029, 0030 | [x] | [0031](0031-core-stabilization.md) |
+| 0040 | Runner MVP 1 — Package Script Runner | Runner / MVP 1 | 0031 | [ ] | [0040](0040-script-runner.md) |
+| 0041 | Runner MVP 2 — Workspace Script Orchestration | Runner / MVP 2 | 0022, 0040 | [ ] | [0041](0041-workspace-runner.md) |
+| 0042 | Runner MVP 3 — Direct `m <script>` Shortcuts | Runner / Mew Extension | 0010, 0040 | [ ] | [0042](0042-direct-script-shortcuts.md) |
+| 0043 | Runner MVP 4 — Local Package Binary Execution | Runner / MVP 4 | 0019, 0040 | [ ] | [0043](0043-local-exec.md) |
+| 0044 | Runner MVP 5 — `mx` Remote Fetch and Execution | Runner / MVP 5 | 0021, 0029, 0043 | [ ] | [0044](0044-mx-dlx.md) |
+| 0045 | Runner MVP 6 — Unified Execution and Snapshot Environments | Runner / MVP 6 | 0028, 0029, 0043, 0044 | [ ] | [0045](0045-unified-execution.md) |
+| 0046 | Runner Stabilization Gate | Runner / Stabilization | 0040, 0041, 0042, 0043, 0044, 0045 | [ ] | [0046](0046-runner-stabilization.md) |
+| 0050 | Runtime MVP 1 — Node Launch and Compatibility Boundary | Runtime / MVP 1 | 0046 | [ ] | [0050](0050-node-launch-compat.md) |
+| 0051 | Runtime MVP 2 — Go Transform Service and TypeScript Execu... | Runtime / MVP 2 | 0050 | [ ] | [0051](0051-go-transform-service.md) |
+| 0052 | Runtime MVP 3 — JSX, Decorators, and Source-Map Parity | Runtime / MVP 3 | 0051 | [ ] | [0052](0052-jsx-decorators-sourcemaps.md) |
+| 0053 | Runtime MVP 4 — Module Resolution, Path Aliases, and Cust... | Runtime / MVP 4 | 0019, 0025, 0052 | [ ] | [0053](0053-module-resolution-loaders.md) |
+| 0054 | Runtime MVP 5 — Environment Loading, Workers, Storage, an... | Runtime / MVP 5 | 0050, 0053 | [ ] | [0054](0054-env-modern-apis.md) |
+| 0055 | Runtime MVP 6 — Dependency-Aware Watch Mode | Runtime / MVP 6 | 0040, 0053, 0054 | [ ] | [0055](0055-watch-mode.md) |
+| 0056 | Runtime MVP 7 — Debugging, Inspection, and Runtime Diagno... | Runtime / MVP 7 | 0052, 0053, 0055 | [ ] | [0056](0056-debugging-inspection.md) |
+| 0057 | Runtime Stabilization Gate | Runtime / Stabilization | 0050, 0051, 0052, 0053, 0054, 0055, 0056 | [ ] | [0057](0057-runtime-stabilization.md) |
+| 0060 | Manager MVP 1 — Node Version Manager | Managers / MVP 1 | 0031, 0050 | [ ] | [0060](0060-node-manager.md) |
+| 0061 | Manager MVP 2 — Package-Manager Meta-Manager | Managers / MVP 2 | 0023, 0024, 0025, 0060 | [ ] | [0061](0061-pm-manager.md) |
+| 0062 | Manager MVP 3 — Node, PM, and Self Shims | Managers / MVP 3 | 0010, 0060, 0061 | [ ] | [0062](0062-shims.md) |
+| 0070 | Product MVP 1 — TypeScript-First Project Initialization | Product / MVP 1 | 0011, 0031, 0051 | [ ] | [0070](0070-project-init.md) |
+| 0071 | Product MVP 2 — External Command Plugin Convention | Product / MVP 2 | 0010, 0043, 0062 | [ ] | [0071](0071-plugins.md) |
+| 0072 | Distribution MVP 1 — Releases, Installers, and Package Ch... | Distribution / MVP 1 | 0031, 0046, 0057, 0062 | [ ] | [0072](0072-installers-releases.md) |
+| 0073 | Distribution MVP 2 — GitHub Action and CI Integration | Distribution / MVP 2 | 0029, 0060, 0072 | [ ] | [0073](0073-github-action.md) |
+| 0074 | Distribution MVP 3 — Docker Images and Hosted Builder Int... | Distribution / MVP 3 | 0029, 0060, 0072 | [ ] | [0074](0074-docker-builders.md) |
+| 0080 | Cross-Cutting — Compatibility and Conformance Program | Cross-Cutting | 0002, 0008 | [ ] | [0080](0080-conformance-program.md) |
+| 0081 | Cross-Cutting — Performance and Resource Program | Cross-Cutting | 0008, 0010 | [ ] | [0081](0081-performance-program.md) |
+| 0082 | Cross-Cutting — Threat Model and Security Review Plan | Cross-Cutting | 0003, 0005 | [ ] | [0082](0082-threat-model.md) |
+| 0083 | Cross-Cutting — Nub Rust to Mew Go Migration Map | Cross-Cutting | 0002, 0003 | [ ] | [0083](0083-rust-go-migration-map.md) |
+| 0084 | Cross-Cutting — Versioning, Formats, and Support Policy | Cross-Cutting | 0009 | [ ] | [0084](0084-release-versioning-policy.md) |
+| 0085 | Cross-Cutting — Go Dependency Selection Roadmap | Cross-Cutting | 0003, 0004 | [ ] | [0085](0085-dependency-roadmap.md) |
+| 0086 | Cross-Cutting — AI Agent Implementation Protocol | Cross-Cutting | 0004, 0008, 0009 | [ ] | [0086](0086-ai-agent-protocol.md) |
+| 0087 | Cross-Cutting — Global Definition of Done | Cross-Cutting | 0009, 0080, 0081, 0082, 0084 | [ ] | [0087](0087-definition-of-done.md) |
+| 0088 | Reference Index and Research Sources | Cross-Cutting | 0002, 0083 | [ ] | [0088](0088-reference-index.md) |
+| 0089 | Open Research Spikes and Decision Gates | Cross-Cutting | 0003, 0085 | [ ] | [0089](0089-research-spikes.md) |
+| 0090 | Future Extensions Beyond Nub Parity | Future | 0087 | [ ] | [0090](0090-future-backlog.md) |
 
 ## Aggregated tasks by MVP
 
@@ -105,9 +105,8 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0001-program-charter.md](0001-program-charter.md)
-- cursor: [cursor/0001-program-charter.plan.md](cursor/0001-program-charter.plan.md)
 
-- [x] Write product charter covering Mew, Mewx, m.lock, and Nub parity goal
+- [x] Write product charter covering MewJS, Mew, m/mew, mx/mewx, m.lock, and Nub parity goal
 - [x] Define compatibility axes: CLI grammar, lockfile, config, runtime, layout
 - [x] Document supported OS/arch and Node floor
 - [x] Freeze binary, config, cache, env, and error-code naming conventions
@@ -138,7 +137,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0002-feature-inventory.md](0002-feature-inventory.md)
-- cursor: [cursor/0002-feature-inventory.plan.md](cursor/0002-feature-inventory.plan.md)
 
 - [x] Define versioned feature-inventory JSON schema
 - [x] Define statuses: planned, in-progress, shipped, intentional-omit, deferred
@@ -170,7 +168,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0003-target-architecture.md](0003-target-architecture.md)
-- cursor: [cursor/0003-target-architecture.plan.md](cursor/0003-target-architecture.plan.md)
 
 - [x] Produce full package map with one-line purpose per directory
 - [x] Define core interfaces: Registry, Resolver, Store, Linker, LockfileAdapter, Transaction, ScriptRunner, ProcessSupervisor
@@ -203,7 +200,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0004-repository-bootstrap.md](0004-repository-bootstrap.md)
-- cursor: [cursor/0004-repository-bootstrap.plan.md](cursor/0004-repository-bootstrap.plan.md)
 
 - [x] Choose Go minimum version and document it
 - [x] Initialize module path and license headers
@@ -235,7 +231,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0005-error-observability.md](0005-error-observability.md)
-- cursor: [cursor/0005-error-observability.plan.md](cursor/0005-error-observability.plan.md)
 
 - [x] Define typed error with stable code, operation, subject
 - [x] Publish initial error code registry
@@ -267,7 +262,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0006-configuration-identity.md](0006-configuration-identity.md)
-- cursor: [cursor/0006-configuration-identity.plan.md](cursor/0006-configuration-identity.plan.md)
 
 - [x] Define config layer precedence: defaults, global, project, env, CLI
 - [x] Define identity detection order matching AGENTS.md
@@ -300,7 +294,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0007-data-model-interfaces.md](0007-data-model-interfaces.md)
-- cursor: [cursor/0007-data-model-interfaces.plan.md](cursor/0007-data-model-interfaces.plan.md)
 
 - [x] Freeze Manifest, Dependency, Importer, Package, Graph, Edge types
 - [x] Freeze ResolutionDecision and PeerContext types
@@ -333,7 +326,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0008-testing-strategy.md](0008-testing-strategy.md)
-- cursor: [cursor/0008-testing-strategy.plan.md](cursor/0008-testing-strategy.plan.md)
 
 - [x] Define fixture manifest format and checksums
 - [x] Define clean-home test contract
@@ -366,7 +358,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0009-release-train-overview.md](0009-release-train-overview.md)
-- cursor: [cursor/0009-release-train-overview.plan.md](cursor/0009-release-train-overview.plan.md)
 
 - [x] Create milestone dependency graph with no cycles
 - [x] Define alpha/beta/rc/stable criteria
@@ -399,7 +390,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0010-cli-foundation.md](0010-cli-foundation.md)
-- cursor: [cursor/0010-cli-foundation.plan.md](cursor/0010-cli-foundation.plan.md)
 
 - [x] Implement cmd/m and cmd/mx main entrypoints with shared bootstrap
 - [x] Create internal/cli root command with Cobra tree and persistent pre-run
@@ -433,7 +423,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0011-manifest-project-discovery.md](0011-manifest-project-discovery.md)
-- cursor: [cursor/0011-manifest-project-discovery.plan.md](cursor/0011-manifest-project-discovery.plan.md)
 
 - [x] Implement walk-up project root discovery from cwd with package.json boundary
 - [x] Parse package.json without destructive reformatting or key reordering
@@ -466,7 +455,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0012-registry-cache.md](0012-registry-cache.md)
-- cursor: [cursor/0012-registry-cache.plan.md](cursor/0012-registry-cache.plan.md)
 
 - [x] Implement npm registry packument fetch with semver version index
 - [x] Support scoped registries via .npmrc and project config layering
@@ -499,7 +487,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0013-semver-basic-resolver.md](0013-semver-basic-resolver.md)
-- cursor: [cursor/0013-semver-basic-resolver.plan.md](cursor/0013-semver-basic-resolver.plan.md)
 
 - [x] Integrate npm-compatible semver range parsing and satisfaction
 - [x] Resolve direct dependencies from normalized manifest declarations
@@ -532,7 +519,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0014-fetch-integrity-extraction.md](0014-fetch-integrity-extraction.md)
-- cursor: [cursor/0014-fetch-integrity-extraction.plan.md](cursor/0014-fetch-integrity-extraction.plan.md)
 
 - [x] Implement tarball download from registry dist.tarball URL
 - [x] Verify dist.integrity sha512 before any extraction
@@ -565,7 +551,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0015-m-lock.md](0015-m-lock.md)
-- cursor: [cursor/0015-m-lock.plan.md](cursor/0015-m-lock.plan.md)
 
 - [x] Define m.lock schema version and top-level document structure
 - [x] Serialize canonical graph to importer-aware lock sections
@@ -598,7 +583,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0016-basic-installer.md](0016-basic-installer.md)
-- cursor: [cursor/0016-basic-installer.plan.md](cursor/0016-basic-installer.plan.md)
 
 - [x] Implement install application service orchestrating resolve-fetch-link
 - [x] Resolve from package.json or existing m.lock per policy
@@ -631,7 +615,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0017-transaction-rollback.md](0017-transaction-rollback.md)
-- cursor: [cursor/0017-transaction-rollback.plan.md](cursor/0017-transaction-rollback.plan.md)
 
 - [x] Define transaction phases: inspect, resolve, plan, fetch, stage, validate, commit
 - [x] Journal every filesystem mutation with inverse operations
@@ -665,7 +648,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0018-global-store-smart-linker.md](0018-global-store-smart-linker.md)
-- cursor: [cursor/0018-global-store-smart-linker.plan.md](cursor/0018-global-store-smart-linker.plan.md)
 
 - [x] Implement content-addressed global store keyed by integrity hash
 - [x] Import verified tarballs into store without duplication
@@ -698,7 +680,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0019-isolated-linker.md](0019-isolated-linker.md)
-- cursor: [cursor/0019-isolated-linker.plan.md](cursor/0019-isolated-linker.plan.md)
 
 - [x] Implement isolated linker creating per-package node_modules trees
 - [x] Layout packages under node_modules/.pnpm/<id>/node_modules/
@@ -733,7 +714,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0020-advanced-resolver.md](0020-advanced-resolver.md)
-- cursor: [cursor/0020-advanced-resolver.plan.md](cursor/0020-advanced-resolver.plan.md)
 
 - [x] Implement peer dependency constraint collection per importer
 - [x] Generate peer contexts as part of package identity
@@ -768,7 +748,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0021-lifecycle-sandbox.md](0021-lifecycle-sandbox.md)
-- cursor: [cursor/0021-lifecycle-sandbox.plan.md](cursor/0021-lifecycle-sandbox.plan.md)
 
 - [x] Implement lifecycle script discovery from package.json scripts field
 - [x] Run preinstall/install/postinstall/prepare in npm order
@@ -801,7 +780,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0022-workspaces-catalogs.md](0022-workspaces-catalogs.md)
-- cursor: [cursor/0022-workspaces-catalogs.plan.md](cursor/0022-workspaces-catalogs.plan.md)
 
 - [x] Parse pnpm catalog: and catalog:default in package.json
 - [x] Resolve catalog references to concrete versions in manifests
@@ -834,7 +812,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0023-nub-pnpm-lock-bridge.md](0023-nub-pnpm-lock-bridge.md)
-- cursor: [cursor/0023-nub-pnpm-lock-bridge.plan.md](cursor/0023-nub-pnpm-lock-bridge.plan.md)
 
 - [x] Detect nub.lock and pnpm-lock.yaml per identity rules from 0006
 - [x] Implement nub.lock reader adapter to canonical graph
@@ -867,7 +844,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0024-npm-locks.md](0024-npm-locks.md)
-- cursor: [cursor/0024-npm-locks.plan.md](cursor/0024-npm-locks.plan.md)
 
 - [x] Implement package-lock.json v2 and v3 parsers
 - [x] Map npm lock packages array to canonical graph nodes
@@ -900,7 +876,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0025-bun-yarn-locks.md](0025-bun-yarn-locks.md)
-- cursor: [cursor/0025-bun-yarn-locks.plan.md](cursor/0025-bun-yarn-locks.plan.md)
 
 - [x] Implement bun.lock parser adapter to canonical graph
 - [x] Implement yarn.lock classic parser
@@ -933,7 +908,6 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 - status: done
 - plan: [0026-pm-command-surface.md](0026-pm-command-surface.md)
-- cursor: [cursor/0026-pm-command-surface.plan.md](cursor/0026-pm-command-surface.plan.md)
 
 - [x] Complete PM subcommand tree with consistent flag naming
 - [x] Implement m ci: clean install from lock in CI mode
@@ -968,7 +942,6 @@ Deferred from 0026 scope: `m import`, `m rebuild`, `m link` (stub). Use `m expla
 
 - status: done
 - plan: [0027-advanced-sources-publish.md](0027-advanced-sources-publish.md)
-- cursor: [cursor/0027-advanced-sources-publish.plan.md](cursor/0027-advanced-sources-publish.plan.md)
 
 - [x] Support git+https, git+ssh, and github: dependency sources
 - [x] Support file: and tarball: local dependency paths
@@ -1001,7 +974,6 @@ Deferred from 0026 scope: `m import`, `m rebuild`, `m link` (stub). Use `m expla
 
 - status: done
 - plan: [0028-explain-plan-history.md](0028-explain-plan-history.md)
-- cursor: [cursor/0028-explain-plan-history.plan.md](cursor/0028-explain-plan-history.plan.md)
 
 - [x] Implement m explain showing version selection reasoning
 - [x] Implement m explain peer for peer dependency conflicts
@@ -1036,7 +1008,6 @@ Deferred: `m shell --snapshot` / `m run --snapshot` → MVP **0045**.
 
 - status: done
 - plan: [0029-performance-offline-capsules.md](0029-performance-offline-capsules.md)
-- cursor: [cursor/0029-performance-offline-capsules.plan.md](cursor/0029-performance-offline-capsules.plan.md)
 
 - [x] Profile install phases: resolve, fetch, extract, link, lifecycle
 - [x] Optimize hot paths identified by profiling
@@ -1069,7 +1040,6 @@ Deferred: `m shell --snapshot` / `m run --snapshot` → MVP **0045**.
 
 - status: done
 - plan: [0030-security-audit-sbom.md](0030-security-audit-sbom.md)
-- cursor: [cursor/0030-security-audit-sbom.plan.md](cursor/0030-security-audit-sbom.plan.md)
 
 - [x] Implement m audit against OSV/npm advisory data
 - [x] Support offline audit from cached advisory DB
@@ -1104,7 +1074,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: done
 - plan: [0031-core-stabilization.md](0031-core-stabilization.md)
-- cursor: [cursor/0031-core-stabilization.plan.md](cursor/0031-core-stabilization.plan.md)
 
 - [x] Run full conformance suite against Nub/npm/pnpm fixtures per 0080
 - [x] Execute cross-platform integration matrix on Linux/macOS/Windows CI
@@ -1138,7 +1107,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0040-script-runner.md](0040-script-runner.md)
-- cursor: [cursor/0040-script-runner.plan.md](cursor/0040-script-runner.plan.md)
 
 - [ ] Define ScriptRunner interface with context cancellation and stable error codes
 - [ ] Implement package.json script lookup with explicit missing-script diagnostics
@@ -1172,7 +1140,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0041-workspace-runner.md](0041-workspace-runner.md)
-- cursor: [cursor/0041-workspace-runner.plan.md](cursor/0041-workspace-runner.plan.md)
 
 - [ ] Integrate workspace filter from 0022 into script runner dispatch
 - [ ] Implement task graph generation from workspace dependency graph
@@ -1206,7 +1173,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0042-direct-script-shortcuts.md](0042-direct-script-shortcuts.md)
-- cursor: [cursor/0042-direct-script-shortcuts.plan.md](cursor/0042-direct-script-shortcuts.plan.md)
 
 - [ ] Implement two-pass CLI dispatch after built-in and alias resolution
 - [ ] Wire exact package.json script fallback into main m dispatch
@@ -1240,7 +1206,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0043-local-exec.md](0043-local-exec.md)
-- cursor: [cursor/0043-local-exec.plan.md](cursor/0043-local-exec.plan.md)
 
 - [ ] Implement bin index and lookup for current importer
 - [ ] Walk ancestor and workspace packages for .bin discovery
@@ -1274,7 +1239,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0044-mx-dlx.md](0044-mx-dlx.md)
-- cursor: [cursor/0044-mx-dlx.plan.md](cursor/0044-mx-dlx.plan.md)
 
 - [ ] Implement mx argument parser and top-level dispatch
 - [ ] Implement local-first bin lookup reusing 0043 resolver
@@ -1308,7 +1272,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0045-unified-execution.md](0045-unified-execution.md)
-- cursor: [cursor/0045-unified-execution.plan.md](cursor/0045-unified-execution.plan.md)
 
 - [ ] Define ExecutionRequest and PreparedEnvironment interfaces
 - [ ] Define environment provider contract for each source type
@@ -1342,7 +1305,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0046-runner-stabilization.md](0046-runner-stabilization.md)
-- cursor: [cursor/0046-runner-stabilization.plan.md](cursor/0046-runner-stabilization.plan.md)
 
 - [ ] Assemble real-world script corpus across npm/pnpm/Yarn/Bun layouts
 - [ ] Run cross-shell quoting and process semantics corpus on all platforms
@@ -1376,7 +1338,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0050-node-launch-compat.md](0050-node-launch-compat.md)
-- cursor: [cursor/0050-node-launch-compat.plan.md](cursor/0050-node-launch-compat.plan.md)
 
 - [ ] Implement file-run dispatch without colliding with built-ins and scripts
 - [ ] Implement Node discovery interface for later 0060 integration
@@ -1410,7 +1371,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0051-go-transform-service.md](0051-go-transform-service.md)
-- cursor: [cursor/0051-go-transform-service.plan.md](cursor/0051-go-transform-service.plan.md)
 
 - [ ] Benchmark candidate Go transformers (e.g. esbuild) against Nub/OXC corpus
 - [ ] Define transform request/response protocol with version, digest, options, errors, maps
@@ -1444,7 +1404,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0052-jsx-decorators-sourcemaps.md](0052-jsx-decorators-sourcemaps.md)
-- cursor: [cursor/0052-jsx-decorators-sourcemaps.plan.md](cursor/0052-jsx-decorators-sourcemaps.plan.md)
 
 - [ ] Implement JSX option normalization (classic, automatic, importSource, dev)
 - [ ] Support React, Preact, and custom JSX runtimes via tsconfig
@@ -1478,7 +1437,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0053-module-resolution-loaders.md](0053-module-resolution-loaders.md)
-- cursor: [cursor/0053-module-resolution-loaders.plan.md](cursor/0053-module-resolution-loaders.plan.md)
 
 - [ ] Plan resolver augmentation without replacing Node resolution wholesale
 - [ ] Preserve Node CJS and ESM resolution semantics baseline
@@ -1512,7 +1470,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0054-env-modern-apis.md](0054-env-modern-apis.md)
-- cursor: [cursor/0054-env-modern-apis.plan.md](cursor/0054-env-modern-apis.plan.md)
 
 - [ ] Implement .env parser with variable expansion rules
 - [ ] Implement mode-aware .env* discovery and precedence
@@ -1546,7 +1503,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0055-watch-mode.md](0055-watch-mode.md)
-- cursor: [cursor/0055-watch-mode.plan.md](cursor/0055-watch-mode.plan.md)
 
 - [ ] Implement watcher abstraction with native and polling backends
 - [ ] Implement long-lived supervisor and short-lived application child
@@ -1580,7 +1536,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0056-debugging-inspection.md](0056-debugging-inspection.md)
-- cursor: [cursor/0056-debugging-inspection.plan.md](cursor/0056-debugging-inspection.plan.md)
 
 - [ ] Route --inspect and --inspect-brk flags to stock Node unchanged
 - [ ] Handle inspector port allocation and collision diagnostics
@@ -1614,7 +1569,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0057-runtime-stabilization.md](0057-runtime-stabilization.md)
-- cursor: [cursor/0057-runtime-stabilization.plan.md](cursor/0057-runtime-stabilization.plan.md)
 
 - [ ] Run syntax and framework corpus across supported Node versions
 - [ ] Certify CJS/ESM/loader/worker/watch coverage with published results
@@ -1648,7 +1602,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0060-node-manager.md](0060-node-manager.md)
-- cursor: [cursor/0060-node-manager.plan.md](cursor/0060-node-manager.plan.md)
 
 - [ ] Implement Node release metadata client and local cache
 - [ ] Implement version range, alias, and LTS resolution
@@ -1682,7 +1635,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0061-pm-manager.md](0061-pm-manager.md)
-- cursor: [cursor/0061-pm-manager.plan.md](cursor/0061-pm-manager.plan.md)
 
 - [ ] Implement package-manager identity and version resolver
 - [ ] Detect from packageManager, devEngines, lockfiles, executables, config
@@ -1716,7 +1668,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0062-shims.md](0062-shims.md)
-- cursor: [cursor/0062-shims.plan.md](cursor/0062-shims.plan.md)
 
 - [ ] Design shim protocol and cross-platform installation paths
 - [ ] Implement POSIX launcher scripts and Windows exe/cmd strategy
@@ -1750,7 +1701,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0070-project-init.md](0070-project-init.md)
-- cursor: [cursor/0070-project-init.plan.md](cursor/0070-project-init.plan.md)
 
 - [ ] Define scaffold templates as embedded versioned assets
 - [ ] Implement interactive and noninteractive init prompts/flags
@@ -1784,7 +1734,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0071-plugins.md](0071-plugins.md)
-- cursor: [cursor/0071-plugins.plan.md](cursor/0071-plugins.plan.md)
 
 - [ ] Define m-<verb> executable naming and handshake protocol
 - [ ] Discover plugins from PATH without loading untrusted code into m
@@ -1818,7 +1767,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0072-installers-releases.md](0072-installers-releases.md)
-- cursor: [cursor/0072-installers-releases.plan.md](cursor/0072-installers-releases.plan.md)
 
 - [ ] Configure GoReleaser or equivalent with reproducible build flags
 - [ ] Build release matrix for Linux, macOS, Windows supported architectures
@@ -1852,7 +1800,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0073-github-action.md](0073-github-action.md)
-- cursor: [cursor/0073-github-action.plan.md](cursor/0073-github-action.plan.md)
 
 - [ ] Implement action metadata and TypeScript/JavaScript bundle
 - [ ] Download release artifacts from 0072 with checksum verification
@@ -1886,7 +1833,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0074-docker-builders.md](0074-docker-builders.md)
-- cursor: [cursor/0074-docker-builders.plan.md](cursor/0074-docker-builders.plan.md)
 
 - [ ] Create slim and full Dockerfiles from signed release artifacts
 - [ ] Implement multi-architecture build and publish pipeline
@@ -1920,7 +1866,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0080-conformance-program.md](0080-conformance-program.md)
-- cursor: [cursor/0080-conformance-program.plan.md](cursor/0080-conformance-program.plan.md)
 
 - [ ] Define certification axes: behavior, lockfile, layout, runtime
 - [ ] Maintain target matrix per npm/pnpm/Yarn/Bun/Nub/m.lock majors
@@ -1952,7 +1897,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0081-performance-program.md](0081-performance-program.md)
-- cursor: [cursor/0081-performance-program.plan.md](cursor/0081-performance-program.plan.md)
 
 - [ ] List hot paths: startup, resolve, fetch, extract, link, scripts, transform
 - [ ] Define cold vs warm cache benches
@@ -1984,7 +1928,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0082-threat-model.md](0082-threat-model.md)
-- cursor: [cursor/0082-threat-model.plan.md](cursor/0082-threat-model.plan.md)
 
 - [ ] Identify assets: credentials, lockfiles, store, scripts, Node bins
 - [ ] Define trust boundaries: registry, git, filesystem, plugins, CI
@@ -2016,7 +1959,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0083-rust-go-migration-map.md](0083-rust-go-migration-map.md)
-- cursor: [cursor/0083-rust-go-migration-map.plan.md](cursor/0083-rust-go-migration-map.plan.md)
 
 - [ ] Inventory Nub crates and runtime assets
 - [ ] Inventory Aube crates
@@ -2048,7 +1990,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0084-release-versioning-policy.md](0084-release-versioning-policy.md)
-- cursor: [cursor/0084-release-versioning-policy.plan.md](cursor/0084-release-versioning-policy.plan.md)
 
 - [ ] Define semver promises for CLI
 - [ ] Define stability for Go public packages if any
@@ -2080,7 +2021,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0085-dependency-roadmap.md](0085-dependency-roadmap.md)
-- cursor: [cursor/0085-dependency-roadmap.plan.md](cursor/0085-dependency-roadmap.plan.md)
 
 - [ ] Prefer stdlib everywhere feasible
 - [ ] Evaluate CLI library candidates
@@ -2112,7 +2052,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0086-ai-agent-protocol.md](0086-ai-agent-protocol.md)
-- cursor: [cursor/0086-ai-agent-protocol.plan.md](cursor/0086-ai-agent-protocol.plan.md)
 
 - [ ] Required reading order for agents
 - [ ] Predecessor checks before coding
@@ -2144,7 +2083,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0087-definition-of-done.md](0087-definition-of-done.md)
-- cursor: [cursor/0087-definition-of-done.plan.md](cursor/0087-definition-of-done.plan.md)
 
 - [ ] Create review checklist covering behavior/interfaces/tests/docs/security/perf/compat/migration/recovery
 - [ ] Create evidence index template
@@ -2177,7 +2115,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0088-reference-index.md](0088-reference-index.md)
-- cursor: [cursor/0088-reference-index.plan.md](cursor/0088-reference-index.plan.md)
 
 - [ ] Index Nub behavior sources with commit pins
 - [ ] Index npm/pnpm/Yarn/Bun lock format docs
@@ -2209,7 +2146,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0089-research-spikes.md](0089-research-spikes.md)
-- cursor: [cursor/0089-research-spikes.plan.md](cursor/0089-research-spikes.plan.md)
 
 - [ ] List spikes that can invalidate later contracts
 - [ ] Timebox each spike
@@ -2241,7 +2177,6 @@ Deferred: full advisory feed signature verification (SHA-256 `dbDigest` only); r
 
 - status: planned
 - plan: [0090-future-backlog.md](0090-future-backlog.md)
-- cursor: [cursor/0090-future-backlog.plan.md](cursor/0090-future-backlog.plan.md)
 
 - [ ] OPTIONAL: Capture post-parity ideas without expanding critical path
 - [ ] OPTIONAL: Tag each idea with value/risk/effort

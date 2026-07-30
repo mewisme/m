@@ -5,7 +5,7 @@
 | Item | Detail |
 |---|---|
 | Phase | Foundation |
-| Primary objective | Define Mew as a Go implementation of the Nub product model, with `m` as the primary toolchain binary and `mx` as the executable runner, while explicitly documenting Mew-specific improvements. |
+| Primary objective | Define Mew as a standalone Go-based JavaScript toolchain and package manager, with `m` as the primary toolchain binary and `mx` as the executable runner, while explicitly documenting Mew-specific improvements. |
 | Required predecessors | None |
 | Primary binaries | `m`, `mx` where applicable |
 | Implementation language | Go for control plane and package-manager internals; embedded JavaScript only where Node extension APIs require it |
@@ -13,7 +13,7 @@
 
 ## Objective
 
-Define Mew as a Go implementation of the Nub product model, with `m` as the primary toolchain binary and `mx` as the executable runner, while explicitly documenting Mew-specific improvements.
+Define Mew as a standalone Go-based JavaScript toolchain and package manager, with `m` as the primary toolchain binary and `mx` as the executable runner, while explicitly documenting Mew-specific improvements.
 
 This MVP must be independently reviewable, testable, and releasable behind an explicit experimental gate when it changes public behavior. It must leave stable interfaces for later MVPs and avoid shortcuts that make lockfile compatibility, transactional installation, or cross-platform support impossible.
 
@@ -48,8 +48,8 @@ mx --version
 
 ## In Scope
 
-- Product identity: Mew (`m`) and Mewx (`mx`).
-- Long-term goal: full intentional Nub feature parity.
+- Product identity: MewJS (Mew); binaries `m`/`mew` and `mx`/`mewx`.
+- Long-term goal: complete toolchain coverage across package management, scripts, runtime, and distribution.
 - Initial delivery priority: package-manager core, then runners, runtime, managers, and distribution.
 - Signature differentiators: transactional installs, rollback, explainable resolution, universal lock bridge, lifecycle sandboxing, and direct script shortcuts.
 - Compatibility policy separating CLI grammar, lockfile formats, project configuration, runtime behavior, and filesystem layout.
@@ -73,7 +73,7 @@ Every new package must expose narrow interfaces, accept `context.Context` for ca
 
 ### Contracts & types
 
-- [ ] Write product charter covering Mew, Mewx, m.lock, and Nub parity goal
+- [ ] Write product charter covering MewJS, Mew, m/mew, mx/mewx, m.lock, and Nub parity goal
 - [ ] Create compatibility-state vocabulary: parity, intentional divergence, extension, deferred
 - [ ] Draft migration narrative outline for npm/pnpm/Yarn/Bun/Nub users
 - [ ] Create ADR template for irreversible decisions

@@ -1,6 +1,6 @@
 # Architecture
 
-Mew is a Go control plane that augments stock Node. This directory is the
+MewJS (Mew) is a Go control plane that augments stock Node. This directory is the
 authoritative package map, dependency direction, and boundary contracts for
 agents and humans.
 

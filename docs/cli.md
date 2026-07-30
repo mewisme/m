@@ -1,18 +1,18 @@
 # CLI foundation
 
-`m` (primary) and `mx` (package executor) share the Cobra shell in
+`m` / `mew` (primary) and `mx` / `mewx` (package executor) share the Cobra shell in
 [`internal/cli`](../internal/cli). Process state lives in [`internal/app`](../internal/app).
+
+**MewJS** is the product name; **Mew** is the abbreviated form.
 
 ## Binaries and aliases
 
-| Invoked basename | Help / version label |
-|---|---|
-| `m` (default) | `m` |
-| `mew` | `mew` |
-| `mx` (default) | `mx` |
-| `mewx` | `mewx` |
+| Binary | Alias | Help / version label |
+|---|---|---|
+| `m` | `mew` | invoked basename (`m` or `mew`) |
+| `mx` | `mewx` | invoked basename (`mx` or `mewx`) |
 
-Installer-shipped `mew` / `mewx` aliases are MVP **0072**. Until then, renaming or
+Installer-shipped `mew` / `mewx` symlinks are MVP **0072**. Until then, renaming or
 symlinking the binary changes `Use` and `version` labels via basename detection.
 
 ## Global flags
