@@ -66,7 +66,25 @@ NDJSON writes are mutex-guarded so concurrent progress is line-atomic.
 
 Additional NDJSON event schemas (v1): `operation-started`, `operation-progress`,
 `operation-completed`, and `notice` under [`schemas/diagnostics/`](../schemas/diagnostics/).
-Emitters for install/runner operations land in later UX plans.
+
+### Install progress (UX-0004)
+
+Install-family mutations emit typed `Operation*` events for phases: `resolve`,
+`fetch`, `link`, `lifecycle`, `validate`, `commit`, `rollback`, `cleanup`.
+
+| Effective mode | Progress rendering |
+|---|---|
+| `plain` / CI / accessible / redirected stderr | Append-only zero-ANSI lines on stderr (`resolve started`, `fetch completed duration=…`) |
+| `rich` with `--progress=auto` and stderr TTY | Inline Bubble Tea renderer on stderr (no alt screen, no stdin ownership) |
+| `--progress=never` | No phase lines; lifecycle/security `Notice` events still print |
+| `--progress=always` without stderr TTY | Usage error before mutation start |
+| Auto-rich when live UI cannot start | One-shot downgrade to plain + debug notice; product continues |
+
+Final human mutation summary is written to **stdout** via `StaticRenderer`
+(`Installed N packages in …` with Added/Updated/Removed metrics). `--no-summary`
+suppresses that success summary but never suppresses errors or lifecycle/security
+notices. JSON/NDJSON result documents are unchanged (additive `InstallResult`
+metric fields only).
 
 ## Errors
 

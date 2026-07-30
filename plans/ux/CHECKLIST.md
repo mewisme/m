@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current standalone plan: **UX-0004 — Install and Mutation Experience**
+- Current standalone plan: **UX-0005 — Runner and Workspace Experience**
 - Status: active standalone program
 - Recommended repository path: `plans/ux/`
 - Numbering namespace: `UX-0001` through `UX-0008`
@@ -55,17 +55,17 @@
 
 ## UX-0004 — Install and Mutation Experience
 
-- [ ] Audit install phase instrumentation.
-- [ ] Add typed phase and outcome events.
-- [ ] Implement append-only plain progress first.
-- [ ] Pin/review Bubble Tea and Bubbles as needed.
-- [ ] Implement inline rich install renderer.
-- [ ] Add package and lifecycle summaries.
-- [ ] Migrate install/add/remove/update/ci/dedupe/prune.
-- [ ] Render rollback/recovery truthfully.
-- [ ] Certify cancellation and broken pipe.
-- [ ] Certify renderer failure cannot strand transaction resources.
-- [ ] Pass Windows and race tests.
+- [x] Audit install phase instrumentation.
+- [x] Add typed phase and outcome events.
+- [x] Implement append-only plain progress first.
+- [x] Pin/review Bubble Tea and Bubbles as needed.
+- [x] Implement inline rich install renderer.
+- [x] Add package and lifecycle summaries.
+- [x] Migrate install/add/remove/update/ci/dedupe/prune.
+- [x] Render rollback/recovery truthfully.
+- [x] Certify cancellation and broken pipe.
+- [x] Certify renderer failure cannot strand transaction resources.
+- [x] Pass Windows and race tests.
 
 ## UX-0005 — Runner and Workspace Experience
 

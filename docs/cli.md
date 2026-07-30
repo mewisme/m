@@ -27,12 +27,12 @@ Official release installers remain planned (MVP **0072**); for local development
 | `--prefer-offline` | false | Prefer cache |
 | `--reporter` | env / `default` | Legacy alias; see `--output` |
 | `--output` | `auto` | `auto` \| `rich` \| `plain` \| `json` \| `ndjson` \| `silent` |
-| `--progress` | `auto` | `auto` \| `always` \| `never` |
+| `--progress` | `auto` | `auto` \| `always` \| `never` — live/plain install phase progress on stderr |
 | `--unicode` | `auto` | `auto` \| `always` \| `never` |
 | `--interactive` | `auto` | `auto` \| `always` \| `never` |
 | `--log-level` | `error` | `error` \| `warn` \| `info` \| `debug` |
 | `--accessible` | false | Accessible append-only output |
-| `--no-summary` | false | Suppress command summaries |
+| `--no-summary` | false | Suppress success summaries (never suppresses errors or security/lifecycle notices) |
 | `--debug` | false | Verbose diagnostics |
 | `--color` | `auto` | `auto` \| `always` \| `never` (TTY-aware; `--color=always` overrides `NO_COLOR`) |
 | `--no-color` | false | Force no ANSI (overridden by `--color=always`) |

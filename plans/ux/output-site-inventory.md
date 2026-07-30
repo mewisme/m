@@ -119,5 +119,7 @@ Precedence (single resolver in `internal/presentation`):
   (doctor, ls, outdated, plan, history, snapshot, cache/store status, audit,
   policy, verify, builds, pack, capsule); `writeStaticOut` bridge; archcheck
   allowlist for pending commands
-- UX-0004: install progress emitters
+- UX-0004: install `Operation*` emitters; plain append-only progress; Bubble Tea
+  live install renderer; mutation summaries for install/add/remove/update/ci/
+  dedupe/prune/plan/snapshot/capsule; `--no-summary` honored
 - UX-0005: runner presentation coordination
