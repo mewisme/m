@@ -161,12 +161,15 @@ func providerDeps(ac *Context) envexec.ProviderDeps {
 				return env, true, nil
 			},
 			Interactive: func() bool {
-				return false
+				return ac != nil && ac.CanPrompt
 			},
 		},
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Stdin:    os.Stdin,
+		Stdout:   os.Stdout,
+		Stderr:   os.Stderr,
+		Suspend:  ac.SuspendUI,
+		Resume:   ac.ResumeUI,
+		Prompter: acPrompter(ac),
 	}
 }
 

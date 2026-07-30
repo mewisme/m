@@ -181,7 +181,13 @@ func (p DLXProvider) planRemote(ctx context.Context, deps ProviderDeps, req Exec
 		if !warm {
 			emitPrep(deps, "Checking consent")
 		}
-		ok, perr := dlx.PromptConsent(deps.Stderr, deps.Stdin, resolved.Identity.Digest())
+		if deps.Suspend != nil {
+			_ = deps.Suspend(ctx)
+		}
+		if deps.Resume != nil {
+			defer func() { _ = deps.Resume(ctx) }()
+		}
+		ok, perr := dlx.PromptConsent(ctx, deps.Prompter, resolved.Identity.Digest())
 		if perr != nil {
 			return EnvironmentPlan{}, perr
 		}

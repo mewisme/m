@@ -1,26 +1,47 @@
 package dlx
 
 import (
-	"bufio"
-	"fmt"
+	"context"
+	"errors"
 	"io"
-	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/diagnostics"
+	"github.com/mewisme/mew/internal/prompt"
 )
 
-// PromptConsent asks the user to approve fetch and execute on stderr.
-func PromptConsent(w io.Writer, r io.Reader, envDigest string) (bool, error) {
-	if w == nil {
-		w = io.Discard
+// PromptConsent asks the user to approve fetch and execute via Prompter.
+// Prompt text goes to the Prompter's stderr writer; answers come from stdin.
+func PromptConsent(ctx context.Context, p prompt.Prompter, envDigest string) (bool, error) {
+	if p == nil {
+		return false, apperr.New(apperr.Usage, "dlx.prompt", "", "interactive consent requires a TTY")
 	}
-	_, _ = fmt.Fprintf(w, "Fetch and run %s?\nInstall scripts remain blocked by lifecycle policy. [y/N] ", envDigest)
-	line, err := bufio.NewReader(r).ReadString('\n')
-	if err != nil && err != io.EOF {
-		return false, apperr.Wrap(apperr.IO, "dlx.prompt", "", err)
+	safe := diagnostics.Redact(envDigest)
+	ans, err := p.Prompt(ctx, prompt.PromptRequest{
+		ID:          "dlx.consent",
+		Kind:        prompt.PromptConfirm,
+		Title:       "Fetch and run this package?",
+		Description: "Install scripts remain blocked by lifecycle policy.",
+		Dangerous:   true,
+		DefaultID:   prompt.OptionReject,
+		Fields: []prompt.Field{
+			{Key: "Environment", Value: safe},
+		},
+		Options: []prompt.Option{
+			{ID: prompt.OptionReject, Label: "No"},
+			{ID: prompt.OptionApprove, Label: "Yes"},
+		},
+	})
+	if err != nil {
+		if errors.Is(err, prompt.ErrCancelled) || errors.Is(err, io.EOF) {
+			return false, nil
+		}
+		return false, err
 	}
-	ans := strings.ToLower(strings.TrimSpace(line))
-	return ans == "y" || ans == "yes", nil
+	if ans.Cancelled {
+		return false, nil
+	}
+	return ans.OptionID == prompt.OptionApprove, nil
 }
 
 // ConsentDecision captures warm/cold consent matrix outcome.

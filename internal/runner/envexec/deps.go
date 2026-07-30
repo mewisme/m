@@ -6,6 +6,7 @@ import (
 
 	"github.com/mewisme/mew/internal/binmeta"
 	"github.com/mewisme/mew/internal/process"
+	"github.com/mewisme/mew/internal/prompt"
 	"github.com/mewisme/mew/internal/runner"
 	"github.com/mewisme/mew/internal/runner/dlx"
 )
@@ -33,6 +34,11 @@ type ProviderDeps struct {
 	Stderr           io.Writer
 	// PrepStage emits human-only cold-path stage labels (Resolving, Consent, …).
 	PrepStage func(label string)
+	// Suspend / Resume pause live presentation around consent prompts.
+	Suspend func(context.Context) error
+	Resume  func(context.Context) error
+	// Prompter is the presentation-selected prompt adapter (may be nil).
+	Prompter prompt.Prompter
 }
 
 // ConfigView is the effective configuration surface providers may read.
