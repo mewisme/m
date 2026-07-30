@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/fsx"
 )
 
 // Attr is a debug key/value pair.
@@ -36,13 +37,17 @@ type Event struct {
 
 // ErrorDocument is the JSON reporter error payload.
 type ErrorDocument struct {
-	V       int    `json:"v"`
-	Type    string `json:"type"`
-	Code    string `json:"code"`
-	Op      string `json:"op,omitempty"`
-	Subject string `json:"subject,omitempty"`
-	Message string `json:"message"`
-	Exit    int    `json:"exit"`
+	V           int    `json:"v"`
+	Type        string `json:"type"`
+	Code        string `json:"code"`
+	Op          string `json:"op,omitempty"`
+	Subject     string `json:"subject,omitempty"`
+	Message     string `json:"message"`
+	Operation   string `json:"operation,omitempty"`
+	Source      string `json:"source,omitempty"`
+	Destination string `json:"destination,omitempty"`
+	Cause       string `json:"cause,omitempty"`
+	Exit        int    `json:"exit"`
 }
 
 // Reporter emits progress, errors, and debug lines.
@@ -157,7 +162,7 @@ func (r *humanReporter) Progress(ev Event) {
 func (r *humanReporter) Error(err error) {
 	r.base.mu.Lock()
 	defer r.base.mu.Unlock()
-	msg := truncate(r.base.redact(formatHumanError(err)), r.base.opts.TermWidth)
+	msg := r.base.redact(formatHumanError(err))
 	if r.base.colorEnabled(r.base.opts.Err) {
 		fmt.Fprintf(r.base.opts.Err, "\x1b[31m%s\x1b[0m\n", msg)
 		return
@@ -265,9 +270,21 @@ func formatHumanError(err error) string {
 	}
 	var ae *apperr.Error
 	if errors.As(err, &ae) && ae != nil {
-		return ae.Error()
+		return formatAppError(ae)
 	}
 	return err.Error()
+}
+
+func formatAppError(ae *apperr.Error) string {
+	if ae == nil {
+		return ""
+	}
+	var renameErr *fsx.RenameError
+	if errors.As(ae.Cause, &renameErr) && renameErr != nil {
+		return fmt.Sprintf("%s: %s failed\noperation: %s\nsource: %s\ndestination: %s\ncause: %s",
+			ae.Code, ae.Op, renameErr.Op, renameErr.Src, renameErr.Dst, renameErr.Cause)
+	}
+	return ae.Error()
 }
 
 func errorDoc(err error, redact func(string) string) ErrorDocument {
@@ -286,6 +303,16 @@ func errorDoc(err error, redact func(string) string) ErrorDocument {
 		doc.Message = redact(ae.Message)
 		if doc.Message == "" && ae.Cause != nil {
 			doc.Message = redact(ae.Cause.Error())
+		}
+		var renameErr *fsx.RenameError
+		if errors.As(ae.Cause, &renameErr) && renameErr != nil {
+			doc.Operation = renameErr.Op
+			doc.Source = redact(renameErr.Src)
+			doc.Destination = redact(renameErr.Dst)
+			if renameErr.Cause != nil {
+				doc.Cause = redact(renameErr.Cause.Error())
+			}
+			doc.Message = redact(formatAppError(ae))
 		}
 		doc.Exit = apperr.ExitCode(ae)
 		return doc

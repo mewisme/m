@@ -200,6 +200,9 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 		enc.SetIndent("", "  ")
 		return enc.Encode(result)
 	}
+	if !result.Committed && !dryRun {
+		return nil
+	}
 	prefix := ""
 	if dryRun {
 		prefix = "dry-run: "

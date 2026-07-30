@@ -202,3 +202,43 @@ func TestWriteInstallResultJSONCombinedCriticalAndStore(t *testing.T) {
 		t.Fatalf("JSON output must not include prose hints: %s", out)
 	}
 }
+
+func TestWriteInstallResultSkipsSummaryOnRollback(t *testing.T) {
+	cmd := &cobra.Command{}
+	out := new(bytes.Buffer)
+	cmd.SetOut(out)
+	err := writeInstallResult(cmd, app.InstallResult{Added: 1, Packages: 31}, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("rollback must not print success summary: %q", out.String())
+	}
+}
+
+func TestWriteInstallResultPrintsAfterCommit(t *testing.T) {
+	cmd := &cobra.Command{}
+	out := new(bytes.Buffer)
+	cmd.SetOut(out)
+	err := writeInstallResult(cmd, app.InstallResult{Added: 1, Packages: 31, Committed: true}, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(out.Bytes(), []byte("added 1")) {
+		t.Fatalf("committed install should print summary: %q", out.String())
+	}
+}
+
+func TestWriteInstallResultJSONStillPrintsOnRollback(t *testing.T) {
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	result := app.InstallResult{RolledBack: true, Added: 1, Packages: 31}
+	if err := writeInstallResult(cmd, result, true, false); err != nil {
+		t.Fatal(err)
+	}
+	doc := decodeSingleJSON(t, buf.String())
+	if _, ok := doc["rolledBack"]; !ok {
+		t.Fatalf("json rollback result should still encode: %s", buf.String())
+	}
+}

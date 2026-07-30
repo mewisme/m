@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -500,7 +501,7 @@ func (r *Runner) applyForward(ctx context.Context, planIndex int, op Op) error {
 	case OpBackup:
 		return nil
 	case OpRename:
-		return r.renameOp(planIndex, op, true)
+		return r.renameOp(ctx, planIndex, op, true)
 	case OpWrite:
 		return r.writeOp(planIndex, op)
 	case OpRemove:
@@ -566,7 +567,7 @@ func (r *Runner) restoreBackup(op Op) error {
 	return restoreTree(backup, live, filepath.Join(r.Root, backupsMetaDir), r.ProjectRoot, op.Path)
 }
 
-func (r *Runner) renameOp(planIndex int, op Op, forward bool) error {
+func (r *Runner) renameOp(ctx context.Context, planIndex int, op Op, forward bool) error {
 	live, err := GuardPath(r.ProjectRoot, op.Path)
 	if err != nil {
 		return err
@@ -576,7 +577,7 @@ func (r *Runner) renameOp(planIndex int, op Op, forward bool) error {
 		src, live = live, src
 	}
 	if isDir(src) || isDir(live) {
-		return r.publishDirOp(planIndex, src, live)
+		return r.publishDirOp(ctx, planIndex, src, live)
 	}
 	if err := os.MkdirAll(filepath.Dir(live), 0o755); err != nil {
 		return apperr.Wrap(apperr.IO, "transaction.rename", live, err)
@@ -592,27 +593,34 @@ func (r *Runner) renameOp(planIndex int, op Op, forward bool) error {
 	return r.saveJournal()
 }
 
-func (r *Runner) publishDirOp(planIndex int, stageDir, liveDir string) error {
+func (r *Runner) publishDirOp(ctx context.Context, planIndex int, stageDir, liveDir string) error {
 	backup := liveDir + ".mew-old"
-	if err := os.RemoveAll(backup); err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.publish", backup, err)
+	hasJournaledBackup := r.findBackupForPath(r.doc.Plan[planIndex].Path) != nil
+	if err := fsx.RemoveAllRetry(ctx, backup); err != nil {
+		return fsx.WrapPublishRename("transaction.publish", backup, backup, err)
 	}
 	if _, err := os.Stat(liveDir); err == nil {
-		if err := os.Rename(liveDir, backup); err != nil {
-			return apperr.Wrap(apperr.IO, "transaction.publish", liveDir, err)
-		}
-		r.doc.Plan[planIndex].Phase = PhaseOldTreeMoved
-		if err := r.saveJournal(); err != nil {
-			return err
-		}
-	}
-	if err := os.Rename(stageDir, liveDir); err != nil {
-		if _, statErr := os.Stat(backup); statErr == nil {
-			if restoreErr := os.Rename(backup, liveDir); restoreErr != nil {
-				return apperr.Wrap(apperr.IO, "transaction.publish", liveDir, restoreErr)
+		if err := fsx.RenamePath(ctx, liveDir, backup); err != nil {
+			if !hasJournaledBackup {
+				return fsx.WrapPublishRename("transaction.publish", liveDir, backup, err)
+			}
+			if rmErr := fsx.RemoveAllRetry(ctx, liveDir); rmErr != nil {
+				return fsx.WrapPublishRename("transaction.publish", liveDir, liveDir, errors.Join(err, rmErr))
+			}
+		} else {
+			r.doc.Plan[planIndex].Phase = PhaseOldTreeMoved
+			if err := r.saveJournal(); err != nil {
+				return err
 			}
 		}
-		return apperr.Wrap(apperr.IO, "transaction.publish", stageDir, err)
+	}
+	if err := fsx.RenamePath(ctx, stageDir, liveDir); err != nil {
+		if _, statErr := os.Stat(backup); statErr == nil {
+			if restoreErr := fsx.RenamePath(ctx, backup, liveDir); restoreErr != nil {
+				return fsx.WrapPublishRename("transaction.publish", backup, liveDir, restoreErr)
+			}
+		}
+		return fsx.WrapPublishRename("transaction.publish", stageDir, liveDir, err)
 	}
 	r.doc.Plan[planIndex].Phase = PhaseNewTreePublished
 	if err := r.saveJournal(); err != nil {
@@ -626,8 +634,8 @@ func (r *Runner) publishDirOp(planIndex int, stageDir, liveDir string) error {
 	if err := r.saveJournal(); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(backup); err != nil {
-		return apperr.Wrap(apperr.IO, "transaction.publish", backup, err)
+	if err := fsx.RemoveAllRetry(ctx, backup); err != nil {
+		return fsx.WrapPublishRename("transaction.publish", backup, backup, err)
 	}
 	return r.saveJournal()
 }

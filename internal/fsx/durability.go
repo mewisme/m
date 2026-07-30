@@ -1,6 +1,8 @@
 package fsx
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -165,8 +167,13 @@ func ReplaceExistingFile(src, dst string) error {
 
 // PublishDirectory replaces liveDir with stageDir using journaled .mew-old aside space.
 func PublishDirectory(stageDir, liveDir string) error {
-	if err := publishDirectory(stageDir, liveDir); err != nil {
-		return apperr.Wrap(apperr.IO, "fsx.publish", liveDir, err)
+	return PublishDirectoryContext(context.Background(), stageDir, liveDir)
+}
+
+// PublishDirectoryContext is PublishDirectory with cancellation support.
+func PublishDirectoryContext(ctx context.Context, stageDir, liveDir string) error {
+	if err := publishDirectory(ctx, stageDir, liveDir); err != nil {
+		return WrapPublishRename("fsx.publish", stageDir, liveDir, err)
 	}
 	return SyncDir(filepath.Dir(liveDir))
 }
@@ -196,25 +203,27 @@ func RecoverDirectoryPublication(liveDir string) error {
 	return nil
 }
 
-func publishDirectory(stageDir, liveDir string) error {
+func publishDirectory(ctx context.Context, stageDir, liveDir string) error {
 	backup := liveDir + mewOldSuffix
-	if err := os.RemoveAll(backup); err != nil {
+	if err := RemoveAllRetry(ctx, backup); err != nil {
 		return err
 	}
 	if _, err := os.Stat(liveDir); err == nil {
-		if err := os.Rename(liveDir, backup); err != nil {
-			return err
+		if err := RenamePath(ctx, liveDir, backup); err != nil {
+			if rmErr := RemoveAllRetry(ctx, liveDir); rmErr != nil {
+				return errors.Join(err, rmErr)
+			}
 		}
 	}
-	if err := os.Rename(stageDir, liveDir); err != nil {
+	if err := RenamePath(ctx, stageDir, liveDir); err != nil {
 		if _, statErr := os.Stat(backup); statErr == nil {
-			if restoreErr := os.Rename(backup, liveDir); restoreErr != nil {
+			if restoreErr := RenamePath(ctx, backup, liveDir); restoreErr != nil {
 				return restoreErr
 			}
 		}
 		return err
 	}
-	if err := os.RemoveAll(backup); err != nil {
+	if err := RemoveAllRetry(ctx, backup); err != nil {
 		return err
 	}
 	return nil
