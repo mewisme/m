@@ -96,6 +96,11 @@ human output. Structured modes (`json` / `ndjson`) never use Glamour.
 `--output=rich` also selects Glamour for topic help when rich mode is accepted
 (interactive stderr); use `--color=always` when the terminal is non-TTY.
 
+Glamour's standard style follows effective `ui.theme` (`auto`\|`light`\|`dark`;
+`accessible`/`none` map to Glamour `notty`). `auto` uses the terminal background
+hint (`COLORFGBG`). Theme selection still applies under `--color=always` /
+ForceColor on non-TTY stdout.
+
 ### Topic pager
 
 ```text

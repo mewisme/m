@@ -32,6 +32,7 @@ or `-`). `--sources` adds `SOURCE` and `PATH`.
 |---|---|
 | `ui.output` | `auto` \| `rich` \| `plain` \| `json` \| `ndjson` \| `silent` |
 | `ui.color` | color policy |
+| `ui.theme` | `auto` \| `light` \| `dark` \| `accessible` \| `none` — Glamour help style |
 | `ui.accessible` | accessible append-only mode |
 | `ui.interactive` | prompt policy |
 | `ui.pager` | optional pager command for topic help |

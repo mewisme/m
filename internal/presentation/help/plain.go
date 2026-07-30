@@ -15,7 +15,10 @@ type RenderOptions struct {
 	Plain      bool
 	Accessible bool
 	Hyperlinks bool
-	Style      string // glamour standard style: dark|light
+	// Style is a Glamour WithStandardStyle name (dark|light|notty). Empty uses Theme.
+	Style string
+	// Theme selects GlamourStyle when Style is empty (from ui.theme / ThemePreference).
+	Theme presentation.ThemeMode
 	// ForceColor keeps Glamour ANSI even when the process stdout is non-TTY
 	// (skips lipgloss profile downsampling that would strip SGR).
 	ForceColor bool

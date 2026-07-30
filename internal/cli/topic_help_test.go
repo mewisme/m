@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/mewisme/mew/internal/presentation"
+	helpmd "github.com/mewisme/mew/internal/presentation/help"
 )
 
 // TestHelpViaExecutePath covers Phase A direct dispatch: "help" must fall through
@@ -98,9 +99,7 @@ func TestTopicHelpUsePlainAutoNonTTYStaysPlain(t *testing.T) {
 
 func TestHelpTopicColorAlwaysForcesGlamour(t *testing.T) {
 	// strings.Builder stdout is non-TTY; --color=always must still select Glamour.
-	t.Setenv("CI", "")
-	t.Setenv("GITHUB_ACTIONS", "")
-	t.Setenv("NO_COLOR", "")
+	clearHelpEnv(t)
 	root := NewMRoot(testBuildInfo())
 	buf := new(strings.Builder)
 	root.SetOut(buf)
@@ -123,10 +122,8 @@ func TestHelpTopicColorAlwaysForcesGlamour(t *testing.T) {
 
 func TestHelpTopicConfigColorAlwaysForcesGlamour(t *testing.T) {
 	// Regression: --color default must not be literal "auto", or ui.color never applies.
-	t.Setenv("CI", "")
-	t.Setenv("GITHUB_ACTIONS", "")
-	t.Setenv("NO_COLOR", "")
-	t.Setenv("MEW_COLOR", "")
+	// Empty Setenv still leaves NO_COLOR present (LookupEnv ok); unset fully.
+	clearHelpEnv(t)
 	dir := t.TempDir()
 	cfgPath := dir + string(os.PathSeparator) + "color-always.jsonc"
 	if err := os.WriteFile(cfgPath, []byte(`{"ui":{"color":"always"}}`+"\n"), 0o644); err != nil {
@@ -146,6 +143,97 @@ func TestHelpTopicConfigColorAlwaysForcesGlamour(t *testing.T) {
 	}
 	if !strings.Contains(out, "\x1b[") {
 		t.Fatalf("expected ANSI from Glamour with ui.color=always:\n%q", out)
+	}
+}
+
+func TestHelpTopicConfigThemeSelectsGlamourStyle(t *testing.T) {
+	// ForceColor (--color=always) on non-TTY: ui.theme must still pick light vs dark.
+	clearHelpEnv(t)
+
+	render := func(theme string) string {
+		t.Helper()
+		dir := t.TempDir()
+		cfgPath := dir + string(os.PathSeparator) + "theme.jsonc"
+		body := `{"ui":{"theme":"` + theme + `"}}` + "\n"
+		if err := os.WriteFile(cfgPath, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		root := NewMRoot(testBuildInfo())
+		buf := new(strings.Builder)
+		root.SetOut(buf)
+		root.SetErr(buf)
+		root.SetArgs([]string{
+			"--color=always", "--config", cfgPath,
+			"help", "--pager=never", "runner",
+		})
+		if err := root.Execute(); err != nil {
+			t.Fatal(err)
+		}
+		out := buf.String()
+		if strings.Contains(out, "# Runner") {
+			t.Fatalf("plain renderer with ui.theme=%s:\n%s", theme, out)
+		}
+		if !strings.Contains(out, "\x1b[") {
+			t.Fatalf("expected ANSI with ui.theme=%s:\n%q", theme, out)
+		}
+		return out
+	}
+
+	dark := render("dark")
+	light := render("light")
+	if dark == light {
+		t.Fatal("ui.theme=dark and ui.theme=light must produce different Glamour output")
+	}
+}
+
+func clearHelpEnv(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{"CI", "GITHUB_ACTIONS", "NO_COLOR", "MEW_COLOR", "COLORFGBG"} {
+		key := key
+		prev, had := os.LookupEnv(key)
+		_ = os.Unsetenv(key)
+		if had {
+			t.Cleanup(func() { _ = os.Setenv(key, prev) })
+		}
+	}
+}
+
+func TestTopicHelpGlamourStyleFollowsThemePreference(t *testing.T) {
+	caps := presentation.Capabilities{
+		StdoutTTY:    false,
+		ColorProfile: presentation.ColorProfileASCII,
+		Background:   presentation.BackgroundDark,
+	}
+	opts := presentation.ResolvedOptions{
+		Color: presentation.TriAlways,
+		Theme: "light",
+	}
+	// ForceColor path: Effective.ThemeMode may still be set, but preference is authoritative.
+	eff := presentation.Effective(opts, caps)
+	if eff.ThemeMode != presentation.ThemeLight {
+		t.Fatalf("ThemeMode=%q want light with color=always", eff.ThemeMode)
+	}
+	pref := presentation.ThemePreference(opts, caps)
+	if pref != presentation.ThemeLight {
+		t.Fatalf("ThemePreference=%q want light", pref)
+	}
+	if helpmd.GlamourStyle(pref) != "light" {
+		t.Fatalf("GlamourStyle=%q", helpmd.GlamourStyle(pref))
+	}
+
+	// Non-TTY without TriAlways: Effective is ThemeNone, preference still follows ui.theme.
+	opts.Color = presentation.TriAuto
+	opts.Theme = "dark"
+	eff = presentation.Effective(opts, caps)
+	if eff.ThemeMode != presentation.ThemeNone {
+		t.Fatalf("ThemeMode=%q want none without color on non-TTY", eff.ThemeMode)
+	}
+	pref = presentation.ThemePreference(opts, caps)
+	if pref != presentation.ThemeDark {
+		t.Fatalf("ThemePreference=%q want dark", pref)
+	}
+	if helpmd.GlamourStyle(pref) != "dark" {
+		t.Fatalf("GlamourStyle=%q", helpmd.GlamourStyle(pref))
 	}
 }
 

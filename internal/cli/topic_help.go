@@ -103,18 +103,17 @@ func writeTopicHelp(cmd *cobra.Command, body []byte, pagerFlag string) error {
 	forceColor := !plain && (opts.Color == presentation.TriAlways ||
 		opts.RequestedOutput == presentation.OutputRich)
 	human := !structured
-	// Match presentation ThemeMode (explicit --theme / config), not raw COLORFGBG alone.
-	style := "dark"
-	if eff.ThemeMode == presentation.ThemeLight {
-		style = "light"
-	}
+	// Prefer ui.theme via ThemePreference so ForceColor (non-TTY) still gets
+	// light/dark — Effective.ThemeMode is ThemeNone when useColor is false.
+	theme := presentation.ThemePreference(opts, caps)
 
 	rendered, err := helpmd.Render(string(body), helpmd.RenderOptions{
 		Width:      eff.Width,
 		Plain:      plain,
 		Accessible: eff.Accessible,
 		Hyperlinks: caps.Hyperlinks && !plain && !eff.Accessible,
-		Style:      style,
+		Theme:      theme,
+		Style:      helpmd.GlamourStyle(theme),
 		ForceColor: forceColor,
 	})
 	if err != nil {
@@ -143,9 +142,9 @@ func writeTopicHelp(cmd *cobra.Command, body []byte, pagerFlag string) error {
 }
 
 // topicHelpUsePlain decides whether topic Markdown uses the plain renderer.
-	// Explicit --color=always / ui.color=always or --output=rich forces Glamour even
-	// when stdout is non-TTY (common in IDE/Cursor terminals). Auto rich still
-	// requires a human color TTY path.
+// Explicit --color=always / ui.color=always or --output=rich forces Glamour even
+// when stdout is non-TTY (common in IDE/Cursor terminals). Auto rich still
+// requires a human color TTY path.
 func topicHelpUsePlain(opts presentation.ResolvedOptions, caps presentation.Capabilities, eff presentation.EffectiveSettings) bool {
 	if opts.Structured() || eff.Accessible || opts.Color == presentation.TriNever {
 		return true

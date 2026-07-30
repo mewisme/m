@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mewisme/mew/internal/presentation"
 	helpmd "github.com/mewisme/mew/internal/presentation/help"
 )
 
@@ -77,5 +78,48 @@ func TestRenderForceColorKeepsANSI(t *testing.T) {
 	}
 	if strings.Contains(out, "# Hello") {
 		t.Fatalf("expected Glamour heading, got plain markdown:\n%s", out)
+	}
+}
+
+func TestGlamourStyleMapsThemeMode(t *testing.T) {
+	cases := []struct {
+		mode presentation.ThemeMode
+		want string
+	}{
+		{presentation.ThemeLight, "light"},
+		{presentation.ThemeDark, "dark"},
+		{presentation.ThemeAccessible, "notty"},
+		{presentation.ThemeNone, "notty"},
+		{"", "dark"},
+	}
+	for _, tc := range cases {
+		if got := helpmd.GlamourStyle(tc.mode); got != tc.want {
+			t.Fatalf("GlamourStyle(%q)=%q want %q", tc.mode, got, tc.want)
+		}
+	}
+	if helpmd.GlamourStyle(presentation.ThemeLight) == helpmd.GlamourStyle(presentation.ThemeDark) {
+		t.Fatal("light and dark must map to different Glamour styles")
+	}
+}
+
+func TestRenderRichThemeSelectsStyle(t *testing.T) {
+	md := "# Theme\n\n`code` and **bold**\n"
+	dark, err := helpmd.RenderRich(md, helpmd.RenderOptions{
+		Width: 72, Theme: presentation.ThemeDark, ForceColor: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	light, err := helpmd.RenderRich(md, helpmd.RenderOptions{
+		Width: 72, Theme: presentation.ThemeLight, ForceColor: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dark == light {
+		t.Fatalf("dark and light Theme must produce different Glamour output")
+	}
+	if !strings.Contains(dark, "\x1b[") || !strings.Contains(light, "\x1b[") {
+		t.Fatalf("expected ANSI in both:\ndark=%q\nlight=%q", dark, light)
 	}
 }

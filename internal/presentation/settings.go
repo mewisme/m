@@ -106,6 +106,13 @@ func resolveThemeMode(resolved ResolvedOptions, caps Capabilities, useColor bool
 	if !useColor {
 		return ThemeNone
 	}
+	return ThemePreference(resolved, caps)
+}
+
+// ThemePreference resolves ui.theme (and auto background) without the color gate.
+// Use this for Glamour help styles when ForceColor still renders rich on a non-TTY
+// (Effective.ThemeMode is ThemeNone when useColor is false).
+func ThemePreference(resolved ResolvedOptions, caps Capabilities) ThemeMode {
 	if resolved.Accessible || caps.ScreenReader {
 		return ThemeAccessible
 	}
@@ -118,7 +125,7 @@ func resolveThemeMode(resolved ResolvedOptions, caps Capabilities, useColor bool
 		return ThemeAccessible
 	case "none":
 		return ThemeNone
-	default:
+	default: // auto / empty
 		if caps.Background == BackgroundDark {
 			return ThemeDark
 		}
