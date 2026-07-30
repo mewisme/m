@@ -3,7 +3,7 @@
 GO ?= go
 BIN_DIR := bin
 
-.PHONY: test vet lint race fuzz-smoke conformance core-cert core-cert-fast core-cert-security core-cert-crash core-cert-performance vuln build allowlist
+.PHONY: test vet lint race fuzz-smoke conformance core-cert core-cert-fast core-cert-security core-cert-crash core-cert-performance vuln build allowlist install-dev uninstall-dev
 
 test:
 	$(GO) test ./... -count=1
@@ -48,8 +48,22 @@ LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate
 
 build:
 	@mkdir -p $(BIN_DIR)
-	$(GO) build -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/m$(EXE) ./cmd/m
-	$(GO) build -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/mx$(EXE) ./cmd/mx
+	CGO_ENABLED=0 $(GO) build -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/m$(EXE) ./cmd/m
+	CGO_ENABLED=0 $(GO) build -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/mx$(EXE) ./cmd/mx
+
+install-dev:
+	@if [ "$$(uname -s)" = "MINGW"* ] || [ "$$(uname -s)" = "MSYS"* ]; then \
+	  pwsh -NoProfile -File scripts/install-dev.ps1; \
+	else \
+	  ./scripts/install-dev.sh; \
+	fi
+
+uninstall-dev:
+	@if [ "$$(uname -s)" = "MINGW"* ] || [ "$$(uname -s)" = "MSYS"* ]; then \
+	  pwsh -NoProfile -File scripts/uninstall-dev.ps1; \
+	else \
+	  ./scripts/uninstall-dev.sh; \
+	fi
 
 allowlist:
 	$(GO) run ./tools/check-license

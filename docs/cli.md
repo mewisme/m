@@ -12,8 +12,10 @@
 | `m` | `mew` | invoked basename (`m` or `mew`) |
 | `mx` | `mewx` | invoked basename (`mx` or `mewx`) |
 
-Installer-shipped `mew` / `mewx` symlinks are MVP **0072**. Until then, renaming or
-symlinking the binary changes `Use` and `version` labels via basename detection.
+Installer-shipped `mew` / `mewx` aliases are provided by the
+[development installer](../CONTRIBUTING.md#development-installation) (`scripts/install-dev.*`).
+Official release installers remain planned (MVP **0072**); for local development use
+`make install-dev` or the platform script.
 
 ## Global flags
 
