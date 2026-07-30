@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current standalone plan: **UX-0006 — Prompts and Accessibility**
+- Current standalone plan: **UX-0007 — Advanced Help, Pager, and Markdown**
 - Status: active standalone program
 - Recommended repository path: `plans/ux/`
 - Numbering namespace: `UX-0001` through `UX-0008`
@@ -82,16 +82,16 @@
 
 ## UX-0006 — Prompts and Accessibility
 
-- [ ] Define prompt interface and policy.
-- [ ] Pin/review Huh v2.
-- [ ] Implement rich prompt adapter.
-- [ ] Implement accessible numbered prompt adapter.
-- [ ] Preserve lifecycle trust semantics.
-- [ ] Preserve `mx` consent ordering.
-- [ ] Audit destructive confirmations.
-- [ ] Disable prompts in non-TTY/CI/structured modes.
-- [ ] Add safe defaults, EOF, cancellation, and redaction tests.
-- [ ] Produce manual accessibility evidence.
+- [x] Define prompt interface and policy.
+- [x] Pin/review Huh v2.
+- [x] Implement rich prompt adapter.
+- [x] Implement accessible numbered prompt adapter.
+- [x] Preserve lifecycle trust semantics.
+- [x] Preserve `mx` consent ordering.
+- [x] Audit destructive confirmations.
+- [x] Disable prompts in non-TTY/CI/structured modes.
+- [x] Add safe defaults, EOF, cancellation, and redaction tests.
+- [x] Produce manual accessibility evidence.
 
 ## UX-0007 — Advanced Help, Pager, and Markdown
 

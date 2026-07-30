@@ -36,7 +36,7 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 | `link.use_global_store` | bool | `false` — experimental global store + smart linker (or `MEW_EXPERIMENTAL_GLOBAL_STORE=1`) |
 | `lifecycle.enabled` | bool | `false` — run lifecycle scripts (or `MEW_EXPERIMENTAL_LIFECYCLE=1`) |
 | `lifecycle.ignore_scripts` | bool | `false` — skip all lifecycle scripts |
-| `lifecycle.script_trust` | string | `deny` (`allow` \| `deny` \| `ask`) |
+| `lifecycle.script_trust` | string | `deny` (`allow` \| `deny` \| `ask`) — `ask` prompts when `--interactive` permits; choices: deny / allow-once (session) / trust-project |
 | `workspaces.enabled` | bool | `false` — workspace install/filter (or `MEW_EXPERIMENTAL_WORKSPACES=1`) |
 | `runner.direct_scripts.enabled` | bool | `false` — direct `m <script>` shortcuts (or `MEW_EXPERIMENTAL_DIRECT_SCRIPTS=1`) |
 | `runner.exec.direct_dispatch.enabled` | bool | `false` — direct `m <binary>` shortcuts with verified bin metadata (or `MEW_EXPERIMENTAL_EXEC_DIRECT_DISPATCH=1`) |
@@ -46,8 +46,8 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 | `ui.color` | string | `auto` |
 | `ui.progress` | string | `auto` |
 | `ui.unicode` | string | `auto` |
-| `ui.interactive` | string | `auto` |
-| `ui.accessible` | bool | `false` |
+| `ui.interactive` | string | `auto` — `auto`\|`always`\|`never` prompt policy (`MEW_INTERACTIVE`) |
+| `ui.accessible` | bool | `false` — numbered prompts + append-only output (`MEW_ACCESSIBLE`) |
 | `ui.summary` | bool | `true` |
 | `ui.theme` | string | empty/`auto` — `auto`\|`light`\|`dark`\|`accessible`\|`none` |
 | `log.level` | string | `error` |

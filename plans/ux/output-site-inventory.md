@@ -184,6 +184,14 @@ Diagnostics and prep banners use **stderr only**. Child stdout/stderr stay byte-
 | `runner.Run` / `runner.Exec` via optional Suspend/Resume on options | UX-0005 |
 | envexec before child Exec | UX-0005 |
 | Workspace inherit/interactive path | UX-0005 when task owns raw TTYs |
+| Prompt adapters (`presentation/prompt` Suspend wrap) | UX-0006 |
+| `mx` consent (`envexec` ProviderDeps.Suspend around PromptConsent) | UX-0006 |
+
+### Prompts (UX-0006)
+
+See **Prompts (UX-0006)** section above. Contract: `internal/prompt`. Adapters:
+`internal/presentation/prompt` (Huh rich + accessible numbered). Destructive
+commands remain dry-run/flag gated — no new confirm prompts.
 
 ### TerminalIntent
 
@@ -205,3 +213,5 @@ Allowed: `project`, `warm cache`, `snapshot <short-id>`, `capsule`, `dlx`. Never
   dedupe/prune/plan/snapshot/capsule; `--no-summary` honored
 - UX-0005: runner/workspace prep views, Suspend around child, workspace aggregate
   status, TerminalIntent, completion summary (see contracts above)
+- UX-0006: `internal/prompt` contract; Huh + accessible adapters; lifecycle ask +
+  mx consent migration; destructive confirm audit (no new prompts); a11y evidence

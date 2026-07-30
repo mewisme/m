@@ -30,6 +30,7 @@ var hintRules = []hintRule{
 		return strings.Contains(m.Operation, "run") || strings.Contains(m.Subject, "script")
 	}, message: "Run `m run <script>` or list scripts with `m pkg get scripts`."},
 	{code: apperr.NotFound, message: "Check the project path and package name."},
+	{code: apperr.Policy, operation: "lifecycle.trust", message: "Review and approve with `m trust <package>` or `m builds`."},
 	{code: apperr.Policy, message: "Review policy with `m policy check` or lifecycle trust with `m builds`."},
 	{code: apperr.Config, message: "Run `m config list` to inspect effective configuration."},
 	{code: apperr.Resolve, message: "Run `m explain <package>` to inspect resolution decisions."},

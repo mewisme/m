@@ -19,6 +19,17 @@ m approve-builds <package>
 m trust --interactive
 ```
 
+With `lifecycle.script_trust: ask` and an interactive TTY (`--interactive=auto|always`),
+install prompts on **stderr** for each untrusted package:
+
+- **Deny** (default; empty Enter / EOF / cancel)
+- **Allow once** (current install only; not persisted)
+- **Trust for this project** (writes `.mew/trusted-packages.json`)
+
+Non-TTY / CI / structured / `--interactive=never` fail closed with `ERR_M_POLICY`
+(hint: `m trust` / `m builds`). Prompt adapters never decide trust; domain interprets
+option IDs.
+
 Untrusted blocks surface `ERR_M_POLICY`.
 
 ## Skipping scripts
