@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -117,6 +118,34 @@ func TestHelpTopicColorAlwaysForcesGlamour(t *testing.T) {
 	}
 	if !strings.Contains(out, "•") {
 		t.Fatalf("expected Glamour bullet:\n%s", out)
+	}
+}
+
+func TestHelpTopicConfigColorAlwaysForcesGlamour(t *testing.T) {
+	// Regression: --color default must not be literal "auto", or ui.color never applies.
+	t.Setenv("CI", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("MEW_COLOR", "")
+	dir := t.TempDir()
+	cfgPath := dir + string(os.PathSeparator) + "color-always.jsonc"
+	if err := os.WriteFile(cfgPath, []byte(`{"ui":{"color":"always"}}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	root := NewMRoot(testBuildInfo())
+	buf := new(strings.Builder)
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"--config", cfgPath, "help", "--pager=never", "runner"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if strings.Contains(out, "# Runner") {
+		t.Fatalf("plain renderer still selected with ui.color=always:\n%s", out)
+	}
+	if !strings.Contains(out, "\x1b[") {
+		t.Fatalf("expected ANSI from Glamour with ui.color=always:\n%q", out)
 	}
 }
 

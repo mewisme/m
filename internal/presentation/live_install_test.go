@@ -39,6 +39,31 @@ func TestLiveInstallRendererStartStop(t *testing.T) {
 	}
 }
 
+func TestLiveInstallRendererLazyStartNoTerminalIO(t *testing.T) {
+	// Commands that never emit progress must not start Bubble Tea (no ESC leaks).
+	var buf bytes.Buffer
+	settings := presentation.EffectiveSettings{
+		UseUnicode: false,
+		Width:      80,
+		Symbols:    presentation.ASCIISymbols,
+	}
+	r, err := presentation.NewLiveInstallRenderer(&buf, settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Suspend()
+	r.Resume()
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("lazy renderer wrote before progress events: %q", buf.String())
+	}
+	if strings.Contains(buf.String(), "2027") {
+		t.Fatalf("mode 2027 query leaked: %q", buf.String())
+	}
+}
+
 func TestControllerAutoRichDowngradesToPlain(t *testing.T) {
 	// Progress auto + effective rich eligibility false → plain sink, not an error.
 	caps := testkit.PipeCapabilities()

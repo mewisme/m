@@ -121,6 +121,46 @@ func TestForcedRichUnsupported(t *testing.T) {
 	}
 }
 
+func TestResolveColorConfigWhenFlagUnset(t *testing.T) {
+	// ColorFlag "" (CLI unset) must not shadow ui.color. A default of "auto" would.
+	got, err := presentation.Resolve(presentation.Input{
+		Config: map[string]string{"ui.color": "always"},
+	}, pipeCaps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Color != presentation.TriAlways {
+		t.Fatalf("color=%q want always from ui.color", got.Color)
+	}
+}
+
+func TestResolveColorFlagAutoShadowsConfig(t *testing.T) {
+	// Explicit --color=auto is CLI precedence and must win over config.
+	got, err := presentation.Resolve(presentation.Input{
+		ColorFlag: "auto",
+		Config:    map[string]string{"ui.color": "always"},
+	}, pipeCaps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Color != presentation.TriAuto {
+		t.Fatalf("color=%q want auto from ColorFlag", got.Color)
+	}
+}
+
+func TestResolveColorMEWColorWhenFlagUnset(t *testing.T) {
+	got, err := presentation.Resolve(presentation.Input{
+		Env:    map[string]string{"MEW_COLOR": "always"},
+		Config: map[string]string{"ui.color": "never"},
+	}, pipeCaps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Color != presentation.TriAlways {
+		t.Fatalf("color=%q want always from MEW_COLOR", got.Color)
+	}
+}
+
 func TestStructuredCommandJSONConflict(t *testing.T) {
 	opts := presentation.ResolvedOptions{EffectiveOutput: presentation.OutputJSON}
 	if err := presentation.StructuredConflictsWithCommandJSON(opts, true); err == nil {

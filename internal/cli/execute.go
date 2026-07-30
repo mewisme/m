@@ -67,7 +67,9 @@ func (g *globalFlags) bind(cmd *cobra.Command) {
 	g.bindPresentation(cmd)
 	cmd.PersistentFlags().StringVar(&g.reporter, "reporter", "", "output reporter: default|ndjson|json|silent (alias for --output; env MEW_LOG_FORMAT)")
 	cmd.PersistentFlags().BoolVar(&g.debug, "debug", false, "verbose diagnostics (env MEW_DEBUG or M_LOG=debug)")
-	cmd.PersistentFlags().StringVar(&g.color, "color", "auto", "color: auto|always|never")
+		// Empty default (not "auto"): a literal "auto" would shadow MEW_COLOR / ui.color
+		// via firstNonEmpty in presentation.Resolve. Unset resolves to TriAuto there.
+		cmd.PersistentFlags().StringVar(&g.color, "color", "", "color: auto|always|never")
 	cmd.PersistentFlags().BoolVar(&g.noColor, "no-color", false, "disable ANSI color")
 	cmd.PersistentFlags().BoolVar(&g.unsafe, "unsafe-diagnostics", false, "disable secret redaction (dangerous)")
 	_ = cmd.PersistentFlags().MarkHidden("unsafe-diagnostics")

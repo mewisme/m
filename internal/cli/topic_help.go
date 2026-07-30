@@ -143,9 +143,9 @@ func writeTopicHelp(cmd *cobra.Command, body []byte, pagerFlag string) error {
 }
 
 // topicHelpUsePlain decides whether topic Markdown uses the plain renderer.
-// Explicit --color=always or --output=rich forces Glamour even when stdout is
-// non-TTY (common in IDE/Cursor terminals). Auto rich still requires a human
-// color TTY path.
+	// Explicit --color=always / ui.color=always or --output=rich forces Glamour even
+	// when stdout is non-TTY (common in IDE/Cursor terminals). Auto rich still
+	// requires a human color TTY path.
 func topicHelpUsePlain(opts presentation.ResolvedOptions, caps presentation.Capabilities, eff presentation.EffectiveSettings) bool {
 	if opts.Structured() || eff.Accessible || opts.Color == presentation.TriNever {
 		return true

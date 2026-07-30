@@ -3,6 +3,7 @@ package presentation
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -15,13 +16,18 @@ import (
 
 // LiveInstallRenderer is an inline Bubble Tea progress sink for stderr.
 // It does not use the alternate screen and does not own stdin.
+// The tea program starts lazily on the first progress event so commands that
+// never emit progress (version, help, config) do not touch the terminal.
 type LiveInstallRenderer struct {
 	mu       sync.Mutex
+	w        io.Writer
+	settings EffectiveSettings
 	p        *tea.Program
 	done     chan struct{}
 	runErr   error
 	closed   bool
-	settings EffectiveSettings
+	started  bool
+	suspend  bool
 }
 
 type livePhase struct {
@@ -53,101 +59,146 @@ type (
 	liveResumeMsg    struct{}
 )
 
-// NewLiveInstallRenderer starts an inline tea program writing to w (stderr).
+// NewLiveInstallRenderer prepares an inline tea progress sink writing to w (stderr).
+// The program is not started until the first progress event.
 func NewLiveInstallRenderer(w io.Writer, settings EffectiveSettings) (*LiveInstallRenderer, error) {
 	if w == nil {
 		w = io.Discard
 	}
-	sp := spinner.New()
-	if settings.UseUnicode {
-		sp.Spinner = spinner.MiniDot
-	} else {
-		sp.Spinner = spinner.Line
-	}
-	m := liveModel{
-		spinner:  sp,
+	return &LiveInstallRenderer{
+		w:        w,
 		settings: settings,
-		byID:     map[string]int{},
-		width:    settings.Width,
-	}
-	p := tea.NewProgram(m,
-		tea.WithOutput(w),
-		tea.WithInput(nil),
-		tea.WithoutSignals(),
-	)
-	r := &LiveInstallRenderer{
-		p:        p,
-		done:     make(chan struct{}),
-		settings: settings,
-	}
-	go func() {
-		_, err := p.Run()
-		r.mu.Lock()
-		r.runErr = err
-		r.mu.Unlock()
-		close(r.done)
-	}()
-	return r, nil
+	}, nil
 }
 
 func (r *LiveInstallRenderer) OperationStarted(ev diagnostics.OperationStartedEvent) {
-	r.send(liveStartedMsg(ev))
+	r.send(liveStartedMsg(ev), true)
 }
 
 func (r *LiveInstallRenderer) OperationProgress(ev diagnostics.OperationProgressEvent) {
-	r.send(liveProgressMsg(ev))
+	r.send(liveProgressMsg(ev), true)
 }
 
 func (r *LiveInstallRenderer) OperationCompleted(ev diagnostics.OperationCompletedEvent) {
-	r.send(liveCompletedMsg(ev))
+	r.send(liveCompletedMsg(ev), true)
 }
 
 func (r *LiveInstallRenderer) Notice(ev diagnostics.NoticeEvent) {
-	r.send(liveNoticeMsg(ev))
+	r.send(liveNoticeMsg(ev), true)
 }
 
 func (r *LiveInstallRenderer) Suspend() {
-	r.send(liveSuspendMsg{})
+	r.send(liveSuspendMsg{}, false)
 }
 
 func (r *LiveInstallRenderer) Resume() {
-	r.send(liveResumeMsg{})
+	r.send(liveResumeMsg{}, false)
 }
 
 func (r *LiveInstallRenderer) Close() error {
 	r.mu.Lock()
 	if r.closed {
+		err := r.runErr
 		r.mu.Unlock()
-		return r.runErr
+		return err
 	}
 	r.closed = true
 	p := r.p
+	done := r.done
 	r.mu.Unlock()
-	if p != nil {
-		p.Quit()
+	if p == nil || done == nil {
+		return nil
 	}
+	p.Quit()
 	select {
-	case <-r.done:
+	case <-done:
 	case <-time.After(2 * time.Second):
-		if p != nil {
-			p.Kill()
-		}
-		<-r.done
+		p.Kill()
+		<-done
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.runErr
 }
 
-func (r *LiveInstallRenderer) send(msg tea.Msg) {
+func (r *LiveInstallRenderer) send(msg tea.Msg, start bool) {
 	r.mu.Lock()
-	closed := r.closed
-	p := r.p
-	r.mu.Unlock()
-	if closed || p == nil {
+	defer r.mu.Unlock()
+	if r.closed {
 		return
 	}
-	p.Send(msg)
+	switch msg.(type) {
+	case liveSuspendMsg:
+		r.suspend = true
+	case liveResumeMsg:
+		r.suspend = false
+	}
+	if !r.started {
+		if !start {
+			return
+		}
+		r.startLocked()
+	}
+	if r.p == nil {
+		return
+	}
+	r.p.Send(msg)
+}
+
+func (r *LiveInstallRenderer) startLocked() {
+	sp := spinner.New()
+	if r.settings.UseUnicode {
+		sp.Spinner = spinner.MiniDot
+	} else {
+		sp.Spinner = spinner.Line
+	}
+	m := liveModel{
+		spinner:  sp,
+		settings: r.settings,
+		byID:     map[string]int{},
+		width:    r.settings.Width,
+		suspend:  r.suspend,
+	}
+	p := tea.NewProgram(m,
+		tea.WithOutput(r.w),
+		tea.WithInput(nil),
+		tea.WithoutSignals(),
+		tea.WithEnvironment(liveInstallEnviron(os.Environ())),
+	)
+	done := make(chan struct{})
+	r.p = p
+	r.done = done
+	r.started = true
+	go func() {
+		_, err := p.Run()
+		r.mu.Lock()
+		r.runErr = err
+		r.mu.Unlock()
+		close(done)
+	}()
+}
+
+// liveInstallEnviron builds the Bubble Tea environment for a no-stdin live sink.
+//
+// ponytail: Bubble Tea v2 emits DEC mode 2026/2027 capability queries on start.
+// WithInput(nil) cannot consume the replies, so they leak into the shell as
+// literal input ([?2027;3$y]). shouldQuerySynchronizedOutput is false for
+// Apple Terminal over SSH; spoof that pair so queries are skipped.
+// Upgrade: upstream option to disable probes when input is nil.
+func liveInstallEnviron(base []string) []string {
+	out := make([]string, 0, len(base)+2)
+	for _, e := range base {
+		switch {
+		case strings.HasPrefix(e, "WT_SESSION="),
+			strings.HasPrefix(e, "SSH_TTY="),
+			strings.HasPrefix(e, "TERM_PROGRAM="):
+			continue
+		default:
+			out = append(out, e)
+		}
+	}
+	out = append(out, "SSH_TTY=1", "TERM_PROGRAM=Apple_Terminal")
+	return out
 }
 
 func (m liveModel) Init() tea.Cmd {
