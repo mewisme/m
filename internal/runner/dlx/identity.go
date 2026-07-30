@@ -90,40 +90,6 @@ func digestCanonical(v any) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// ponytail: canonicalize kept for future map normalization tests
-func canonicalize(v any) any {
-	switch t := v.(type) {
-	case map[string]any:
-		keys := make([]string, 0, len(t))
-		for k := range t {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		out := make(map[string]any, len(t))
-		for _, k := range keys {
-			out[k] = canonicalize(t[k])
-		}
-		return out
-	case []any:
-		out := make([]any, len(t))
-		for i, x := range t {
-			out[i] = canonicalize(x)
-		}
-		return out
-	default:
-		b, err := json.Marshal(v)
-		if err != nil {
-			return v
-		}
-		var decoded any
-		if json.Unmarshal(b, &decoded) == nil {
-			return canonicalize(decoded)
-		}
-		return v
-	}
-}
-
-// SortSpecs returns a sorted copy of package specs for identity construction.
 func SortSpecs(specs []PackageSpec) []string {
 	out := make([]string, len(specs))
 	for i, s := range specs {

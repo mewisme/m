@@ -3,11 +3,9 @@ package runner_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -133,14 +131,4 @@ func runMXInProject(t *testing.T, projDir string, args ...string) (int, string) 
 func fixturePath(t *testing.T, parts ...string) string {
 	t.Helper()
 	return filepath.Join(append([]string{moduleRoot(t), "fixtures"}, parts...)...)
-}
-
-func isWindows() bool { return runtime.GOOS == "windows" }
-func isUnix() bool    { return runtime.GOOS != "windows" }
-
-func parseJSON(t *testing.T, data string, v any) {
-	t.Helper()
-	if err := json.Unmarshal([]byte(strings.TrimSpace(data)), v); err != nil {
-		t.Fatalf("json: %v data=%s", err, data)
-	}
 }

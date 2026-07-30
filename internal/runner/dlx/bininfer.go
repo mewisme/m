@@ -54,7 +54,7 @@ func ResolveModeBCommand(command string, owners map[string]map[string]string) (o
 
 func multipleOwnerError(command string, owners []string) error {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Command %q is exposed by multiple requested packages:\n", command))
+	fmt.Fprintf(&b, "Command %q is exposed by multiple requested packages:\n", command)
 	for _, o := range owners {
 		b.WriteString("  ")
 		b.WriteString(o)

@@ -35,7 +35,7 @@ func RunWorkspace(
 	if tempDir == "" {
 		tempDir = filepath.Join(opts.ProjectRoot, ".mew", "tmp", "workspace-run", "run")
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	aggregate := opts.Output == OutputAggregate
 	aggStdout := map[int]*AggregateBuffer{}

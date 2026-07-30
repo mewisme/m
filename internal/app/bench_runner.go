@@ -111,7 +111,7 @@ func BenchRunner(ctx context.Context, ac *Context, opts RunnerBenchOptions) (Run
 	if err != nil {
 		return RunnerBenchResult{}, apperr.Wrap(apperr.IO, "app.bench.runner", "", err)
 	}
-	defer os.RemoveAll(fixtureRoot)
+	defer func() { _ = os.RemoveAll(fixtureRoot) }()
 	if err := copyDir(srcFixture, fixtureRoot); err != nil {
 		return RunnerBenchResult{}, apperr.Wrap(apperr.IO, "app.bench.runner", fixtureRoot, err)
 	}

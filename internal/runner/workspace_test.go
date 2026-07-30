@@ -2,7 +2,6 @@ package runner_test
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -236,5 +235,3 @@ func TestParseWorkspaceOrderInvalid(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
-
-var errTest = errors.New("test")

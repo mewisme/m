@@ -40,7 +40,7 @@ func ParseMXInvocation(argv []string) (MXInvocation, error) {
 		}
 		switch {
 		case arg == "--":
-			j++
+			i = j + 1
 			goto doneFlags
 		case arg == "--yes":
 			inv.AssumeYes = true

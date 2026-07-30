@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/mewisme/mew/internal/apperr"
-	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/workspace"
 )
 
@@ -160,13 +159,4 @@ func memberByPath(g *workspace.WorkspaceGraph, path string) (workspace.Member, b
 // packageDir returns the absolute package directory for a workspace member path.
 func packageDir(projectRoot, relPath string) string {
 	return filepath.Join(projectRoot, filepath.FromSlash(relPath))
-}
-
-// importerPaths converts graph.ImporterID slice to strings.
-func importerPaths(ids []graph.ImporterID) []string {
-	out := make([]string, 0, len(ids))
-	for _, id := range ids {
-		out = append(out, string(id))
-	}
-	return out
 }

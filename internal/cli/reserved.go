@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"sort"
 	"sync"
 )
 
@@ -49,11 +48,4 @@ func IsReserved(name string) bool {
 		}
 	}
 	return false
-}
-
-// reservedNamesSorted is a test helper returning the cached reserved list sorted.
-func reservedNamesSorted() []string {
-	names := ReservedNames()
-	sort.Strings(names)
-	return names
 }

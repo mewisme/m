@@ -35,7 +35,7 @@ type execImporterView struct {
 
 func (i execImporterView) ProjectRoot() string  { return i.ExecImporter.ProjectRoot }
 func (i execImporterView) PackageDir() string   { return i.ExecImporter.PackageDir }
-func (i execImporterView) RelativePath() string { return i.ExecImporter.Rel }
+func (i execImporterView) RelativePath() string { return i.Rel }
 
 func defaultOrchestrator(ac *Context) *envexec.Orchestrator {
 	return &envexec.Orchestrator{

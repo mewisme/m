@@ -2,8 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -555,7 +553,7 @@ func gateOffExactScriptMessage(script string) string {
 
 func formatSuggestionMessage(selector string, suggestions []Suggestion, directOn bool) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("unknown command %q", selector))
+	fmt.Fprintf(&b, "unknown command %q", selector)
 	if !directOn {
 		b.WriteString("\n\nDirect script shortcuts are disabled.")
 	}
@@ -611,7 +609,7 @@ func bareMUsageMessage(cwd string) string {
 		b.WriteString(name)
 	}
 	if total > bareMScriptListLimit {
-		b.WriteString(fmt.Sprintf("\n  … and %d more", total-bareMScriptListLimit))
+		fmt.Fprintf(&b, "\n  … and %d more", total-bareMScriptListLimit)
 	}
 	b.WriteString("\n\nRun m run <script> to execute a package script.")
 	return b.String()
@@ -625,20 +623,4 @@ func isRootMetaInvocation(args []string) bool {
 		}
 	}
 	return false
-}
-
-func isDispatchRoot(root *cobra.Command) bool {
-	_, _, err := root.Find([]string{"run"})
-	return err == nil
-}
-
-func resolveEffectiveCWD(g *globalFlags, leading leadingDispatchFlags) (string, error) {
-	cwd := leading.cwd
-	if cwd == "" && g != nil && g.cwd != "" {
-		cwd = g.cwd
-	}
-	if cwd == "" {
-		return os.Getwd()
-	}
-	return filepath.Abs(cwd)
 }

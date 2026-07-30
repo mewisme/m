@@ -85,12 +85,8 @@ func inspectUnixTarget(path string, hostEnv []string) (LaunchKind, string, strin
 		return "", "", "", err
 	}
 	if line != "" {
-		parts := strings.Fields(line)
-		if len(parts) < 2 {
-			return "", "", "", apperr.New(apperr.Exec, "binresolve.launch", path, "malformed shebang")
-		}
-		interp := parts[1]
-		if interp == "node" || strings.HasSuffix(interp, "/node") || strings.HasSuffix(interp, "/node.exe") {
+		interp := shebangInterpreter(line)
+		if isNodeInterpreter(interp) {
 			node, err := TrustedNodePath(hostEnv)
 			if err != nil {
 				return "", "", "", err
@@ -104,11 +100,27 @@ func inspectUnixTarget(path string, hostEnv []string) (LaunchKind, string, strin
 	if line == "" {
 		return LaunchDirect, path, path, nil
 	}
-	parts := strings.Fields(line)
-	interp := parts[1]
+	interp := shebangInterpreter(line)
 	return "", "", "", apperr.New(apperr.Unsupported, "binresolve.launch", interp, "unsupported interpreter shebang")
 }
 
+func shebangInterpreter(line string) string {
+	parts := strings.Fields(strings.TrimSpace(line))
+	if len(parts) == 0 {
+		return ""
+	}
+	if len(parts) >= 2 && (parts[0] == "env" || strings.HasSuffix(parts[0], "/env")) {
+		return parts[1]
+	}
+	if len(parts) >= 2 {
+		return parts[1]
+	}
+	return parts[0]
+}
+
+func isNodeInterpreter(interp string) bool {
+	return interp == "node" || strings.HasSuffix(interp, "/node") || strings.HasSuffix(interp, "/node.exe")
+}
 func readShebangLine(r io.Reader) (string, error) {
 	br := bufio.NewReader(r)
 	b, err := br.ReadBytes('\n')

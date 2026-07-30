@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -53,27 +52,4 @@ func newDispatchCmd(root *cobra.Command) *cobra.Command {
 			return err
 		},
 	}
-}
-
-// resolveDispatch is retained for tests that inspect builtin resolution without JSON output.
-func resolveDispatch(root *cobra.Command, name string) (kind, path string) {
-	res := ResolveDispatch(root, PhaseAResult{Selector: name}, "", nil)
-	switch res.Kind {
-	case OutcomeBuiltin:
-		return "builtin", res.Canonical
-	case OutcomeAlias:
-		return "alias", res.Canonical
-	default:
-		if IsReserved(name) {
-			return "builtin", name
-		}
-		return "unknown", name
-	}
-}
-
-// dispatchJSONRoundTrip decodes dispatch JSON for tests.
-func dispatchJSONRoundTrip(data []byte) (dispatchJSON, error) {
-	var doc dispatchJSON
-	err := json.Unmarshal(data, &doc)
-	return doc, err
 }

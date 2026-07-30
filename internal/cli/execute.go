@@ -404,7 +404,6 @@ func ExecuteWithArgv(root *cobra.Command, ctx context.Context, argv []string) in
 
 func executeWithArgv(root *cobra.Command, ctx context.Context, argv []string) int {
 	g := ownerFlags(root)
-	rep := g.newReporter(root)
 
 	if dispatchEnabledForRoot(root) {
 		if code, handled := tryDirectDispatch(ctx, root, g, loadRootBuildInfo(root), argv); handled {
@@ -420,7 +419,7 @@ func executeWithArgv(root *cobra.Command, ctx context.Context, argv []string) in
 	root.SetArgs(argv)
 	root.SetContext(ctx)
 	err := root.ExecuteContext(ctx)
-	rep = g.newReporter(root)
+	rep := g.newReporter(root)
 	if err == nil {
 		return 0
 	}

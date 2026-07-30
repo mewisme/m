@@ -309,7 +309,7 @@ func (r *humanReporter) Progress(ev Event) {
 		if ev.Stream == "stderr" {
 			out = r.base.opts.Err
 		}
-		fmt.Fprint(out, prefix+r.base.redact(ev.Message))
+		_, _ = fmt.Fprint(out, prefix+r.base.redact(ev.Message))
 		if !ev.Partial {
 			fmt.Fprintln(out)
 		}
@@ -373,7 +373,7 @@ func (r *humanReporter) ChildOutput(ev ChildOutputEvent, mode WorkspaceOutputMod
 	}
 	line := prefix + r.base.redact(ev.Message)
 	if ev.Partial {
-		fmt.Fprint(target, line)
+		_, _ = fmt.Fprint(target, line)
 	} else {
 		fmt.Fprintln(target, line)
 	}

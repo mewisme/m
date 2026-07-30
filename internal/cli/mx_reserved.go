@@ -15,9 +15,7 @@ func MXReservedNames(root *cobra.Command) []string {
 			continue
 		}
 		names = append(names, c.Name())
-		for _, a := range c.Aliases {
-			names = append(names, a)
-		}
+		names = append(names, c.Aliases...)
 	}
 	return names
 }
