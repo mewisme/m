@@ -39,6 +39,10 @@ func (r *phaseDebugReporter) WorkspaceSummary(diagnostics.WorkspaceSummaryEvent)
 func (r *phaseDebugReporter) EnvironmentPrepared(diagnostics.EnvironmentPreparedEvent) error {
 	return nil
 }
+func (r *phaseDebugReporter) OperationStarted(diagnostics.OperationStartedEvent)     {}
+func (r *phaseDebugReporter) OperationProgress(diagnostics.OperationProgressEvent)   {}
+func (r *phaseDebugReporter) OperationCompleted(diagnostics.OperationCompletedEvent) {}
+func (r *phaseDebugReporter) Notice(diagnostics.NoticeEvent)                         {}
 
 func TestInstallPhaseDebugTiming(t *testing.T) {
 	rep := &phaseDebugReporter{}

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mew.dev/schemas/diagnostics/error.schema.json",
+  "$id": "https://raw.githubusercontent.com/mewisme/mew/main/schemas/diagnostics/error.schema.json",
   "title": "Mew error document",
   "type": "object",
   "additionalProperties": false,

@@ -58,7 +58,10 @@ Default roots (overridable; see environment variables):
 | `MEW_CACHE_DIR` | Override cache root |
 | `MEW_CONFIG_DIR` | Override global config directory |
 | `MEW_EXPERIMENTAL_<NAME>` | Enable experimental feature `<name>` |
-| `MEW_LOG_FORMAT` | Structured log format (`default`, `json`, `ndjson`) |
+| `MEW_LOG_FORMAT` | Legacy structured output alias (`default`, `json`, `ndjson`, `silent`) |
+| `MEW_OUTPUT` | Presentation output mode (`auto`, `rich`, `plain`, `json`, `ndjson`, `silent`) |
+| `MEW_PRESENTATION` | Set to `legacy` to force pre-UX human reporter path |
+| `MEW_COLOR` / `MEW_PROGRESS` / `MEW_UNICODE` / `MEW_INTERACTIVE` / `MEW_ACCESSIBLE` / `MEW_LOG_LEVEL` | Presentation policy overrides |
 | `MEW_DEBUG` | Verbose internal diagnostics |
 | `M_LOG` | Shorthand for debug-level logging (matches Nub-style `M_LOG=debug`) |
 | `MEW_SHIM_BYPASS` | Disable shim recursion guard (testing only) |

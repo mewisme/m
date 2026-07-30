@@ -131,6 +131,10 @@ type Reporter interface {
 	ChildOutput(ChildOutputEvent, WorkspaceOutputMode)
 	WorkspaceSummary(WorkspaceSummaryEvent)
 	EnvironmentPrepared(EnvironmentPreparedEvent) error
+	OperationStarted(OperationStartedEvent)
+	OperationProgress(OperationProgressEvent)
+	OperationCompleted(OperationCompletedEvent)
+	Notice(NoticeEvent)
 }
 
 // WorkspaceOutputMode routes workspace child output in reporters.
@@ -389,6 +393,35 @@ func (r *humanReporter) WorkspaceSummary(ev WorkspaceSummaryEvent) {
 
 func (r *humanReporter) EnvironmentPrepared(EnvironmentPreparedEvent) error { return nil }
 
+func (r *humanReporter) OperationStarted(ev OperationStartedEvent) {
+	r.base.mu.Lock()
+	defer r.base.mu.Unlock()
+	line := ev.Kind
+	if ev.Label != "" {
+		line += " " + ev.Label
+	}
+	fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
+}
+
+func (r *humanReporter) OperationProgress(OperationProgressEvent) {}
+
+func (r *humanReporter) OperationCompleted(ev OperationCompletedEvent) {
+	r.base.mu.Lock()
+	defer r.base.mu.Unlock()
+	line := fmt.Sprintf("%s %s %dms", ev.ID, ev.Status, ev.DurationMs)
+	fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
+}
+
+func (r *humanReporter) Notice(ev NoticeEvent) {
+	r.base.mu.Lock()
+	defer r.base.mu.Unlock()
+	line := ev.Severity + ": " + ev.Message
+	if ev.Hint != "" {
+		line += " (" + ev.Hint + ")"
+	}
+	fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
+}
+
 type ndjsonReporter struct{ base *baseReporter }
 
 func (r *ndjsonReporter) Progress(ev Event) {
@@ -445,6 +478,49 @@ func (r *ndjsonReporter) WorkspaceSummary(ev WorkspaceSummaryEvent) {
 func (r *ndjsonReporter) EnvironmentPrepared(ev EnvironmentPreparedEvent) error {
 	r.writeLine(ev)
 	return nil
+}
+
+func (r *ndjsonReporter) OperationStarted(ev OperationStartedEvent) {
+	if ev.V == 0 {
+		ev.V = 1
+	}
+	if ev.Type == "" {
+		ev.Type = "operation-started"
+	}
+	r.writeLine(ev)
+}
+
+func (r *ndjsonReporter) OperationProgress(ev OperationProgressEvent) {
+	if ev.V == 0 {
+		ev.V = 1
+	}
+	if ev.Type == "" {
+		ev.Type = "operation-progress"
+	}
+	ev.Detail = r.base.redact(ev.Detail)
+	r.writeLine(ev)
+}
+
+func (r *ndjsonReporter) OperationCompleted(ev OperationCompletedEvent) {
+	if ev.V == 0 {
+		ev.V = 1
+	}
+	if ev.Type == "" {
+		ev.Type = "operation-completed"
+	}
+	r.writeLine(ev)
+}
+
+func (r *ndjsonReporter) Notice(ev NoticeEvent) {
+	if ev.V == 0 {
+		ev.V = 1
+	}
+	if ev.Type == "" {
+		ev.Type = "notice"
+	}
+	ev.Message = r.base.redact(ev.Message)
+	ev.Hint = r.base.redact(ev.Hint)
+	r.writeLine(ev)
 }
 
 func (r *ndjsonReporter) writeLine(v any) {
@@ -530,6 +606,11 @@ func (r *jsonReporter) EnvironmentPrepared(ev EnvironmentPreparedEvent) error {
 	return err
 }
 
+func (r *jsonReporter) OperationStarted(OperationStartedEvent)     {}
+func (r *jsonReporter) OperationProgress(OperationProgressEvent)   {}
+func (r *jsonReporter) OperationCompleted(OperationCompletedEvent) {}
+func (r *jsonReporter) Notice(NoticeEvent)                         {}
+
 type silentReporter struct{ base *baseReporter }
 
 func (r *silentReporter) Progress(Event)                                     {}
@@ -538,6 +619,10 @@ func (r *silentReporter) WorkspaceTask(WorkspaceTaskEvent)                   {}
 func (r *silentReporter) ChildOutput(ChildOutputEvent, WorkspaceOutputMode)  {}
 func (r *silentReporter) WorkspaceSummary(WorkspaceSummaryEvent)             {}
 func (r *silentReporter) EnvironmentPrepared(EnvironmentPreparedEvent) error { return nil }
+func (r *silentReporter) OperationStarted(OperationStartedEvent)             {}
+func (r *silentReporter) OperationProgress(OperationProgressEvent)           {}
+func (r *silentReporter) OperationCompleted(OperationCompletedEvent)         {}
+func (r *silentReporter) Notice(NoticeEvent)                                 {}
 func (r *silentReporter) Error(err error) {
 	r.base.mu.Lock()
 	defer r.base.mu.Unlock()

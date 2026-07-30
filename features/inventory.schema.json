@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mew.dev/schemas/features/inventory.schema.json",
+  "$id": "https://raw.githubusercontent.com/mewisme/mew/main/features/inventory.schema.json",
   "title": "Mew Feature Inventory",
   "type": "object",
   "required": [

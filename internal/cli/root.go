@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/presentation"
 )
 
 // NewMRoot returns the root Cobra command for the m binary.
@@ -127,6 +128,9 @@ func ExecuteMX(info BuildInfo) int {
 
 func attachAppPreRun(root *cobra.Command, g *globalFlags, info BuildInfo) {
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if err := g.validateStructuredConflict(cmd); err != nil {
+			return err
+		}
 		ctx := cmd.Context()
 		if ctx == nil {
 			ctx = context.Background()
@@ -157,18 +161,23 @@ func newVersionCmd(binary string, info BuildInfo) *cobra.Command {
 				enc.SetEscapeHTML(false)
 				return enc.Encode(doc)
 			}
-			line := fmt.Sprintf("%s %s", binary, info.Version)
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			out := r.Status(presentation.StatusLine{
+				Text: fmt.Sprintf("%s %s", binary, info.Version),
+			})
+			var kvs []presentation.KeyValue
 			if info.Commit != "" {
-				line = fmt.Sprintf("%s (%s)", line, info.Commit)
-			}
-			if _, err := fmt.Fprintln(cmd.OutOrStdout(), line); err != nil {
-				return err
+				kvs = append(kvs, presentation.KeyValue{Key: "commit", Value: info.Commit})
 			}
 			if info.BuildDate != "" {
-				_, err := fmt.Fprintf(cmd.OutOrStdout(), "built %s\n", info.BuildDate)
-				return err
+				kvs = append(kvs, presentation.KeyValue{Key: "buildDate", Value: info.BuildDate, Style: presentation.ValueMuted})
 			}
-			return nil
+			if len(kvs) > 0 {
+				out += "\n" + r.KeyValues(kvs)
+			}
+			_, err := fmt.Fprintln(cmd.OutOrStdout(), out)
+			return err
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print version as JSON")

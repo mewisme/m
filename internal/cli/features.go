@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/features"
+	"github.com/mewisme/mew/internal/presentation"
 )
 
 func newFeaturesCmd() *cobra.Command {
@@ -55,9 +56,36 @@ func runFeatures(cmd *cobra.Command, format, module, status string) error {
 		_, err = out.Write(b)
 		return err
 	case "table":
-		_, err := fmt.Fprint(out, features.FormatTable(filtered))
+		g := ownerFlags(cmd.Root())
+		r := g.mustStaticRenderer(cmd, nil)
+		_, err := fmt.Fprintln(out, r.Table(featuresTableModel(filtered)))
 		return err
 	default:
 		return fmt.Errorf("unsupported format %q", format)
 	}
+}
+
+func featuresTableModel(rows []features.Feature) presentation.TableModel {
+	cols := []presentation.TableColumn{
+		{Key: "id", Header: "ID", MinWidth: 8, Prefer: 28, Primary: true, Truncate: presentation.TruncateMiddle},
+		{Key: "module", Header: "MODULE", MinWidth: 6, Prefer: 16, Truncate: presentation.TruncateMiddle},
+		{Key: "feature", Header: "FEATURE", MinWidth: 8, Prefer: 28, Truncate: presentation.TruncateMiddle},
+		{Key: "nub", Header: "NUB", MinWidth: 4, Prefer: 12},
+		{Key: "mew", Header: "MEW", MinWidth: 4, Prefer: 12},
+		{Key: "class", Header: "CLASS", MinWidth: 4, Prefer: 12},
+		{Key: "mvp", Header: "MVP", MinWidth: 4, Prefer: 10},
+	}
+	tableRows := make([]map[string]string, 0, len(rows))
+	for _, f := range rows {
+		tableRows = append(tableRows, map[string]string{
+			"id":      f.ID,
+			"module":  f.Module,
+			"feature": f.Name,
+			"nub":     string(f.NubStatus),
+			"mew":     string(f.MewStatus),
+			"class":   string(f.CompatibilityClass),
+			"mvp":     f.PrimaryMVP,
+		})
+	}
+	return presentation.TableModel{Columns: cols, Rows: tableRows}
 }

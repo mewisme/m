@@ -12,6 +12,7 @@ import (
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/diagnostics"
+	"github.com/mewisme/mew/internal/presentation"
 	"github.com/mewisme/mew/internal/project"
 )
 
@@ -80,16 +81,36 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out := cmd.OutOrStdout()
-			for _, e := range config.List(eff) {
-				val := diagnostics.Redact(e.Value)
-				if sources {
-					fmt.Fprintf(out, "%s=%s\tsource=%s\tpath=%s\n", e.Key, val, e.Source, e.Path)
-				} else {
-					fmt.Fprintf(out, "%s=%s\n", e.Key, val)
+			r := g.mustStaticRenderer(cmd, eff)
+			entries := config.List(eff)
+			if sources {
+				cols := []presentation.TableColumn{
+					{Key: "key", Header: "KEY", MinWidth: 8, Prefer: 28, Primary: true, Truncate: presentation.TruncateMiddle},
+					{Key: "value", Header: "VALUE", MinWidth: 4, Prefer: 32, Truncate: presentation.TruncateMiddle},
+					{Key: "source", Header: "SOURCE", MinWidth: 4, Prefer: 12},
+					{Key: "path", Header: "PATH", MinWidth: 4, Prefer: 24, Truncate: presentation.TruncateMiddle},
 				}
+				rows := make([]map[string]string, 0, len(entries))
+				for _, e := range entries {
+					rows = append(rows, map[string]string{
+						"key":    e.Key,
+						"value":  diagnostics.Redact(e.Value),
+						"source": string(e.Source),
+						"path":   e.Path,
+					})
+				}
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), r.Table(presentation.TableModel{Columns: cols, Rows: rows}))
+				return err
 			}
-			return nil
+			kvs := make([]presentation.KeyValue, 0, len(entries))
+			for _, e := range entries {
+				kvs = append(kvs, presentation.KeyValue{
+					Key:   e.Key,
+					Value: diagnostics.Redact(e.Value),
+				})
+			}
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), r.KeyValues(kvs))
+			return err
 		},
 	}
 	cmd.Flags().BoolVar(&sources, "sources", false, "include source provenance")

@@ -110,6 +110,10 @@ func (failRep) WorkspaceSummary(diagnostics.WorkspaceSummaryEvent) {}
 func (failRep) EnvironmentPrepared(diagnostics.EnvironmentPreparedEvent) error {
 	return errRepFail
 }
+func (failRep) OperationStarted(diagnostics.OperationStartedEvent)     {}
+func (failRep) OperationProgress(diagnostics.OperationProgressEvent)   {}
+func (failRep) OperationCompleted(diagnostics.OperationCompletedEvent) {}
+func (failRep) Notice(diagnostics.NoticeEvent)                         {}
 
 var errRepFail = errors.New("reporter fail")
 

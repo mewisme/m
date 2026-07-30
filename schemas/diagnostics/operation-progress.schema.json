@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mewisme/mew/main/schemas/diagnostics/operation-progress.schema.json",
+  "title": "Mew operation progress event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "v",
+    "type",
+    "id",
+    "completed"
+  ],
+  "properties": {
+    "v": {
+      "type": "integer",
+      "const": 1
+    },
+    "type": {
+      "type": "string",
+      "const": "operation-progress"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "completed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "detail": {
+      "type": "string"
+    }
+  }
+}

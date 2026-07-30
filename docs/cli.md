@@ -25,10 +25,17 @@ Official release installers remain planned (MVP **0072**); for local development
 | `--config` | | Extra JSONC overlay (CLI layer) |
 | `--offline` | false | Force offline |
 | `--prefer-offline` | false | Prefer cache |
-| `--reporter` | env / `default` | `default` \| `ndjson` \| `json` \| `silent` |
+| `--reporter` | env / `default` | Legacy alias; see `--output` |
+| `--output` | `auto` | `auto` \| `rich` \| `plain` \| `json` \| `ndjson` \| `silent` |
+| `--progress` | `auto` | `auto` \| `always` \| `never` |
+| `--unicode` | `auto` | `auto` \| `always` \| `never` |
+| `--interactive` | `auto` | `auto` \| `always` \| `never` |
+| `--log-level` | `error` | `error` \| `warn` \| `info` \| `debug` |
+| `--accessible` | false | Accessible append-only output |
+| `--no-summary` | false | Suppress command summaries |
 | `--debug` | false | Verbose diagnostics |
-| `--color` | `auto` | `auto` \| `always` \| `never` (TTY-aware) |
-| `--no-color` | false | Force no ANSI |
+| `--color` | `auto` | `auto` \| `always` \| `never` (TTY-aware; `--color=always` overrides `NO_COLOR`) |
+| `--no-color` | false | Force no ANSI (overridden by `--color=always`) |
 | `-r` / `--recursive` | false | Workspace recursive mode (`m run`; install-family commands have local `-r`) |
 | `--filter` | | pnpm-style workspace package filter (install family and `m run`) |
 
@@ -42,8 +49,9 @@ m version
 m version --json
 ```
 
-Text form: `m <version> (<commit>)` plus optional `built <date>` when ldflags set
-`buildDate`. JSON object fields: `binary`, `version`, `commit`, `buildDate`.
+Text form uses the presentation design system: a status line with the binary and
+version, plus optional key-value rows for `commit` and `buildDate` when ldflags
+set them. JSON object fields: `binary`, `version`, `commit`, `buildDate`.
 
 Build metadata is injected at link time (`-X main.version=…` etc.). Dev default:
 `0.0.0-dev`.

@@ -91,6 +91,15 @@ var ownedKeys = map[string]string{
 	"runner.mx.cache.retention_days": "int",
 	"runner.mx.cache.dir":            "string",
 	"provenance.trusted_public_key":  "string",
+	"ui.output":                      "string",
+	"ui.color":                       "string",
+	"ui.progress":                    "string",
+	"ui.unicode":                     "string",
+	"ui.interactive":                 "string",
+	"ui.accessible":                  "bool",
+	"ui.summary":                     "bool",
+	"ui.theme":                       "string",
+	"log.level":                      "string",
 }
 
 // OwnedKeys returns the sorted list of owned config keys.
@@ -128,6 +137,15 @@ func defaults() map[string]any {
 		"workspaces.enabled":             false,
 		"runner.mx.cache.retention_days": 7,
 		"runner.mx.cache.dir":            "",
+		"ui.output":                      "auto",
+		"ui.color":                       "auto",
+		"ui.progress":                    "auto",
+		"ui.unicode":                     "auto",
+		"ui.interactive":                 "auto",
+		"ui.accessible":                  false,
+		"ui.summary":                     true,
+		"ui.theme":                       "",
+		"log.level":                      "error",
 	}
 }
 

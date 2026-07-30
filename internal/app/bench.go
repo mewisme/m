@@ -120,6 +120,30 @@ func (p *phaseReporter) EnvironmentPrepared(ev diagnostics.EnvironmentPreparedEv
 	return nil
 }
 
+func (p *phaseReporter) OperationStarted(ev diagnostics.OperationStartedEvent) {
+	if p.inner != nil {
+		p.inner.OperationStarted(ev)
+	}
+}
+
+func (p *phaseReporter) OperationProgress(ev diagnostics.OperationProgressEvent) {
+	if p.inner != nil {
+		p.inner.OperationProgress(ev)
+	}
+}
+
+func (p *phaseReporter) OperationCompleted(ev diagnostics.OperationCompletedEvent) {
+	if p.inner != nil {
+		p.inner.OperationCompleted(ev)
+	}
+}
+
+func (p *phaseReporter) Notice(ev diagnostics.NoticeEvent) {
+	if p.inner != nil {
+		p.inner.Notice(ev)
+	}
+}
+
 func (p *phaseReporter) finish() map[string]int64 {
 	now := time.Now()
 	if p.lastPhase != "" {

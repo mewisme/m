@@ -53,6 +53,10 @@ func (c *captureReporter) WorkspaceSummary(diagnostics.WorkspaceSummaryEvent) {}
 func (c *captureReporter) EnvironmentPrepared(diagnostics.EnvironmentPreparedEvent) error {
 	return nil
 }
+func (c *captureReporter) OperationStarted(diagnostics.OperationStartedEvent)     {}
+func (c *captureReporter) OperationProgress(diagnostics.OperationProgressEvent)   {}
+func (c *captureReporter) OperationCompleted(diagnostics.OperationCompletedEvent) {}
+func (c *captureReporter) Notice(diagnostics.NoticeEvent)                         {}
 
 func baseRunOptions(scripts map[string]string, selector string) runner.RunOptions {
 	return runner.RunOptions{

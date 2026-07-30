@@ -8,6 +8,7 @@ import (
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/presentation"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/workspace"
 )
@@ -69,19 +70,31 @@ func newProjectInfoCmd() *cobra.Command {
 				enc.SetEscapeHTML(false)
 				return enc.Encode(doc)
 			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "root=%s\n", p.Root)
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "identity=%s\n", p.Identity)
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd, nil)
+			kvs := []presentation.KeyValue{
+				{Key: "root", Value: p.Root, Style: presentation.ValuePath},
+				{Key: "identity", Value: string(p.Identity)},
+			}
 			if name != "" {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "name=%s\n", name)
+				kvs = append(kvs, presentation.KeyValue{Key: "name", Value: name, Style: presentation.ValuePackage})
 			}
 			if version != "" {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "version=%s\n", version)
+				kvs = append(kvs, presentation.KeyValue{Key: "version", Value: version, Style: presentation.ValueVersion})
 			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "members=%d\n", len(members))
+			kvs = append(kvs, presentation.KeyValue{
+				Key:   "members",
+				Value: fmt.Sprintf("%d", len(members)),
+				Style: presentation.ValueNumber,
+			})
+			out := r.KeyValues(kvs)
 			for _, m := range members {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "member=%s\n", m)
+				out += "\n" + r.KeyValues([]presentation.KeyValue{
+					{Key: "member", Value: m, Style: presentation.ValuePath},
+				})
 			}
-			return nil
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), out)
+			return err
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print as JSON")

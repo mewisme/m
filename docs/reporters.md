@@ -7,20 +7,52 @@ events; terminal rendering is a reporter concern.
 
 | Mode | Flag / env | Behavior |
 |---|---|---|
-| `default` | `--reporter default` (default) | Human text on stderr; optional color |
-| `ndjson` | `--reporter ndjson` or `MEW_LOG_FORMAT=ndjson` | One JSON object per line on stdout |
-| `json` | `--reporter json` | Single JSON error document on stdout |
-| `silent` | `--reporter silent` | No progress; errors still on stderr |
+| `default` / `plain` / `rich` | `--output auto\|plain\|rich` or `--reporter default` | Human text on stderr; `rich` enables design-system styling when capable |
+| `ndjson` | `--output ndjson` or `--reporter ndjson` or `MEW_LOG_FORMAT=ndjson` | One JSON object per line on stdout |
+| `json` | `--output json` or `--reporter json` | Single JSON error document on stdout |
+| `silent` | `--output silent` or `--reporter silent` | No progress; errors still on stderr |
+
+Resolution is centralized in [`internal/presentation`](../internal/presentation). Conflicting
+`--output` and `--reporter` values return a usage error.
 
 ## Flags and environment
 
 | Flag / env | Purpose |
 |---|---|
-| `--reporter` | Select reporter |
-| `MEW_LOG_FORMAT` | Default reporter when flag unset |
+| `--output` | Canonical output mode (`auto`, `rich`, `plain`, `json`, `ndjson`, `silent`) |
+| `--reporter` | Legacy alias for structured/human reporter selection |
+| `MEW_OUTPUT` | Default output mode when `--output` unset |
+| `MEW_LOG_FORMAT` | Legacy env alias (same precedence tier as `MEW_OUTPUT`) |
+| `--progress` / `MEW_PROGRESS` / `ui.progress` | Progress policy (`auto`, `always`, `never`) |
+| `--unicode` / `MEW_UNICODE` / `ui.unicode` | Unicode symbol policy |
+| `--interactive` / `MEW_INTERACTIVE` / `ui.interactive` | Interactive UI policy |
+| `--accessible` / `MEW_ACCESSIBLE` / `ui.accessible` | Append-only accessible output |
+| `--log-level` / `MEW_LOG_LEVEL` / `log.level` | Diagnostic verbosity |
+| `--no-summary` / `ui.summary` | Suppress command summaries |
+| `--presentation-legacy` / `MEW_PRESENTATION=legacy` | Hidden rollout switch (forces legacy human path) |
 | `--debug` / `MEW_DEBUG` / `M_LOG=debug` | Verbose debug lines |
-| `--color` / `--no-color` / `NO_COLOR` | ANSI color policy |
+| `--color` / `--no-color` / `NO_COLOR` / `ui.color` | ANSI color policy |
+| `ui.theme` | Theme palette: `auto`, `light`, `dark`, `accessible`, `none` |
 | `--unsafe-diagnostics` | Disable redaction (hidden; dangerous) |
+
+### Color and `NO_COLOR`
+
+Precedence for color:
+
+1. `--color=always|never`
+2. `MEW_COLOR`
+3. `ui.color`
+4. `NO_COLOR` / `--no-color` force never **unless** `--color=always` was set
+5. Auto requires a suitable stdout TTY, non-dumb `TERM`, and a color-capable profile
+
+Explicit `--color=always` overrides `NO_COLOR`. Plain / pipe / CI / accessible paths use the first-class plain renderer (zero ANSI); rich output is never stripped to fake plain.
+
+### Width and Unicode
+
+Terminal width is detected once per invocation (default 80; clamped 20–500). Tables stack below ~60 columns. Unicode symbols are selected via `--unicode` / `MEW_UNICODE` / `ui.unicode`, with ASCII fallbacks (`OK`, `WARN`, `ERROR`, `->`).
+
+Command-local `--json` emits command **result** documents and must not be combined with
+global `--output=json` or `--output=ndjson`.
 
 ## Progress events
 
@@ -31,6 +63,10 @@ Schema: [`schemas/diagnostics/progress-event.schema.json`](../schemas/diagnostic
 ```
 
 NDJSON writes are mutex-guarded so concurrent progress is line-atomic.
+
+Additional NDJSON event schemas (v1): `operation-started`, `operation-progress`,
+`operation-completed`, and `notice` under [`schemas/diagnostics/`](../schemas/diagnostics/).
+Emitters for install/runner operations land in later UX plans.
 
 ## Errors
 

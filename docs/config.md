@@ -42,6 +42,15 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 | `runner.exec.direct_dispatch.enabled` | bool | `false` — direct `m <binary>` shortcuts with verified bin metadata (or `MEW_EXPERIMENTAL_EXEC_DIRECT_DISPATCH=1`) |
 | `runner.mx.cache.retention_days` | int | `7` — default prune retention for mx execution environments |
 | `runner.mx.cache.dir` | string | empty — mx cache root (default `<cache>/mx`) |
+| `ui.output` | string | `auto` — presentation output mode |
+| `ui.color` | string | `auto` |
+| `ui.progress` | string | `auto` |
+| `ui.unicode` | string | `auto` |
+| `ui.interactive` | string | `auto` |
+| `ui.accessible` | bool | `false` |
+| `ui.summary` | bool | `true` |
+| `ui.theme` | string | empty/`auto` — `auto`\|`light`\|`dark`\|`accessible`\|`none` |
+| `log.level` | string | `error` |
 
 Environment:
 

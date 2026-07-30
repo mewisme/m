@@ -16,6 +16,7 @@ var agentsPackages = []string{
 	"cmd/m/",
 	"cmd/mx/",
 	"internal/cli/",
+	"internal/presentation/",
 	"internal/app/",
 	"internal/config/",
 	"internal/manifest/",
@@ -246,6 +247,48 @@ func TestForbiddenImportEdges(t *testing.T) {
 			for _, imp := range p.Imports {
 				if imp == bad || strings.HasPrefix(imp, bad+"/") {
 					t.Errorf("%s must not import %s", pkgPath, imp)
+				}
+			}
+		}
+	}
+
+	domainNoPresentation := []string{
+		"github.com/mewisme/mew/internal/app",
+		"github.com/mewisme/mew/internal/runner",
+		"github.com/mewisme/mew/internal/transaction",
+		"github.com/mewisme/mew/internal/resolver",
+		"github.com/mewisme/mew/internal/linker",
+		"github.com/mewisme/mew/internal/store",
+		"github.com/mewisme/mew/internal/lifecycle",
+	}
+	presentationPath := "github.com/mewisme/mew/internal/presentation"
+	for _, pkgPath := range domainNoPresentation {
+		p, ok := byPath[pkgPath]
+		if !ok {
+			t.Fatalf("missing package %s", pkgPath)
+		}
+		for _, imp := range p.Imports {
+			if imp == presentationPath || strings.HasPrefix(imp, presentationPath+"/") {
+				t.Errorf("%s must not import %s", pkgPath, imp)
+			}
+		}
+	}
+
+	charmPrefixes := []string{"charm.land/", "github.com/charmbracelet/"}
+	for _, p := range pkgs {
+		if strings.HasPrefix(p.ImportPath, presentationPath) {
+			continue
+		}
+		if strings.HasPrefix(p.ImportPath, "github.com/mewisme/mew/internal/cli") {
+			continue
+		}
+		if !strings.HasPrefix(p.ImportPath, "github.com/mewisme/mew/internal/") {
+			continue
+		}
+		for _, imp := range p.Imports {
+			for _, pref := range charmPrefixes {
+				if strings.HasPrefix(imp, pref) {
+					t.Errorf("%s must not import Charm package %s", p.ImportPath, imp)
 				}
 			}
 		}

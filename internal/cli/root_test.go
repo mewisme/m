@@ -88,7 +88,8 @@ func TestVersionSubcommand(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.TrimSpace(buf.String()); got != "m 1.2.3 (abc)" {
+	got := buf.String()
+	if !strings.Contains(got, "m 1.2.3") || !strings.Contains(got, "abc") {
 		t.Fatalf("version output = %q", got)
 	}
 }
@@ -108,10 +109,10 @@ func TestConfigListSources(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "registry=") {
+	if !strings.Contains(out, "registry") {
 		t.Fatalf("missing registry:\n%s", out)
 	}
-	if !strings.Contains(out, "source=project") {
+	if !strings.Contains(out, "project") {
 		t.Fatalf("missing project source:\n%s", out)
 	}
 }

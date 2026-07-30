@@ -88,10 +88,13 @@ func TestVersionJSONAndBuildDate(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := normalizeEOL(buf.String())
-	if !strings.Contains(out, "m 0.0.0-test (deadbeef)") {
+	if !strings.Contains(out, "m 0.0.0-test") {
 		t.Fatalf("version text:\n%s", out)
 	}
-	if !strings.Contains(out, "built 2026-01-01") {
+	if !strings.Contains(out, "commit") || !strings.Contains(out, "deadbeef") {
+		t.Fatalf("missing commit:\n%s", out)
+	}
+	if !strings.Contains(out, "buildDate") || !strings.Contains(out, "2026-01-01") {
 		t.Fatalf("missing build date:\n%s", out)
 	}
 }

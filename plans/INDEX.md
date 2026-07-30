@@ -23,6 +23,7 @@ Each MVP line links the contract plan.
 - [`0007-data-model-interfaces.md`](0007-data-model-interfaces.md) - Freeze canonical manifest, dependency graph, resolution, importer, package, policy, plan, snapshot, and lockfile models shared across the core.
 - [`0008-testing-strategy.md`](0008-testing-strategy.md) - Build the test infrastructure required to port behavior safely and verify package-manager compatibility without depending on public registries.
 - [`0009-release-train-overview.md`](0009-release-train-overview.md) - Define the ordered delivery train from package-manager core through complete Nub parity and Mew extensions.
+- CLI presentation UX program (standalone): [`ux/README.md`](ux/README.md)
 
 ## Package-Manager Core
 

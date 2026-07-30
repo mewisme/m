@@ -1,0 +1,7 @@
+react
+  current  19.1.0
+  wanted  19.1.1
+
+typescript
+  current  5.8.2
+  wanted  5.8.3

@@ -17,6 +17,7 @@ Every path named in [`AGENTS.md`](../../AGENTS.md) repository shape must appear 
 | `internal/cli/` | Parsing, dispatch, help, completions | exists | shipped |
 | `internal/config/` | Layered configuration loader | exists | shipped |
 | `internal/diagnostics/` | Errors, progress, redaction, reporters | exists | shipped |
+| `internal/presentation/` | Output modes, capabilities, themes, static renderers | exists | partial |
 | `internal/apperr/` | Typed ERR_M_* errors and exit mapping | exists | shipped |
 | `internal/trace/` | Lightweight in-process spans (no OTel) | exists | shipped |
 | `internal/charter/` | Charter consistency tests (docs gate) | exists | shipped |

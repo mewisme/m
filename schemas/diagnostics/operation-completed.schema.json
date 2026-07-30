@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mewisme/mew/main/schemas/diagnostics/operation-completed.schema.json",
+  "title": "Mew operation completed event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "v",
+    "type",
+    "id",
+    "status",
+    "duration_ms"
+  ],
+  "properties": {
+    "v": {
+      "type": "integer",
+      "const": 1
+    },
+    "type": {
+      "type": "string",
+      "const": "operation-completed"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

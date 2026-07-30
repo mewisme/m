@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mewisme/mew/main/schemas/diagnostics/operation-started.schema.json",
+  "title": "Mew operation started event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "v",
+    "type",
+    "id",
+    "kind",
+    "label"
+  ],
+  "properties": {
+    "v": {
+      "type": "integer",
+      "const": 1
+    },
+    "type": {
+      "type": "string",
+      "const": "operation-started"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "type": "string"
+    },
+    "total": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "unit": {
+      "type": "string"
+    }
+  }
+}

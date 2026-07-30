@@ -18,21 +18,31 @@ import (
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/diagnostics"
+	"github.com/mewisme/mew/internal/presentation"
 )
 
 // globalFlags holds persistent CLI presentation options.
 type globalFlags struct {
-	reporter      string
-	debug         bool
-	color         string
-	noColor       bool
-	unsafe        bool
-	cwd           string
-	configPath    string
-	offline       bool
-	preferOffline bool
-	filter        []string
-	recursive     bool
+	reporter           string
+	output             string
+	progress           string
+	unicode            string
+	interactive        string
+	logLevel           string
+	debug              bool
+	color              string
+	noColor            bool
+	noSummary          bool
+	accessible         bool
+	presentationLegacy bool
+	unsafe             bool
+	cwd                string
+	configPath         string
+	offline            bool
+	preferOffline      bool
+	filter             []string
+	recursive          bool
+	ctrl               presentation.Controller
 }
 
 var flagOwners sync.Map     // *cobra.Command -> *globalFlags
@@ -52,7 +62,8 @@ func loadRootBuildInfo(root *cobra.Command) BuildInfo {
 }
 
 func (g *globalFlags) bind(cmd *cobra.Command) {
-	cmd.PersistentFlags().StringVar(&g.reporter, "reporter", "", "output reporter: default|ndjson|json|silent (env MEW_LOG_FORMAT)")
+	g.bindPresentation(cmd)
+	cmd.PersistentFlags().StringVar(&g.reporter, "reporter", "", "output reporter: default|ndjson|json|silent (alias for --output; env MEW_LOG_FORMAT)")
 	cmd.PersistentFlags().BoolVar(&g.debug, "debug", false, "verbose diagnostics (env MEW_DEBUG or M_LOG=debug)")
 	cmd.PersistentFlags().StringVar(&g.color, "color", "auto", "color: auto|always|never")
 	cmd.PersistentFlags().BoolVar(&g.noColor, "no-color", false, "disable ANSI color")
@@ -70,6 +81,13 @@ func (g *globalFlags) bindRecursive(cmd *cobra.Command) {
 }
 
 func (g *globalFlags) resolveFormat() string {
+	if g.output != "" {
+		in := g.presentationInput(nil)
+		resolved, err := presentation.Resolve(in, presentation.Capabilities{})
+		if err == nil {
+			return resolved.ReporterFormat()
+		}
+	}
 	if g.reporter != "" {
 		return g.reporter
 	}
@@ -77,7 +95,18 @@ func (g *globalFlags) resolveFormat() string {
 	if v := os.Getenv("MEW_LOG_FORMAT"); v != "" {
 		return v
 	}
+	if v := os.Getenv("MEW_OUTPUT"); v != "" {
+		in := presentation.Input{Env: map[string]string{"MEW_OUTPUT": v}}
+		resolved, err := presentation.Resolve(in, presentation.Capabilities{})
+		if err == nil {
+			return resolved.ReporterFormat()
+		}
+	}
 	return "default"
+}
+
+func (g *globalFlags) newReporter(cmd *cobra.Command) diagnostics.Reporter {
+	return g.mustReporter(cmd, nil)
 }
 
 func (g *globalFlags) resolveDebug() bool {
@@ -99,20 +128,6 @@ func (g *globalFlags) resolveColor() diagnostics.ColorMode {
 		return diagnostics.ColorAlways
 	}
 	return diagnostics.ColorAuto
-}
-
-func (g *globalFlags) newReporter(cmd *cobra.Command) diagnostics.Reporter {
-	opts := diagnostics.Options{
-		Format: g.resolveFormat(),
-		Debug:  g.resolveDebug(),
-		Color:  g.resolveColor(),
-		Unsafe: g.unsafe,
-	}
-	if cmd != nil {
-		opts.Out = cmd.OutOrStdout()
-		opts.Err = cmd.ErrOrStderr()
-	}
-	return diagnostics.NewReporter(opts)
 }
 
 func attachGlobals(root *cobra.Command) *globalFlags {
@@ -170,7 +185,7 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 		ConfigPath:    g.configPath,
 		Offline:       g.offline,
 		PreferOffline: g.preferOffline,
-		Reporter:      g.newReporter(cmd),
+		Reporter:      g.mustReporter(cmd, nil),
 		Version:       info.Version,
 		Commit:        info.Commit,
 		BuildDate:     info.BuildDate,
@@ -178,12 +193,28 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 	if err != nil {
 		return nil, err
 	}
+	g.ctrl = nil
+	rep, err := g.resolveReporter(cmd, ac.Config)
+	if err != nil {
+		return nil, wrapPresentationErr(err)
+	}
+	ac.Reporter = rep
 	return ac, nil
 }
 
 func execute(root *cobra.Command, info BuildInfo, argv []string) (exit int) {
 	g := ownerFlags(root)
-	rep := g.newReporter(root)
+	rep, err := g.resolveReporter(root, nil)
+	if err != nil {
+		fallback := diagnostics.NewReporter(diagnostics.Options{
+			Out: root.OutOrStdout(),
+			Err: root.ErrOrStderr(),
+		})
+		wrapped := wrapPresentationErr(err)
+		fallback.Error(wrapped)
+		return apperr.ExitCode(wrapped)
+	}
+	defer closePresentation(root, g, presentationOutcome(nil))
 	defer func() {
 		if rec := recover(); rec != nil {
 			err := apperr.New(apperr.InternalPanic, "cli", newCrashID(), fmt.Sprintf("panic: %v", rec))
@@ -212,14 +243,26 @@ func execute(root *cobra.Command, info BuildInfo, argv []string) (exit int) {
 	}
 
 	root.SetArgs(argv)
-	err := root.ExecuteContext(ctx)
-	rep = g.newReporter(root)
-	if err == nil {
+	execErr := root.ExecuteContext(ctx)
+	rep, repErr := g.resolveReporter(root, nil)
+	if repErr != nil {
+		fallback := diagnostics.NewReporter(diagnostics.Options{
+			Out: root.OutOrStdout(),
+			Err: root.ErrOrStderr(),
+		})
+		wrapped := wrapPresentationErr(repErr)
+		fallback.Error(wrapped)
+		closePresentation(root, g, presentationOutcome(wrapped))
+		return apperr.ExitCode(wrapped)
+	}
+	if execErr == nil {
+		closePresentation(root, g, presentationOutcome(nil))
 		return 0
 	}
-	err = classifyCLIError(err)
-	rep.Error(err)
-	return apperr.ExitCode(err)
+	execErr = classifyCLIError(execErr)
+	rep.Error(execErr)
+	closePresentation(root, g, presentationOutcome(execErr))
+	return apperr.ExitCode(execErr)
 }
 
 func dispatchEnabledForRoot(root *cobra.Command) bool {

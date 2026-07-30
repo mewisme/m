@@ -1,0 +1,5 @@
+OK Installed 3 packages
+
+  Packages  3
+WARN scripts blocked
+-> Run `m builds`

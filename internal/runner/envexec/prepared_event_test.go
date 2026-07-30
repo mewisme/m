@@ -29,6 +29,10 @@ func (failReporter) WorkspaceSummary(diagnostics.WorkspaceSummaryEvent) {}
 func (failReporter) EnvironmentPrepared(diagnostics.EnvironmentPreparedEvent) error {
 	return ErrReporterFail
 }
+func (failReporter) OperationStarted(diagnostics.OperationStartedEvent)     {}
+func (failReporter) OperationProgress(diagnostics.OperationProgressEvent)   {}
+func (failReporter) OperationCompleted(diagnostics.OperationCompletedEvent) {}
+func (failReporter) Notice(diagnostics.NoticeEvent)                         {}
 
 type trackingLease struct {
 	released bool
