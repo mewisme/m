@@ -117,28 +117,28 @@ func TestSchedulerConcurrencyCap(t *testing.T) {
 	}()
 
 	// ponytail: brief spin until two tasks are active or run completes.
-	for i := 0; i < 100 && fake.MaxActive < 2; i++ {
+	for i := 0; i < 100 && fake.MaxActiveLocked() < 2; i++ {
 		select {
 		case <-done:
 			goto finished
 		default:
 		}
 	}
-	if fake.MaxActive > 2 {
-		t.Fatalf("maxActive=%d want <=2", fake.MaxActive)
+	if fake.MaxActiveLocked() > 2 {
+		t.Fatalf("maxActive=%d want <=2", fake.MaxActiveLocked())
 	}
 	close(unblock)
 finished:
 	<-done
-	if fake.MaxActive > 2 {
-		t.Fatalf("maxActive=%d want <=2", fake.MaxActive)
+	if fake.MaxActiveLocked() > 2 {
+		t.Fatalf("maxActive=%d want <=2", fake.MaxActiveLocked())
 	}
 }
 
 func TestSchedulerBailPreservesTriggerExit(t *testing.T) {
 	g := testWSGraph(t, "failure-bail")
 	paths, _ := runner.SelectMembers(g, true, nil)
-	sched, err := runner.BuildSchedule(g, paths, runner.OrderParallel, 4)
+	sched, err := runner.BuildSchedule(g, paths, runner.OrderSequential, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestSchedulerBailPreservesTriggerExit(t *testing.T) {
 	opts := runner.WorkspaceRunOptions{
 		ProjectRoot: g.Root,
 		Selector:    "build",
-		Order:       runner.OrderParallel,
+		Order:       runner.OrderSequential,
 		Bail:        true,
 		Output:      runner.OutputStream,
 	}

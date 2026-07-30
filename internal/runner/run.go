@@ -181,6 +181,16 @@ func appendForwardedArgs(cmd string, args []string) string {
 	return b.String()
 }
 
+func needsUnixShellQuote(arg string) bool {
+	if arg == "" {
+		return true
+	}
+	if strings.HasPrefix(arg, "-") {
+		return true
+	}
+	const special = " \t\"'&|;<>()$`\\*?[]#~!"
+	return strings.ContainsAny(arg, special)
+}
 func quoteShellArg(arg string) string {
 	if runtime.GOOS == "windows" {
 		if arg == "" {
@@ -190,6 +200,9 @@ func quoteShellArg(arg string) string {
 			return arg
 		}
 		return `"` + strings.ReplaceAll(arg, `"`, `""`) + `"`
+	}
+	if !needsUnixShellQuote(arg) {
+		return arg
 	}
 	if !strings.Contains(arg, "'") {
 		return "'" + arg + "'"

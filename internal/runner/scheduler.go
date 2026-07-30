@@ -175,7 +175,13 @@ func runScheduler(
 
 	enqueueReady()
 
-	for terminal < len(sched.Tasks) {
+	for {
+		mu.Lock()
+		done := terminal >= len(sched.Tasks)
+		mu.Unlock()
+		if done {
+			break
+		}
 		select {
 		case <-runCtx.Done():
 			goto drained

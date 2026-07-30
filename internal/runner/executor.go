@@ -37,6 +37,12 @@ type FakeWorkspaceTaskExecutor struct {
 	OnStart func(WorkspaceTask)
 }
 
+// MaxActiveLocked returns peak concurrent tasks for tests.
+func (f *FakeWorkspaceTaskExecutor) MaxActiveLocked() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.MaxActive
+}
 func (f *FakeWorkspaceTaskExecutor) Run(ctx context.Context, task WorkspaceTask, _ TaskIO) WorkspaceTaskResult {
 	f.mu.Lock()
 	f.Active++

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/mewisme/mew/internal/diagnostics"
 	"github.com/mewisme/mew/internal/workspace"
@@ -38,6 +39,7 @@ func RunWorkspace(
 	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	aggregate := opts.Output == OutputAggregate
+	var aggMu sync.Mutex
 	aggStdout := map[int]*AggregateBuffer{}
 	aggStderr := map[int]*AggregateBuffer{}
 
@@ -46,8 +48,10 @@ func RunWorkspace(
 			key := fmt.Sprintf("%d-%s", t.Index, t.Path)
 			so := NewAggregateBuffer(tempDir, key, "stdout")
 			se := NewAggregateBuffer(tempDir, key, "stderr")
+			aggMu.Lock()
 			aggStdout[t.Index] = so
 			aggStderr[t.Index] = se
+			aggMu.Unlock()
 			return TaskIO{Stdout: so, Stderr: se, Stdin: os.Stdin}, func() {
 				_ = so.Close()
 				_ = se.Close()
