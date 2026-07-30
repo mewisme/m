@@ -86,7 +86,7 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 			cols := []presentation.TableColumn{
 				{Key: "key", Header: "KEY", MinWidth: 8, Prefer: 28, Primary: true, Truncate: presentation.TruncateMiddle},
 				{Key: "value", Header: "VALUE", MinWidth: 4, Prefer: 32, Truncate: presentation.TruncateMiddle},
-				{Key: "env", Header: "ENV", MinWidth: 3, Prefer: 28, Truncate: presentation.TruncateMiddle},
+				{Key: "values", Header: "VALUES", MinWidth: 3, Prefer: 36, Truncate: presentation.TruncateMiddle},
 			}
 			if sources {
 				cols = append(cols,
@@ -96,14 +96,14 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 			}
 			rows := make([]map[string]string, 0, len(entries))
 			for _, e := range entries {
-				env := e.Env
-				if env == "" {
-					env = "-"
+				values := e.Values
+				if values == "" {
+					values = "-"
 				}
 				row := map[string]string{
-					"key":   e.Key,
-					"value": diagnostics.Redact(e.Value),
-					"env":   env,
+					"key":    e.Key,
+					"value":  diagnostics.Redact(e.Value),
+					"values": values,
 				}
 				if sources {
 					row["source"] = string(e.Source)

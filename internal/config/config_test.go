@@ -140,19 +140,25 @@ func TestListSorted(t *testing.T) {
 	}
 }
 
-func TestEnvVarKnownKeys(t *testing.T) {
-	if got := config.EnvVar("ui.color"); got != "MEW_COLOR" {
-		t.Fatalf("ui.color env=%q want MEW_COLOR", got)
+func TestAllowedValuesKnownKeys(t *testing.T) {
+	if got := config.AllowedValues("ui.color"); got != "auto|always|never" {
+		t.Fatalf("ui.color values=%q", got)
 	}
-	if got := config.EnvVar("registry"); got != "MEW_REGISTRY" {
-		t.Fatalf("registry env=%q want MEW_REGISTRY", got)
+	if got := config.AllowedValues("ui.output"); got != "auto|rich|plain|json|ndjson|silent" {
+		t.Fatalf("ui.output values=%q", got)
 	}
-	if got := config.EnvVar("install.linker"); got != "" {
-		t.Fatalf("install.linker env=%q want empty", got)
+	if got := config.AllowedValues("install.linker"); got != "auto|hoisted|isolated" {
+		t.Fatalf("install.linker values=%q", got)
+	}
+	if got := config.AllowedValues("offline"); got != "true|false" {
+		t.Fatalf("offline values=%q", got)
+	}
+	if got := config.AllowedValues("registry"); got != "" {
+		t.Fatalf("registry values=%q want empty", got)
 	}
 }
 
-func TestListIncludesEnvColumn(t *testing.T) {
+func TestListIncludesValuesColumn(t *testing.T) {
 	eff, err := config.Load(context.Background(), config.LoadOptions{
 		CWD: t.TempDir(), ProjectRoot: t.TempDir(),
 		GlobalPath: filepath.Join(t.TempDir(), "x"),
@@ -173,13 +179,13 @@ func TestListIncludesEnvColumn(t *testing.T) {
 			linker, foundLinker = e, true
 		}
 	}
-	if !foundColor || color.Env != "MEW_COLOR" {
+	if !foundColor || color.Values != "auto|always|never" {
 		t.Fatalf("ui.color entry=%+v found=%v", color, foundColor)
 	}
-	if !foundRegistry || registry.Env != "MEW_REGISTRY" {
+	if !foundRegistry || registry.Values != "" {
 		t.Fatalf("registry entry=%+v found=%v", registry, foundRegistry)
 	}
-	if !foundLinker || linker.Env != "" {
+	if !foundLinker || linker.Values != "auto|hoisted|isolated" {
 		t.Fatalf("install.linker entry=%+v found=%v", linker, foundLinker)
 	}
 }

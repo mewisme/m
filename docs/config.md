@@ -97,8 +97,8 @@ m config set <key> <value> [--global]
 m config list [--sources]
 ```
 
-`m config list` prints a table with `KEY`, `VALUE`, and `ENV` (env var that can
-set the key, or `-` when none). `--sources` adds `SOURCE` and `PATH`.
+`m config list` prints a table with `KEY`, `VALUE`, and `VALUES` (pipe-joined
+allowed values, or `-` when free-form). `--sources` adds `SOURCE` and `PATH`.
 ## Global flags
 
 | Flag | Effect |

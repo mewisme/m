@@ -117,7 +117,7 @@ func TestConfigListSources(t *testing.T) {
 	}
 }
 
-func TestConfigListEnvColumn(t *testing.T) {
+func TestConfigListValuesColumn(t *testing.T) {
 	root := NewMRoot(BuildInfo{Version: "0.0.0-test"})
 	buf := new(bytes.Buffer)
 	root.SetOut(buf)
@@ -132,22 +132,19 @@ func TestConfigListEnvColumn(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "ENV") {
-		t.Fatalf("missing ENV header:\n%s", out)
+	if !strings.Contains(out, "VALUES") {
+		t.Fatalf("missing VALUES header:\n%s", out)
 	}
-	if !strings.Contains(out, "MEW_COLOR") {
-		t.Fatalf("missing MEW_COLOR for ui.color:\n%s", out)
-	}
-	if !strings.Contains(out, "MEW_REGISTRY") {
-		t.Fatalf("missing MEW_REGISTRY for registry:\n%s", out)
-	}
-	// ui.color row should pair key with its env var on the same line when width allows.
 	for _, line := range strings.Split(out, "\n") {
-		if strings.Contains(line, "ui.color") && strings.Contains(line, "MEW_COLOR") {
+		if !strings.Contains(line, "ui.color") {
+			continue
+		}
+		if strings.Contains(line, "auto") && strings.Contains(line, "always") && strings.Contains(line, "never") {
 			return
 		}
+		t.Fatalf("ui.color row missing auto|always|never:\n%s\nfull:\n%s", line, out)
 	}
-	t.Fatalf("ui.color row missing MEW_COLOR on same line:\n%s", out)
+	t.Fatalf("ui.color row missing:\n%s", out)
 }
 
 func TestRecoverPanic(t *testing.T) {

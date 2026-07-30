@@ -45,7 +45,7 @@ type Effective struct {
 type Entry struct {
 	Key    string
 	Value  string
-	Env    string // env var that can set Key; empty when none
+	Values string // pipe-joined allowed values; empty when free-form
 	Source Source
 	Path   string
 }
@@ -102,6 +102,31 @@ var ownedKeys = map[string]string{
 	"ui.theme":                       "string",
 	"ui.pager":                       "string",
 	"log.level":                      "string",
+}
+
+// allowedValuesByKey lists fixed enums for `m config list` VALUES.
+// Bool keys omit entries and resolve via ownedKeys to true|false.
+var allowedValuesByKey = map[string]string{
+	"install.linker":         "auto|hoisted|isolated",
+	"lifecycle.script_trust": "allow|deny|ask",
+	"ui.output":              "auto|rich|plain|json|ndjson|silent",
+	"ui.color":               "auto|always|never",
+	"ui.progress":            "auto|always|never",
+	"ui.unicode":             "auto|always|never",
+	"ui.interactive":         "auto|always|never",
+	"ui.theme":               "auto|light|dark|accessible|none",
+	"log.level":              "error|warn|info|debug",
+}
+
+// AllowedValues returns the pipe-joined settable values for key, or "" when free-form.
+func AllowedValues(key string) string {
+	if v, ok := allowedValuesByKey[key]; ok {
+		return v
+	}
+	if ownedKeys[key] == "bool" {
+		return "true|false"
+	}
+	return ""
 }
 
 // OwnedKeys returns the sorted list of owned config keys.
@@ -267,8 +292,8 @@ func mergeFile(eff *Effective, path string, src Source, required bool) error {
 	return nil
 }
 
-// envVarByKey is the authoritative config-key → env-var map for mergeEnv and
-// `m config list`. Only names that real resolution reads belong here.
+// envVarByKey is the authoritative config-key → env-var map for mergeEnv.
+// Only names that real resolution reads belong here.
 var envVarByKey = map[string]string{
 	"cache.dir":                      "MEW_CACHE_DIR",
 	"store.dir":                      "MEW_STORE_DIR",
@@ -318,8 +343,7 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) {
 		eff.Values[key] = Value{Raw: raw, Source: SourceEnv, Path: envKey}
 	}
 	identity := func(s string) (any, error) { return s, nil }
-	// Only keys that Load merges into Effective (presentation/path gates may
-	// still list env names in envVarByKey for `m config list` without merging).
+	// Only keys that Load merges into Effective (presentation env is read later).
 	set("cache.dir", identity)
 	set("store.dir", identity)
 	set("offline", parseBool)
@@ -491,7 +515,7 @@ func List(eff *Effective) []Entry {
 		out = append(out, Entry{
 			Key:    k,
 			Value:  formatRaw(v.Raw),
-			Env:    EnvVar(k),
+			Values: AllowedValues(k),
 			Source: v.Source,
 			Path:   v.Path,
 		})
