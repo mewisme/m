@@ -9,14 +9,14 @@ import (
 )
 
 type productIdentity struct {
-	SchemaVersion   int    `json:"schemaVersion"`
-	FullName        string `json:"full_name"`
-	ShortName       string `json:"short_name"`
-	PrimaryBinary   string `json:"primary_binary"`
-	PrimaryAlias    string `json:"primary_alias"`
-	ExecutorBinary  string `json:"executor_binary"`
-	ExecutorAlias   string `json:"executor_alias"`
-	NativeLockfile  string `json:"native_lockfile"`
+	SchemaVersion  int    `json:"schemaVersion"`
+	FullName       string `json:"full_name"`
+	ShortName      string `json:"short_name"`
+	PrimaryBinary  string `json:"primary_binary"`
+	PrimaryAlias   string `json:"primary_alias"`
+	ExecutorBinary string `json:"executor_binary"`
+	ExecutorAlias  string `json:"executor_alias"`
+	NativeLockfile string `json:"native_lockfile"`
 }
 
 func loadIdentity(t *testing.T, root string) productIdentity {

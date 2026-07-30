@@ -7,6 +7,12 @@ $RepoRoot = Resolve-Path (Join-Path $PlansRoot '..')
 
 . (Join-Path $PSScriptRoot 'Read-Status.ps1')
 
+function Normalize-LF {
+  param([string]$Text)
+  if ($null -eq $Text) { return '' }
+  return ($Text -replace "`r`n", "`n") -replace "`r", "`n"
+}
+
 function Get-Catalog {
   $merged = [ordered]@{}
   Get-ChildItem (Join-Path $PSScriptRoot 'enrichment-*.json') | ForEach-Object {
@@ -147,7 +153,7 @@ $open
 function Update-PlanFile {
   param([string]$Path, [string]$Id, $Entry)
 
-  $raw = Get-Content $Path -Raw -Encoding utf8
+  $raw = Normalize-LF (Get-Content $Path -Raw -Encoding utf8)
   $checked = Get-CheckedItemTexts -Raw $raw
 
   # Strip prior enrichment block only (keep surrounding paragraph breaks).
@@ -189,13 +195,13 @@ function Update-PlanFile {
     $raw = [regex]::Replace($raw, '(## Test Plan\r?\n\r?\n)', ('$1' + $block))
   }
 
-  $toWrite = $raw.TrimEnd() + "`n"
+  $toWrite = Normalize-LF ($raw.TrimEnd() + "`n")
   [System.IO.File]::WriteAllText($Path, $toWrite, [System.Text.UTF8Encoding]::new($false))
 }
 
 function Get-PlanMeta {
   param([string]$Path)
-  $raw = Get-Content $Path -Raw -Encoding utf8
+  $raw = Normalize-LF (Get-Content $Path -Raw -Encoding utf8)
   $idPart = ''
   $namePart = ''
   $first = (($raw -split "`r?`n") | Where-Object { $_ -match '^#' } | Select-Object -First 1)
@@ -349,7 +355,8 @@ function Write-Checklist {
   [void]$sb.AppendLine()
   [void]$sb.AppendLine($agg.ToString())
   $out = Join-Path $PlansRoot 'CHECKLIST.md'
-  [System.IO.File]::WriteAllText($out, ($sb.ToString().TrimEnd() + "`n"), [System.Text.UTF8Encoding]::new($false))
+  $checklistBody = Normalize-LF ($sb.ToString().TrimEnd() + "`n")
+  [System.IO.File]::WriteAllText($out, $checklistBody, [System.Text.UTF8Encoding]::new($false))
   return $out
 }
 
@@ -402,7 +409,7 @@ function Update-Manifest {
   }
   $json = $manifest | ConvertTo-Json -Depth 8
   $outPath = Join-Path $PlansRoot 'manifest.json'
-  [System.IO.File]::WriteAllText($outPath, ($json + "`n"), [System.Text.UTF8Encoding]::new($false))
+  [System.IO.File]::WriteAllText($outPath, (Normalize-LF ($json + "`n")), [System.Text.UTF8Encoding]::new($false))
 }
 
 # ---- main ----

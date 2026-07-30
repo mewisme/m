@@ -13,6 +13,11 @@ function Invoke-PlanGeneration {
 
 Push-Location $root
 try {
+  git diff --quiet --exit-code plans/
+  if ($LASTEXITCODE -ne 0) {
+    throw 'plans/ has uncommitted changes; commit or discard before idempotency check'
+  }
+
   Write-Host 'plan-generation idempotency: first run'
   Invoke-PlanGeneration
   git diff --exit-code plans/

@@ -12,8 +12,8 @@ import (
 )
 
 type planStatus struct {
-	CompletedMvps        []string `json:"completedMvps"`
-	InventoryExceptions  []string `json:"inventoryExceptions"`
+	CompletedMvps       []string `json:"completedMvps"`
+	InventoryExceptions []string `json:"inventoryExceptions"`
 }
 
 func repoRoot(t *testing.T) string {
@@ -95,9 +95,9 @@ func TestPackageMapCertifiedPathsHaveInventoryEvidence(t *testing.T) {
 	}
 
 	cases := []struct {
-		path      string
+		path       string
 		capability string
-		featureID string
+		featureID  string
 	}{
 		{"internal/sbom/", "certified", "security.sbom"},
 		{"internal/provenance/", "shipped", "security.provenance"},
