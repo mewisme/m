@@ -21,6 +21,9 @@ type Context struct {
 	Commit         string
 	BuildDate      string
 	Ctx            context.Context
+	// SuspendUI / ResumeUI pause live progress around child I/O (presentation-owned).
+	SuspendUI func(context.Context) error
+	ResumeUI  func(context.Context) error
 }
 
 // Options controls Context construction from CLI globals.

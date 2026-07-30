@@ -1,12 +1,10 @@
 package cli
 
 import (
-
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
-	"github.com/mewisme/mew/internal/presentation"
 )
 
 func newCapsuleCmd() *cobra.Command {
@@ -63,14 +61,7 @@ func newCapsuleRestoreCmd() *cobra.Command {
 			}
 			g := ownerFlags(cmd.Root())
 			r := g.mustStaticRenderer(cmd, nil)
-			summary := presentation.Summary{
-				Status: presentation.StatusSuccess,
-				Title:  "Capsule restored",
-				Metrics: []presentation.KeyValue{
-					{Key: "summary", Value: app.FormatInstallSummary(res)},
-				},
-			}
-			return writeStaticOut(cmd, r.Summary(summary))
+			return writeStaticOut(cmd, r.Summary(mutationSummary(res, false)))
 		},
 	}
 	return cmd

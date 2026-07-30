@@ -147,8 +147,11 @@ func TestInstallDryRunNoMutation(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit=%d out=%s", code, out)
 	}
-	if !strings.Contains(out, "dry-run:") {
-		t.Fatalf("missing dry-run prefix: %s", out)
+	if !strings.Contains(out, "Planned changes") {
+		t.Fatalf("missing planned-changes framing: %s", out)
+	}
+	if !strings.Contains(out, "No project files were changed") {
+		t.Fatalf("missing dry-run no-mutation notice: %s", out)
 	}
 	if _, err := os.Stat(filepath.Join(projDir, "node_modules")); !os.IsNotExist(err) {
 		t.Fatal("node_modules should not exist after dry-run")

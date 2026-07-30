@@ -200,21 +200,51 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 		enc.SetIndent("", "  ")
 		return enc.Encode(result)
 	}
-	if !result.Committed && !dryRun {
-		return nil
-	}
 	g := ownerFlags(cmd.Root())
 	r := g.mustStaticRenderer(cmd, nil)
-	prefix := ""
-	if dryRun {
-		prefix = "dry-run: "
+
+	// Plain CI progress final line on stderr (independent of --no-summary).
+	writePlainProgressFooter(cmd, g, result, dryRun)
+
+	if !result.Committed && !dryRun {
+		if result.RolledBack {
+			return writeStaticErr(cmd, r.Summary(rollbackSummary(result)))
+		}
+		if result.RecoveryRequired {
+			return writeStaticErr(cmd, r.Summary(recoveryRequiredSummary()))
+		}
+		return nil
 	}
-	summary := presentation.Summary{
-		Status: presentation.StatusSuccess,
-		Title:  prefix + "Install plan",
-		Metrics: []presentation.KeyValue{
-			{Key: "summary", Value: app.FormatInstallSummary(result)},
-		},
+
+	showSummary := true
+	if g != nil && g.ctrl != nil {
+		showSummary = g.ctrl.Options().Summary
+	} else if g != nil && g.noSummary {
+		showSummary = false
 	}
+	if !showSummary {
+		// Security/lifecycle notices already went through Reporter.Notice during install.
+		return nil
+	}
+
+	summary := mutationSummary(result, dryRun)
 	return writeStaticOut(cmd, r.Summary(summary))
+}
+
+func writePlainProgressFooter(cmd *cobra.Command, g *globalFlags, result app.InstallResult, dryRun bool) {
+	if dryRun || (!result.Committed && !result.RolledBack) {
+		return
+	}
+	if g == nil || g.ctrl == nil {
+		return
+	}
+	opts := g.ctrl.Options()
+	if opts.Legacy || opts.Structured() || opts.Progress == presentation.TriNever {
+		return
+	}
+	settings := presentation.Effective(opts, g.ctrl.Capabilities())
+	if settings.UseProgress {
+		return // live renderer owns stderr frames
+	}
+	presentation.WritePlainInstallSummary(cmd.ErrOrStderr(), result.Added, result.Changed, result.Removed, result.DurationMs)
 }

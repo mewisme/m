@@ -36,6 +36,12 @@ func runLifecyclePhase(ctx context.Context, ac *Context, proj *project.Project, 
 	if ac.Config != nil && ac.Config.Env.Initialized() {
 		src.Vars = ac.Config.Env.Environ()
 	}
+	if ac.SuspendUI != nil {
+		_ = ac.SuspendUI(ctx)
+	}
+	if ac.ResumeUI != nil {
+		defer func() { _ = ac.ResumeUI(ctx) }()
+	}
 	lifeRes, err := lifecycle.RunInstallScripts(ctx, lifecycle.InstallInput{
 		ProjectRoot: proj.Root,
 		NodeModules: stageNM,

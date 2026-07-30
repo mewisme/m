@@ -206,13 +206,18 @@ func TestWriteInstallResultJSONCombinedCriticalAndStore(t *testing.T) {
 func TestWriteInstallResultSkipsSummaryOnRollback(t *testing.T) {
 	cmd := &cobra.Command{}
 	out := new(bytes.Buffer)
+	errb := new(bytes.Buffer)
 	cmd.SetOut(out)
-	err := writeInstallResult(cmd, app.InstallResult{Added: 1, Packages: 31}, false, false)
+	cmd.SetErr(errb)
+	err := writeInstallResult(cmd, app.InstallResult{Added: 1, Packages: 31, RolledBack: true}, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if out.Len() != 0 {
-		t.Fatalf("rollback must not print success summary: %q", out.String())
+		t.Fatalf("rollback must not print success summary on stdout: %q", out.String())
+	}
+	if !strings.Contains(errb.String(), "rolled back") {
+		t.Fatalf("rollback framing missing on stderr: %q", errb.String())
 	}
 }
 
@@ -224,8 +229,42 @@ func TestWriteInstallResultPrintsAfterCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(out.Bytes(), []byte("added 1")) {
+	if !bytes.Contains(out.Bytes(), []byte("Installed")) && !bytes.Contains(out.Bytes(), []byte("Added")) {
 		t.Fatalf("committed install should print summary: %q", out.String())
+	}
+}
+
+func TestWriteInstallResultHonorsNoSummary(t *testing.T) {
+	root := &cobra.Command{Use: "m"}
+	g := &globalFlags{noSummary: true}
+	flagOwners.Store(root, g)
+	cmd := &cobra.Command{Use: "install"}
+	root.AddCommand(cmd)
+	out := new(bytes.Buffer)
+	cmd.SetOut(out)
+	err := writeInstallResult(cmd, app.InstallResult{Added: 1, Packages: 31, Committed: true}, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("--no-summary must suppress success summary: %q", out.String())
+	}
+}
+
+func TestWriteInstallResultDryRun(t *testing.T) {
+	cmd := &cobra.Command{}
+	out := new(bytes.Buffer)
+	cmd.SetOut(out)
+	err := writeInstallResult(cmd, app.InstallResult{Added: 2, Packages: 2}, false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "Planned changes") {
+		t.Fatalf("%q", got)
+	}
+	if !strings.Contains(got, "No project files were changed") {
+		t.Fatalf("%q", got)
 	}
 }
 

@@ -199,6 +199,11 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 		return nil, wrapPresentationErr(err)
 	}
 	ac.Reporter = rep
+	if g.ctrl != nil {
+		ctrl := g.ctrl
+		ac.SuspendUI = ctrl.Suspend
+		ac.ResumeUI = ctrl.Resume
+	}
 	return ac, nil
 }
 
