@@ -61,4 +61,4 @@ Direct and indirect modules must appear in [`tools/allowlist/modules.txt`](../to
 
 ## License
 
-Root [`LICENSE`](../LICENSE) is MIT. Per-file license headers are not required in this MVP; CI checks that `LICENSE` exists and mentions MIT.
+Root [`LICENSE`](../LICENSE) is Apache-2.0 with attribution in [`NOTICE`](../NOTICE). Per-file license headers are not required in this MVP; CI checks that `LICENSE` and `NOTICE` exist and declare Apache-2.0.

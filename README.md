@@ -4,7 +4,7 @@ Go-powered JavaScript package manager and toolchain built around stock Node.js.
 
 [![CI](https://github.com/mewisme/mew/actions/workflows/ci.yml/badge.svg)](https://github.com/mewisme/mew/actions/workflows/ci.yml)
 [![Go](https://img.shields.io/badge/Go-1.26.5-00ADD8?logo=go)](https://go.dev/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 **MewJS** (abbreviated **Mew**) is a Go control plane for JavaScript projects: transactional dependency management, lockfile adapters, script and executable execution, and supply-chain tooling. It runs **stock Node.js** — Mew does not fork, patch, embed, or replace Node.
 
@@ -355,4 +355,4 @@ Experimental gates and waivered surfaces may change before the runtime stabiliza
 
 ## License
 
-MewJS is released under the [MIT License](LICENSE).
+MewJS is licensed under the Apache License, Version 2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).

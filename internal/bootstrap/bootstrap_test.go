@@ -26,8 +26,21 @@ func TestCleanCloneGates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(license), "MIT") {
-		t.Fatal("LICENSE must mention MIT")
+	licenseText := string(license)
+	if !strings.Contains(licenseText, "Apache License") || !strings.Contains(licenseText, "Version 2.0") {
+		t.Fatal("LICENSE must be Apache License 2.0")
+	}
+
+	notice, err := os.ReadFile(filepath.Join(root, "NOTICE"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	noticeText := string(notice)
+	if !strings.Contains(noticeText, "Copyright 2026 Nguyễn Mậu Minh") {
+		t.Fatal("NOTICE must contain copyright attribution")
+	}
+	if !strings.Contains(noticeText, "Apache License, Version 2.0") {
+		t.Fatal("NOTICE must declare Apache-2.0")
 	}
 
 	mk, err := os.ReadFile(filepath.Join(root, "Makefile"))
