@@ -211,7 +211,8 @@ func versionInInterval(version string, iv semverInterval) bool {
 		}
 		return true
 	}
-	return iv.introduced != "0" || true
+	// Open-ended: no fixed or lastAffected upper bound — vulnerable from introduced onward.
+	return true
 }
 
 func collectRangeWarnings(entries []OSVEntry) []DBWarning {

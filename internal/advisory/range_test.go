@@ -73,6 +73,36 @@ func TestVersionMatchesRangeOpenEnded(t *testing.T) {
 	}
 }
 
+func TestVersionMatchesRangeOpenEndedConcreteIntroduced(t *testing.T) {
+	r := VersionRange{Type: "SEMVER", Events: []RangeEvent{
+		{Introduced: "2.4.0"},
+	}}
+	cases := []struct {
+		version string
+		want    bool
+	}{
+		{"2.3.9", false},
+		{"2.4.0", true},
+		{"2.4.1", true},
+		{"99.0.0", true},
+	}
+	for _, tc := range cases {
+		if got := versionMatchesRange(r, tc.version); got != tc.want {
+			t.Fatalf("version %s got %v want %v", tc.version, got, tc.want)
+		}
+	}
+}
+
+func TestVersionMatchesRangeEqualToIntroducedBoundary(t *testing.T) {
+	r := VersionRange{Type: "SEMVER", Events: []RangeEvent{
+		{Introduced: "1.2.3"},
+		{Fixed: "2.0.0"},
+	}}
+	if !versionMatchesRange(r, "1.2.3") {
+		t.Fatal("version equal to introduced should match")
+	}
+}
+
 func TestVersionMatchesRangeIntroducedZeroOpenEnded(t *testing.T) {
 	r := VersionRange{Type: "SEMVER", Events: []RangeEvent{
 		{Introduced: "0"},
@@ -92,7 +122,7 @@ func TestNormalizeAuditVersionStripsPeerSuffix(t *testing.T) {
 	}
 }
 
-func TestVersionMatchesRangeMalformed(t *testing.T) {
+func TestVersionMatchesRangeMalformedExpanded(t *testing.T) {
 	r := VersionRange{Type: "SEMVER", Events: []RangeEvent{
 		{Fixed: "1.0.0"},
 	}}
@@ -102,6 +132,14 @@ func TestVersionMatchesRangeMalformed(t *testing.T) {
 	_, warnings := buildSemverIntervals(r.Events)
 	if len(warnings) != 1 {
 		t.Fatalf("warnings=%v", warnings)
+	}
+
+	emptyIntro := VersionRange{Type: "SEMVER", Events: []RangeEvent{
+		{Introduced: ""},
+		{Fixed: "2.0.0"},
+	}}
+	if versionMatchesRange(emptyIntro, "1.0.0") {
+		t.Fatal("empty introduced should not match")
 	}
 }
 

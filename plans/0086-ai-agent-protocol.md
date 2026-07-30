@@ -158,10 +158,6 @@ Secrets must never be written to logs, lockfiles, snapshots, telemetry, crash re
 
 
 
-
-
-
-
 <!-- ENRICHMENT:BEGIN -->
 
 ## Feature Inventory Links

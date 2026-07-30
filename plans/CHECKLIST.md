@@ -132,13 +132,9 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Acceptance: Direct script shortcuts listed as intentional Mew extension
 - [x] Acceptance: ADR process documented before any persistent format is designed
 - [x] Exit: All required tests pass on supported operating systems.
-
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-
 - [x] Exit: Public behavior and intentional deviations are documented.
-
 - [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
-
 
 ### 0002 - Complete Feature Inventory and Parity Matrix
 
@@ -199,13 +195,9 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Acceptance: JS surface limited to Node extension APIs
 - [x] Acceptance: Transaction boundary documented for all install-family mutations
 - [x] Exit: All required tests pass on supported operating systems.
-
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-
 - [x] Exit: Public behavior and intentional deviations are documented.
-
 - [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
-
 
 ### 0004 - Repository Bootstrap, Tooling, and Engineering Standards
 
@@ -361,13 +353,9 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Acceptance: Fixture checksums verified on load
 - [x] Acceptance: Differential harness smoke test passes on pinned Nub revision when available
 - [x] Exit: All required tests pass on supported operating systems.
-
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-
 - [x] Exit: Public behavior and intentional deviations are documented.
-
 - [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
-
 
 ### 0009 - Release Train and MVP Dependency Graph
 
@@ -397,13 +385,9 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [x] Acceptance: Stop-the-line criteria include corruption and integrity failures
 - [x] Acceptance: Milestone graph has no cycles and matches INDEX.md ordering
 - [x] Exit: All required tests pass on supported operating systems.
-
 - [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-
 - [x] Exit: Public behavior and intentional deviations are documented.
-
 - [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
-
 
 ### 0010 - Core MVP 1 — CLI Foundation and Command Dispatch
 
@@ -1990,13 +1974,9 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - [ ] Acceptance: Every mapped row has owner MVP
 - [ ] Acceptance: Intentional omissions documented
 - [ ] Exit: All required tests pass on supported operating systems.
-
 - [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-
 - [ ] Exit: Public behavior and intentional deviations are documented.
-
 - [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
-
 
 ### 0084 - Cross-Cutting — Versioning, Formats, and Support Policy
 

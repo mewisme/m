@@ -150,8 +150,8 @@ function Update-PlanFile {
   $raw = Get-Content $Path -Raw -Encoding utf8
   $checked = Get-CheckedItemTexts -Raw $raw
 
-  # Strip prior enrichment
-  $raw = [regex]::Replace($raw, '(?s)\r?\n<!-- ENRICHMENT:BEGIN -->.*?<!-- ENRICHMENT:END -->\r?\n?', "`n")
+  # Strip prior enrichment block only (keep surrounding paragraph breaks).
+  $raw = [regex]::Replace($raw, '(?s)<!-- ENRICHMENT:BEGIN -->.*?<!-- ENRICHMENT:END -->\r?\n*', '')
   $raw = [regex]::Replace($raw, '(?s)<!-- ENRICHMENT-TESTS -->.*?(?=\r?\nRequired test layers:|\r?\n## )', '')
 
   $title = ([regex]::Match($raw, '^#\s+(.+)$', 'Multiline')).Groups[1].Value
@@ -168,7 +168,8 @@ function Update-PlanFile {
   # Insert enrichment before AI-Agent Handoff Contract (or at end if missing)
   $marker = '## AI-Agent Handoff Contract'
   if ($raw.Contains($marker)) {
-    $raw = $raw.Replace($marker, ($enrich.TrimEnd() + "`n`n" + $marker))
+    $raw = [regex]::Replace($raw, "(\r?\n){3,}(?=$([regex]::Escape($marker)))", "`n`n")
+    $raw = $raw.Replace($marker, ("`n`n" + $enrich.TrimEnd() + "`n`n" + $marker))
   }
   else {
     $raw = $raw.TrimEnd() + "`n`n" + $enrich

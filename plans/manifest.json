@@ -30,333 +30,333 @@
     },
     {
       "path": "0001-program-charter.md",
-      "bytes": 11690,
-      "sha256": "4f03c5ac4367827c743f8a6c987c388c7c35726d3907e5b8fedad37ba83d3448"
+      "bytes": 11552,
+      "sha256": "1b05b68d67b4c75a318d94c5fa2eef9656e6f8d8a0227a1ae62e7fbde7e8934f"
     },
     {
       "path": "0002-feature-inventory.md",
-      "bytes": 19130,
-      "sha256": "830b87dbddfa9137ffa069b4e646a09067454b239807a58df1b204cb9a338b18"
+      "bytes": 19126,
+      "sha256": "222a7119a7ab1a2faf503de615cf96ff26bb5ea8eb97a98d0d6da66d928de76f"
     },
     {
       "path": "0003-target-architecture.md",
-      "bytes": 17211,
-      "sha256": "1bf8479dfe688fac23e3720ee97b2f1bc75cd87b49a9a2ee9c3426b95c95d3e1"
+      "bytes": 16988,
+      "sha256": "999fb747ead8e77ac10bfc5dff689bad4e0bc4674b2b67d9995add15eed9e7ea"
     },
     {
       "path": "0004-repository-bootstrap.md",
-      "bytes": 9470,
-      "sha256": "160c15054e3acec8c31f91252fc7b7a3c5ac2db3d3b1a461613f02528b6bd5b8"
+      "bytes": 9466,
+      "sha256": "ddbec774aba88b21028e0b9f40c448d17105b2cfbc07b9193c59e0b03586b2c6"
     },
     {
       "path": "0005-error-observability.md",
-      "bytes": 9625,
-      "sha256": "49dba7311a47c35d942cb5b3de81590746c0c63d96664f9b1b78aeb86dd1e5cd"
+      "bytes": 9621,
+      "sha256": "f5bfa74f41752c043ed96ab4045fe06497e92dd814ba9256cbc23032b02cbe1a"
     },
     {
       "path": "0006-configuration-identity.md",
-      "bytes": 10368,
-      "sha256": "9a0fda84ccf72bc0a0da9f29a4fd7b338afacbebf670456d5c0d61366ed3c10c"
+      "bytes": 10364,
+      "sha256": "1e01ca224f870e11df7db6f1b72855debc921c3bf980c35b16c4901b1bcb50b8"
     },
     {
       "path": "0007-data-model-interfaces.md",
-      "bytes": 9807,
-      "sha256": "b25c5878173249ca936b6e83475bd52c5ca33f312df9833d98dcf5af13f1a961"
+      "bytes": 9803,
+      "sha256": "a78486d112e2b8d563906830889db52b98f9f4f2c9f5dee51e79f9b1b14d9d6e"
     },
     {
       "path": "0008-testing-strategy.md",
-      "bytes": 11293,
-      "sha256": "68db03846e33121fd368caba47188be76a9238ca5fbef3211fab39a75bfcdba2"
+      "bytes": 11115,
+      "sha256": "4506a5ce0ef97d6b788392e235476750b0589de22c2ddcdefb39c02c45231d4f"
     },
     {
       "path": "0009-release-train-overview.md",
-      "bytes": 13261,
-      "sha256": "b03d84be0d1ca3815127be419c50d0a4fb896b9c37f3fad268b176f4dd0fc4fc"
+      "bytes": 12999,
+      "sha256": "cf82beb2c54eb4803c1358bb79dc828be5c31574be902a397e60388f9d32a09f"
     },
     {
       "path": "0010-cli-foundation.md",
-      "bytes": 10780,
-      "sha256": "c4eea48fca1776861d94438c4c5022dc5d1210c913f6637cb57bc61f777cc828"
+      "bytes": 10776,
+      "sha256": "3f638b56395cba86bce581f28ccf513404a4e0ab66990aebbef31d372a9097d2"
     },
     {
       "path": "0011-manifest-project-discovery.md",
-      "bytes": 10725,
-      "sha256": "b81826f0038f47fce1f1d95441d22a6f8d0dd1529763ecbbfb641f483c584fef"
+      "bytes": 10721,
+      "sha256": "0b5dd293a30bbfea776a5ed26e071766d7a796bd5561736b04fff076edc2f4d4"
     },
     {
       "path": "0012-registry-cache.md",
-      "bytes": 10280,
-      "sha256": "ff6baa9b660db110877ad25ca005443c891fc5a0a035c16263b40e34345dfda7"
+      "bytes": 10276,
+      "sha256": "b8fb3a8ab77b96e93ee6b5c7bc86eeee98ee6a73861df348a84cd5e579a1efa7"
     },
     {
       "path": "0013-semver-basic-resolver.md",
-      "bytes": 10244,
-      "sha256": "3fbe4a903f82fbc6b328bb9442d380cebbc0e32a3b984319d47bc865fd9e247f"
+      "bytes": 10240,
+      "sha256": "2661144817fb88eebb3308c7dfad145e611fc0a8599952b8f34822b21c2b2bbd"
     },
     {
       "path": "0014-fetch-integrity-extraction.md",
-      "bytes": 10101,
-      "sha256": "4e51c94caadea5e30c94283f7125227c17365ee9a34bc93b4268465aacdb7244"
+      "bytes": 10097,
+      "sha256": "6d0c82986086335b4d537120cf9b9126efdc820e8a4e8b9468700567b9979d83"
     },
     {
       "path": "0015-m-lock.md",
-      "bytes": 10295,
-      "sha256": "f4ea9bb8bc193a964c20f0a61356601b80cd791b2030c0d641e9f5035eaceca0"
+      "bytes": 10291,
+      "sha256": "d8b0e5531ad74ac4aa691fba86a55752d7b47e47932d24e6d73fdff3d4c059ae"
     },
     {
       "path": "0016-basic-installer.md",
-      "bytes": 10357,
-      "sha256": "fad639f45eaf2e00aa61b2b620c830eb05fef00b8d83a0eefed1b4dffa918e7b"
+      "bytes": 10353,
+      "sha256": "4956ff530550738c496ec7201df0a01dbf575950b49ec24563b3e1ae30c547c6"
     },
     {
       "path": "0017-transaction-rollback.md",
-      "bytes": 10461,
-      "sha256": "e6d3d1a28feb68c254675709bc0b592417646b8f3caae77553b7894caf4fc508"
+      "bytes": 10457,
+      "sha256": "f69b0120a729317c90c84421abb14348fc932d095d393fde3fff6a2a6c6f31df"
     },
     {
       "path": "0018-global-store-smart-linker.md",
-      "bytes": 10055,
-      "sha256": "8f5a1cbaf9dc90ea11a8839419215dddce757f2ae58bd390b4019e15ccf58ba5"
+      "bytes": 10051,
+      "sha256": "2631ce93c8bb63b3918f7729013af620216b6dd61c5529bfdeeec71b9165819b"
     },
     {
       "path": "0019-isolated-linker.md",
-      "bytes": 10107,
-      "sha256": "9bf2fd5d688546a90f3bcd24241ea7cdead51c95f8252128a6e92834c9c51d7f"
+      "bytes": 10103,
+      "sha256": "f461af12d9a0902e6b2b64534add75a4909529b3977c9502bf5e5d3412dac73e"
     },
     {
       "path": "0020-advanced-resolver.md",
-      "bytes": 10359,
-      "sha256": "7664074434f411b025bf5125f6fcb99b0d3624f0820ead29b60530c67429645e"
+      "bytes": 10355,
+      "sha256": "3662fd6dde203d50b98a3ae464d3b7bdae8091a24ce3a5dd150ae8f2f1f55208"
     },
     {
       "path": "0021-lifecycle-sandbox.md",
-      "bytes": 10359,
-      "sha256": "387f3e235ec44669e8986d80e0434862179beb610196e2dba76f3b96e01356c5"
+      "bytes": 10355,
+      "sha256": "bc7c45fa78f13afa3263e94325ca34efc7c2043469e2f5409dd44db938f0110a"
     },
     {
       "path": "0022-workspaces-catalogs.md",
-      "bytes": 10325,
-      "sha256": "114f511a8c0cb9ea459866041679c51705c688fc3c96ffca6b2ce0812382d7ac"
+      "bytes": 10321,
+      "sha256": "bf0329f5a5f70f2682da1f811da2bbb17d65163fcccce5af4f19f4daaf939965"
     },
     {
       "path": "0023-nub-pnpm-lock-bridge.md",
-      "bytes": 10359,
-      "sha256": "94653c2b22c855ac32b901327655e7d4809cd12918a029dfec36733b6d934490"
+      "bytes": 10355,
+      "sha256": "994aecacf53b8ad47b50da2d785a45b2885a6dc731f1def33c125f59c8e3ea57"
     },
     {
       "path": "0024-npm-locks.md",
-      "bytes": 9946,
-      "sha256": "9f44ff164ad8e513201f535a31636c979f605598d212fb4c26c8126af05fff3e"
+      "bytes": 9942,
+      "sha256": "907342061b2148670bad8ce3b6ebde1e58981fb5ab2073f51397f0798f7b9841"
     },
     {
       "path": "0025-bun-yarn-locks.md",
-      "bytes": 10107,
-      "sha256": "35f34ff51f603444cc1068e23e3d38e543da416777801b9f0ba76058dbd69491"
+      "bytes": 10103,
+      "sha256": "5ffdd24efd1245bb51dd638a531bd053787f5904a9ddf93538797da35ca85932"
     },
     {
       "path": "0026-pm-command-surface.md",
-      "bytes": 10424,
-      "sha256": "b63ceed55ef5023239c9fbf40edf11c51bcb073c1e24759c72ca6488c0c5f375"
+      "bytes": 10420,
+      "sha256": "8382edb7575f621a86b346586006f0a0d8ac6e3b17c6e0fc243ec4ca65c0126d"
     },
     {
       "path": "0027-advanced-sources-publish.md",
-      "bytes": 10081,
-      "sha256": "eb4190d9fdfd9365fe3fc0190e50926b590f22af28d474498881ca81d0daf2d1"
+      "bytes": 10077,
+      "sha256": "390d74b299519a2f825257208bb088e942dd8f4c4161fed8c8d0a363d838b109"
     },
     {
       "path": "0028-explain-plan-history.md",
-      "bytes": 10392,
-      "sha256": "5fd746b0b01aca8b92d38d05866423b4c35a30d86210ac7c5032cbb708096d82"
+      "bytes": 10388,
+      "sha256": "ad51eb4ae3bd54c6f901bd7da4980da9d27600d52be2e6b1aae6a094290a1276"
     },
     {
       "path": "0029-performance-offline-capsules.md",
-      "bytes": 10283,
-      "sha256": "5bac622c3351774f41bf85398e7f75d51fe5e0a17f89f34b063e6710b6ac21f9"
+      "bytes": 10279,
+      "sha256": "ad26d93665b78b931b35b3cfc00cf7386334de80a13528c8910ea102382d3196"
     },
     {
       "path": "0030-security-audit-sbom.md",
-      "bytes": 10312,
-      "sha256": "c6420c4c423eec00b4b6aed943a8229779d90606c6ec897a8de68675a647b2d5"
+      "bytes": 10308,
+      "sha256": "239b26ba53686405eb201961fb7c451bd8fb41ba4979dd14fe0f89f591a60b65"
     },
     {
       "path": "0031-core-stabilization.md",
-      "bytes": 11175,
-      "sha256": "96006aa77303f98ff7d2b41140234f4f5336efab4e3c84e34bae283ada33e5b7"
+      "bytes": 11171,
+      "sha256": "12ef34cb9aed5ed0ce1da1b8672935682f0b18d7743b4dfc0fb12c5e390da526"
     },
     {
       "path": "0040-script-runner.md",
-      "bytes": 11342,
-      "sha256": "2d5eeb29dec14c6f46ae2a51d59636dfc5087db47813ccd506cc79cb85cd1d17"
+      "bytes": 11338,
+      "sha256": "488987c0c40d0ea070de4c12f4af6b454588f28d333a6b3078b4150a05763b51"
     },
     {
       "path": "0041-workspace-runner.md",
-      "bytes": 11027,
-      "sha256": "6c8e5f5f5cd89a7cf9c18d5252ddbca8681d58a2c32e11141285179dae092be6"
+      "bytes": 11023,
+      "sha256": "69b341dc28ac19437d1354fe6661d09d86501a986a2d98113413ae29f2c4db3c"
     },
     {
       "path": "0042-direct-script-shortcuts.md",
-      "bytes": 11148,
-      "sha256": "15eb953462a53a79a3cd53d51d4c6a8b83cfa1100640596eff1233acb46f1cd5"
+      "bytes": 11144,
+      "sha256": "ed08b18e951ffbf8100a3200a172002d7a0d16c5e6a3279a4c53043eddec7eaf"
     },
     {
       "path": "0043-local-exec.md",
-      "bytes": 10425,
-      "sha256": "6bc9583b8c05d54991b13c1ad2a088d4051e496b7aa6090132ce49596f407982"
+      "bytes": 10421,
+      "sha256": "36fce0719757a05c0ff168028156cec4191e9ee9416adf4c14047e5bbcae8bbb"
     },
     {
       "path": "0044-mx-dlx.md",
-      "bytes": 10887,
-      "sha256": "a74753c7fcbe33620a4940c654c442a8992ac11ad7838764743d1a52d4ed4160"
+      "bytes": 10883,
+      "sha256": "73ce2ee0c75b553e2c20dde92dbbb98e6e208560c5752c5d046f6c21b2dfec81"
     },
     {
       "path": "0045-unified-execution.md",
-      "bytes": 10880,
-      "sha256": "c053af305bb6be33e3deccae4b1e08baa2fb684983feeb23f5171c92e5c37eef"
+      "bytes": 10876,
+      "sha256": "548545a8074a55012e0904ee7d73b192d4272ee0413f32a2253047f5d296800c"
     },
     {
       "path": "0046-runner-stabilization.md",
-      "bytes": 10846,
-      "sha256": "dd33fcffec3254af197b7bf8028c90681190f3d3e5f17e187f213468fabb79d6"
+      "bytes": 10842,
+      "sha256": "7958d5799c9bae18c86af3d55f66ccbaa5daacee86c4dc721179f5e2b33fdbf0"
     },
     {
       "path": "0050-node-launch-compat.md",
-      "bytes": 11096,
-      "sha256": "d57b96414ed8dad09fcf1c4e4bca0e8be5f3351b4aea3adb0be27208c1d1ac8d"
+      "bytes": 11092,
+      "sha256": "687b8ec34d8bfdb5ed0459432ebea73afd02a17fabf4f1e8a68f7d89dfce6106"
     },
     {
       "path": "0051-go-transform-service.md",
-      "bytes": 11143,
-      "sha256": "ed1180783521a1f4e1fa77f6e8c6994d96cd157f0da0aaa88987813b622e85f9"
+      "bytes": 11139,
+      "sha256": "f76ddfc978fe55b224784eb42c7e693a26dfea84b7eb7d26b36aecfb475708fa"
     },
     {
       "path": "0052-jsx-decorators-sourcemaps.md",
-      "bytes": 10783,
-      "sha256": "4204b270b48994d1f0b8ba9f54bb0dc9d23817eddd582479d65785a6af6f462c"
+      "bytes": 10779,
+      "sha256": "cded22cbcd5e2651e9164e22d78d613b3940f832e200a1c524bbf6c081053f2b"
     },
     {
       "path": "0053-module-resolution-loaders.md",
-      "bytes": 10746,
-      "sha256": "5102850facac760483bcb6891ad9cb8431e153e7ff844cf5b6be929159c3a25b"
+      "bytes": 10742,
+      "sha256": "15ae9351d54c26f1e16cdfb46399db460eb1412bdd18c1e963b94e6720454c8d"
     },
     {
       "path": "0054-env-modern-apis.md",
-      "bytes": 10851,
-      "sha256": "3d75ff42b5a6b2c372c3b1527bc0769560921903baa47798cf92734a4554a644"
+      "bytes": 10847,
+      "sha256": "4ba22d2034c1ae845a8dd9c4537b16e2257b836e5c84afcb24fcb95b4c059c18"
     },
     {
       "path": "0055-watch-mode.md",
-      "bytes": 10694,
-      "sha256": "11eed5aabd33e9b54d26a665cd61e6532ff5e6b298fbd991ff1651423d5ac1d7"
+      "bytes": 10690,
+      "sha256": "aaa0283bf9af8ccfb3804929a50a1629a70cc4891ba3fef71a87111c99c811a6"
     },
     {
       "path": "0056-debugging-inspection.md",
-      "bytes": 10855,
-      "sha256": "e54d0e0c701c91441467357d14b11e9fb16784d20ba83d170d66533af84a728c"
+      "bytes": 10851,
+      "sha256": "a6cedc1de29bcfe49ae7b5adb6c873ce15e2c993d0de83b65536fecbef889cb6"
     },
     {
       "path": "0057-runtime-stabilization.md",
-      "bytes": 11018,
-      "sha256": "1b65cac7caf0e60761baf395e14b261c5f261464835e05a1d4b1cca8b5c2c610"
+      "bytes": 11014,
+      "sha256": "4f09ac48058ee3781ac52abf006db2b5e63bc3c3af0a9c64529b00279e14dc44"
     },
     {
       "path": "0060-node-manager.md",
-      "bytes": 10682,
-      "sha256": "7ca27b9e564cd0d6594b23e18232becf14fb64baf96bbd6a05c523aa0ce68a6b"
+      "bytes": 10678,
+      "sha256": "4b40eb198513ce1173cd7fa933c2339c4c118a7c6cf34aa7daad4df0e89f2987"
     },
     {
       "path": "0061-pm-manager.md",
-      "bytes": 10867,
-      "sha256": "b3964f256b05726e4041294504cc6df623649ec90bc72bdb83dd452b9ef153cb"
+      "bytes": 10863,
+      "sha256": "0df280239fe298b6a2c4d3479e4abca1824467a5dabd9e2db56f061e6bbaf587"
     },
     {
       "path": "0062-shims.md",
-      "bytes": 10738,
-      "sha256": "0a4663ffc43ee8fba6d7b4521ded813b0b4fcc77438b81edb0d88676e160e104"
+      "bytes": 10734,
+      "sha256": "a0d53fe5ee5c2380bf44b8ff39f54f70525eba238f3a9fc86ad10c3b6f9e2e8d"
     },
     {
       "path": "0070-project-init.md",
-      "bytes": 10625,
-      "sha256": "692a4ff4c81335ab37683bd0a395698bea84fbab0bbae49164f1517532d28531"
+      "bytes": 10621,
+      "sha256": "eaf3bb0201484ad7449f8fb48c8a014d85a6be6150e8040eec85d0b32dd52548"
     },
     {
       "path": "0071-plugins.md",
-      "bytes": 10452,
-      "sha256": "0dd6ccee0b4bd8fcb37a7eac2f73cf244aa580182a8893129b209325cf8858f1"
+      "bytes": 10448,
+      "sha256": "9aecc98e812cac93dc8ce7618eacbb622de932c8961d2b21e9a0d9a8bc02d8fa"
     },
     {
       "path": "0072-installers-releases.md",
-      "bytes": 10790,
-      "sha256": "d18c58e268dbc5c300f700e8df30a328aacd698a4870b046574c29b0c9367c07"
+      "bytes": 10786,
+      "sha256": "4d96d346a30e459dbd4310fdb4d1b332a8d249602c74052f1dba43bd8602638e"
     },
     {
       "path": "0073-github-action.md",
-      "bytes": 10273,
-      "sha256": "0d96da11ce58e389e783a845d77d4e45932966e102e3e50647ce7c296d563b52"
+      "bytes": 10269,
+      "sha256": "5f7df816112317bc75ed77d018d12f455d180389db215e2bab48cb8478edd64c"
     },
     {
       "path": "0074-docker-builders.md",
-      "bytes": 10438,
-      "sha256": "e8541d9125b13123b14027b32c1d7964c8e6f822326e0112e5c222d64172f611"
+      "bytes": 10434,
+      "sha256": "78c50bb25870adf5f26148b09295cd09d8159a4aa29cdaddbc1f5a59ef26faf5"
     },
     {
       "path": "0080-conformance-program.md",
-      "bytes": 9002,
-      "sha256": "015a63eb6ab9568dfbd8f7781b9aa5b3022201f8f3128efce42320e039bb7189"
+      "bytes": 8998,
+      "sha256": "c2b3c1c044fc2ea3d58989cd2ab81c9d9314a433f6fe8d8e7811013bf1c64c62"
     },
     {
       "path": "0081-performance-program.md",
-      "bytes": 8916,
-      "sha256": "6f8eda3c313a5d111d4a777cb902187a7384e248f694940513b4f784a10680ef"
+      "bytes": 8912,
+      "sha256": "16b07c7695de9181147244956f8c891571681ee75b425355c91bc509d50c94df"
     },
     {
       "path": "0082-threat-model.md",
-      "bytes": 9010,
-      "sha256": "b4d137cd42887a45a4b0c9f66b7ae4c9a4a5956c5d8604b48613d786d5d22575"
+      "bytes": 9006,
+      "sha256": "8c6ed6547f251ac6a55a66806481ddfcff0180190a3f9ab61150603df5b91020"
     },
     {
       "path": "0083-rust-go-migration-map.md",
-      "bytes": 12008,
-      "sha256": "cfb5104743e7ecda40e8e7c4c0c80fd71d8093584b7350deeaa6ac8adc8ceff0"
+      "bytes": 11838,
+      "sha256": "964a6bc2eb8e5092b99544d949217beea684b1787779a944cf51831e636cc1d0"
     },
     {
       "path": "0084-release-versioning-policy.md",
-      "bytes": 8564,
-      "sha256": "83959bd935c18384ed2270d0f1d024b98ddfa55b9b55c2bf057eb07ec3d26fce"
+      "bytes": 8560,
+      "sha256": "0ff6ddce035ebcf84f5f331ff025985b7dae918f6e0994c08653f9462a11a36a"
     },
     {
       "path": "0085-dependency-roadmap.md",
-      "bytes": 8763,
-      "sha256": "3d9c92ef05e91e501b1fbeebd71e989b2e27dd3cf53a395409251a83c9073fc6"
+      "bytes": 8759,
+      "sha256": "3e0dc0a9c45131879369c5b51d58f235fa11c1cb3f5b078dce09c2615208b399"
     },
     {
       "path": "0086-ai-agent-protocol.md",
-      "bytes": 8711,
-      "sha256": "f24fc7888244ebfdfa2e89260ea591578c1e23a0b8ea1f4cdfe1e7ceee748d94"
+      "bytes": 8707,
+      "sha256": "7db998afd3128a71c0b79425b141b469ecfe66c88e83374407fc21eb970760d2"
     },
     {
       "path": "0087-definition-of-done.md",
-      "bytes": 8773,
-      "sha256": "dddcedaa61ffbffb1d1be5b127155180128cdec52c033e763557f2ca2dd70478"
+      "bytes": 8769,
+      "sha256": "9d78ac1ba7b17b7a08f386eb80db3791532fc56f1bc4ba6e425bd36347910053"
     },
     {
       "path": "0088-reference-index.md",
-      "bytes": 8794,
-      "sha256": "35d0feeae2e2aacf68a785e25dc33b2abb9e9dbf16ef7c52996743c173612be4"
+      "bytes": 8790,
+      "sha256": "72faf932a6df0a65bcb16b188c4cda378a53f48a6d758672825f2c911a9b13a4"
     },
     {
       "path": "0089-research-spikes.md",
-      "bytes": 8799,
-      "sha256": "9e74e7dff22b0c6965c26172ed95627d9cee09f99d07fbcc01a101c0bb41cdbf"
+      "bytes": 8795,
+      "sha256": "c7b8f457ff912522cbae72788921709ee4d053543422a22918cef56c5ba856d3"
     },
     {
       "path": "0090-future-backlog.md",
-      "bytes": 8553,
-      "sha256": "099cb33bca3d560b6934367ee805fc907e674f14be09a0a6f1fd75a5fc1d3e52"
+      "bytes": 8549,
+      "sha256": "1d1e4946806b65b2f0c58bb6e6f9970c810cb1ee8113163be0a22bfc63325565"
     },
     {
       "path": "CHECKLIST.md",
-      "bytes": 130145,
-      "sha256": "679056a5efaddad7a20b054822b759b42f3d10bccc6493f3d2f89de1267662c8"
+      "bytes": 130280,
+      "sha256": "5d7fdcdbb2a582960afc1d470ed910669ad9bda85bcc1140de2519aa518af359"
     },
     {
       "path": "INDEX.md",
@@ -365,8 +365,8 @@
     },
     {
       "path": "scripts/enrich-and-generate.ps1",
-      "bytes": 14456,
-      "sha256": "380bdef927f8d356dd190397d3d3c33681706cb074224fdcb4411e26d89c5f1e"
+      "bytes": 14594,
+      "sha256": "95ac3647e00cef8814cab718ba6e0fb2a33dcba757a249000d9caf651383d6ff"
     },
     {
       "path": "scripts/enrichment-catalog.ps1",
