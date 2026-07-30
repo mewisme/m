@@ -157,7 +157,6 @@ func newLockDiffCmd() *cobra.Command {
 func newLockMigrateCmd() *cobra.Command {
 	var (
 		from      string
-		to        string
 		dryRun    bool
 		pnpmMajor int
 		asJSON    bool
@@ -172,7 +171,7 @@ func newLockMigrateCmd() *cobra.Command {
 				return apperr.New(apperr.Internal, "lock.migrate", "", "missing app context")
 			}
 			result, err := app.MigrateLock(cmd.Context(), ac, app.MigrateLockOptions{
-				From: from, To: to, DryRun: dryRun, PnpmMajor: pnpmMajor,
+				From: from, DryRun: dryRun, PnpmMajor: pnpmMajor,
 			})
 			if err != nil {
 				return err
@@ -195,8 +194,7 @@ func newLockMigrateCmd() *cobra.Command {
 			return err
 		},
 	}
-	cmd.Flags().StringVar(&from, "from", "", "source identity: nub, pnpm, or npm (default: project identity)")
-	cmd.Flags().StringVar(&to, "to", "m", "target format (only m is supported)")
+	cmd.Flags().StringVar(&from, "from", "", "source identity: nub, pnpm, npm, bun, or yarn (optional; auto-detect from packageManager/devEngines or sole lockfile)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "emit loss report without writing m.lock")
 	cmd.Flags().IntVar(&pnpmMajor, "pnpm-major", 0, "disambiguate v9-shaped pnpm locks (9, 10, or 11)")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit migration report JSON on success")

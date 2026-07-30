@@ -1,0 +1,5 @@
+{
+  "name": "ws-cycle",
+  "private": true,
+  "workspaces": ["packages/*"]
+}

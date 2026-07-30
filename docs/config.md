@@ -38,6 +38,10 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 | `lifecycle.ignore_scripts` | bool | `false` — skip all lifecycle scripts |
 | `lifecycle.script_trust` | string | `deny` (`allow` \| `deny` \| `ask`) |
 | `workspaces.enabled` | bool | `false` — workspace install/filter (or `MEW_EXPERIMENTAL_WORKSPACES=1`) |
+| `runner.direct_scripts.enabled` | bool | `false` — direct `m <script>` shortcuts (or `MEW_EXPERIMENTAL_DIRECT_SCRIPTS=1`) |
+| `runner.exec.direct_dispatch.enabled` | bool | `false` — direct `m <binary>` shortcuts with verified bin metadata (or `MEW_EXPERIMENTAL_EXEC_DIRECT_DISPATCH=1`) |
+| `runner.mx.cache.retention_days` | int | `7` — default prune retention for mx execution environments |
+| `runner.mx.cache.dir` | string | empty — mx cache root (default `<cache>/mx`) |
 
 Environment:
 
@@ -45,6 +49,8 @@ Environment:
 |---|---|
 | `MEW_EXPERIMENTAL_LIFECYCLE` | Maps to `lifecycle.enabled` |
 | `MEW_EXPERIMENTAL_WORKSPACES` | Maps to `workspaces.enabled` |
+| `MEW_MX_CACHE_DIR` | Overrides `runner.mx.cache.dir` |
+| `MEW_EXPERIMENTAL_EXEC_DIRECT_DISPATCH` | Maps to `runner.exec.direct_dispatch.enabled` |
 | `MEW_EXPERIMENTAL_GLOBAL_STORE` | Maps to `link.use_global_store` |
 | `MEW_EXPERIMENTAL_ISOLATED_LINKER` | Set to `1` to allow `install.linker=isolated` |
 | `MEW_RESOLVE_AUTO_INSTALL_PEERS` | Maps to `resolve.autoInstallPeers` |

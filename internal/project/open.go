@@ -8,8 +8,19 @@ import (
 	"github.com/mewisme/mew/internal/manifest"
 )
 
+// OpenOptions controls project discovery behavior.
+type OpenOptions struct {
+	// ForMigrate skips lockfile conflict checks; migrate uses ResolveMigrateSource.
+	ForMigrate bool
+}
+
 // Open discovers the project root from cwd, detects identity, and loads package.json.
 func Open(ctx context.Context, cwd string) (*Project, error) {
+	return OpenWithOptions(ctx, cwd, OpenOptions{})
+}
+
+// OpenWithOptions discovers the project root and loads package.json.
+func OpenWithOptions(ctx context.Context, cwd string, opts OpenOptions) (*Project, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -17,7 +28,7 @@ func Open(ctx context.Context, cwd string) (*Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	return openRoot(ctx, root, ".")
+	return openRoot(ctx, root, ".", opts)
 }
 
 // OpenAt loads a package.json at root/rel (rel may be "." for the root package).
@@ -33,16 +44,22 @@ func OpenAt(ctx context.Context, root, rel string) (*Project, error) {
 	if rel == "" {
 		rel = "."
 	}
-	return openRoot(ctx, abs, rel)
+	return openRoot(ctx, abs, rel, OpenOptions{})
 }
 
-func openRoot(ctx context.Context, root, rel string) (*Project, error) {
+func openRoot(ctx context.Context, root, rel string, opts OpenOptions) (*Project, error) {
 	_ = ctx
 	dir := root
 	if rel != "." {
 		dir = filepath.Join(root, filepath.FromSlash(rel))
 	}
-	p, err := DetectIdentity(root)
+	var p *Project
+	var err error
+	if opts.ForMigrate {
+		p, err = DetectIdentityForMigrate(root)
+	} else {
+		p, err = DetectIdentity(root)
+	}
 	if err != nil {
 		return nil, err
 	}

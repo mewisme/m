@@ -62,7 +62,13 @@ func baselineFeatures() []Feature {
 			"tools/conformance/verify-fixtures",
 			"tools/ci/verify-crash-shards",
 		}),
-		row("foundation.runner-stabilization", "runner stabilization gate", "foundation", shipped, planned, parity, "0046"),
+		rowWithTests("foundation.runner-stabilization", "runner stabilization gate", "foundation", shipped, shipped, parity, "0046", []string{
+			"internal/conformance",
+			"internal/cli/conformance_runner_cmd.go",
+			"tests/conformance/runner",
+			"tests/conformance/runner-matrix",
+			"docs/runner-compatibility.md",
+		}),
 		row("foundation.runtime-stabilization", "runtime stabilization gate", "foundation", shipped, planned, parity, "0057"),
 		row("cross.conformance-program", "continuous conformance certification", "cross-cutting", shipped, planned, parity, "0080"),
 		row("cross.performance-program", "performance measurement and gates", "cross-cutting", shipped, planned, parity, "0081"),
@@ -139,19 +145,38 @@ func baselineFeatures() []Feature {
 		row("lifecycle.sandbox", "script sandbox", "lifecycle", shipped, shipped, parity, "0021"),
 		row("lifecycle.build-cache", "build-output cache", "lifecycle", shipped, shipped, parity, "0021"),
 		row("security.audit", "audit and advisories", "security", shipped, planned, parity, "0030"),
-		row("security.sbom", "SBOM export", "security", shipped, planned, parity, "0030"),
-		row("security.provenance", "provenance and signatures", "security", shipped, planned, parity, "0027"),
+		rowWithTests("security.sbom", "SBOM export", "security", shipped, shipped, parity, "0030", []string{
+			"internal/sbom/sbom_test.go",
+			"internal/app/sbom_test.go",
+			"tests/integration/sbom_test.go",
+		}),
+		rowWithTests("security.provenance", "provenance and signatures", "security", shipped, shipped, parity, "0030", []string{
+			"internal/provenance/verify_test.go",
+			"tests/integration/provenance_test.go",
+		}),
 		row("security.policy-as-code", "policy-as-code", "security", shipped, planned, ext, "0030"),
 
 		// Workspaces and scripts
 		row("workspace.discovery", "workspace discovery and graph", "workspace", shipped, planned, parity, "0022"),
 		row("workspace.filtered-commands", "recursive and filtered commands", "workspace", shipped, planned, parity, "0022"),
 		row("workspace.parallel-scripts", "topological and parallel script execution", "workspace", shipped, planned, parity, "0041"),
-		row("runner.m-run", "m run script", "runner", shipped, planned, parity, "0040"),
-		row("runner.hooks-env", "pre/post hooks and npm environment", "runner", shipped, planned, parity, "0040"),
-		row("runner.reporters", "reporters and NDJSON", "runner", shipped, planned, parity, "0005"),
-		row("runner.direct-shortcuts", "direct m dev / m start shortcuts", "runner", omit, planned, ext, "0042"),
-		row("runner.interactive-select", "interactive script selection", "runner", omit, planned, ext, "0042"),
+		rowWithTests("runner.m-run", "m run script", "runner", shipped, shipped, parity, "0040", []string{
+			"internal/runner",
+			"internal/cli/run_cmd.go",
+			"tests/conformance/runner",
+		}),
+		rowWithTests("runner.hooks-env", "pre/post hooks and npm environment", "runner", shipped, shipped, parity, "0040", []string{
+			"internal/runner/env.go",
+			"internal/runner/hooks.go",
+		}),
+		rowWithTests("runner.reporters", "reporters and NDJSON", "runner", shipped, shipped, parity, "0005", []string{
+			"internal/diagnostics",
+		}),
+		rowWithTests("runner.direct-shortcuts", "direct m dev / m start shortcuts", "runner", omit, shipped, ext, "0042", []string{
+			"internal/cli/dispatch_test.go",
+			"tests/conformance/runner/direct_dispatch_gates_test.go",
+		}),
+		row("runner.interactive-select", "interactive script selection", "runner", omit, planned, ext, "0090"),
 
 		// Executable runner
 		row("exec.local", "local package binary execution (m exec)", "executable", shipped, planned, parity, "0043"),

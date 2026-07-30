@@ -49,7 +49,7 @@ Maintenance: [`features-maintenance.md`](features-maintenance.md)
 | `linker.capsules` | portable capsules | 0029 |
 | `security.policy-as-code` | policy-as-code | 0030 |
 | `runner.direct-shortcuts` | direct m dev / m start shortcuts | 0042 |
-| `runner.interactive-select` | interactive script selection | 0042 |
+| `runner.interactive-select` | interactive script selection | 0090 |
 | `exec.snapshot-capsule` | snapshot and capsule execution | 0045 |
 | `cross.future-backlog` | post-parity future extensions backlog | 0090 |
 

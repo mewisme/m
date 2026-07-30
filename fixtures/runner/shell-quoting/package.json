@@ -1,0 +1,8 @@
+{
+  "name": "runner-shell-quoting",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "args": "node scripts/print-args.js"
+  }
+}

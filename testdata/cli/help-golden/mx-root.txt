@@ -4,6 +4,7 @@ Usage:
   mx [command]
 
 Available Commands:
+  cache       Manage mx execution cache
   completion  Generate shell completion scripts
   help        Help about any command
   version     Print version information

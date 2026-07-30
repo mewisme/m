@@ -162,7 +162,6 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0031",
-      "notes": "conformance report schema v2; MEW_CONFORMANCE_REQUIRE_TOOLS fail-closed; cert-negative-probes CI",
       "tests": [
         "docs/core-certification.md",
         "docs/schema-freeze.md",
@@ -179,10 +178,16 @@
       "name": "runner stabilization gate",
       "module": "foundation",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0046",
-      "tests": []
+      "tests": [
+        "internal/conformance",
+        "internal/cli/conformance_runner_cmd.go",
+        "tests/conformance/runner",
+        "tests/conformance/runner-matrix",
+        "docs/runner-compatibility.md"
+      ]
     },
     {
       "id": "foundation.runtime-stabilization",
@@ -350,47 +355,30 @@
       "name": "import / dedupe / prune / rebuild",
       "module": "package-manager",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0026",
-      "tests": [
-        "internal/app",
-        "internal/cli",
-        "internal/resolver",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "pm.list-why-outdated",
       "name": "list / why / outdated / view",
       "module": "package-manager",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0026",
-      "tests": [
-        "internal/app",
-        "internal/cli",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "pm.fetch-pack-publish",
       "name": "fetch / pack / publish",
       "module": "package-manager",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
-      "primary_mvp": "0027",
-      "notes": "m pack sandbox: root containment, symlink/reparse rejection, size limits; m publish --provenance fail-closed without provider",
-      "tests": [
-        "internal/fetch",
-        "internal/archive",
-        "internal/pack",
-        "internal/app",
-        "internal/registry",
-        "tests/integration"
-      ]
+      "primary_mvp": "0014",
+      "tests": []
     },
     {
       "id": "pm.store-cache-config",
@@ -414,7 +402,6 @@
       "mew_status": "shipped",
       "compatibility_class": "extension",
       "primary_mvp": "0029",
-      "notes": "multi-sample warmup + median/p95 JSON; baseline schemaVersion 2",
       "tests": [
         "internal/app",
         "internal/cli",
@@ -509,9 +496,9 @@
       "compatibility_class": "parity",
       "primary_mvp": "0022",
       "tests": [
+        "internal/resolver",
         "fixtures/projects/workspace-protocol",
-        "fixtures/projects/workspace-catalog",
-        "tests/integration/workspaces_test.go"
+        "tests/integration"
       ]
     },
     {
@@ -532,30 +519,20 @@
       "name": "Git, hosted Git, file, link, portal, tarball",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0027",
-      "notes": "git submodules not fetched; hooks disabled during git fetch",
-      "tests": [
-        "internal/resolver",
-        "internal/fetch",
-        "internal/app",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "resolver.patches",
       "name": "patch dependencies",
       "module": "resolver",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0027",
-      "tests": [
-        "internal/archive",
-        "internal/app",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "resolver.explain",
@@ -659,27 +636,20 @@
       "name": "SHA-512 SRI and legacy shasum",
       "module": "registry",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0014",
-      "notes": "blob cache PutVerified/GetVerified/ExistsVerified with corrupt quarantine",
-      "tests": [
-        "internal/fetch",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "registry.safe-extraction",
       "name": "safe archive extraction",
       "module": "registry",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0014",
-      "tests": [
-        "internal/archive",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "registry.offline",
@@ -690,9 +660,7 @@
       "compatibility_class": "parity",
       "primary_mvp": "0012",
       "tests": [
-        "internal/registry",
-        "internal/app",
-        "tests/integration"
+        "internal/registry"
       ]
     },
     {
@@ -714,126 +682,90 @@
       "name": "nub.lock read/write",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0023",
-      "tests": [
-        "internal/compat/nub",
-        "tests/integration",
-        "tests/conformance",
-        "tools/conformance/verify-fixtures"
-      ]
+      "tests": []
     },
     {
       "id": "lockfile.pnpm",
       "name": "pnpm lockfiles",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0023",
-      "tests": [
-        "internal/compat/pnpm",
-        "tests/integration",
-        "tests/conformance",
-        "tools/conformance/verify-fixtures"
-      ]
+      "tests": []
     },
     {
       "id": "lockfile.npm",
       "name": "package-lock and shrinkwrap",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "shipped",
-      "compatibility_class": "divergence",
+      "mew_status": "planned",
+      "compatibility_class": "parity",
       "primary_mvp": "0024",
-      "notes": "read-only incumbent: parse, validate, frozen install, byte-preserving no-op; semantic mutation ERR_M_UNSUPPORTED",
-      "tests": [
-        "internal/compat/npm",
-        "tests/conformance/lock_bridge_npm_test.go",
-        "tests/integration/lock_bridge_test.go",
-        "fixtures/locks/npm"
-      ]
+      "tests": []
     },
     {
       "id": "lockfile.bun",
       "name": "bun.lock",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0025",
-      "tests": [
-        "internal/compat/bun",
-        "tests/conformance/lock_bridge_bun_test.go"
-      ]
+      "tests": []
     },
     {
       "id": "lockfile.yarn-classic",
       "name": "Yarn Classic",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0025",
-      "tests": [
-        "internal/compat/yarn/classic",
-        "tests/conformance/lock_bridge_yarn_test.go"
-      ]
+      "tests": []
     },
     {
       "id": "lockfile.yarn-berry",
       "name": "Yarn Berry and PnP artifacts",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0025",
-      "tests": [
-        "internal/compat/yarn/berry",
-        "tests/conformance/lock_bridge_yarn_test.go",
-        "fixtures/locks/yarn/berry-nm",
-        "fixtures/locks/yarn/berry-pnp-readonly"
-      ]
+      "tests": []
     },
     {
       "id": "lockfile.preservation",
       "name": "existing-format preservation",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0023",
-      "tests": [
-        "internal/app",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "lockfile.semantic-diff",
       "name": "semantic diff and validation",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "extension",
-      "primary_mvp": "0023",
-      "tests": [
-        "internal/lockfile",
-        "internal/cli"
-      ]
+      "primary_mvp": "0028",
+      "tests": []
     },
     {
       "id": "lockfile.migration",
       "name": "explicit lock migration and loss report",
       "module": "lockfile",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "extension",
-      "primary_mvp": "0023",
-      "tests": [
-        "internal/app",
-        "internal/cli"
-      ]
+      "primary_mvp": "0028",
+      "tests": []
     },
     {
       "id": "linker.hoisted",
@@ -856,11 +788,7 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0019",
-      "notes": "requires MEW_EXPERIMENTAL_ISOLATED_LINKER=1; StoreID digest + phantom require() tests shipped",
-      "tests": [
-        "internal/linker/isolated",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "linker.global-store",
@@ -870,10 +798,7 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0018",
-      "tests": [
-        "internal/store",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "linker.platform-links",
@@ -931,29 +856,20 @@
       "name": "dependency time travel",
       "module": "linker",
       "nub_status": "intentional-omit",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "extension",
       "primary_mvp": "0028",
-      "tests": [
-        "internal/snapshot",
-        "internal/cli",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "linker.capsules",
       "name": "portable capsules",
       "module": "linker",
       "nub_status": "intentional-omit",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "extension",
       "primary_mvp": "0029",
-      "tests": [
-        "internal/capsule",
-        "internal/app",
-        "internal/cli",
-        "tests/integration"
-      ]
+      "tests": []
     },
     {
       "id": "lifecycle.scripts",
@@ -963,7 +879,7 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0021",
-      "tests": ["tests/integration/lifecycle_test.go", "tests/integration/lifecycle_rollback_test.go"]
+      "tests": []
     },
     {
       "id": "lifecycle.trusted-deps",
@@ -973,17 +889,17 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0021",
-      "tests": ["tests/integration/lifecycle_test.go", "tests/integration/lifecycle_rollback_test.go"]
+      "tests": []
     },
     {
       "id": "lifecycle.sandbox",
-      "name": "restricted execution environment",
+      "name": "script sandbox",
       "module": "lifecycle",
       "nub_status": "shipped",
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0021",
-      "tests": ["tests/integration/lifecycle_test.go", "tests/integration/lifecycle_rollback_test.go", "internal/process/exec_test.go", "internal/lifecycle/run_test.go"]
+      "tests": []
     },
     {
       "id": "lifecycle.build-cache",
@@ -993,22 +909,17 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0021",
-      "tests": ["tests/integration/lifecycle_test.go", "tests/integration/lifecycle_rollback_test.go"]
+      "tests": []
     },
     {
       "id": "security.audit",
       "name": "audit and advisories",
       "module": "security",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0030",
-      "notes": "OSV multi-interval range matching; m audit --fail-on severity exit policy",
-      "tests": [
-        "internal/advisory/advisory_test.go",
-        "internal/app/audit_test.go",
-        "tests/integration/audit_test.go"
-      ]
+      "tests": []
     },
     {
       "id": "security.sbom",
@@ -1018,7 +929,6 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0030",
-      "notes": "graph-complete CycloneDX dependencies/bom-ref and SPDX DEPENDS_ON",
       "tests": [
         "internal/sbom/sbom_test.go",
         "internal/app/sbom_test.go",
@@ -1033,7 +943,6 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0030",
-      "notes": "m verify provenance uses TrustConfiguredKey in production (fixture DSSE in tests only); m publish --provenance requires provider or ERR_M_UNSUPPORTED",
       "tests": [
         "internal/provenance/verify_test.go",
         "tests/integration/provenance_test.go"
@@ -1044,44 +953,30 @@
       "name": "policy-as-code",
       "module": "security",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "extension",
       "primary_mvp": "0030",
-      "tests": [
-        "internal/policy/org_test.go",
-        "tests/integration/policy_test.go"
-      ]
+      "tests": []
     },
     {
       "id": "workspace.discovery",
       "name": "workspace discovery and graph",
       "module": "workspace",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0022",
-      "tests": [
-        "fixtures/projects/workspace-simple",
-        "fixtures/projects/workspace-catalog",
-        "fixtures/projects/workspace-filter",
-        "tests/integration/workspaces_test.go"
-      ]
+      "tests": []
     },
     {
       "id": "workspace.filtered-commands",
       "name": "recursive and filtered commands",
       "module": "workspace",
       "nub_status": "shipped",
-      "mew_status": "shipped",
+      "mew_status": "planned",
       "compatibility_class": "parity",
       "primary_mvp": "0022",
-      "tests": [
-        "tests/integration/workspaces_test.go",
-        "tests/integration/snapshot_workspace_test.go",
-        "internal/app/workspace_merge_test.go",
-        "internal/app/workspace_remove_test.go",
-        "fixtures/projects/workspace-filter"
-      ]
+      "tests": []
     },
     {
       "id": "workspace.parallel-scripts",
@@ -1098,40 +993,52 @@
       "name": "m run script",
       "module": "runner",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0040",
-      "tests": []
+      "tests": [
+        "internal/runner",
+        "internal/cli/run_cmd.go",
+        "tests/conformance/runner"
+      ]
     },
     {
       "id": "runner.hooks-env",
       "name": "pre/post hooks and npm environment",
       "module": "runner",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0040",
-      "tests": []
+      "tests": [
+        "internal/runner/env.go",
+        "internal/runner/hooks.go"
+      ]
     },
     {
       "id": "runner.reporters",
       "name": "reporters and NDJSON",
       "module": "runner",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0005",
-      "tests": []
+      "tests": [
+        "internal/diagnostics"
+      ]
     },
     {
       "id": "runner.direct-shortcuts",
       "name": "direct m dev / m start shortcuts",
       "module": "runner",
       "nub_status": "intentional-omit",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "extension",
       "primary_mvp": "0042",
-      "tests": []
+      "tests": [
+        "internal/cli/dispatch_test.go",
+        "tests/conformance/runner/direct_dispatch_gates_test.go"
+      ]
     },
     {
       "id": "runner.interactive-select",
@@ -1140,7 +1047,7 @@
       "nub_status": "intentional-omit",
       "mew_status": "planned",
       "compatibility_class": "extension",
-      "primary_mvp": "0042",
+      "primary_mvp": "0090",
       "tests": []
     },
     {

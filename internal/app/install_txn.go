@@ -354,6 +354,17 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 			return res, err
 		}
 	}
+	graphDigest, err := snapshot.GraphDigest(resolution.Graph)
+	if err != nil {
+		return res, err
+	}
+	genBind, err := publishLinkBinMetadata(stage, linkPlan, linkerMode, graphDigest)
+	if err != nil {
+		return res, err
+	}
+	if err := WriteGenerationBinding(stage, genBind); err != nil {
+		return res, err
+	}
 
 	if len(opts.StagedLock) > 0 {
 		if err := os.WriteFile(filepath.Join(stage, lockName), opts.StagedLock, 0o644); err != nil {
@@ -415,6 +426,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		backupPaths = append([]string{"package.json"}, backupPaths...)
 		backupPaths = append(backupPaths, allMemberManifestPaths(opts)...)
 	}
+	backupPaths = append(backupPaths, filepath.Join(".mew", "generation.json"))
 	if useStore {
 		backupPaths = append(backupPaths, filepath.Join(".mew", "store-manifest.json"))
 	}
@@ -550,6 +562,10 @@ func buildCommitPlan(in commitPlanInput) []transaction.Op {
 	}
 	ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: lockName, Backup: filepath.Join("stage", lockName)})
 	ops = append(ops, transaction.Op{Kind: transaction.OpRename, Path: "node_modules", Backup: "stage/node_modules"})
+	ops = append(ops,
+		transaction.Op{Kind: transaction.OpMkdir, Path: ".mew"},
+		transaction.Op{Kind: transaction.OpRename, Path: filepath.Join(".mew", "generation.json"), Backup: filepath.Join("stage", ".mew", "generation.json")},
+	)
 	if in.useStore {
 		ops = append(ops, transaction.Op{
 			Kind:   transaction.OpRename,

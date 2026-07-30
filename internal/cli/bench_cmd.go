@@ -11,13 +11,18 @@ import (
 
 func newBenchCmd() *cobra.Command {
 	var (
-		cold     bool
-		warm     bool
-		asJSON   bool
-		fixture  string
-		baseline bool
-		warmup   int
-		samples  int
+		cold        bool
+		warm        bool
+		asJSON      bool
+		fixture     string
+		baseline    bool
+		warmup      int
+		samples     int
+		outputPath  string
+		forceOut    bool
+		comparePath string
+		benchCase   string
+		profile     string
 	)
 	install := &cobra.Command{
 		Use:   "install",
@@ -69,12 +74,69 @@ func newBenchCmd() *cobra.Command {
 	install.Flags().IntVar(&warmup, "warmup", 0, "discarded warmup iterations before sampling (default 1)")
 	install.Flags().IntVar(&samples, "samples", 0, "measured iterations for median/p95 (default 5)")
 
+	runner := &cobra.Command{
+		Use:   "runner",
+		Short: "Benchmark runner hot paths",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ac := app.FromContext(cmd.Context())
+			if ac == nil {
+				return apperr.New(apperr.Internal, "bench runner", "", "missing app context")
+			}
+			if benchCase != "" && cmd.Flags().Changed("profile") {
+				return apperr.New(apperr.Usage, "bench runner", "", "--case and --profile are mutually exclusive")
+			}
+			prof := app.RunnerBenchProfileSmoke
+			if benchCase == "" {
+				if profile != "" {
+					prof = app.RunnerBenchProfile(profile)
+				}
+			}
+			result, err := app.BenchRunner(cmd.Context(), ac, app.RunnerBenchOptions{
+				Profile: prof,
+				CaseID:  benchCase,
+				Compare: comparePath,
+				Output:  outputPath,
+				Force:   forceOut,
+			})
+			if err != nil {
+				return err
+			}
+			if asJSON {
+				data, err := app.EncodeRunnerBenchResultJSON(result)
+				if err != nil {
+					return err
+				}
+				_, err = cmd.OutOrStdout().Write(data)
+				if err != nil {
+					return err
+				}
+				_, err = cmd.OutOrStdout().Write([]byte("\n"))
+				return err
+			}
+			for _, c := range result.Cases {
+				_, err := fmt.Fprintf(cmd.OutOrStdout(), "case=%s medianNs=%d p95Ns=%d samples=%d\n", c.ID, c.MedianNs, c.P95Ns, c.Samples)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+	runner.Flags().BoolVar(&asJSON, "json", false, "emit JSON result")
+	runner.Flags().StringVar(&outputPath, "output", "", "write JSON result to path")
+	runner.Flags().BoolVar(&forceOut, "force", false, "overwrite existing --output file")
+	runner.Flags().StringVar(&comparePath, "compare", "", "compare against baseline JSON")
+	runner.Flags().StringVar(&benchCase, "case", "", "run one benchmark case id")
+	runner.Flags().StringVar(&profile, "profile", "", "benchmark profile: smoke|full (default smoke)")
+
 	cmd := &cobra.Command{
 		Use:     "benchmark",
 		Aliases: []string{"bench"},
 		Short:   "Performance benchmarks",
 	}
 	cmd.AddCommand(install)
+	cmd.AddCommand(runner)
 	return cmd
 }
 

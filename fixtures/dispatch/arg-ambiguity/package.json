@@ -1,0 +1,7 @@
+{
+  "name": "dispatch-arg-ambiguity",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node scripts/print-argv.js"
+  }
+}

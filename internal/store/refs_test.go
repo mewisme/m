@@ -1,11 +1,11 @@
 package store_test
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/mewisme/mew/internal/jsonfile"
 	"github.com/mewisme/mew/internal/store"
 	"github.com/mewisme/mew/internal/transaction"
 )
@@ -21,7 +21,7 @@ func TestCollectReferencedFromTxnJournal(t *testing.T) {
 		"schemaVersion": 1,
 		"packages":      []string{"sha256-abc"},
 	}
-	raw, _ := json.Marshal(manifest)
+	raw, _ := jsonfile.Marshal(manifest)
 	if err := os.WriteFile(filepath.Join(stageDir, "store-manifest.json"), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestCollectReferencedIgnoresCommittedTxn(t *testing.T) {
 		t.Fatal(err)
 	}
 	manifest := map[string]any{"schemaVersion": 1, "packages": []string{"sha256-stale"}}
-	raw, _ := json.Marshal(manifest)
+	raw, _ := jsonfile.Marshal(manifest)
 	if err := os.WriteFile(filepath.Join(stageDir, "store-manifest.json"), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}

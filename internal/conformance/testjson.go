@@ -17,6 +17,7 @@ type TestSummary struct {
 	Skipped      int
 	PackageFail  bool
 	ParseError   string
+	SkippedTests []string
 }
 
 // TotalOutcomes returns pass+fail+skip at test granularity.

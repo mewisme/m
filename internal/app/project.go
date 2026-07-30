@@ -17,3 +17,15 @@ func OpenProject(ctx context.Context, ac *Context) (*project.Project, error) {
 	}
 	return project.Open(ctx, ac.CWD)
 }
+
+// OpenProjectForMigrate opens a project without lockfile identity conflicts.
+func OpenProjectForMigrate(ctx context.Context, ac *Context) (*project.Project, error) {
+	if ac == nil {
+		cwd := ""
+		return project.OpenWithOptions(ctx, cwd, project.OpenOptions{ForMigrate: true})
+	}
+	if ctx == nil {
+		ctx = ac.Ctx
+	}
+	return project.OpenWithOptions(ctx, ac.CWD, project.OpenOptions{ForMigrate: true})
+}

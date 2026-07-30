@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "fixtureDigest": "runner-basic-scripts-v1",
+  "commandVersion": "runner-bench-v1",
+  "environment": {
+    "os": "linux",
+    "arch": "amd64",
+    "machineClass": "ci",
+    "goVersion": "go1.24.0",
+    "nodeVersion": "v22.0.0"
+  },
+  "recordedAt": "2026-07-31T00:00:00Z",
+  "cases": [
+    {
+      "id": "project-script",
+      "cacheState": "project",
+      "samples": 5,
+      "medianNs": 1000000,
+      "p95Ns": 1500000
+    }
+  ]
+}

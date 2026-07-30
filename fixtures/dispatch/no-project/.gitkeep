@@ -1,0 +1,2 @@
+# Empty fixture directory for dispatch no-project tests.
+# Integration tests copy this tree or use an isolated temp dir with --cwd.

@@ -47,7 +47,7 @@ Semantic compatibility is guaranteed on read paths; byte-identical formatting is
 ```bash
 m install                  # preserves package-lock or shrinkwrap
 m lock validate --frozen   # manifest drift → ERR_M_LOCKFILE
-m lock migrate --from npm --to m [--dry-run]
+m lock migrate --from npm [--dry-run]
 ```
 
 ## Fixtures

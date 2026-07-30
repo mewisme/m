@@ -1,0 +1,5 @@
+{
+  "name": "ws-large",
+  "private": true,
+  "workspaces": ["packages/*"]
+}

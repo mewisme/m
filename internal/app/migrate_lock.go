@@ -18,8 +18,7 @@ import (
 
 // MigrateLockOptions controls explicit lock migration to m.lock.
 type MigrateLockOptions struct {
-	From      string // nub|pnpm|npm; empty uses project identity
-	To        string // m
+	From      string // nub|pnpm|npm|bun|yarn; empty auto-detects source
 	DryRun    bool
 	PnpmMajor int
 }
@@ -132,24 +131,13 @@ func readLockGraphAtPath(ctx context.Context, path string, hints lockfile.Projec
 // MigrateLock migrates an incumbent nub/pnpm lock to m.lock.
 func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (MigrateLockResult, error) {
 	var out MigrateLockResult
-	proj, err := OpenProject(ctx, ac)
+	proj, err := OpenProjectForMigrate(ctx, ac)
 	if err != nil {
 		return out, err
 	}
-	fromID, err := resolveMigrateFrom(proj, opts.From)
+	fromID, lockPath, err := project.ResolveMigrateSource(proj.Root, opts.From)
 	if err != nil {
 		return out, err
-	}
-	to := opts.To
-	if to == "" {
-		to = "m"
-	}
-	if to != "m" {
-		return out, apperr.New(apperr.Usage, "lock.migrate", to, "only --to m is supported")
-	}
-	lockPath, ok := project.IncumbentLockPath(proj.Root, fromID)
-	if !ok {
-		return out, apperr.New(apperr.NotFound, "lock.migrate", project.LockFilename(fromID), "source lock not found")
 	}
 	prior, err := os.ReadFile(lockPath)
 	if err != nil {
@@ -274,30 +262,6 @@ func lockfileSemanticLoss(loss lockfile.LossReport) []lockfile.LossItem {
 		}
 	}
 	return out
-}
-
-func resolveMigrateFrom(proj *project.Project, from string) (project.Identity, error) {
-	switch from {
-	case "":
-		switch proj.Identity {
-		case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM, project.IdentityBun, project.IdentityYarn:
-			return proj.Identity, nil
-		default:
-			return "", apperr.New(apperr.Usage, "lock.migrate", string(proj.Identity), "project identity is not nub, pnpm, npm, bun, or yarn")
-		}
-	case "nub":
-		return project.IdentityNub, nil
-	case "pnpm":
-		return project.IdentityPNPM, nil
-	case "npm":
-		return project.IdentityNPM, nil
-	case "bun":
-		return project.IdentityBun, nil
-	case "yarn":
-		return project.IdentityYarn, nil
-	default:
-		return "", apperr.New(apperr.Usage, "lock.migrate", from, "expected --from nub, pnpm, npm, bun, or yarn")
-	}
 }
 
 func lockIdentityFromBasename(name string) (project.Identity, bool) {

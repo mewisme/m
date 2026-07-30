@@ -26,8 +26,8 @@ to update dependencies:
   m install
 
 to migrate to m.lock:
-  m lock migrate --from npm --to m --dry-run
-  m lock migrate --from npm --to m`, lock)
+  m lock migrate --from npm --dry-run
+  m lock migrate --from npm`, lock)
 }
 
 func npmLockLabel(subject string) string {

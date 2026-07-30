@@ -1,0 +1,8 @@
+{
+  "name": "runner-signals",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "hang": "node scripts/hang.js"
+  }
+}

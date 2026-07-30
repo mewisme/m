@@ -13,6 +13,7 @@ import (
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/jsonfile"
 )
 
 const (
@@ -32,11 +33,10 @@ func checksumHex(data []byte) string {
 
 func writeGenerationHead(headPath string, gen uint64, data []byte) error {
 	head := generationHead{Generation: gen, Checksum: checksumHex(data)}
-	raw, err := json.Marshal(head)
+	raw, err := jsonfile.Marshal(head)
 	if err != nil {
 		return apperr.Wrap(apperr.IO, "transaction.head", headPath, err)
 	}
-	raw = append(raw, '\n')
 	return fsx.PublishFileDurable(headPath, raw, 0o644)
 }
 

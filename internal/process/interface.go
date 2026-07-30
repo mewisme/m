@@ -1,15 +1,21 @@
 // Package process supervises child processes, signals, and shells.
 package process
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 // Spec describes a child process to start.
 type Spec struct {
-	Path  string
-	Args  []string
-	Dir   string
-	Env   []string
-	Shell string // optional Windows shell; ComSpec resolved from Env when empty
+	Path   string
+	Args   []string
+	Dir    string
+	Env    []string
+	Shell  string // optional Windows shell; ComSpec resolved from Env when empty
+	Stdin  io.Reader
+	Stdout io.Writer
+	Stderr io.Writer
 }
 
 // Handle is an opaque running process handle.

@@ -14,7 +14,7 @@ How users move between incumbent package managers and Mew. Full commands ship in
 | Starting state | Mew behavior | Explicit migration |
 |---|---|---|
 | `package-lock.json` only | Operate as npm identity; preserve `package-lock.json` | `m pm use m` → convert to `m.lock` |
-| `packageManager: npm@…` | npm identity from manifest | `m lock migrate --from npm --to m` |
+| `packageManager: npm@…` | npm identity from manifest | `m lock migrate --from npm` |
 | Greenfield | Mew identity; create `m.lock` on first install | — |
 
 ## pnpm users
@@ -48,6 +48,18 @@ How users move between incumbent package managers and Mew. Full commands ship in
 | Full Nub parity target | Behavioral reference for CLI, lock, runtime | See [`compatibility-axes.md`](compatibility-axes.md) |
 
 `nub.lock` beside a foreign lockfile without `packageManager` declaration is ambiguous — Mew errors with `ERR_M_LOCKFILE_AMBIGUOUS` (parity intent).
+
+### Multi-lock migrate ambiguity
+
+`m lock migrate` without `--from` on a project with multiple incumbent locks and
+no manifest hint fails closed:
+
+```text
+ERR_M_USAGE lock.migrate: multiple lockfiles present; pass --from nub|pnpm|npm|bun|yarn
+found: pnpm-lock.yaml, yarn.lock
+```
+
+Pass `--from pnpm` (or another supported identity) to select the source lock.
 
 ## Greenfield Mew projects
 

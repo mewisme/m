@@ -28,6 +28,13 @@ func (c *captureReporter) Debug(msg string, attrs ...diagnostics.Attr) {
 		c.buf.WriteString(a.Key + "=" + a.Value)
 	}
 }
+func (c *captureReporter) WorkspaceTask(diagnostics.WorkspaceTaskEvent) {}
+func (c *captureReporter) ChildOutput(diagnostics.ChildOutputEvent, diagnostics.WorkspaceOutputMode) {
+}
+func (c *captureReporter) WorkspaceSummary(diagnostics.WorkspaceSummaryEvent) {}
+func (c *captureReporter) EnvironmentPrepared(diagnostics.EnvironmentPreparedEvent) error {
+	return nil
+}
 
 func TestIndexUpsertFailureWarns(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "store")

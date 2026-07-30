@@ -188,7 +188,7 @@ func TestLockBridgeAmbiguousPnpmWithoutMajorFailsClosed(t *testing.T) {
 
 func TestLockBridgeMigrateDryRunReportsLoss(t *testing.T) {
 	projDir, cfgPath := setupLockBridgeProject(t, "nub.lock", lodashLockYAML)
-	code, out := runM(t, projDir, cfgPath, "lock", "migrate", "--from", "nub", "--to", "m", "--dry-run")
+	code, out := runM(t, projDir, cfgPath, "lock", "migrate", "--from", "nub", "--dry-run")
 	if code != 0 {
 		t.Fatalf("migrate dry-run exit=%d out=%s", code, out)
 	}

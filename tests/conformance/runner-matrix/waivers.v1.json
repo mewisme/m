@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "matrix": "runner",
+  "waivers": [
+    {
+      "id": "waiver-direct-dispatch",
+      "suiteId": "runner-dispatch-collisions",
+      "platforms": ["linux", "darwin", "windows"],
+      "reason": "Experimental direct-dispatch collision handling remains behind feature flags until runtime MVP 0050",
+      "openedDate": "2026-07-31",
+      "reviewDate": "2026-09-30",
+      "expiryDate": "2026-10-31",
+      "allowPassWithWaiver": true,
+      "followUpMVP": "0050",
+      "owner": "runner-maintainers"
+    },
+    {
+      "id": "waiver-direct-dispatch-gates",
+      "suiteId": "runner-direct-dispatch-gates",
+      "platforms": ["linux", "darwin", "windows"],
+      "reason": "Experimental direct-dispatch gates remain behind feature flags until runtime MVP 0050",
+      "openedDate": "2026-07-31",
+      "reviewDate": "2026-09-30",
+      "expiryDate": "2026-10-31",
+      "allowPassWithWaiver": true,
+      "followUpMVP": "0050",
+      "owner": "runner-maintainers"
+    }
+  ]
+}

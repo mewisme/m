@@ -10,6 +10,7 @@ import (
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/jsonfile"
 )
 
 const (
@@ -95,7 +96,7 @@ func writeReparseMeta(metaRoot, relPath, substitute, print string) error {
 		EntryType:     reparseEntryTypeJunction,
 	}
 	path := reparseMetaFilePath(metaRoot, relPath)
-	data, err := json.Marshal(meta)
+	data, err := jsonfile.Marshal(meta)
 	if err != nil {
 		return apperr.Wrap(apperr.IO, "transaction.backup", path, err)
 	}

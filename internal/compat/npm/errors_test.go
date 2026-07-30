@@ -19,8 +19,8 @@ func TestErrMutationUnsupportedMessage(t *testing.T) {
 		"to update dependencies:",
 		"npm install",
 		"to migrate to m.lock:",
-		"m lock migrate --from npm --to m --dry-run",
-		"m lock migrate --from npm --to m",
+		"m lock migrate --from npm --dry-run",
+		"m lock migrate --from npm",
 	} {
 		if strings.Contains(msg, "docs/") {
 			t.Fatalf("must not reference docs in binary error: %q", msg)

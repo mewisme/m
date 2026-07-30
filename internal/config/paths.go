@@ -161,6 +161,18 @@ func BlobCacheDir(eff *Effective) string {
 	return filepath.Join(CacheRoot(eff), "blobs")
 }
 
+// MXCacheDir is the mx execution cache root (<cache>/mx).
+func MXCacheDir(eff *Effective) string {
+	if d := String(eff, "runner.mx.cache.dir", ""); d != "" {
+		return d
+	}
+	snap := envSnap(eff)
+	if d, ok := snap.Lookup("MEW_MX_CACHE_DIR"); ok && d != "" {
+		return d
+	}
+	return filepath.Join(CacheRoot(eff), "mx")
+}
+
 // StoreRoot resolves the global content store (store.dir → MEW_STORE_DIR → platform default).
 // The path is absolute, must not contain .., and is created when missing.
 func StoreRoot(eff *Effective) (string, error) {

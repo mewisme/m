@@ -29,6 +29,11 @@ Official release installers remain planned (MVP **0072**); for local development
 | `--debug` | false | Verbose diagnostics |
 | `--color` | `auto` | `auto` \| `always` \| `never` (TTY-aware) |
 | `--no-color` | false | Force no ANSI |
+| `-r` / `--recursive` | false | Workspace recursive mode (`m run`; install-family commands have local `-r`) |
+| `--filter` | | pnpm-style workspace package filter (install family and `m run`) |
+
+Requires [`workspaces.md`](workspaces.md) gate (`MEW_EXPERIMENTAL_WORKSPACES=1` or
+`workspaces.enabled`).
 
 ## Version
 
@@ -54,20 +59,29 @@ Writes a script to stdout. Do not check generated scripts into the repo.
 
 ## Reserved names and stubs
 
-Primary package-manager verbs are reserved so scripts cannot shadow them (script
-fallback is MVP **0042**). Unimplemented verbs return `ERR_M_UNIMPLEMENTED`
-(exit **1**) with the owning MVP id in the message.
+Primary package-manager verbs are reserved so scripts cannot shadow them. Direct
+`m <script>` shortcuts ship in MVP **0042** (gated). Unimplemented verbs return
+`ERR_M_UNIMPLEMENTED` (exit **1**) with the owning MVP id in the message.
 
-Stubs on `m` today: `run`, `exec`, `init`, `link`.
+Stubs on `m` today: `init`, `link`.
 
-Shipped built-ins (also reserved): `version`, `features`, `development`,
-`config`, `project`, `pkg`, `cache`, `view`, `resolve`, `fetch`, `lock`,
-`install` (`i`), `add`, `remove` (`rm`), `update`, `ci`, `outdated`, `dedupe`,
-`prune`, `ls` (`list`), `store`, `doctor`, `audit`, `sbom`, `policy`, `verify`,
-`completion`, `help`, hidden `__dispatch`.
+Shipped: `run`, `exec` (MVP **0043**).
 
-Global flag: `--filter` — workspace package filter (pnpm-style), passed to
-install-family commands. Requires [`workspaces.md`](workspaces.md) gate.
+## `mx` DLX (MVP **0044**)
+
+`mx` is enabled by default (no experimental gate). After reserved built-ins,
+unrecognized argv is parsed as DLX:
+
+```text
+mx <package-spec> [child-args…]          # Mode A — local-first when unversioned
+mx -p <spec>… <command> [child-args…]     # Mode B — explicit command
+mx --yes <package-spec> …                 # non-interactive consent
+mx --offline <package-spec> …            # offline warm cache only
+mx cache prune [--older-than 7d] [--dry-run]
+```
+
+Reserved before DLX: `version`, `completion`, `cache`. Use `mx -p cache <bin>` for
+a registry package named `cache`.
 
 ## Registry
 
@@ -193,6 +207,26 @@ m bench install [--cold|--warm] [--fixture <path>] [--json]
 
 End-to-end install benchmark with phase timing. See [`performance.md`](performance.md).
 
+```text
+m benchmark runner [--profile smoke|full] [--case <id>] [--json] [--output <path>] [--compare <baseline>] [--force]
+```
+
+Runner hot-path benchmark using local fixtures only. Default profile is `smoke`.
+`--case` and `--profile` are mutually exclusive. `--compare` is informational and
+never mutates the baseline. See [`runner-compatibility.md`](runner-compatibility.md).
+
+## Conformance
+
+```text
+m conformance run core [--json] [--filter <suite-id>]
+m conformance run runner [--json] [--output <path>] [--group <group>] [--filter <suite-id>] [--force]
+m conformance verify runner --report <path>... --output <summary> [--force]
+```
+
+Runner certification uses [`tests/conformance/runner-matrix/manifest.json`](../tests/conformance/runner-matrix/manifest.json).
+Cross-platform aggregation requires one report per platform. See
+[`runner-compatibility.md`](runner-compatibility.md) and [`runner-waivers.md`](runner-waivers.md).
+
 ## Lock
 
 ```text
@@ -203,16 +237,122 @@ m lock validate [--frozen] [--json]
 Canonicalize or validate native `m.lock`. `--frozen` checks manifest specifier
 drift (same check as `m install --frozen-lockfile`). See [`lockfile.md`](lockfile.md).
 
+## Run
+
+```text
+m run <script> [--if-present] [-- <args>...]
+m -r run <script> [--if-present] [-- <args>...]
+m --filter <pattern>... run <script> [--if-present] [-- <args>...]
+```
+
+Run a `package.json` script with npm-compatible hooks, environment, and exit
+codes. Regex selectors use `/pattern/` and run matching scripts in sorted name
+order.
+
+**Workspace orchestration** (MVP **0041**): set global `-r` / `--recursive` or one
+or more global `--filter` patterns to run the script across selected workspace
+members. Workspace-only flags (invalid without `-r` or `--filter`):
+
+| Flag | Default |
+|---|---|
+| `--workspace-concurrency N` | `GOMAXPROCS` (`0` = `GOMAXPROCS`, capped by task count) |
+| `--workspace-order` | `topological` |
+| `--workspace-output` | `stream` |
+| `--workspace-bail` | `true` (`--no-workspace-bail` to continue after failures) |
+
+See [`runner.md`](runner.md).
+
+## Exec
+
+```text
+m exec <binary> [--package <dependency>] [-- <args>...]
+m exec --snapshot <id> <binary> [-- <args>...]
+m exec --capsule <path> <binary> [-- <args>...]
+m --cwd <importer> exec <binary>
+m --filter <pattern> exec <binary>   # exactly one workspace member
+```
+
+Source flags (`--snapshot`, `--capsule`, `--package`) are parsed **before** the
+binary selector. Tokens after the selector belong to the child process.
+
+## Env inspect
+
+```text
+m env inspect project [--project-dir <dir>] [--package <owner>] [<binary>]
+m env inspect dlx -p <package>... <binary>
+m env inspect snapshot <id> [<binary>]
+m env inspect capsule <path> [<binary>]
+```
+
+Plan-only: never executes, never materializes cold shared-cache environments,
+never acquires execution leases, and never contacts the registry for snapshot or
+capsule sources. JSON output uses schema v1 (`"v": 1`).
+
+Execute a **local** package binary from the current importer context. Network-free;
+never uses the Mew registry client.
+
+| Rule | Behavior |
+|---|---|
+| Importer cardinality | Exactly one importer per invocation |
+| `-r` / `--recursive` | `ERR_M_USAGE` — never workspace-orchestrate bins |
+| `--filter` | Allowed only when it resolves to **exactly one** member |
+| `--package` | Importer-visible dependency or alias providing the bin (not a workspace selector) |
+| Miss | Suggests `m exec --package <dependency> <bin>`; never guesses package from command name |
+
+**Direct bin dispatch** (step 4, gated separately from scripts):
+
+```text
+m eslint
+m --cwd packages/api eslint
+```
+
+**Gate:** `runner.exec.direct_dispatch.enabled` or
+`MEW_EXPERIMENTAL_EXEC_DIRECT_DISPATCH=1`. Requires verified bin metadata
+(`OwnershipVerified=true`); unowned shims fall through to suggestions or require
+explicit `m exec`.
+
+Script workspace orchestration (`m -r dev`) is unchanged from MVP **0041**; bin
+dispatch is always single-importer.
+
+See [`runner.md`](runner.md#local-binary-execution-m-exec).
+
 ## Command precedence
 
 1. Built-in command
 2. Built-in alias
-3. Exact `package.json` script (MVP **0042**, not yet)
-4. Optional local executable lookup when the command contract enables it
-5. Suggestion and error
+3. Exact `package.json` script when `runner.direct_scripts.enabled` or
+   `MEW_EXPERIMENTAL_DIRECT_SCRIPTS=1` (case-sensitive key only)
+4. Verified local binary when `runner.exec.direct_dispatch.enabled` or
+   `MEW_EXPERIMENTAL_EXEC_DIRECT_DISPATCH=1` (**0043**; metadata-verified only)
+5. Typed suggestions (max 3) and `ERR_M_USAGE`
 
-Use `m run <script>` to force a script when a name collides with a built-in
-(once **0040** / **0042** land).
+Use `m run <script>` to force a script when a name collides with a built-in.
+
+### Direct shortcuts (Mew extension, gated)
+
+```text
+m dev
+m build --mode production
+m --cwd ./app build --mode production
+m -r build
+m --filter api... test
+```
+
+**Gate:** `runner.direct_scripts.enabled` or `MEW_EXPERIMENTAL_DIRECT_SCRIPTS=1`.
+
+**Workspace direct shortcuts** also require `workspaces.enabled` or
+`MEW_EXPERIMENTAL_WORKSPACES=1`.
+
+**Argument rules:**
+
+- Root globals (`--cwd`, `--reporter`, `-r`, `--filter`, workspace flags before
+  the selector) are parsed only **before** the script name.
+- Tokens after the selector are forwarded verbatim to the script child.
+- `m dev --reporter ndjson` passes `--reporter` to the script, not Mew.
+- One `--` after the selector is stripped; following tokens forward verbatim.
+
+**Bare `m`:** always `ERR_M_USAGE` (exit 2); lists up to 10 script names when a
+valid manifest exists; never executes or prompts.
 
 ## Hidden `__dispatch`
 
@@ -220,8 +360,8 @@ Use `m run <script>` to force a script when a name collides with a built-in
 m __dispatch <name>
 ```
 
-Prints `kind=builtin|alias|unknown` and a resolved path. Prep for script
-fallback; no script lookup yet.
+Side-effect-free JSON introspection (`schemaVersion: 1`). Same resolution logic as
+dispatch; never executes scripts. Internal diagnostic only.
 
 ## Install family
 

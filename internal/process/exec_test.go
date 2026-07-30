@@ -1,7 +1,10 @@
 package process_test
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"io"
 	"os"
 	"runtime"
 	"strings"
@@ -141,7 +144,94 @@ func TestResolveCommandComSpecFromEnv(t *testing.T) {
 	if path != `C:\custom\cmd.exe` {
 		t.Fatalf("got shell %q", path)
 	}
-	if len(args) != 2 || args[0] != "/c" {
+	if len(args) != 4 || args[0] != "/d" || args[1] != "/s" || args[2] != "/c" {
 		t.Fatalf("args=%v", args)
+	}
+}
+
+func TestExecSupervisorStdioPassthrough(t *testing.T) {
+	sup := process.NewExecSupervisor()
+	dir := t.TempDir()
+	env := process.RestrictedEnv(process.EnvSource{Vars: os.Environ(), Explicit: true}, dir)
+
+	var stdout, stderr bytes.Buffer
+	stdin := strings.NewReader("stdin-marker\n")
+	spec := process.Spec{
+		Dir:    dir,
+		Env:    env,
+		Stdin:  stdin,
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}
+	if runtime.GOOS == "windows" {
+		spec.Path = "cmd"
+		spec.Args = []string{"/c", "more & echo stderr-marker 1>&2"}
+	} else {
+		spec.Path = "sh"
+		spec.Args = []string{"-c", `read line; printf '%s\n' "$line"; echo stderr-marker 1>&2`}
+	}
+	h, err := sup.Start(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sup.Wait(context.Background(), h); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(stdout.String()); got != "stdin-marker" {
+		t.Fatalf("stdout=%q want stdin-marker", got)
+	}
+	if got := strings.TrimSpace(stderr.String()); got != "stderr-marker" {
+		t.Fatalf("stderr=%q want stderr-marker", got)
+	}
+}
+
+func TestExecSupervisorNilStdioPreservesDefaults(t *testing.T) {
+	sup := process.NewExecSupervisor()
+	dir := t.TempDir()
+	spec := process.Spec{
+		Path: "echo hello",
+		Dir:  dir,
+		Env:  process.RestrictedEnv(process.EnvSource{Vars: os.Environ(), Explicit: true}, dir),
+	}
+	h, err := sup.Start(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sup.Wait(context.Background(), h); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestExecSupervisorExitCodePropagation(t *testing.T) {
+	sup := process.NewExecSupervisor()
+	dir := t.TempDir()
+	env := process.RestrictedEnv(process.EnvSource{Vars: os.Environ(), Explicit: true}, dir)
+	spec := process.Spec{
+		Dir:    dir,
+		Env:    env,
+		Stdout: io.Discard,
+		Stderr: io.Discard,
+	}
+	if runtime.GOOS == "windows" {
+		spec.Path = "cmd"
+		spec.Args = []string{"/c", "exit /b 7"}
+	} else {
+		spec.Path = "sh"
+		spec.Args = []string{"-c", "exit 7"}
+	}
+	h, err := sup.Start(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = sup.Wait(context.Background(), h)
+	if err == nil {
+		t.Fatal("want non-zero exit error")
+	}
+	if process.ExitCode(err) != 7 {
+		t.Fatalf("ExitCode=%d want 7", process.ExitCode(err))
+	}
+	var exitErr *process.ExitError
+	if !errors.As(err, &exitErr) || exitErr.Code != 7 {
+		t.Fatalf("want *process.ExitError code 7, got %T %v", err, err)
 	}
 }

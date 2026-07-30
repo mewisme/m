@@ -24,7 +24,8 @@ Mew evaluates compatibility on five **independent axes**. A feature may be at pa
 | Identity detection order | deferred | deferred | deferred | n/a | n/a | deferred |
 | Transactional install + rollback | deferred | n/a | n/a | n/a | deferred | deferred |
 | Isolated linker (pnpm/Nub style) | n/a | n/a | deferred | n/a | deferred | deferred |
-| `m run` script runner | deferred | n/a | n/a | deferred | n/a | deferred |
+| `m run` script runner | **certified** | n/a | n/a | deferred | n/a | **certified** (0046) |
+| Workspace script orchestration (`-r run`, filters) | **parity** | n/a | n/a | deferred | n/a | **parity** |
 | Direct `m <script>` shortcuts | extension | n/a | n/a | n/a | n/a | **extension** |
 | `mx` local/remote exec | deferred | n/a | n/a | deferred | n/a | deferred |
 | TypeScript execution | n/a | n/a | deferred | deferred | n/a | deferred |

@@ -1,0 +1,8 @@
+{
+  "name": "unified-exec-dlx",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "demo-pkg": "1.0.0"
+  }
+}

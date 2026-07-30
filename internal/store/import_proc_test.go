@@ -2,7 +2,6 @@ package store_test
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/jsonfile"
 	"github.com/mewisme/mew/internal/store"
 	"github.com/mewisme/mew/internal/testkit"
 )
@@ -108,7 +108,7 @@ func writeImportDirLock(t *testing.T, root, algo, hex string, pid int) {
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	doc, err := json.Marshal(map[string]any{
+	doc, err := jsonfile.Marshal(map[string]any{
 		"schemaVersion": 2,
 		"lockId":        "test-lock",
 		"pid":           pid,
@@ -136,7 +136,7 @@ func TestImportProcStaleLockTombstone(t *testing.T) {
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	doc, err := json.Marshal(map[string]any{
+	doc, err := jsonfile.Marshal(map[string]any{
 		"schemaVersion": 2,
 		"lockId":        "stale-tomb",
 		"pid":           999999999,
@@ -172,7 +172,7 @@ func TestImportProcStaleLockRecovery(t *testing.T) {
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	doc, err := json.Marshal(map[string]any{
+	doc, err := jsonfile.Marshal(map[string]any{
 		"schemaVersion": 2,
 		"lockId":        "stale",
 		"pid":           999999999,

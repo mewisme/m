@@ -39,6 +39,7 @@ type VersionMeta struct {
 	OptionalDependencies map[string]string   `json:"optionalDependencies,omitempty"`
 	PeerDependencies     map[string]string   `json:"peerDependencies,omitempty"`
 	PeerDependenciesMeta map[string]PeerMeta `json:"peerDependenciesMeta,omitempty"`
+	Bin                  map[string]string   `json:"bin,omitempty"`
 	OS                   []string            `json:"os,omitempty"`
 	CPU                  []string            `json:"cpu,omitempty"`
 	Libc                 []string            `json:"libc,omitempty"`

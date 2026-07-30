@@ -1,0 +1,5 @@
+{
+  "name": "ws-dag-simple",
+  "private": true,
+  "workspaces": ["packages/*"]
+}

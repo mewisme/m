@@ -25,14 +25,86 @@ type Attr struct {
 
 // Event is a progress notification independent of terminal rendering.
 type Event struct {
-	V          int     `json:"v"`
-	Type       string  `json:"type"`
-	Phase      string  `json:"phase"`
-	Package    string  `json:"package,omitempty"`
-	Bytes      int64   `json:"bytes,omitempty"`
-	TotalBytes *int64  `json:"total_bytes"`
-	OpID       string  `json:"op_id,omitempty"`
-	TxID       *string `json:"tx_id"`
+	V                    int     `json:"v"`
+	Type                 string  `json:"type"`
+	Phase                string  `json:"phase"`
+	Package              string  `json:"package,omitempty"`
+	Script               string  `json:"script,omitempty"`
+	Status               string  `json:"status,omitempty"`
+	Index                int     `json:"index,omitempty"`
+	Exit                 int     `json:"exit,omitempty"`
+	Stream               string  `json:"stream,omitempty"`
+	Message              string  `json:"message,omitempty"`
+	Partial              bool    `json:"partial,omitempty"`
+	Seq                  int     `json:"seq,omitempty"`
+	Completed            int     `json:"completed,omitempty"`
+	Failed               int     `json:"failed,omitempty"`
+	Cancelled            int     `json:"cancelled,omitempty"`
+	Skipped              int     `json:"skipped,omitempty"`
+	NotRun               int     `json:"not_run,omitempty"`
+	EffectiveConcurrency int     `json:"effective_concurrency,omitempty"`
+	Bytes                int64   `json:"bytes,omitempty"`
+	TotalBytes           *int64  `json:"total_bytes"`
+	OpID                 string  `json:"op_id,omitempty"`
+	TxID                 *string `json:"tx_id"`
+}
+
+// MakeWorkspaceTaskEvent builds a control-plane workspace task progress event.
+func MakeWorkspaceTaskEvent(pkg, script, status string, index, exit int) Event {
+	return Event{
+		V:       1,
+		Type:    "workspace-task",
+		Phase:   "workspace-run",
+		Package: pkg,
+		Script:  script,
+		Status:  status,
+		Index:   index,
+		Exit:    exit,
+	}
+}
+
+// MakeWorkspaceSummaryEvent builds the final workspace run summary progress event.
+func MakeWorkspaceSummaryEvent(completed, failed, cancelled, skipped, notRun, effConc int) Event {
+	return Event{
+		V:                    1,
+		Type:                 "workspace-summary",
+		Phase:                "workspace-run",
+		Completed:            completed,
+		Failed:               failed,
+		Cancelled:            cancelled,
+		Skipped:              skipped,
+		NotRun:               notRun,
+		EffectiveConcurrency: effConc,
+	}
+}
+
+// MakeChildOutputEvent builds a structured child-output progress event.
+func MakeChildOutputEvent(pkg, script, stream, message string, partial bool, seq int) Event {
+	return Event{
+		V:       1,
+		Type:    "child-output",
+		Package: pkg,
+		Script:  script,
+		Stream:  stream,
+		Message: message,
+		Partial: partial,
+		Seq:     seq,
+	}
+}
+
+// IsStructured reports whether the reporter emits JSON/NDJSON events only.
+func IsStructured(rep Reporter) bool {
+	if rep == nil {
+		return false
+	}
+	type formatReporter interface {
+		Format() string
+	}
+	if fr, ok := rep.(formatReporter); ok {
+		f := fr.Format()
+		return f == "json" || f == "ndjson"
+	}
+	return false
 }
 
 // ErrorDocument is the JSON reporter error payload.
@@ -50,11 +122,72 @@ type ErrorDocument struct {
 	Exit        int    `json:"exit"`
 }
 
-// Reporter emits progress, errors, and debug lines.
+// Reporter emits progress, errors, debug lines, and workspace runner events.
 type Reporter interface {
 	Progress(Event)
 	Error(err error)
 	Debug(msg string, attrs ...Attr)
+	WorkspaceTask(WorkspaceTaskEvent)
+	ChildOutput(ChildOutputEvent, WorkspaceOutputMode)
+	WorkspaceSummary(WorkspaceSummaryEvent)
+	EnvironmentPrepared(EnvironmentPreparedEvent) error
+}
+
+// WorkspaceOutputMode routes workspace child output in reporters.
+type WorkspaceOutputMode string
+
+const (
+	WorkspaceOutputStream    WorkspaceOutputMode = "stream"
+	WorkspaceOutputAggregate WorkspaceOutputMode = "aggregate"
+)
+
+// WorkspaceTaskEvent is a control-plane workspace task notification.
+type WorkspaceTaskEvent struct {
+	V       int    `json:"v"`
+	Type    string `json:"type"`
+	Phase   string `json:"phase"`
+	Package string `json:"package"`
+	Script  string `json:"script"`
+	Status  string `json:"status"`
+	Index   int    `json:"index"`
+	Exit    *int   `json:"exit,omitempty"`
+}
+
+// ChildOutputEvent is structured child stdout/stderr payload.
+type ChildOutputEvent struct {
+	V       int    `json:"v"`
+	Type    string `json:"type"`
+	Package string `json:"package"`
+	Script  string `json:"script"`
+	Stream  string `json:"stream"`
+	Message string `json:"message"`
+	Partial bool   `json:"partial,omitempty"`
+	Seq     *int   `json:"seq,omitempty"`
+}
+
+// WorkspaceSummaryEvent is the final workspace run summary.
+type WorkspaceSummaryEvent struct {
+	V                    int    `json:"v"`
+	Type                 string `json:"type"`
+	Phase                string `json:"phase"`
+	Completed            int    `json:"completed"`
+	Failed               int    `json:"failed"`
+	Cancelled            int    `json:"cancelled"`
+	Skipped              int    `json:"skipped"`
+	NotRun               int    `json:"not-run"`
+	EffectiveConcurrency int    `json:"effective_concurrency"`
+}
+
+// EnvironmentPreparedEvent is the v1 environment-prepared runner event.
+type EnvironmentPreparedEvent struct {
+	V                 int    `json:"v"`
+	Type              string `json:"type"`
+	Source            string `json:"source"`
+	IdentityDigest    string `json:"identityDigest"`
+	GraphDigest       string `json:"graphDigest"`
+	CacheState        string `json:"cacheState"`
+	NetworkUsed       bool   `json:"networkUsed"`
+	PrepareDurationMs int64  `json:"prepareDurationMs"`
 }
 
 // Options configures a reporter.
@@ -110,6 +243,15 @@ type baseReporter struct {
 	mu   sync.Mutex
 }
 
+// Format returns the normalized reporter format name.
+func (b *baseReporter) Format() string {
+	format := strings.ToLower(strings.TrimSpace(b.opts.Format))
+	if format == "" || format == "human" {
+		return "default"
+	}
+	return format
+}
+
 func (b *baseReporter) redact(s string) string {
 	if b.opts.Unsafe {
 		return s
@@ -148,6 +290,31 @@ type humanReporter struct{ base *baseReporter }
 func (r *humanReporter) Progress(ev Event) {
 	r.base.mu.Lock()
 	defer r.base.mu.Unlock()
+	switch ev.Type {
+	case "workspace-task":
+		line := fmt.Sprintf("%s %s", ev.Status, ev.Package)
+		if ev.Script != "" {
+			line += " " + ev.Script
+		}
+		fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
+		return
+	case "workspace-summary":
+		line := fmt.Sprintf("workspace: completed=%d failed=%d cancelled=%d skipped=%d not-run=%d concurrency=%d",
+			ev.Completed, ev.Failed, ev.Cancelled, ev.Skipped, ev.NotRun, ev.EffectiveConcurrency)
+		fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
+		return
+	case "child-output":
+		prefix := "[" + ev.Package + "] "
+		out := r.base.opts.Out
+		if ev.Stream == "stderr" {
+			out = r.base.opts.Err
+		}
+		fmt.Fprint(out, prefix+r.base.redact(ev.Message))
+		if !ev.Partial {
+			fmt.Fprintln(out)
+		}
+		return
+	}
 	line := ev.Phase
 	if ev.Package != "" {
 		line += " " + ev.Package
@@ -183,6 +350,45 @@ func (r *humanReporter) Debug(msg string, attrs ...Attr) {
 	fmt.Fprintln(r.base.opts.Err, truncate(line, r.base.opts.TermWidth))
 }
 
+func (r *humanReporter) WorkspaceTask(ev WorkspaceTaskEvent) {
+	r.base.mu.Lock()
+	defer r.base.mu.Unlock()
+	line := fmt.Sprintf("%s %s %s [%d]", ev.Phase, ev.Package, ev.Status, ev.Index)
+	if ev.Exit != nil {
+		line += fmt.Sprintf(" exit=%d", *ev.Exit)
+	}
+	fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
+}
+
+func (r *humanReporter) ChildOutput(ev ChildOutputEvent, mode WorkspaceOutputMode) {
+	if mode == WorkspaceOutputAggregate {
+		return
+	}
+	r.base.mu.Lock()
+	defer r.base.mu.Unlock()
+	prefix := fmt.Sprintf("[%s] ", r.base.redact(ev.Package))
+	target := r.base.opts.Out
+	if ev.Stream == "stderr" {
+		target = r.base.opts.Err
+	}
+	line := prefix + r.base.redact(ev.Message)
+	if ev.Partial {
+		fmt.Fprint(target, line)
+	} else {
+		fmt.Fprintln(target, line)
+	}
+}
+
+func (r *humanReporter) WorkspaceSummary(ev WorkspaceSummaryEvent) {
+	r.base.mu.Lock()
+	defer r.base.mu.Unlock()
+	line := fmt.Sprintf("%s completed=%d failed=%d cancelled=%d skipped=%d not-run=%d concurrency=%d",
+		ev.Phase, ev.Completed, ev.Failed, ev.Cancelled, ev.Skipped, ev.NotRun, ev.EffectiveConcurrency)
+	fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
+}
+
+func (r *humanReporter) EnvironmentPrepared(EnvironmentPreparedEvent) error { return nil }
+
 type ndjsonReporter struct{ base *baseReporter }
 
 func (r *ndjsonReporter) Progress(ev Event) {
@@ -194,6 +400,8 @@ func (r *ndjsonReporter) Progress(ev Event) {
 	}
 	ev.Phase = r.base.redact(ev.Phase)
 	ev.Package = r.base.redact(ev.Package)
+	ev.Script = r.base.redact(ev.Script)
+	ev.Message = r.base.redact(ev.Message)
 	ev.OpID = r.base.redact(ev.OpID)
 	r.writeLine(ev)
 }
@@ -215,6 +423,28 @@ func (r *ndjsonReporter) Debug(msg string, attrs ...Attr) {
 		m["attrs"] = am
 	}
 	r.writeLine(m)
+}
+
+func (r *ndjsonReporter) WorkspaceTask(ev WorkspaceTaskEvent) {
+	ev.Package = r.base.redact(ev.Package)
+	ev.Script = r.base.redact(ev.Script)
+	r.writeLine(ev)
+}
+
+func (r *ndjsonReporter) ChildOutput(ev ChildOutputEvent, _ WorkspaceOutputMode) {
+	ev.Package = r.base.redact(ev.Package)
+	ev.Script = r.base.redact(ev.Script)
+	ev.Message = r.base.redact(ev.Message)
+	r.writeLine(ev)
+}
+
+func (r *ndjsonReporter) WorkspaceSummary(ev WorkspaceSummaryEvent) {
+	r.writeLine(ev)
+}
+
+func (r *ndjsonReporter) EnvironmentPrepared(ev EnvironmentPreparedEvent) error {
+	r.writeLine(ev)
+	return nil
 }
 
 func (r *ndjsonReporter) writeLine(v any) {
@@ -254,10 +484,60 @@ func (r *jsonReporter) Debug(msg string, attrs ...Attr) {
 	fmt.Fprintf(r.base.opts.Err, "debug: %s\n", r.base.redact(msg))
 }
 
+func (r *jsonReporter) WorkspaceTask(ev WorkspaceTaskEvent) {
+	ev.Package = r.base.redact(ev.Package)
+	ev.Script = r.base.redact(ev.Script)
+	r.base.mu.Lock()
+	defer r.base.mu.Unlock()
+	b, err := json.MarshalIndent(ev, "", "  ")
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(r.base.opts.Out, string(b))
+}
+
+func (r *jsonReporter) ChildOutput(ev ChildOutputEvent, _ WorkspaceOutputMode) {
+	ev.Package = r.base.redact(ev.Package)
+	ev.Script = r.base.redact(ev.Script)
+	ev.Message = r.base.redact(ev.Message)
+	r.base.mu.Lock()
+	defer r.base.mu.Unlock()
+	b, err := json.MarshalIndent(ev, "", "  ")
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(r.base.opts.Out, string(b))
+}
+
+func (r *jsonReporter) WorkspaceSummary(ev WorkspaceSummaryEvent) {
+	r.base.mu.Lock()
+	defer r.base.mu.Unlock()
+	b, err := json.MarshalIndent(ev, "", "  ")
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(r.base.opts.Out, string(b))
+}
+
+func (r *jsonReporter) EnvironmentPrepared(ev EnvironmentPreparedEvent) error {
+	r.base.mu.Lock()
+	defer r.base.mu.Unlock()
+	b, err := json.MarshalIndent(ev, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(r.base.opts.Out, string(b))
+	return err
+}
+
 type silentReporter struct{ base *baseReporter }
 
-func (r *silentReporter) Progress(Event)        {}
-func (r *silentReporter) Debug(string, ...Attr) {}
+func (r *silentReporter) Progress(Event)                                     {}
+func (r *silentReporter) Debug(string, ...Attr)                              {}
+func (r *silentReporter) WorkspaceTask(WorkspaceTaskEvent)                   {}
+func (r *silentReporter) ChildOutput(ChildOutputEvent, WorkspaceOutputMode)  {}
+func (r *silentReporter) WorkspaceSummary(WorkspaceSummaryEvent)             {}
+func (r *silentReporter) EnvironmentPrepared(EnvironmentPreparedEvent) error { return nil }
 func (r *silentReporter) Error(err error) {
 	r.base.mu.Lock()
 	defer r.base.mu.Unlock()

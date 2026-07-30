@@ -9,13 +9,15 @@ import (
 
 type fakeRunner struct{}
 
-func (fakeRunner) Run(context.Context, string, runner.ScriptEnv) error { return nil }
+func (fakeRunner) Run(context.Context, runner.RunOptions) (runner.RunResult, error) {
+	return runner.RunResult{}, nil
+}
 
 var _ runner.ScriptRunner = fakeRunner{}
 
 func TestFakeScriptRunnerSatisfiesInterface(t *testing.T) {
 	var r runner.ScriptRunner = fakeRunner{}
-	if err := r.Run(context.Background(), "test", runner.ScriptEnv{}); err != nil {
+	if _, err := r.Run(context.Background(), runner.RunOptions{Selector: "test"}); err != nil {
 		t.Fatal(err)
 	}
 }

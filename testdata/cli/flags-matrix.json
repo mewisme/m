@@ -36,14 +36,13 @@
     ]
   },
   {
-    "name": "run-stub",
+    "name": "run-missing-script-arg",
     "args": [
       "run"
     ],
-    "exit": 1,
+    "exit": 2,
     "stderrContains": [
-      "ERR_M_UNIMPLEMENTED",
-      "0040"
+      "ERR_M_USAGE"
     ]
   },
   {
@@ -54,8 +53,8 @@
     ],
     "exit": 0,
     "stdoutContains": [
-      "kind=builtin",
-      "path=install"
+      "\"kind\":\"builtin\"",
+      "\"path\":\"install\""
     ]
   },
   {
@@ -66,8 +65,8 @@
     ],
     "exit": 0,
     "stdoutContains": [
-      "kind=alias",
-      "path=install"
+      "\"kind\":\"alias\"",
+      "\"path\":\"install\""
     ]
   },
   {
@@ -78,7 +77,7 @@
     ],
     "exit": 0,
     "stdoutContains": [
-      "kind=unknown"
+      "\"kind\":\"unknown\""
     ]
   },
   {

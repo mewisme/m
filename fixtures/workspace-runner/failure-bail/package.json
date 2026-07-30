@@ -1,0 +1,5 @@
+{
+  "name": "ws-failure-bail",
+  "private": true,
+  "workspaces": ["packages/*"]
+}

@@ -176,6 +176,26 @@ Non-race CI jobs set `CGO_ENABLED=0`; race jobs remain the only CGO exception.
 
 CI jobs: `conformance-pnpm-9`, `conformance-pnpm-10`, `conformance-pnpm-11`, `conformance-nub-fixtures`.
 
+### Runner certification (MVP 0046)
+
+Harness package: [`tests/conformance/runner/`](../tests/conformance/runner/).
+
+Manifest: [`tests/conformance/runner-matrix/manifest.json`](../tests/conformance/runner-matrix/manifest.json).
+
+```powershell
+$env:CGO_ENABLED = "0"
+go test ./internal/conformance/... -count=1
+go test ./tests/conformance/runner/... -count=1
+go run ./cmd/m conformance run runner --json
+go run ./cmd/m benchmark runner --json --profile smoke
+```
+
+CI jobs: `conformance-runner-linux`, `conformance-runner-windows`,
+`conformance-runner-macos`, `conformance-runner-aggregate`.
+
+Docs: [`runner-compatibility.md`](../docs/runner-compatibility.md),
+[`runner-waivers.md`](../docs/runner-waivers.md).
+
 ```powershell
 go test ./internal/app/... -run Merge -count=1
 go test ./internal/snapshot/... -count=1

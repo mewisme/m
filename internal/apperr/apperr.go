@@ -33,6 +33,8 @@ const (
 	Store               Code = "ERR_M_STORE"
 	Policy              Code = "ERR_M_POLICY"
 	PNPUnsupported      Code = "ERR_M_PNP_UNSUPPORTED"
+	Exec                Code = "ERR_M_EXEC"
+	Timeout             Code = "ERR_M_TIMEOUT"
 )
 
 // registry maps every published code to a process exit status.
@@ -60,6 +62,8 @@ var registry = map[Code]int{
 	Store:               1,
 	Policy:              1,
 	PNPUnsupported:      1,
+	Exec:                1,
+	Timeout:             1,
 }
 
 // AllCodes returns registered codes in a stable order for docs and tests.
@@ -67,7 +71,7 @@ func AllCodes() []Code {
 	return []Code{
 		OK, Usage, Cancelled, Internal, InternalPanic,
 		IO, Config, Network, Integrity, Lockfile, LockUnsupported, LockAmbiguous, LockUnrepresentable, Unimplemented, Unsupported,
-		Manifest, NotFound, Resolve, Install, Transaction, Store, Policy, PNPUnsupported,
+		Manifest, NotFound, Resolve, Install, Transaction, Store, Policy, PNPUnsupported, Exec, Timeout,
 	}
 }
 

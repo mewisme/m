@@ -95,6 +95,31 @@ func (p *phaseReporter) Debug(msg string, attrs ...diagnostics.Attr) {
 	}
 }
 
+func (p *phaseReporter) WorkspaceTask(ev diagnostics.WorkspaceTaskEvent) {
+	if p.inner != nil {
+		p.inner.WorkspaceTask(ev)
+	}
+}
+
+func (p *phaseReporter) ChildOutput(ev diagnostics.ChildOutputEvent, mode diagnostics.WorkspaceOutputMode) {
+	if p.inner != nil {
+		p.inner.ChildOutput(ev, mode)
+	}
+}
+
+func (p *phaseReporter) WorkspaceSummary(ev diagnostics.WorkspaceSummaryEvent) {
+	if p.inner != nil {
+		p.inner.WorkspaceSummary(ev)
+	}
+}
+
+func (p *phaseReporter) EnvironmentPrepared(ev diagnostics.EnvironmentPreparedEvent) error {
+	if p.inner != nil {
+		return p.inner.EnvironmentPrepared(ev)
+	}
+	return nil
+}
+
 func (p *phaseReporter) finish() map[string]int64 {
 	now := time.Now()
 	if p.lastPhase != "" {

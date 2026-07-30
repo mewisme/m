@@ -87,6 +87,9 @@ var ownedKeys = map[string]string{
 	"lifecycle.script_trust":         "string",
 	"lifecycle.script_timeout":       "string",
 	"workspaces.enabled":             "bool",
+	"runner.direct_scripts.enabled":  "bool",
+	"runner.mx.cache.retention_days": "int",
+	"runner.mx.cache.dir":            "string",
 	"provenance.trusted_public_key":  "string",
 }
 
@@ -123,6 +126,8 @@ func defaults() map[string]any {
 		"lifecycle.script_trust":         "deny",
 		"lifecycle.script_timeout":       "10m",
 		"workspaces.enabled":             false,
+		"runner.mx.cache.retention_days": 7,
+		"runner.mx.cache.dir":            "",
 	}
 }
 
@@ -265,6 +270,7 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) {
 	set("lifecycle.enabled", "MEW_EXPERIMENTAL_LIFECYCLE", parseBool)
 	set("lifecycle.script_timeout", "MEW_LIFECYCLE_SCRIPT_TIMEOUT", func(s string) (any, error) { return s, nil })
 	set("workspaces.enabled", "MEW_EXPERIMENTAL_WORKSPACES", parseBool)
+	set("runner.direct_scripts.enabled", "MEW_EXPERIMENTAL_DIRECT_SCRIPTS", parseBool)
 	set("provenance.trusted_public_key", "MEW_PROVENANCE_TRUSTED_PUBLIC_KEY", func(s string) (any, error) { return s, nil })
 }
 

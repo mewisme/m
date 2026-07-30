@@ -32,6 +32,14 @@ func (r *phaseDebugReporter) Debug(msg string, attrs ...diagnostics.Attr) {
 	}
 }
 
+func (r *phaseDebugReporter) WorkspaceTask(diagnostics.WorkspaceTaskEvent) {}
+func (r *phaseDebugReporter) ChildOutput(diagnostics.ChildOutputEvent, diagnostics.WorkspaceOutputMode) {
+}
+func (r *phaseDebugReporter) WorkspaceSummary(diagnostics.WorkspaceSummaryEvent) {}
+func (r *phaseDebugReporter) EnvironmentPrepared(diagnostics.EnvironmentPreparedEvent) error {
+	return nil
+}
+
 func TestInstallPhaseDebugTiming(t *testing.T) {
 	rep := &phaseDebugReporter{}
 	ac := &Context{Reporter: rep}

@@ -1,0 +1,6 @@
+{
+  "name": "mx-consent-stub",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Empty project for mx remote consent tests; registry URL supplied via m.jsonc in integration tests"
+}

@@ -4,7 +4,6 @@ package transaction_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/jsonfile"
 	"github.com/mewisme/mew/internal/transaction"
 )
 
@@ -301,7 +301,7 @@ func TestRestoreJunctionMetaRejectsUnsupportedTag(t *testing.T) {
 		"print":         `C:\store`,
 		"entryType":     "junction",
 	}
-	data, err := json.Marshal(meta)
+	data, err := jsonfile.Marshal(meta)
 	if err != nil {
 		t.Fatal(err)
 	}

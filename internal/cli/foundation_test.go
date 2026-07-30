@@ -96,7 +96,7 @@ func TestVersionJSONAndBuildDate(t *testing.T) {
 	}
 }
 
-func TestReservedNamesAndStub(t *testing.T) {
+func TestReservedNames(t *testing.T) {
 	names := ReservedNames()
 	for _, want := range []string{"install", "i", "run", "version", "completion", "__dispatch", "plan", "history", "diff"} {
 		if !IsReserved(want) {
@@ -108,29 +108,6 @@ func TestReservedNamesAndStub(t *testing.T) {
 			t.Fatalf("ReservedNames not sorted: %v", names)
 		}
 	}
-
-	root := NewMRoot(testBuildInfo())
-	var errW bytes.Buffer
-	root.SetOut(ioDiscard{})
-	root.SetErr(ioDiscard{})
-	rep := diagnostics.NewReporter(diagnostics.Options{
-		Out: ioDiscard{}, Err: &errW, Format: "silent", Color: diagnostics.ColorNever,
-	})
-	_ = rep
-	root.SetArgs([]string{"run"})
-	err := root.Execute()
-	if err == nil {
-		t.Fatal("expected unimplemented")
-	}
-	if apperr.CodeOf(err) != apperr.Unimplemented {
-		t.Fatalf("code=%s err=%v", apperr.CodeOf(err), err)
-	}
-	if apperr.ExitCode(err) != 1 {
-		t.Fatalf("exit=%d", apperr.ExitCode(err))
-	}
-	if !strings.Contains(err.Error(), "0040") {
-		t.Fatalf("err=%v", err)
-	}
 }
 
 func TestDispatchInstall(t *testing.T) {
@@ -141,9 +118,12 @@ func TestDispatchInstall(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	got := strings.TrimSpace(buf.String())
-	if got != "kind=builtin path=install" {
-		t.Fatalf("%q", got)
+	var doc dispatchJSON
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.SchemaVersion != 1 || doc.Kind != "builtin" || doc.Path != "install" {
+		t.Fatalf("%+v", doc)
 	}
 }
 

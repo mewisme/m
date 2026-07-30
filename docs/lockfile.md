@@ -84,6 +84,30 @@ base `name@version` key (see `testdata/graph/peers.json`).
 `extensions` carry non-registry resolution metadata (MVP **0027**). Registry
 packages omit these keys.
 
+### Migrate source detection (`m lock migrate`)
+
+When `--from` is omitted, Mew auto-detects the incumbent lock to migrate:
+
+1. **Manifest** — `package.json` → `packageManager`, then `devEngines.packageManager`.
+   Migratable values: `nub`, `pnpm`, `npm`, `yarn`, `bun`. Manifest identity wins
+   even when other lockfiles are present (for example stale `package-lock.json`
+   beside `pnpm-lock.yaml` with `packageManager: pnpm@…`).
+2. **Lockfiles** — only when the manifest is silent. Scan in precedence order,
+   excluding `m.lock` and `bun.lockb`:
+   `nub.lock` → `pnpm-lock.yaml` → `npm-shrinkwrap.json` (over
+   `package-lock.json`) → `package-lock.json` → `yarn.lock` → `bun.lock`.
+
+| Outcome | Behavior |
+|---|---|
+| Manifest migratable + matching lock | Use manifest identity |
+| Manifest migratable + missing lock | `source lock not found` |
+| Manifest migratable + only foreign lock | `ERR_M_CONFIG` conflict (unchanged identity rule) |
+| `packageManager: mew` / `m` + only `m.lock` | `nothing to migrate` |
+| `packageManager: mew` / `m` + foreign lock(s) | Pass explicit `--from` |
+| 0 migratable locks | `nothing to migrate` |
+| 1 migratable lock | Auto-select |
+| 2+ migratable locks | Fail with ranked list; pass `--from` |
+
 ### `mew.resolver/local`
 
 Maps package keys (`name@version`) to project-relative local sources:
@@ -172,8 +196,7 @@ m lock validate [--frozen] [--json]
 ## Incumbent write policy (0023)
 
 Install-family commands write the **incumbent** lockfile only (`nub.lock` or
-`pnpm-lock.yaml` when identity is Nub or pnpm). `m.lock` is created only via
-`m lock migrate --to m`.
+`pnpm-lock.yaml` when identity is Nub or pnpm). `m.lock` is created only via `m lock migrate`.
 
 | Condition | Behavior |
 |---|---|
@@ -206,7 +229,7 @@ metadata, observed root/settings field evidence, and optional `--pnpm-major` (9,
 or 11). Do not trust `lockfileVersion: '9.0'` alone.
 
 CLI: `m lock validate` (incumbent), `m lock diff [other]`, `m lock migrate
---from nub|pnpm|npm|bun|yarn --to m` (`--dry-run` emits migration report JSON).
+--from nub|pnpm|npm|bun|yarn` (`--dry-run` emits migration report JSON).
 
 `--pnpm-major` (9, 10, or 11) applies to `m lock validate`, `m lock diff`,
 `m lock migrate`, and `m install`.

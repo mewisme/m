@@ -52,7 +52,7 @@ func TestMFeaturesJSON(t *testing.T) {
 	root.SetOut(buf)
 	root.SetErr(buf)
 
-	root.SetArgs([]string{"features", "--format", "json", "--module", "runner", "--status", "planned"})
+	root.SetArgs([]string{"features", "--format", "json", "--module", "runner", "--status", "shipped"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,13 @@
+{
+  "name": "runner-basic-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "predev": "node scripts/append-order.js predev",
+    "dev": "node scripts/append-order.js dev",
+    "postdev": "node scripts/append-order.js postdev",
+    "test:a": "node scripts/append-order.js test:a",
+    "test:b": "node scripts/append-order.js test:b",
+    "fail": "node scripts/fail.js"
+  }
+}

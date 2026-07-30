@@ -144,6 +144,7 @@ func (d *Downloader) downloadWithRetry(ctx context.Context, req DownloadRequest,
 }
 
 func (d *Downloader) downloadOnce(ctx context.Context, req DownloadRequest, expected ParsedIntegrity) ([]byte, error) {
+	NoteArtifactCall()
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, req.URL, nil)
 	if err != nil {
 		return nil, apperr.Wrap(apperr.Network, "fetch.download", redactURL(req.URL), err)

@@ -1,0 +1,9 @@
+{
+  "name": "mx-local-hit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "mx Mode A local-first fixture: declares demo-pkg; tests install demo-pkg into node_modules",
+  "dependencies": {
+    "demo-pkg": "1.0.0"
+  }
+}

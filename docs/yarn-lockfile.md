@@ -27,7 +27,7 @@ ERR_M_PNP_UNSUPPORTED: Yarn Berry PnP install is not supported; use node-modules
 ## Migration
 
 ```bash
-m lock migrate --from yarn --to m
+m lock migrate --from yarn
 ```
 
 ## Deferred (MVP 0025)

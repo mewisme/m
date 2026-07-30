@@ -35,6 +35,9 @@ func (s *ExecSupervisor) Start(ctx context.Context, spec Spec) (*Handle, error) 
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Dir = spec.Dir
 	cmd.Env = spec.Env
+	cmd.Stdin = spec.Stdin
+	cmd.Stdout = spec.Stdout
+	cmd.Stderr = spec.Stderr
 	attr := &syscall.SysProcAttr{}
 	setProcessGroup(attr)
 	cmd.SysProcAttr = attr
@@ -59,6 +62,7 @@ func (s *ExecSupervisor) Wait(ctx context.Context, h *Handle) error {
 	}()
 	select {
 	case <-ctx.Done():
+		forwardCancelSignal(eh.cmd)
 		killProcessTree(eh.cmd)
 		return ctx.Err()
 	case err := <-waitDone:
@@ -131,7 +135,7 @@ func resolveCommand(spec Spec) (string, []string, error) {
 		if shell == "" {
 			shell = "cmd.exe"
 		}
-		return shell, []string{"/c", cmd}, nil
+		return shell, []string{"/d", "/s", "/c", cmd}, nil
 	}
 	return "sh", []string{"-c", cmd}, nil
 }

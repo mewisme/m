@@ -1,0 +1,10 @@
+{
+  "name": "lib",
+  "version": "1.0.0",
+  "dependencies": {
+    "base": "workspace:*"
+  },
+  "scripts": {
+    "build": "node scripts/build.js"
+  }
+}

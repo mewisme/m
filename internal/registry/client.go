@@ -104,6 +104,7 @@ func absoluteTarballURL(base, name, tarball string) string {
 
 // Packument fetches (or loads) a packument from registryBase for name.
 func (c *Client) Packument(ctx context.Context, registryBase, name string) (*Packument, error) {
+	noteMetadataCall()
 	if registryBase == "" {
 		registryBase = c.opts.BaseURL
 	}

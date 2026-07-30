@@ -20,12 +20,14 @@ Stable machine-readable codes for Mew CLI failures. Pattern: `ERR_M_<DOMAIN>_<DE
 | `ERR_M_UNIMPLEMENTED` | 1 | Reserved command stub not yet implemented (MVP 0010) |
 | `ERR_M_UNSUPPORTED` | 1 | Operation not supported on this identity or format (npm incumbent lock mutation, publish provenance without provider) |
 | `ERR_M_MANIFEST` | 1 | package.json parse / validate (MVP 0011) |
-| `ERR_M_NOT_FOUND` | 1 | Project root or package.json missing (MVP 0011) |
+| `ERR_M_NOT_FOUND` | 1 | Project root, package.json, or package script missing (MVP 0011, 0040) |
 | `ERR_M_RESOLVE` | 1 | Dependency resolution failure: unsatisfiable range, cycle, missing packument, or limit exceeded (MVP 0013) |
 | `ERR_M_TRANSACTION` | 1 | Transaction journal, commit, rollback, recovery, or project lock failure (MVP 0017) |
 | `ERR_M_STORE` | 1 | Global content store import, verify, or prune failure (MVP 0018) |
 | `ERR_M_POLICY` | 1 | Lifecycle script trust block (0021) or org supply-chain policy violation (0030) |
 | `ERR_M_PNP_UNSUPPORTED` | 1 | Yarn Berry PnP install blocked (MVP 0025; see [`yarn-lockfile.md`](yarn-lockfile.md)) |
+| `ERR_M_EXEC` | 1 | Local binary launch failure: invalid shebang, missing ComSpec, malformed shim, or launch construction failure (MVP 0043) |
+| `ERR_M_TIMEOUT` | 1 | Bounded helper or child timeout (e.g. PnP probe; MVP 0043) |
 | `ERR_M_INTEGRITY` | 1 | Ambiguous incomplete transaction state, tree manifest collision, or verification failure |
 
 ### Transaction detail (0017 journal v3)
@@ -61,6 +63,95 @@ Unknown codes map to exit **1**.
 | Unknown SBOM format | `ERR_M_USAGE` | `app.sbom`; use `cyclonedx` or `spdx` |
 
 See [`audit.md`](audit.md), [`sbom.md`](sbom.md), [`policy.md`](policy.md).
+
+## Script runner (MVP 0040)
+
+| Situation | Code | Exit | Notes |
+|---|---|---|---|
+| Missing `package.json` script | `ERR_M_NOT_FOUND` | 1 | `runner.lookup`; lists available scripts when present |
+| Missing project root | `ERR_M_NOT_FOUND` | 1 | `project.open` before run |
+| Invalid regex selector | `ERR_M_USAGE` | 2 | `/pattern/` parse or compile failure |
+| Child script failure | (none) | child code | `ExitHint` on `apperr.Error`; not `ERR_M_*` |
+| Parent interrupt / cancel | `ERR_M_CANCELLED` | 130 | After best-effort child signal |
+
+`m run --if-present` exits **0** when the script is missing (no error code).
+
+See [`runner.md`](runner.md).
+
+## Workspace script runner (MVP 0041)
+
+| Situation | Code | Exit | Notes |
+|---|---|---|---|
+| Workspace flags without `-r` or `--filter` | `ERR_M_USAGE` | 2 | `app.run`; e.g. `--workspace-concurrency` alone |
+| Workspaces gate disabled | `ERR_M_USAGE` | 2 | `app.run`; set `MEW_EXPERIMENTAL_WORKSPACES=1` |
+| Not a workspace project | `ERR_M_MANIFEST` | 1 | `runner.workspace` |
+| No packages match filter / selection | `ERR_M_NOT_FOUND` | 1 | `runner.workspace` / `runner.schedule` |
+| Cyclic workspace dependency in selection | `ERR_M_RESOLVE` | 1 | `workspace.graph`; no deadlock |
+| Invalid `--workspace-order` / `--workspace-output` | `ERR_M_USAGE` | 2 | `runner.workspace` |
+| Negative `--workspace-concurrency` | `ERR_M_USAGE` | 2 | `runner.workspace` |
+| Member `package.json` parse failure | `ERR_M_MANIFEST` | 1 | `runner.workspace`; per-member path in subject |
+| Missing script (no `--if-present`) | `ERR_M_NOT_FOUND` | 1 | Fails that member; bail stops the run |
+| Child script failure | (none) | child code | Bail: first failure exit; continue: earliest failed index |
+| Parent interrupt / cancel | `ERR_M_CANCELLED` | 130 | In-flight children cancelled |
+
+`m run --if-present` in workspace mode marks a member with no script as `skip`
+(terminal success) and still releases dependents.
+
+See [`runner.md`](runner.md).
+
+## Direct script dispatch (MVP 0042)
+
+| Situation | Code | Exit | Notes |
+|---|---|---|---|
+| Bare `m` | `ERR_M_USAGE` | 2 | Lists up to 10 scripts when manifest valid; never executes |
+| Unknown command (with suggestions) | `ERR_M_USAGE` | 2 | Max 3 typed suggestions; never fuzzy-executes |
+| Gate off + exact script exists | `ERR_M_USAGE` | 2 | Suggests `m run <script>` only |
+| Workspace direct shortcut, workspaces gate off | `ERR_M_USAGE` | 2 | Requires both direct-script and workspace gates |
+| Explicit missing project via `--cwd` | `ERR_M_NOT_FOUND` | 1 | Script dispatch only |
+| Malformed manifest during script lookup | `ERR_M_MANIFEST` | 1 | |
+| Child script non-zero | (none) | child code | Same as `m run` |
+
+## `mx` DLX (MVP 0044)
+
+| Situation | Code | Exit | Notes |
+|---|---|---|---|
+| Invalid package spec / unknown mx flag | `ERR_M_USAGE` | 2 | `mx.parse` / `dlx.spec` |
+| Missing selector or Mode B command | `ERR_M_USAGE` | 2 | `mx.parse` |
+| Non-TTY remote fetch without `--yes` | `ERR_M_USAGE` | 2 | `dlx.consent`; metadata may have occurred; zero artifacts |
+| User denies consent | `ERR_M_POLICY` | 1 | `dlx.consent` |
+| Unsupported package protocol | `ERR_M_UNSUPPORTED` | 1 | `dlx.spec` |
+| Package has no bin / command not in requested packages | `ERR_M_NOT_FOUND` | 1 | `dlx.bininfer` |
+| Ambiguous Mode A bins / multiple `-p` owners | `ERR_M_USAGE` | 2 | `dlx.bininfer` |
+| Offline request mapping missing | `ERR_M_NOT_FOUND` | 1 | `dlx.cache` / request index |
+| Offline warm environment corrupt | `ERR_M_INTEGRITY` | 1 | `dlx.cache` |
+| Consent / request / environment lock timeout | `ERR_M_TIMEOUT` | 1 | `dlx.lock` |
+| Execution lease failure / cache publication | `ERR_M_IO` | 1 | `dlx.lease` / publish |
+| Lifecycle build blocked with no usable bin | `ERR_M_POLICY` | 1 | ephemeral lifecycle policy |
+| Artifact integrity mismatch | `ERR_M_INTEGRITY` | 1 | fetch / store verify |
+| Registry / resolver failures | (preserved) | 1 | not flattened to `ERR_M_RESOLVE` |
+| Child non-zero | (none) | child code | `ExitHint` via ProcessSupervisor |
+| Parent cancellation | `ERR_M_CANCELLED` | 130 | existing supervisor mapping |
+
+See [`runner.md`](runner.md).
+
+## Unified execution (MVP 0045)
+
+| Situation | Code | Exit | Notes |
+|---|---|---|---|
+| Missing `exec` command selector | `ERR_M_USAGE` | 2 | `exec.parse` / `envexec.validate` |
+| `--snapshot` without id / `--capsule` without path | `ERR_M_USAGE` | 2 | selector-boundary parse in `exec.parse` |
+| Snapshot and capsule flags combined | `ERR_M_USAGE` | 2 | `exec.parse` |
+| Source flags after command selector | `ERR_M_USAGE` | 2 | child args pass through unchanged |
+| Missing snapshot id / corrupt snapshot | `ERR_M_NOT_FOUND` / `ERR_M_INTEGRITY` | 1 | `snapshot.load` / validate |
+| Missing capsule / corrupt archive | `ERR_M_NOT_FOUND` / `ERR_M_INTEGRITY` | 1 | `capsule.open` |
+| Snapshot or capsule registry fetch | (never) | — | network forbidden by locked policy |
+| `m env inspect` missing source subcommand | `ERR_M_USAGE` | 2 | Cobra grammar |
+| Inspect with invalid source fields | `ERR_M_USAGE` | 2 | `envexec.validate` |
+| Inspect project, no `package.json` | `ERR_M_NOT_FOUND` | 1 | `project.find` |
+| Warm shared-cache identity mismatch | `ERR_M_INTEGRITY` | 1 | `envexec.cache` verify |
+| Child non-zero | (none) | child code | shared ProcessSupervisor |
+
+See [`runner.md`](runner.md) and [`cli.md`](cli.md).
 
 ## Go API
 

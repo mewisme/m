@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -30,7 +29,9 @@ func NewMRoot(info BuildInfo) *cobra.Command {
 	root.SilenceUsage = true
 	root.SilenceErrors = true
 	g := attachGlobals(root)
+	g.bindRecursive(root)
 	attachAppPreRun(root, g, info)
+	storeRootBuildInfo(root, info)
 
 	versionLabel := use
 	root.AddCommand(newVersionCmd(versionLabel, info))
@@ -77,7 +78,11 @@ func NewMRoot(info BuildInfo) *cobra.Command {
 	root.AddCommand(newPolicyCmd())
 	root.AddCommand(newCompletionCmd(root))
 	root.AddCommand(newDispatchCmd(root))
+	root.AddCommand(newRunCmd())
+	root.AddCommand(newExecCmd())
+	root.AddCommand(newEnvCmd())
 	registerStubs(root)
+	root.ValidArgsFunction = rootScriptCompletion
 
 	return root
 }
@@ -101,21 +106,23 @@ func NewMXRoot(info BuildInfo) *cobra.Command {
 	root.SilenceErrors = true
 	g := attachGlobals(root)
 	attachAppPreRun(root, g, info)
+	storeRootBuildInfo(root, info)
 
 	root.AddCommand(newVersionCmd(use, info))
 	root.AddCommand(newCompletionCmd(root))
+	root.AddCommand(newMXCacheCmd())
 
 	return root
 }
 
 // ExecuteM runs the m command tree.
 func ExecuteM(info BuildInfo) int {
-	return execute(NewMRoot(info))
+	return execute(NewMRoot(info), info, os.Args[1:])
 }
 
 // ExecuteMX runs the mx command tree.
 func ExecuteMX(info BuildInfo) int {
-	return execute(NewMXRoot(info))
+	return execute(NewMXRoot(info), info, os.Args[1:])
 }
 
 func attachAppPreRun(root *cobra.Command, g *globalFlags, info BuildInfo) {
@@ -124,26 +131,7 @@ func attachAppPreRun(root *cobra.Command, g *globalFlags, info BuildInfo) {
 		if ctx == nil {
 			ctx = context.Background()
 		}
-		cwd := g.cwd
-		if cwd == "" {
-			cwd, _ = os.Getwd()
-		} else {
-			abs, err := filepath.Abs(cwd)
-			if err != nil {
-				return err
-			}
-			cwd = abs
-		}
-		ac, err := app.New(ctx, app.Options{
-			CWD:           cwd,
-			ConfigPath:    g.configPath,
-			Offline:       g.offline,
-			PreferOffline: g.preferOffline,
-			Reporter:      g.newReporter(cmd),
-			Version:       info.Version,
-			Commit:        info.Commit,
-			BuildDate:     info.BuildDate,
-		})
+		ac, err := buildAppContext(ctx, cmd, g, info)
 		if err != nil {
 			return err
 		}

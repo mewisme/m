@@ -2,7 +2,6 @@ package transaction_test
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/jsonfile"
 	"github.com/mewisme/mew/internal/transaction"
 )
 
@@ -38,7 +38,7 @@ func TestPreflightProcStaleLockAndIncomplete(t *testing.T) {
 		CreatedAt:     time.Now().UTC().Add(-time.Minute),
 		ProjectRoot:   root,
 	}
-	raw, _ := json.Marshal(doc)
+	raw, _ := jsonfile.Marshal(doc)
 	if err := os.WriteFile(filepath.Join(lockDir, fsx.OwnerFileName), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}

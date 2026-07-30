@@ -1,0 +1,7 @@
+{
+  "name": "base",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node scripts/build.js"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "dispatch-collision-matrix",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node scripts/echo.js dev-script",
+    "build": "node scripts/echo.js build-script",
+    "add": "node scripts/echo.js add-script"
+  }
+}

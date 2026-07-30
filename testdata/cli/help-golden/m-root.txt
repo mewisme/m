@@ -19,6 +19,7 @@ Available Commands:
   development    Developer tooling
   diff           Diff project artifacts
   doctor         Check project and package-manager health
+  env            Inspect execution environments
   exec           Execute a local package binary
   explain        Explain resolution decisions
   features       List capability inventory and parity status
@@ -63,6 +64,7 @@ Flags:
       --no-color             disable ANSI color
       --offline              force offline mode
       --prefer-offline       prefer cached artifacts
+  -r, --recursive            workspace recursive mode (consumed by m run)
       --reporter string      output reporter: default|ndjson|json|silent (env MEW_LOG_FORMAT)
   -v, --version              version for m
 

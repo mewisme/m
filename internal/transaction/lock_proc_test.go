@@ -12,6 +12,7 @@ import (
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/jsonfile"
 	"github.com/mewisme/mew/internal/transaction"
 )
 
@@ -97,7 +98,7 @@ func TestProjectLockStaleProcessIdentity(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		ProjectRoot:   root,
 	}
-	raw, err := json.Marshal(doc)
+	raw, err := jsonfile.Marshal(doc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +189,7 @@ func TestProjectLockPIDReuseSimulation(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		ProjectRoot:   root,
 	}
-	raw, err := json.Marshal(doc)
+	raw, err := jsonfile.Marshal(doc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +291,7 @@ func TestProjectLockStaleTakeoverTombstone(t *testing.T) {
 		CreatedAt:     time.Now().UTC().Add(-time.Minute),
 		ProjectRoot:   root,
 	}
-	raw, _ := json.Marshal(doc)
+	raw, _ := jsonfile.Marshal(doc)
 	if err := os.WriteFile(lockOwnerPath(root), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -320,7 +321,7 @@ func TestRecoveryTakeoverReplacesDeadHolder(t *testing.T) {
 		CreatedAt:     time.Now().UTC().Add(-time.Minute),
 		ProjectRoot:   root,
 	}
-	raw, _ := json.Marshal(doc)
+	raw, _ := jsonfile.Marshal(doc)
 	if err := os.WriteFile(lockOwnerPath(root), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}

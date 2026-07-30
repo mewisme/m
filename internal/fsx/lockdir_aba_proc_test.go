@@ -2,7 +2,6 @@ package fsx_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mewisme/mew/internal/fsx"
+	"github.com/mewisme/mew/internal/jsonfile"
 	"github.com/mewisme/mew/internal/store"
 	"github.com/mewisme/mew/internal/transaction"
 )
@@ -277,11 +277,10 @@ func runTakeoverABAProcTest(t *testing.T, kind string, setup func(root string) (
 			ProjectRoot:   root,
 			CreatedAt:     time.Now().UTC(),
 		}
-		newOwner, err = json.Marshal(doc)
+		newOwner, err = jsonfile.Marshal(doc)
 		if err != nil {
 			t.Fatal(err)
 		}
-		newOwner = append(newOwner, '\n')
 	}
 	if err := os.WriteFile(filepath.Join(lockDir, fsx.OwnerFileName), newOwner, 0o644); err != nil {
 		t.Fatal(err)
@@ -388,8 +387,8 @@ func TestTakeoverABAProcLegacyFileLock(t *testing.T) {
 			PackageKey:    "sha256/deadbeef",
 			CreatedAt:     time.Now().UTC(),
 		}
-		raw, _ := json.Marshal(doc)
-		return lockPath, append(raw, '\n')
+		raw, _ := jsonfile.Marshal(doc)
+		return lockPath, raw
 	})
 }
 
@@ -405,8 +404,8 @@ func TestTakeoverABAProcProjectLock(t *testing.T) {
 			ProjectRoot:   root,
 			CreatedAt:     time.Now().UTC(),
 		}
-		raw, _ := json.Marshal(doc)
-		return lockDir, append(raw, '\n')
+		raw, _ := jsonfile.Marshal(doc)
+		return lockDir, raw
 	})
 }
 
@@ -421,8 +420,8 @@ func TestTakeoverABAProcImportLock(t *testing.T) {
 			PackageKey:    "sha256/deadbeef",
 			CreatedAt:     time.Now().UTC(),
 		}
-		raw, _ := json.Marshal(doc)
-		return lockDir, append(raw, '\n')
+		raw, _ := jsonfile.Marshal(doc)
+		return lockDir, raw
 	})
 }
 
@@ -436,7 +435,7 @@ func TestTakeoverABAProcIndexLock(t *testing.T) {
 			ProcessStart:  1,
 			CreatedAt:     time.Now().UTC(),
 		}
-		raw, _ := json.Marshal(doc)
-		return lockDir, append(raw, '\n')
+		raw, _ := jsonfile.Marshal(doc)
+		return lockDir, raw
 	})
 }

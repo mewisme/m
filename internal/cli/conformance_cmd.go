@@ -17,6 +17,7 @@ func newConformanceCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newConformanceListCmd())
 	cmd.AddCommand(newConformanceRunCmd())
+	cmd.AddCommand(newConformanceVerifyCmd())
 	return cmd
 }
 
@@ -111,5 +112,15 @@ func newConformanceRunCmd() *cobra.Command {
 		Short: "Run a certification matrix",
 	}
 	cmd.AddCommand(run)
+	cmd.AddCommand(newConformanceRunRunnerCmd())
+	return cmd
+}
+
+func newConformanceVerifyCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "verify",
+		Short: "Verify aggregated certification reports",
+	}
+	cmd.AddCommand(newConformanceVerifyRunnerCmd())
 	return cmd
 }

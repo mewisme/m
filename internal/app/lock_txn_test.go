@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mewisme/mew/internal/apperr"
@@ -551,4 +552,25 @@ snapshots:
 		t.Fatal("expected commit failure")
 	}
 	assertIncumbentLockBytes(t, proj, "pnpm-lock.yaml", before)
+}
+
+func TestMigrateLockAmbiguousMultiLockWithoutFrom(t *testing.T) {
+	ac, proj := testIncumbentProject(t, "pnpm-lock.yaml")
+	if err := os.WriteFile(filepath.Join(proj, "yarn.lock"), []byte("# yarn\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := MigrateLock(context.Background(), ac, MigrateLockOptions{DryRun: true})
+	if err == nil {
+		t.Fatal("expected ambiguity error")
+	}
+	if apperr.CodeOf(err) != apperr.Usage {
+		t.Fatalf("code=%s err=%v", apperr.CodeOf(err), err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "multiple lockfiles present") {
+		t.Fatalf("msg=%q", msg)
+	}
+	if !strings.Contains(msg, "pnpm-lock.yaml") || !strings.Contains(msg, "yarn.lock") {
+		t.Fatalf("msg=%q", msg)
+	}
 }

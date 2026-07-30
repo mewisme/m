@@ -13,7 +13,8 @@ Use this checklist when closing any MVP after 0001. All items must pass or be ex
 - [ ] Changed behavior classified as parity, intentional divergence, extension, or deferred
 - [ ] [`compatibility-axes.md`](compatibility-axes.md) updated for affected axes
 - [ ] Lockfile preservation rules respected (no silent format migration)
-- [ ] Direct script shortcut precedence unchanged unless MVP 0042 scope
+- [x] Direct script shortcut precedence shipped in MVP 0042
+- [x] Local binary execution (`m exec`) and verified direct bin dispatch shipped in MVP 0043
 
 ## Naming
 

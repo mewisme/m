@@ -12,6 +12,7 @@ import (
 	"github.com/mewisme/mew/internal/archive"
 	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/jsonfile"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/resolver"
 )
@@ -265,7 +266,7 @@ func defaultPatchEditDir(projectRoot, selector string) string {
 
 func writePatchState(projectRoot string, state patchState) error {
 	path := filepath.Join(projectRoot, filepath.FromSlash(patchStateRel))
-	raw, err := json.Marshal(state)
+	raw, err := jsonfile.Marshal(state)
 	if err != nil {
 		return apperr.Wrap(apperr.Internal, "app.patch", path, err)
 	}

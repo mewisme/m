@@ -36,8 +36,8 @@ func TestFeaturesTableFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(out)
-	if !strings.Contains(text, "runner.direct-shortcuts") {
-		t.Fatalf("expected runner features in output:\n%s", text)
+	if !strings.Contains(text, "runner.interactive-select") {
+		t.Fatalf("expected planned runner features in output:\n%s", text)
 	}
 	if strings.Contains(text, "foundation.charter") {
 		t.Fatal("filtered output must not include foundation rows")

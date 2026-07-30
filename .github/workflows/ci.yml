@@ -637,3 +637,113 @@ jobs:
           fi
           grep -q '"status": "failed"' forced-skip.json
           grep -q 'skipped' forced-skip.json
+
+  conformance-runner-linux:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Runner certification matrix
+        run: go run ./cmd/m conformance run runner --json --output runner-report-linux.json --force
+      - name: Upload runner report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-report-linux
+          path: runner-report-linux.json
+          if-no-files-found: error
+
+  conformance-runner-windows:
+    runs-on: windows-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Runner certification matrix
+        run: go run ./cmd/m conformance run runner --json --output runner-report-windows.json --force
+      - name: Upload runner report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-report-windows
+          path: runner-report-windows.json
+          if-no-files-found: error
+
+  conformance-runner-macos:
+    runs-on: macos-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Runner certification matrix
+        run: go run ./cmd/m conformance run runner --json --output runner-report-macos.json --force
+      - name: Upload runner report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-report-macos
+          path: runner-report-macos.json
+          if-no-files-found: error
+
+  conformance-runner-aggregate:
+    runs-on: ubuntu-latest
+    needs:
+      - conformance-runner-linux
+      - conformance-runner-windows
+      - conformance-runner-macos
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: Download linux report
+        uses: actions/download-artifact@v4
+        with:
+          name: runner-report-linux
+          path: runner-reports
+      - name: Download windows report
+        uses: actions/download-artifact@v4
+        with:
+          name: runner-report-windows
+          path: runner-reports
+      - name: Download macos report
+        uses: actions/download-artifact@v4
+        with:
+          name: runner-report-macos
+          path: runner-reports
+      - name: Aggregate runner certification
+        run: |
+          go run ./cmd/m conformance verify runner \
+            --report runner-reports/runner-report-linux.json \
+            --report runner-reports/runner-report-windows.json \
+            --report runner-reports/runner-report-macos.json \
+            --output runner-certification-summary.json \
+            --force
+      - name: Upload certification summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-certification-summary
+          path: runner-certification-summary.json
+          if-no-files-found: error

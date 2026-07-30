@@ -24,7 +24,7 @@ Mew reads text `bun.lock` files for Bun-identity projects. Binary `bun.lockb` is
 ## Migration
 
 ```bash
-m lock migrate --from bun --to m
+m lock migrate --from bun
 ```
 
 Lossy fields are reported in the migration loss report.
