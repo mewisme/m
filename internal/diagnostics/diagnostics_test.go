@@ -124,6 +124,24 @@ func TestSilentDropsProgress(t *testing.T) {
 	}
 }
 
+func TestHumanMultilineAppError(t *testing.T) {
+	err := apperr.New(apperr.Unsupported, "npm.write", "package-lock.json", "line one\nline two")
+	var errBuf bytes.Buffer
+	rep := diagnostics.NewReporter(diagnostics.Options{
+		Err:    &errBuf,
+		Format: "default",
+		Color:  diagnostics.ColorNever,
+	})
+	rep.Error(err)
+	out := errBuf.String()
+	if !strings.Contains(out, "ERR_M_UNSUPPORTED: npm.write: package-lock.json:\n") {
+		t.Fatalf("expected header break before body: %q", out)
+	}
+	if !strings.Contains(out, "line one\nline two") {
+		t.Fatalf("expected body lines preserved: %q", out)
+	}
+}
+
 type ioDiscard struct{}
 
 func (ioDiscard) Write(p []byte) (int, error) { return len(p), nil }

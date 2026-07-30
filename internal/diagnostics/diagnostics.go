@@ -284,6 +284,9 @@ func formatAppError(ae *apperr.Error) string {
 		return fmt.Sprintf("%s: %s failed\noperation: %s\nsource: %s\ndestination: %s\ncause: %s",
 			ae.Code, ae.Op, renameErr.Op, renameErr.Src, renameErr.Dst, renameErr.Cause)
 	}
+	if strings.Contains(ae.Message, "\n") {
+		return fmt.Sprintf("%s: %s: %s:\n%s", ae.Code, ae.Op, ae.Subject, ae.Message)
+	}
 	return ae.Error()
 }
 
