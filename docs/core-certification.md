@@ -19,14 +19,14 @@ Machine-readable step list: [`tools/certification/core-manifest.json`](../tools/
 | `make core-cert-security` | Audit/SBOM/provenance focused tests |
 | `make core-cert-crash` | Crash-shard assignment verify (full `-tags crash` suite is separate) |
 | `make core-cert-performance` | Bench correctness + advisory regression |
-| `pwsh tools/certification/run-core-cert.ps1 -Target <name>` | Direct runner (same manifest as Make) |
+| `python tools/certification/run_core_cert.py <name>` | Direct runner (same manifest as Make) |
 | `go run ./cmd/m conformance run core [--json]` | Execute the core-matrix test suites |
 | `go run ./cmd/m conformance list` | List suite ids from `tests/conformance/core-matrix/manifest.json` |
 | `go run ./cmd/m doctor [--json] [--strict]` | Project and PM health checks |
 | `go run ./cmd/m bench install [--warm\|--cold] [--json]` | Install benchmark (see [`performance.md`](performance.md)) |
-| `pwsh tools/soak/install-loop.ps1 -Count <n> -Mode warm` | Repeated install soak (CI: `-Count 10`; manual: `-Count 100`) |
-| `pwsh tools/bench/check_correctness.ps1 -Mode warm` | Install bench correctness (≥7 samples, digest) |
-| `pwsh tools/bench/check_regression.ps1 -Mode warm` | Install performance regression (platform-matched; advisory on CI until Ubuntu baseline) |
+| `python tools/soak/install_loop.py --count <n> --mode warm` | Repeated install soak (CI: `--count 10`; manual: `--count 100`) |
+| `python tools/bench/check_correctness.py --mode warm` | Install bench correctness (≥7 samples, digest) |
+| `python tools/bench/check_regression.py --mode warm` | Install performance regression (platform-matched; advisory on CI until Ubuntu baseline) |
 
 `m benchmark` is the compatibility alias for `m bench` (0031 plan surface).
 
@@ -53,9 +53,9 @@ Machine-readable step list: [`tools/certification/core-manifest.json`](../tools/
 | Core conformance aggregate | `go run ./cmd/m conformance run core --json` | `core-stabilization` (0031; `MEW_CONFORMANCE_REQUIRE_TOOLS=1`) |
 | Conformance negative probes | `go run ./cmd/m conformance run core --filter integration.cert-negative-*` (must fail) | `cert-negative-probes` |
 | PM health | `go run ./cmd/m doctor --json` | `core-stabilization` |
-| Soak (short) | `pwsh tools/soak/install-loop.ps1 -Count 10 -Mode warm` | `core-stabilization` |
-| Install bench correctness | `pwsh tools/bench/check_correctness.ps1 -Mode warm` | `bench-correctness` (blocking) |
-| Install bench regression | `pwsh tools/bench/check_regression.ps1 -Mode warm` | `bench-regression` (advisory; structured waiver) |
+| Soak (short) | `python tools/soak/install_loop.py --count 10 --mode warm` | `core-stabilization` |
+| Install bench correctness | `python tools/bench/check_correctness.py --mode warm` | `bench-correctness` (blocking) |
+| Install bench regression | `python tools/bench/check_regression.py --mode warm` | `bench-regression` (advisory; structured waiver) |
 | License + dependency allowlist | `go run ./tools/check-license`; `go run ./tools/check-deps` | `gate-probe` |
 
 Pinned pnpm producer versions: `tools/conformance/pnpm-versions.env` (9.15.9 /

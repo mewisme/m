@@ -146,11 +146,11 @@ Published medians: [`benchmarks/install-baseline.json`](../../benchmarks/install
 
 Regression gate (10% over median fails unless `BENCH_WAIVER=1`):
 
-```powershell
-pwsh tools/bench/check_regression.ps1 -Mode warm
+```text
+python tools/bench/check_regression.py --mode warm
 ```
 
-Soak loop: `pwsh tools/soak/install-loop.ps1 -Count 10 -Mode cold`.
+Soak loop: `python tools/soak/install_loop.py --count 10 --mode cold`.
 
 See [`docs/performance.md`](../../docs/performance.md) for phase timing,
 worker defaults, and hot-path profiling notes.

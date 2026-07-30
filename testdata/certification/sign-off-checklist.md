@@ -32,9 +32,9 @@ Evidence index: [`docs/core-certification.md`](../../docs/core-certification.md)
 ## Health, soak, and performance
 
 - [x] `m doctor` reports healthy on clean-home fixture (`tests/integration/doctor_test.go`)
-- [x] Soak loop passes at CI count (`install-loop.ps1 -Count 10`)
+- [x] Soak loop passes at CI count (`install_loop.py --count 10`)
 - [x] Manual soak documented at 100+ iterations on `fixtures/soak/representative-projects/`
-- [x] Install bench regression gate green (`bench-regression` / `check_regression.ps1`)
+- [x] Install bench regression gate green (`bench-regression` / `check_regression.py`)
 
 ## Security (PM-core subset of 0082)
 

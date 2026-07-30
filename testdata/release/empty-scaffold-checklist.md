@@ -15,7 +15,7 @@ through MVP 0009). No calendar date; run before tagging a 0.x alpha.
 - [ ] `go vet ./...`
 - [ ] `go run ./cmd/m version`
 - [ ] `go run ./cmd/m features --format table` (inventory loads)
-- [ ] `make fuzz-smoke` (or `pwsh -File tools/fuzz-smoke.ps1`)
+- [ ] `make fuzz-smoke` (or `python tools/fuzz_smoke.py`)
 - [ ] `make conformance` (or `go test ./tests/conformance/... -count=1`)
 
 ## Hermetic and experimental policy

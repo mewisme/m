@@ -23,7 +23,7 @@ inventory consistency, advisory range cleanup).
 
 ## Gates added or corrected
 
-- `plan-generation-idempotency` — blocking; `pwsh tools/ci/verify-plan-generation.ps1`
+- `plan-generation-idempotency` — blocking; `python tools/ci/verify_plan_generation.py`
 - `markdown-link-check` — blocking; `go run ./tools/check-links`
 - `bench-correctness` — blocking install bench JSON/schema gate
 - `bench-regression` — advisory until Ubuntu baseline exists (`benchmarks/waivers.json`)
@@ -40,7 +40,7 @@ go run ./tools/check-deps
 go run ./tools/conformance/verify-fixtures
 go run ./tools/ci/verify-crash-shards
 go run ./tools/check-links
-pwsh tools/ci/verify-plan-generation.ps1
+python tools/ci/verify_plan_generation.py
 ```
 
 All commands above passed on the final implementation SHA before the evidence

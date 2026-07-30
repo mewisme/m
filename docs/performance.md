@@ -89,8 +89,8 @@ Published medians live in [`benchmarks/install-baseline.json`](../benchmarks/ins
 
 | Gate | Blocking? | Command |
 |---|---|---|
-| Bench correctness | **Yes** | `pwsh tools/bench/check_correctness.ps1 -Mode warm` |
-| Bench regression | **No** (advisory until Ubuntu baseline exists) | `pwsh tools/bench/check_regression.ps1 -Mode warm` |
+| Bench correctness | **Yes** | `python tools/bench/check_correctness.py --mode warm` |
+| Bench regression | **No** (advisory until Ubuntu baseline exists) | `python tools/bench/check_regression.py --mode warm` |
 
 Correctness validates JSON shape, fixture digest presence, and **≥7** measured samples
 (default warmup 1 → 8 total iterations). Regression compares median/p95 against a
@@ -101,15 +101,15 @@ Structured waivers live in [`benchmarks/waivers.json`](../benchmarks/waivers.jso
 
 Check regression locally:
 
-```powershell
-pwsh tools/bench/check_regression.ps1 -Mode warm
-pwsh tools/bench/check_regression.ps1 -Mode cold
+```text
+python tools/bench/check_regression.py --mode warm
+python tools/bench/check_regression.py --mode cold
 ```
 
 Soak repeated installs:
 
-```powershell
-pwsh tools/soak/install-loop.ps1 -Count 10 -Mode cold
+```text
+python tools/soak/install_loop.py --count 10 --mode cold
 ```
 
 ## Package-level benchmarks

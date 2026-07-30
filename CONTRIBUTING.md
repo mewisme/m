@@ -42,7 +42,7 @@ make core-cert-performance
 
 Core certification steps are defined in
 [`tools/certification/core-manifest.json`](tools/certification/core-manifest.json)
-and executed by `tools/certification/run-core-cert.ps1` (or the Make targets above).
+and executed by `tools/certification/run_core_cert.py` (or the Make targets above).
 Race tests and the full `-tags crash` integration suite are expensive and remain
 separate (`make race`; see [`docs/core-certification.md`](docs/core-certification.md)).
 

@@ -372,7 +372,7 @@ make core-cert           # full manifest (tools/certification/core-manifest.json
 make core-cert-fast      # fixture + crash-shard + conformance list smoke
 ```
 
-**Fuzz smoke:** `make fuzz-smoke` or `tools/fuzz-smoke.ps1`.
+**Fuzz smoke:** `make fuzz-smoke` or `python tools/fuzz_smoke.py`.
 
 **Testing layers:** unit tests in `internal/*`, integration tests in `tests/integration`, conformance fixtures in `tests/conformance`, crash-tagged integration (`-tags crash`), architecture import checks (`internal/archcheck`), fixture provenance verification (`tools/conformance/verify-fixtures`). CI workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
