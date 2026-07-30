@@ -15,7 +15,7 @@ type StreamWriters struct {
 	Err io.Writer
 }
 
-// Controller owns reporter lifecycle for one CLI invocation.
+// Controller owns reporter lifecycle for one invocation.
 type Controller interface {
 	Reporter() diagnostics.Reporter
 	Mode() OutputMode
@@ -33,6 +33,7 @@ type controller struct {
 	caps        Capabilities
 	reporter    diagnostics.Reporter
 	streams     StreamWriters
+	sink        ProgressSink
 	suspended   bool
 	closed      bool
 	closeErr    error
@@ -56,24 +57,68 @@ func NewController(resolved ResolvedOptions, caps Capabilities, streams StreamWr
 		Err:       streams.Err,
 		TermWidth: resolved.TermWidth,
 	}
+
+	var settings EffectiveSettings
 	if !resolved.Legacy && !resolved.Structured() {
-		settings := Effective(resolved, caps)
+		settings = Effective(resolved, caps)
 		mapOpts := MapOptions{Debug: resolved.Debug, Redact: diagnostics.Redact}
 		opts.HumanErrorRender = func(err error) string {
 			return NewStaticRenderer(settings).Error(MapError(err, mapOpts))
 		}
 	}
+
+	sink, downgraded, err := selectProgressSink(resolved, caps, settings, streams.Err)
+	if err != nil {
+		return nil, err
+	}
+	attachProgressHooks(&opts, sink)
+
 	c := &controller{
 		resolved:    resolved,
 		caps:        caps,
 		reporter:    diagnostics.NewReporter(opts),
 		streams:     streams,
-		debugOnDown: resolved.DowngradedRich,
+		sink:        sink,
+		debugOnDown: resolved.DowngradedRich || downgraded,
 	}
 	if c.debugOnDown {
 		c.reporter.Debug("presentation: rich mode downgraded to plain")
 	}
 	return c, nil
+}
+
+// selectProgressSink picks live, plain, or nil progress rendering for human modes.
+func selectProgressSink(resolved ResolvedOptions, caps Capabilities, settings EffectiveSettings, errW io.Writer) (ProgressSink, bool, error) {
+	if resolved.Legacy || resolved.Structured() || resolved.EffectiveOutput == OutputSilent {
+		return nil, false, nil
+	}
+	if resolved.Progress == TriNever {
+		return nil, false, nil
+	}
+	if settings.Width == 0 {
+		settings = Effective(resolved, caps)
+	}
+
+	wantLive := settings.UseProgress
+	if wantLive {
+		if !caps.StderrTTY {
+			if resolved.Progress == TriAlways {
+				return nil, false, &RichUnsupportedError{
+					Reason: "live progress requires a TTY on stderr (--progress=always)",
+				}
+			}
+			return NewPlainProgressRenderer(errW), true, nil
+		}
+		live, err := NewLiveInstallRenderer(errW, settings)
+		if err != nil {
+			if resolved.Progress == TriAlways {
+				return nil, false, err
+			}
+			return NewPlainProgressRenderer(errW), true, nil
+		}
+		return live, false, nil
+	}
+	return NewPlainProgressRenderer(errW), false, nil
 }
 
 func (c *controller) Reporter() diagnostics.Reporter { return c.reporter }
@@ -96,6 +141,9 @@ func (c *controller) Suspend(ctx context.Context) error {
 		return nil
 	}
 	c.suspended = true
+	if c.sink != nil {
+		c.sink.Suspend()
+	}
 	return nil
 }
 
@@ -109,23 +157,37 @@ func (c *controller) Resume(ctx context.Context) error {
 		return nil
 	}
 	c.suspended = false
+	if c.sink != nil {
+		c.sink.Resume()
+	}
 	return nil
 }
 
 func (c *controller) Close(ctx context.Context, outcome Outcome) error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.closed {
-		return c.closeErr
+		err := c.closeErr
+		c.mu.Unlock()
+		return err
 	}
 	c.closed = true
+	sink := c.sink
+	c.sink = nil
+	c.mu.Unlock()
+
 	cleanupCtx, cancel := cleanupContext(ctx)
 	defer cancel()
 	_ = cleanupCtx
 	_ = outcome
-	// ponytail: live renderer teardown lands in UX-0002/0004; Close stays idempotent now.
-	c.closeErr = nil
-	return c.closeErr
+
+	var closeErr error
+	if sink != nil {
+		closeErr = sink.Close()
+	}
+	c.mu.Lock()
+	c.closeErr = closeErr
+	c.mu.Unlock()
+	return closeErr
 }
 
 // cleanupContext returns a bounded context for renderer teardown.

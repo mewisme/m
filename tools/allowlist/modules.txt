@@ -1,11 +1,16 @@
 # Direct and transitive modules allowed in go.mod / go.sum (one path per line).
 # Update this file in the same PR when adding a dependency.
+charm.land/bubbles/v2
+charm.land/bubbletea/v2
 charm.land/lipgloss/v2
+github.com/MakeNowJust/heredoc
 github.com/Masterminds/semver/v3
+github.com/atotto/clipboard
 github.com/aymanbagabas/go-udiff
 github.com/bits-and-blooms/bitset
 github.com/bluekeyes/go-gitdiff
 github.com/charmbracelet/colorprofile
+github.com/charmbracelet/harmonica
 github.com/charmbracelet/ultraviolet
 github.com/charmbracelet/x/ansi
 github.com/charmbracelet/x/exp/golden
@@ -16,12 +21,14 @@ github.com/clipperhouse/displaywidth
 github.com/clipperhouse/stringish
 github.com/clipperhouse/uax29/v2
 github.com/cpuguy83/go-md2man/v2
+github.com/dustin/go-humanize
 github.com/inconshreveable/mousetrap
 github.com/lucasb-eyer/go-colorful
 github.com/mattn/go-runewidth
 github.com/muesli/cancelreader
 github.com/rivo/uniseg
 github.com/russross/blackfriday/v2
+github.com/sahilm/fuzzy
 github.com/spf13/cobra
 github.com/spf13/pflag
 github.com/xo/terminfo

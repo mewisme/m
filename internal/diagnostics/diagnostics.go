@@ -205,6 +205,11 @@ type Options struct {
 	TermWidth int  // 0 = default 80
 	// HumanErrorRender renders human errors; nil keeps legacy formatHumanError.
 	HumanErrorRender func(error) string
+	// Optional presentation-owned progress/notice hooks (called after reporter handling).
+	OnOperationStarted   func(OperationStartedEvent)
+	OnOperationProgress  func(OperationProgressEvent)
+	OnOperationCompleted func(OperationCompletedEvent)
+	OnNotice             func(NoticeEvent)
 }
 
 // ColorMode controls ANSI color.
@@ -401,25 +406,34 @@ func (r *humanReporter) WorkspaceSummary(ev WorkspaceSummaryEvent) {
 func (r *humanReporter) EnvironmentPrepared(EnvironmentPreparedEvent) error { return nil }
 
 func (r *humanReporter) OperationStarted(ev OperationStartedEvent) {
-	r.base.mu.Lock()
-	defer r.base.mu.Unlock()
-	line := ev.Kind
-	if ev.Label != "" {
-		line += " " + ev.Label
+	// Progress is presentation-owned. Call hooks outside base.mu to avoid deadlock
+	// if a ProgressSink ever touches the reporter (it must not hold locks either).
+	hook := r.base.opts.OnOperationStarted
+	if hook != nil {
+		hook(ev)
 	}
-	fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
 }
 
-func (r *humanReporter) OperationProgress(OperationProgressEvent) {}
+func (r *humanReporter) OperationProgress(ev OperationProgressEvent) {
+	hook := r.base.opts.OnOperationProgress
+	if hook != nil {
+		hook(ev)
+	}
+}
 
 func (r *humanReporter) OperationCompleted(ev OperationCompletedEvent) {
-	r.base.mu.Lock()
-	defer r.base.mu.Unlock()
-	line := fmt.Sprintf("%s %s %dms", ev.ID, ev.Status, ev.DurationMs)
-	fmt.Fprintln(r.base.opts.Err, truncate(r.base.redact(line), r.base.opts.TermWidth))
+	hook := r.base.opts.OnOperationCompleted
+	if hook != nil {
+		hook(ev)
+	}
 }
 
 func (r *humanReporter) Notice(ev NoticeEvent) {
+	hook := r.base.opts.OnNotice
+	if hook != nil {
+		hook(ev)
+		return
+	}
 	r.base.mu.Lock()
 	defer r.base.mu.Unlock()
 	line := ev.Severity + ": " + ev.Message
@@ -495,6 +509,9 @@ func (r *ndjsonReporter) OperationStarted(ev OperationStartedEvent) {
 		ev.Type = "operation-started"
 	}
 	r.writeLine(ev)
+	if r.base.opts.OnOperationStarted != nil {
+		r.base.opts.OnOperationStarted(ev)
+	}
 }
 
 func (r *ndjsonReporter) OperationProgress(ev OperationProgressEvent) {
@@ -506,6 +523,9 @@ func (r *ndjsonReporter) OperationProgress(ev OperationProgressEvent) {
 	}
 	ev.Detail = r.base.redact(ev.Detail)
 	r.writeLine(ev)
+	if r.base.opts.OnOperationProgress != nil {
+		r.base.opts.OnOperationProgress(ev)
+	}
 }
 
 func (r *ndjsonReporter) OperationCompleted(ev OperationCompletedEvent) {
@@ -516,6 +536,9 @@ func (r *ndjsonReporter) OperationCompleted(ev OperationCompletedEvent) {
 		ev.Type = "operation-completed"
 	}
 	r.writeLine(ev)
+	if r.base.opts.OnOperationCompleted != nil {
+		r.base.opts.OnOperationCompleted(ev)
+	}
 }
 
 func (r *ndjsonReporter) Notice(ev NoticeEvent) {
@@ -528,6 +551,9 @@ func (r *ndjsonReporter) Notice(ev NoticeEvent) {
 	ev.Message = r.base.redact(ev.Message)
 	ev.Hint = r.base.redact(ev.Hint)
 	r.writeLine(ev)
+	if r.base.opts.OnNotice != nil {
+		r.base.opts.OnNotice(ev)
+	}
 }
 
 func (r *ndjsonReporter) writeLine(v any) {
