@@ -21,20 +21,20 @@ function Assert-Throws {
 }
 
 # 1. OS normalization
-Assert-True ((Normalize-DevInstallOS 'linux') -eq 'linux') 'goos normalize linux'
-Assert-True ((Normalize-DevInstallOS 'WINDOWS') -eq 'windows') 'goos normalize windows'
-Assert-True ((Normalize-DevInstallOS 'freebsd') -eq 'unsupported') 'unsupported goos'
+Assert-True ((ConvertTo-DevInstallOS 'linux') -eq 'linux') 'goos normalize linux'
+Assert-True ((ConvertTo-DevInstallOS 'WINDOWS') -eq 'windows') 'goos normalize windows'
+Assert-True ((ConvertTo-DevInstallOS 'freebsd') -eq 'unsupported') 'unsupported goos'
 
 # 2. Arch normalization
-Assert-True ((Normalize-DevInstallArch 'x86_64') -eq 'amd64') 'goarch normalize x86_64'
-Assert-True ((Normalize-DevInstallArch 'aarch64') -eq 'arm64') 'goarch normalize aarch64'
-Assert-True ((Normalize-DevInstallArch 'riscv64') -eq 'unsupported') 'unsupported goarch'
+Assert-True ((ConvertTo-DevInstallArch 'x86_64') -eq 'amd64') 'goarch normalize x86_64'
+Assert-True ((ConvertTo-DevInstallArch 'aarch64') -eq 'arm64') 'goarch normalize aarch64'
+Assert-True ((ConvertTo-DevInstallArch 'riscv64') -eq 'unsupported') 'unsupported goarch'
 
 # 3. Windows PATH normalize/dedupe
 $entries = @('C:\MewJS\bin', 'c:\mewjs\bin\', 'C:\Other', 'C:\MewJS\bin\')
 $seen = @{}
 $norm = foreach ($e in $entries) {
-    $n = Normalize-DevInstallWindowsPathEntry $e
+    $n = ConvertTo-DevInstallWindowsPathEntry $e
     $k = $n.ToLowerInvariant()
     if (-not $seen.ContainsKey($k)) { $seen[$k] = $true; $n }
 }
@@ -47,10 +47,10 @@ $profileFile = Join-Path $tmpdir 'profile.sh'
 Set-Content -Path $profileFile -Value 'echo hello' -NoNewline
 $start = $DevInstallMarkerInstallerStart
 $end = $DevInstallMarkerInstallerEnd
-Upsert-DevInstallManagedBlock $profileFile $start $end 'export PATH="/a/bin:$PATH"'
+Set-DevInstallManagedBlock $profileFile $start $end 'export PATH="/a/bin:$PATH"'
 $once = Get-Content -Raw $profileFile
 Assert-True ($once -match '/a/bin') 'path block insert'
-Upsert-DevInstallManagedBlock $profileFile $start $end 'export PATH="/b/bin:$PATH"'
+Set-DevInstallManagedBlock $profileFile $start $end 'export PATH="/b/bin:$PATH"'
 $twice = Get-Content -Raw $profileFile
 Assert-True ((@($twice -split "`n" | Where-Object { $_ -match 'export PATH' }).Count -eq 1) -and ($twice -match '/b/bin')) 'path block replace no duplicate'
 Remove-DevInstallManagedBlock $profileFile $start $end
@@ -61,7 +61,7 @@ $cStart = $DevInstallMarkerCompletionStart
 $cEnd = $DevInstallMarkerCompletionEnd
 $compFile = Join-Path $tmpdir 'comp.sh'
 Set-Content -Path $compFile -Value 'keep' -NoNewline
-Upsert-DevInstallManagedBlock $compFile $cStart $cEnd 'source /tmp/m'
+Set-DevInstallManagedBlock $compFile $cStart $cEnd 'source /tmp/m'
 Assert-True ((Get-Content -Raw $compFile) -match 'source /tmp/m') 'completion block insert'
 Remove-DevInstallManagedBlock $compFile $cStart $cEnd
 Assert-True ((Get-Content -Raw $compFile).Trim() -eq 'keep') 'completion block remove'
@@ -82,14 +82,14 @@ Assert-True ($DevInstallCanInstall -eq $false) 'cross-compile canInstall false'
 # 9. Paths with spaces in managed block
 $spaceFile = Join-Path $tmpdir 'space.sh'
 Set-Content -Path $spaceFile -Value '# header' -NoNewline
-Upsert-DevInstallManagedBlock $spaceFile $start $end 'export PATH="/path with spaces/bin:$PATH"'
+Set-DevInstallManagedBlock $spaceFile $start $end 'export PATH="/path with spaces/bin:$PATH"'
 Assert-True ((Get-Content -Raw $spaceFile) -match 'path with spaces') 'paths with spaces'
 
 # 10. Managed-block idempotency
 $idFile = Join-Path $tmpdir 'idem.sh'
 New-Item -ItemType File -Path $idFile -Force | Out-Null
-Upsert-DevInstallManagedBlock $idFile $start $end 'export PATH="/a/bin:$PATH"'
-Upsert-DevInstallManagedBlock $idFile $start $end 'export PATH="/a/bin:$PATH"'
+Set-DevInstallManagedBlock $idFile $start $end 'export PATH="/a/bin:$PATH"'
+Set-DevInstallManagedBlock $idFile $start $end 'export PATH="/a/bin:$PATH"'
 $markerCount = ([regex]::Matches((Get-Content -Raw $idFile), [regex]::Escape($start))).Count
 Assert-True ($markerCount -eq 1) 'managed block idempotent'
 

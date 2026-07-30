@@ -32,7 +32,7 @@ function Write-DevInstallError {
     throw $Message
 }
 
-function Normalize-DevInstallOS {
+function ConvertTo-DevInstallOS {
     param([string]$Raw)
     switch -Regex ($Raw.ToLowerInvariant()) {
         '^(windows|mingw.*|msys.*|cygwin.*)$' { return 'windows' }
@@ -42,7 +42,7 @@ function Normalize-DevInstallOS {
     }
 }
 
-function Normalize-DevInstallArch {
+function ConvertTo-DevInstallArch {
     param([string]$Raw)
     switch ($Raw.ToLowerInvariant()) {
         'x86_64' { return 'amd64' }
@@ -62,11 +62,11 @@ function Test-DevInstallMatrix {
 
 function Get-DevInstallHost {
     $uname = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'darwin' } else { 'linux' }
-    $arch = Normalize-DevInstallArch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant())
+    $arch = ConvertTo-DevInstallArch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant())
     if ($arch -eq 'unsupported') {
-        $arch = Normalize-DevInstallArch $env:PROCESSOR_ARCHITECTURE
+        $arch = ConvertTo-DevInstallArch $env:PROCESSOR_ARCHITECTURE
     }
-    $script:DevInstallHostGoOS = Normalize-DevInstallOS $uname
+    $script:DevInstallHostGoOS = ConvertTo-DevInstallOS $uname
     $script:DevInstallHostGoArch = $arch
     if ($script:DevInstallHostGoOS -eq 'unsupported' -or $script:DevInstallHostGoArch -eq 'unsupported') {
         Write-DevInstallError "unsupported host OS/arch: $uname/$arch"
@@ -80,8 +80,8 @@ function Resolve-DevInstallTarget {
     )
     $goos = if ($FlagGoOS) { $FlagGoOS } elseif ($env:GOOS) { $env:GOOS } else { $script:DevInstallHostGoOS }
     $goarch = if ($FlagGoArch) { $FlagGoArch } elseif ($env:GOARCH) { $env:GOARCH } else { $script:DevInstallHostGoArch }
-    $script:DevInstallTargetGoOS = Normalize-DevInstallOS $goos
-    $script:DevInstallTargetGoArch = Normalize-DevInstallArch $goarch
+    $script:DevInstallTargetGoOS = ConvertTo-DevInstallOS $goos
+    $script:DevInstallTargetGoArch = ConvertTo-DevInstallArch $goarch
     if ($script:DevInstallTargetGoOS -eq 'unsupported' -or $script:DevInstallTargetGoArch -eq 'unsupported') {
         Write-DevInstallError "unsupported target GOOS/GOARCH: $goos/$goarch"
     }
@@ -238,7 +238,7 @@ function Invoke-DevInstallAtomicCopy {
     Move-Item -Force $tmp $Dest
 }
 
-function Upsert-DevInstallManagedBlock {
+function Set-DevInstallManagedBlock {
     param(
         [string]$FilePath,
         [string]$StartMarker,
@@ -294,7 +294,7 @@ function Remove-DevInstallManagedBlock {
     Write-DevInstallUtf8NoBom $FilePath $joined
 }
 
-function Normalize-DevInstallWindowsPathEntry {
+function ConvertTo-DevInstallWindowsPathEntry {
     param([string]$PathEntry)
     $p = $PathEntry.TrimEnd('\')
     return $p
@@ -314,11 +314,11 @@ function Set-DevInstallUserPathEntries {
 
 function Add-DevInstallWindowsPath {
     param([string]$InstallDir)
-    $norm = Normalize-DevInstallWindowsPathEntry $InstallDir
+    $norm = ConvertTo-DevInstallWindowsPathEntry $InstallDir
     $entries = Get-DevInstallUserPathEntries
     $filtered = @()
     foreach ($e in $entries) {
-        if ((Normalize-DevInstallWindowsPathEntry $e).ToLowerInvariant() -ne $norm.ToLowerInvariant()) {
+        if ((ConvertTo-DevInstallWindowsPathEntry $e).ToLowerInvariant() -ne $norm.ToLowerInvariant()) {
             $filtered += $e
         }
     }
@@ -327,7 +327,7 @@ function Add-DevInstallWindowsPath {
     $proc = $env:PATH -split ';'
     $procFiltered = @()
     foreach ($e in $proc) {
-        if ((Normalize-DevInstallWindowsPathEntry $e).ToLowerInvariant() -ne $norm.ToLowerInvariant()) {
+        if ((ConvertTo-DevInstallWindowsPathEntry $e).ToLowerInvariant() -ne $norm.ToLowerInvariant()) {
             $procFiltered += $e
         }
     }
@@ -336,11 +336,11 @@ function Add-DevInstallWindowsPath {
 
 function Remove-DevInstallWindowsPath {
     param([string]$InstallDir)
-    $norm = Normalize-DevInstallWindowsPathEntry $InstallDir
+    $norm = ConvertTo-DevInstallWindowsPathEntry $InstallDir
     $entries = Get-DevInstallUserPathEntries
     $filtered = @()
     foreach ($e in $entries) {
-        if ((Normalize-DevInstallWindowsPathEntry $e).ToLowerInvariant() -ne $norm.ToLowerInvariant()) {
+        if ((ConvertTo-DevInstallWindowsPathEntry $e).ToLowerInvariant() -ne $norm.ToLowerInvariant()) {
             $filtered += $e
         }
     }
@@ -382,12 +382,12 @@ function Get-DevInstallPowerShellCompletionBlock {
     ) -join "`n"
 }
 
-function Upsert-DevInstallWindowsCompletionProfile {
+function Set-DevInstallWindowsCompletionProfile {
     param([string]$Base)
     $profile = $PROFILE.CurrentUserAllHosts
     if (-not $profile) { $profile = $PROFILE.CurrentUserCurrentHost }
     $block = Get-DevInstallPowerShellCompletionBlock $Base
-    Upsert-DevInstallManagedBlock $profile $DevInstallMarkerCompletionStart $DevInstallMarkerCompletionEnd $block
+    Set-DevInstallManagedBlock $profile $DevInstallMarkerCompletionStart $DevInstallMarkerCompletionEnd $block
     try {
         . (Join-Path $Base 'powershell/m.ps1')
         . (Join-Path $Base 'powershell/mx.ps1')
@@ -502,25 +502,25 @@ MewJS development install summary
 
 function Convert-DevInstallGoOS {
     param([string]$Raw)
-    $n = Normalize-DevInstallOS $Raw
+    $n = ConvertTo-DevInstallOS $Raw
     if ($n -eq 'unsupported') { throw "unsupported GOOS: $Raw" }
     return $n
 }
 
 function Convert-DevInstallGoArch {
     param([string]$Raw)
-    $n = Normalize-DevInstallArch $Raw
+    $n = ConvertTo-DevInstallArch $Raw
     if ($n -eq 'unsupported') { throw "unsupported GOARCH: $Raw" }
     return $n
 }
 
-function Normalize-DevInstallWindowsPath {
+function Get-DevInstallUniqueWindowsPaths {
     param([string[]]$Entries)
     $seen = @{}
     $out = @()
     foreach ($e in $Entries) {
         if (-not $e) { continue }
-        $norm = Normalize-DevInstallWindowsPathEntry $e
+        $norm = ConvertTo-DevInstallWindowsPathEntry $e
         $key = $norm.ToLowerInvariant()
         if (-not $seen.ContainsKey($key)) {
             $seen[$key] = $true
@@ -627,8 +627,8 @@ function Get-DevInstallDefaultPaths {
 Export-ModuleMember -Function @(
     'Write-DevInstallStage',
     'Write-DevInstallError',
-    'Normalize-DevInstallOS',
-    'Normalize-DevInstallArch',
+    'ConvertTo-DevInstallOS',
+    'ConvertTo-DevInstallArch',
     'Test-DevInstallMatrix',
     'Get-DevInstallHost',
     'Resolve-DevInstallTarget',
@@ -643,13 +643,13 @@ Export-ModuleMember -Function @(
     'Get-DevInstallWindowsShimContent',
     'Get-DevInstallPowerShellCompletionBlock',
     'Write-DevInstallUtf8NoBom',
-    'Upsert-DevInstallManagedBlock',
+    'Set-DevInstallManagedBlock',
     'Remove-DevInstallManagedBlock',
     'Update-DevInstallManagedBlockContent',
     'Remove-DevInstallManagedBlockContent',
     'Convert-DevInstallGoOS',
     'Convert-DevInstallGoArch',
-    'Normalize-DevInstallWindowsPath',
+    'Get-DevInstallUniqueWindowsPaths',
     'Get-DevInstallShimContent',
     'Get-DevInstallHostOS',
     'Get-DevInstallHostArch',
@@ -657,11 +657,11 @@ Export-ModuleMember -Function @(
     'Get-DevInstallDefaultPaths',
     'Add-DevInstallWindowsPath',
     'Remove-DevInstallWindowsPath',
-    'Normalize-DevInstallWindowsPathEntry',
+    'ConvertTo-DevInstallWindowsPathEntry',
     'Get-DevInstallUserPathEntries',
     'Set-DevInstallUserPathEntries',
     'Install-DevInstallWindowsFiles',
-    'Upsert-DevInstallWindowsCompletionProfile',
+    'Set-DevInstallWindowsCompletionProfile',
     'Remove-DevInstallWindowsCompletionProfile',
     'Invoke-DevInstallGenerateCompletionsWindows',
     'Test-DevInstallVerifyWindows',

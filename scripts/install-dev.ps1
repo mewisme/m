@@ -70,7 +70,7 @@ else {
 if (-not $SkipCompletion) {
     Write-DevInstallStage completion "generating completions in $script:DevInstallCompletionBase"
     Invoke-DevInstallGenerateCompletionsWindows -InstallDir $script:DevInstallInstallDir -Base $script:DevInstallCompletionBase
-    Upsert-DevInstallWindowsCompletionProfile $script:DevInstallCompletionBase
+    Set-DevInstallWindowsCompletionProfile $script:DevInstallCompletionBase
 }
 else {
     Write-DevInstallStage completion 'skipped (-SkipCompletion)'
