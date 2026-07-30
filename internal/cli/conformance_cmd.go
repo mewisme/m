@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -13,7 +14,7 @@ func newConformanceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "conformance",
 		Short: "Run certification conformance suites",
-		Long:  "List and execute the PM core certification matrix.",
+		Long:  "List and execute certification matrices (core, cli-ux, runner).",
 	}
 	cmd.AddCommand(newConformanceListCmd())
 	cmd.AddCommand(newConformanceRunCmd())
@@ -22,17 +23,28 @@ func newConformanceCmd() *cobra.Command {
 }
 
 func newConformanceListCmd() *cobra.Command {
-	var filter string
+	var (
+		filter string
+		matrix string
+	)
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List core certification suites",
+		Short: "List certification suites",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repoRoot, err := findModuleRoot()
 			if err != nil {
 				return apperr.Wrap(apperr.Internal, "conformance list", "", err)
 			}
-			suites, err := conformance.ListCore(repoRoot, filter)
+			var suites []conformance.Suite
+			switch matrix {
+			case "", "core":
+				suites, err = conformance.ListCore(repoRoot, filter)
+			case "cli-ux":
+				suites, err = conformance.ListCLIUX(repoRoot, filter)
+			default:
+				return apperr.New(apperr.Usage, "conformance list", matrix, "matrix must be core or cli-ux")
+			}
 			if err != nil {
 				return apperr.Wrap(apperr.Usage, "conformance list", "", err)
 			}
@@ -50,31 +62,54 @@ func newConformanceListCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&filter, "filter", "", "suite id prefix filter")
+	cmd.Flags().StringVar(&matrix, "matrix", "core", "matrix to list: core|cli-ux")
 	return cmd
 }
 
 func newConformanceRunCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "run",
+		Short: "Run a certification matrix",
+	}
+	cmd.AddCommand(newConformanceRunGoTestMatrixCmd(
+		"core",
+		"Run the PM core certification matrix",
+		conformance.RunCore,
+	))
+	cmd.AddCommand(newConformanceRunGoTestMatrixCmd(
+		"cli-ux",
+		"Run the CLI UX certification matrix",
+		conformance.RunCLIUX,
+	))
+	cmd.AddCommand(newConformanceRunRunnerCmd())
+	return cmd
+}
+
+type goTestMatrixRunner func(ctx context.Context, opts conformance.RunOptions) (conformance.Report, error)
+
+func newConformanceRunGoTestMatrixCmd(name, short string, run goTestMatrixRunner) *cobra.Command {
 	var (
 		asJSON bool
 		filter string
 	)
-	run := &cobra.Command{
-		Use:   "core",
-		Short: "Run the PM core certification matrix",
+	op := "conformance run " + name
+	cmd := &cobra.Command{
+		Use:   name,
+		Short: short,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repoRoot, err := findModuleRoot()
 			if err != nil {
-				return apperr.Wrap(apperr.Internal, "conformance run core", "", err)
+				return apperr.Wrap(apperr.Internal, op, "", err)
 			}
-			report, err := conformance.RunCore(cmd.Context(), conformance.RunOptions{
+			report, err := run(cmd.Context(), conformance.RunOptions{
 				RepoRoot: repoRoot,
 				Filter:   filter,
 			})
 			if asJSON {
 				data, encErr := report.EncodeJSON()
 				if encErr != nil {
-					return apperr.Wrap(apperr.Internal, "conformance run core", "", encErr)
+					return apperr.Wrap(apperr.Internal, op, "", encErr)
 				}
 				if _, writeErr := cmd.OutOrStdout().Write(data); writeErr != nil {
 					return writeErr
@@ -93,26 +128,21 @@ func newConformanceRunCmd() *cobra.Command {
 						return writeErr
 					}
 				}
+				label := name + " certification"
 				if !report.Passed {
-					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "core certification: failed (%d suites)\n", len(report.Suites))
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s: failed (%d suites)\n", label, len(report.Suites))
 				} else {
-					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "core certification: passed (%d suites)\n", len(report.Suites))
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s: passed (%d suites)\n", label, len(report.Suites))
 				}
 			}
 			if err != nil {
-				return apperr.Wrap(apperr.Internal, "conformance run core", "", err)
+				return apperr.Wrap(apperr.Internal, op, "", err)
 			}
 			return nil
 		},
 	}
-	run.Flags().BoolVar(&asJSON, "json", false, "emit certification report as JSON")
-	run.Flags().StringVar(&filter, "filter", "", "run only suites matching id prefix")
-	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Run a certification matrix",
-	}
-	cmd.AddCommand(run)
-	cmd.AddCommand(newConformanceRunRunnerCmd())
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit certification report as JSON")
+	cmd.Flags().StringVar(&filter, "filter", "", "run only suites matching id prefix")
 	return cmd
 }
 

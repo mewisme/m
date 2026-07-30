@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// RunOptions configures a core certification run.
+// RunOptions configures a go-test certification matrix run (core or cli-ux).
 type RunOptions struct {
 	RepoRoot string
 	Filter   string
@@ -17,6 +17,15 @@ type RunOptions struct {
 
 // RunCore executes the core certification matrix and returns a report.
 func RunCore(ctx context.Context, opts RunOptions) (Report, error) {
+	return runGoTestMatrix(ctx, opts, CoreManifestPath, "core certification failed")
+}
+
+// RunCLIUX executes the CLI UX certification matrix and returns a report.
+func RunCLIUX(ctx context.Context, opts RunOptions) (Report, error) {
+	return runGoTestMatrix(ctx, opts, CLIUXManifestPath, "cli-ux certification failed")
+}
+
+func runGoTestMatrix(ctx context.Context, opts RunOptions, manifestPath func(string) string, failMsg string) (Report, error) {
 	repoRoot := opts.RepoRoot
 	if repoRoot == "" {
 		var err error
@@ -26,7 +35,7 @@ func RunCore(ctx context.Context, opts RunOptions) (Report, error) {
 		}
 	}
 
-	manifest, err := LoadManifest(CoreManifestPath(repoRoot))
+	manifest, err := LoadManifest(manifestPath(repoRoot))
 	if err != nil {
 		return Report{}, err
 	}
@@ -87,7 +96,7 @@ func RunCore(ctx context.Context, opts RunOptions) (Report, error) {
 	report.FinishedAt = time.Now().UTC()
 	report.Passed = reportPassed(report.Suites, opts.DryRun, opts.Filter)
 	if !report.Passed && !opts.DryRun {
-		return report, fmt.Errorf("core certification failed")
+		return report, fmt.Errorf("%s", failMsg)
 	}
 	return report, nil
 }
@@ -132,6 +141,15 @@ func excludeProbeSuitesUnlessFiltered(suites []Suite, filter string) []Suite {
 
 // ListCore returns suite definitions from the core manifest, optionally filtered.
 func ListCore(repoRoot, filter string) ([]Suite, error) {
+	return listGoTestMatrix(repoRoot, filter, CoreManifestPath)
+}
+
+// ListCLIUX returns suite definitions from the cli-ux manifest, optionally filtered.
+func ListCLIUX(repoRoot, filter string) ([]Suite, error) {
+	return listGoTestMatrix(repoRoot, filter, CLIUXManifestPath)
+}
+
+func listGoTestMatrix(repoRoot, filter string, manifestPath func(string) string) ([]Suite, error) {
 	if repoRoot == "" {
 		var err error
 		repoRoot, err = RepoRootFromModule("")
@@ -139,7 +157,7 @@ func ListCore(repoRoot, filter string) ([]Suite, error) {
 			return nil, err
 		}
 	}
-	manifest, err := LoadManifest(CoreManifestPath(repoRoot))
+	manifest, err := LoadManifest(manifestPath(repoRoot))
 	if err != nil {
 		return nil, err
 	}

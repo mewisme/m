@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "matrix": "cli-ux",
+  "suites": [
+    {
+      "id": "foundation-resolve",
+      "title": "Output resolve, capabilities, settings",
+      "package": "./internal/presentation",
+      "run": "^(TestResolve|TestCapabilityMatrix|TestDetectCapabilities|TestEnvMap|TestReporterFormat|TestDowngradeRich|TestForcedRich)",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "foundation-arch",
+      "title": "Charm and presentation import boundaries",
+      "package": "./internal/archcheck",
+      "run": "TestForbiddenImportEdges",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "foundation-csi",
+      "title": "CSI and cursor-control byte helpers",
+      "package": "./internal/presentation",
+      "run": "TestCLIUXContainsCSI",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "static-cli",
+      "title": "CLI completion, help, plain pipe output",
+      "package": "./internal/cli",
+      "run": "^(TestCompletionNoANSI|TestHelpGoldens|TestOutputPlainNoANSIOnPipe|TestConflictingOutputReporterFlags|TestMFeaturesJSON|TestVersionJSONAndBuildDate)",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "static-design",
+      "title": "Static renderers, color, unicode, widths",
+      "package": "./internal/presentation",
+      "run": "^(TestPlainRendererNoANSI|TestUnicodeSymbolsAndWidths|TestTableWidthsAndStacked|TestColorAlways|TestNOColor|TestRichThemeEmitsANSI|TestKeyValuesStacked|TestMiddleTruncate|TestCLIUXWidths)",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "static-errors",
+      "title": "Error views and redaction",
+      "package": "./internal/presentation",
+      "run": "^(TestEveryCodeHasTitle|TestMapErrorRedacts|TestErrorPlainGoldenWidths|TestErrorHintsCapped|TestCancelledHasNoHints|TestErrorDebugCauses|TestHumanErrorRenderHook)",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "mutation-progress",
+      "title": "Plain and live install progress, streams, cleanup",
+      "package": "./internal/presentation",
+      "run": "^(TestPlainProgress|TestControllerAttachesPlainProgress|TestControllerProgress|TestLiveInstall|TestControllerAutoRich|TestControllerLiveDowngrade|TestPlainProgressBrokenPipe|TestLiveInstallRendererBrokenPipe|TestCLIUXProgressNotOnStdout|TestCLIUXControllerCleanup)",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "runner-crosslink",
+      "title": "Child stdio/signals covered by runner-matrix (no duplicate)",
+      "package": "./internal/conformance",
+      "run": "TestCLIUXRunnerMatrixCrosslink",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "runner-suspend",
+      "title": "Presentation suspend around child launch",
+      "package": "./internal/presentation",
+      "run": "^(TestControllerSuspendStopsWorkspaceStatus|TestControllerSuspendResume|TestTerminalIntentAutoSuspend|TestHumanModesSkipStructuredPrep)",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "prompt-policy",
+      "title": "Interactive policy and accessible prompts",
+      "package": "./internal/prompt",
+      "run": "Test",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "prompt-adapters",
+      "title": "Rich and accessible prompt adapters",
+      "package": "./internal/presentation/prompt",
+      "run": "Test",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "help-topics",
+      "title": "Topic registry and CLI topic help",
+      "package": "./internal/cli",
+      "run": "^(TestHelpViaExecutePath|TestHelpTopic|TestTopicHelp|TestHelpCommandWins|TestHelpInstallStill|TestHelpErrorsCode|TestHelpUnknownTopic)",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "help-registry",
+      "title": "Embedded help topic registry and link validation",
+      "package": "./internal/help",
+      "run": "Test",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "help-render",
+      "title": "Plain and Glamour topic renderers",
+      "package": "./internal/presentation/help",
+      "run": "Test",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "help-pager",
+      "title": "Pager resolve and write paths",
+      "package": "./internal/presentation/pager",
+      "run": "Test",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "cert-output-modes",
+      "title": "Representative command output-mode CSI and JSON contracts",
+      "package": "./internal/cli",
+      "run": "TestCLIUXOutputModes",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "cert-accessible",
+      "title": "Accessible mode append-only no-ANSI",
+      "package": "./internal/presentation",
+      "run": "TestCLIUXAccessibleNoANSI",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "performance-advisory",
+      "title": "Advisory static-render throughput (non-blocking)",
+      "package": "./internal/presentation",
+      "run": "TestCLIUXPerformanceAdvisory",
+      "required": false,
+      "platforms": ["linux", "darwin", "windows"]
+    }
+  ]
+}

@@ -12,9 +12,10 @@ import (
 const (
 	SchemaVersion = 1
 	CoreMatrix    = "core"
+	CLIUXMatrix   = "cli-ux"
 )
 
-// Manifest is the core certification matrix definition.
+// Manifest is a go-test certification matrix definition (core or cli-ux).
 type Manifest struct {
 	SchemaVersion int    `json:"schemaVersion"`
 	Matrix        string `json:"matrix"`
@@ -49,7 +50,7 @@ func (m *Manifest) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// LoadManifest reads and validates a core-matrix manifest file.
+// LoadManifest reads and validates a core-matrix or cli-ux manifest file.
 func LoadManifest(path string) (Manifest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -62,7 +63,9 @@ func LoadManifest(path string) (Manifest, error) {
 	if m.SchemaVersion != SchemaVersion {
 		return Manifest{}, fmt.Errorf("unsupported manifest schema %d", m.SchemaVersion)
 	}
-	if m.Matrix != CoreMatrix {
+	switch m.Matrix {
+	case CoreMatrix, CLIUXMatrix:
+	default:
 		return Manifest{}, fmt.Errorf("unsupported matrix %q", m.Matrix)
 	}
 	if len(m.Suites) == 0 {
@@ -85,6 +88,11 @@ func LoadManifest(path string) (Manifest, error) {
 // CoreManifestPath returns tests/conformance/core-matrix/manifest.json under repoRoot.
 func CoreManifestPath(repoRoot string) string {
 	return filepath.Join(repoRoot, "tests", "conformance", "core-matrix", "manifest.json")
+}
+
+// CLIUXManifestPath returns tests/conformance/cli-ux/manifest.json under repoRoot.
+func CLIUXManifestPath(repoRoot string) string {
+	return filepath.Join(repoRoot, "tests", "conformance", "cli-ux", "manifest.json")
 }
 
 // FilterSuites returns suites whose id matches filter (exact, prefix, or substring). Empty filter returns all.

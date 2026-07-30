@@ -638,6 +638,30 @@ jobs:
           grep -q '"status": "failed"' forced-skip.json
           grep -q 'skipped' forced-skip.json
 
+  conformance-cli-ux:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: CLI UX certification matrix
+        shell: bash
+        run: go run ./cmd/m conformance run cli-ux --json > cli-ux-report.json
+      - name: Upload CLI UX report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-ux-report-${{ matrix.os }}
+          path: cli-ux-report.json
+          if-no-files-found: error
+
   conformance-runner-linux:
     runs-on: ubuntu-latest
     env:
