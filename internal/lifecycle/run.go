@@ -32,7 +32,7 @@ func RunInstallScripts(ctx context.Context, in InstallInput) (Result, error) {
 		trustKey := script.PackageName
 		if _, ok := seen[trustKey]; !ok {
 			seen[trustKey] = struct{}{}
-			if err := CheckTrust(trustKey, in.Config, in.Trusted, in.Interactive, nil, nil); err != nil {
+			if err := CheckTrust(ctx, trustKey, in.Config, in.Trusted, in.Interactive, in.Prompter, in.AllowOnce); err != nil {
 				return res, err
 			}
 		}

@@ -5,6 +5,7 @@ import (
 	"github.com/mewisme/mew/internal/graph"
 	"github.com/mewisme/mew/internal/linker"
 	"github.com/mewisme/mew/internal/process"
+	"github.com/mewisme/mew/internal/prompt"
 )
 
 // Script is one lifecycle script to run for an installed package.
@@ -32,9 +33,12 @@ type InstallInput struct {
 	Env         process.EnvSource
 	Trusted     *TrustStore
 	Interactive bool
-	Supervisor  process.ProcessSupervisor
-	AuditPath   string
-	CacheDir    string
+	Prompter    prompt.Prompter
+	// AllowOnce is request-scoped trust for this install only (not persisted).
+	AllowOnce  map[string]struct{}
+	Supervisor process.ProcessSupervisor
+	AuditPath  string
+	CacheDir   string
 }
 
 // Result summarizes lifecycle execution for one install.

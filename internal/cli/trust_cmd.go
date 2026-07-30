@@ -1,15 +1,14 @@
 package cli
 
 import (
-	"bufio"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/lifecycle"
+	"github.com/mewisme/mew/internal/prompt"
 )
 
 func newTrustCmd() *cobra.Command {
@@ -28,7 +27,7 @@ func newTrustCmd() *cobra.Command {
 				return err
 			}
 			if interactive {
-				return runTrustInteractive(cmd, store, args)
+				return runTrustInteractive(cmd, ac, store, args)
 			}
 			if len(args) == 0 {
 				return apperr.New(apperr.Usage, "trust", "", "package name required (or use --interactive)")
@@ -37,7 +36,7 @@ func newTrustCmd() *cobra.Command {
 				if err := store.AddTrusted(pkg); err != nil {
 					return err
 				}
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "trusted %s\n", pkg)
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "trusted %s\n", pkg)
 			}
 			return nil
 		},
@@ -68,7 +67,7 @@ func newApproveBuildsCmd() *cobra.Command {
 				if err := store.AddTrusted(pkg); err != nil {
 					return err
 				}
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "trusted %s\n", pkg)
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "trusted %s\n", pkg)
 			}
 			return nil
 		},
@@ -76,24 +75,39 @@ func newApproveBuildsCmd() *cobra.Command {
 	return cmd
 }
 
-func runTrustInteractive(cmd *cobra.Command, store *lifecycle.TrustStore, seeds []string) error {
+func runTrustInteractive(cmd *cobra.Command, ac *app.Context, store *lifecycle.TrustStore, seeds []string) error {
 	names := append([]string(nil), seeds...)
 	if len(names) == 0 {
 		return apperr.New(apperr.Usage, "trust", "", "provide package names with --interactive")
 	}
-	reader := bufio.NewReader(cmd.InOrStdin())
+	if ac == nil || !ac.CanPrompt || ac.Prompter == nil {
+		return apperr.New(apperr.Usage, "trust", "", "interactive trust requires a TTY on stdin")
+	}
+	errW := cmd.ErrOrStderr()
 	for _, pkg := range names {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Trust lifecycle scripts for %s? [y/N] ", pkg)
-		line, err := reader.ReadString('\n')
+		ans, err := ac.Prompter.Prompt(cmd.Context(), prompt.PromptRequest{
+			ID:        "trust.interactive",
+			Kind:      prompt.PromptConfirm,
+			Title:     fmt.Sprintf("Trust lifecycle scripts for %s?", pkg),
+			Dangerous: true,
+			DefaultID: prompt.OptionReject,
+			Fields:    []prompt.Field{{Key: "Package", Value: pkg}},
+			Options: []prompt.Option{
+				{ID: prompt.OptionReject, Label: "No"},
+				{ID: prompt.OptionApprove, Label: "Yes"},
+			},
+		})
 		if err != nil {
-			return apperr.Wrap(apperr.IO, "trust", pkg, err)
+			return err
 		}
-		if strings.EqualFold(strings.TrimSpace(line), "y") {
-			if err := store.AddTrusted(pkg); err != nil {
-				return err
-			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "trusted %s\n", pkg)
+		if ans.Cancelled || ans.OptionID != prompt.OptionApprove {
+			_, _ = fmt.Fprintf(errW, "skipped %s\n", pkg)
+			continue
 		}
+		if err := store.AddTrusted(pkg); err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(errW, "trusted %s\n", pkg)
 	}
 	return nil
 }

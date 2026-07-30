@@ -19,6 +19,8 @@ import (
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/diagnostics"
 	"github.com/mewisme/mew/internal/presentation"
+	presprompt "github.com/mewisme/mew/internal/presentation/prompt"
+	"github.com/mewisme/mew/internal/prompt"
 )
 
 // globalFlags holds persistent CLI presentation options.
@@ -203,8 +205,53 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 		ctrl := g.ctrl
 		ac.SuspendUI = ctrl.Suspend
 		ac.ResumeUI = ctrl.Resume
+		attachPrompter(ac, cmd, ctrl)
 	}
 	return ac, nil
+}
+
+func attachPrompter(ac *app.Context, cmd *cobra.Command, ctrl presentation.Controller) {
+	if ac == nil || ctrl == nil {
+		return
+	}
+	resolved := ctrl.Options()
+	caps := ctrl.Capabilities()
+	settings := presentation.Effective(resolved, caps)
+	policy := prompt.InteractiveAuto
+	switch resolved.Interactive {
+	case presentation.TriAlways:
+		policy = prompt.InteractiveAlways
+	case presentation.TriNever:
+		policy = prompt.InteractiveNever
+	}
+	human := !resolved.Structured() && resolved.EffectiveOutput != presentation.OutputSilent
+	decision := prompt.ResolveInteractive(policy, prompt.Caps{
+		StdinTTY:     caps.StdinTTY,
+		HumanMode:    human,
+		CI:           caps.CI,
+		Accessible:   settings.Accessible,
+		AccessibleOK: true,
+		RichOK:       true,
+	})
+	ac.CanPrompt = decision.CanPrompt
+	if !decision.CanPrompt {
+		return
+	}
+	useRich := !decision.UseAccessible &&
+		settings.UseInteractive &&
+		!settings.Accessible &&
+		resolved.EffectiveOutput == presentation.OutputRich
+	ac.Prompter = presprompt.New(presprompt.Options{
+		Stdin:      cmd.InOrStdin(),
+		Stderr:     cmd.ErrOrStderr(),
+		Width:      settings.Width,
+		UseColor:   settings.UseColor,
+		UseUnicode: settings.UseUnicode,
+		Accessible: !useRich,
+		UseRich:    useRich,
+		Suspend:    ctrl.Suspend,
+		Resume:     ctrl.Resume,
+	})
 }
 
 func execute(root *cobra.Command, info BuildInfo, argv []string) (exit int) {

@@ -11,6 +11,7 @@ import (
 	"github.com/mewisme/mew/internal/linker"
 	"github.com/mewisme/mew/internal/process"
 	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/prompt"
 )
 
 func runLifecyclePhase(ctx context.Context, ac *Context, proj *project.Project, opts InstallOptions, stageNM string, g *graph.Graph, linkPlan *linker.Plan, opID string, res *InstallResult) error {
@@ -50,6 +51,9 @@ func runLifecyclePhase(ctx context.Context, ac *Context, proj *project.Project, 
 		Config:      ac.Config,
 		Env:         src,
 		Trusted:     trust,
+		Interactive: ac != nil && ac.CanPrompt,
+		Prompter:    acPrompter(ac),
+		AllowOnce:   map[string]struct{}{},
 		AuditPath:   lifecycle.AuditFilePath(proj.Root),
 		CacheDir:    lifecycle.CacheDir(ac.Config),
 	})
@@ -74,4 +78,11 @@ func runLifecyclePhase(ctx context.Context, ac *Context, proj *project.Project, 
 		diagnostics.Metric{Name: "blocked", Value: float64(lifeRes.Skipped), Unit: "scripts"},
 	)
 	return nil
+}
+
+func acPrompter(ac *Context) prompt.Prompter {
+	if ac == nil {
+		return nil
+	}
+	return ac.Prompter
 }

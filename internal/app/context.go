@@ -9,6 +9,7 @@ import (
 	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/diagnostics"
 	"github.com/mewisme/mew/internal/project"
+	"github.com/mewisme/mew/internal/prompt"
 )
 
 // Context is the process-level application state for one CLI invocation.
@@ -24,6 +25,10 @@ type Context struct {
 	// SuspendUI / ResumeUI pause live progress around child I/O (presentation-owned).
 	SuspendUI func(context.Context) error
 	ResumeUI  func(context.Context) error
+	// Prompter is the presentation-selected prompt adapter (may be nil).
+	Prompter prompt.Prompter
+	// CanPrompt is true when InteractivePolicy permits a prompt this invocation.
+	CanPrompt bool
 }
 
 // Options controls Context construction from CLI globals.

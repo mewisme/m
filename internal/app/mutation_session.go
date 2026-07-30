@@ -91,6 +91,10 @@ func (s *MutationSession) AppContext() (*Context, error) {
 		Commit:         s.ac.Commit,
 		BuildDate:      s.ac.BuildDate,
 		Ctx:            s.ac.Ctx,
+		SuspendUI:      s.ac.SuspendUI,
+		ResumeUI:       s.ac.ResumeUI,
+		Prompter:       s.ac.Prompter,
+		CanPrompt:      s.ac.CanPrompt,
 	}
 	return s.sessionAC, nil
 }
