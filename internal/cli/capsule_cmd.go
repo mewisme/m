@@ -35,7 +35,7 @@ func newCapsuleCreateCmd() *cobra.Command {
 				return err
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticPrint(cmd, r.PlainText(app.FormatCapsuleCreateLine(res)))
 		},
 	}
@@ -60,7 +60,7 @@ func newCapsuleRestoreCmd() *cobra.Command {
 				return err
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticOut(cmd, r.Summary(mutationSummary(res, false)))
 		},
 	}

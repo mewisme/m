@@ -32,7 +32,11 @@ func RenderRich(md string, opts RenderOptions) (string, error) {
 
 	style := opts.Style
 	if style == "" {
-		style = GlamourStyle(opts.Theme)
+		if opts.MarkdownTheme != "" {
+			style = opts.MarkdownTheme.GlamourStyle()
+		} else {
+			style = GlamourStyle(opts.Theme)
+		}
 	}
 	r, err := glamour.NewTermRenderer(
 		glamour.WithStandardStyle(style),

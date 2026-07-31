@@ -26,7 +26,7 @@ func runLockDiff(cmd *cobra.Command, ac *app.Context, opts app.LockDiffOptions, 
 		return err
 	}
 	g := ownerFlags(cmd.Root())
-	r := g.mustStaticRenderer(cmd, nil)
+	r := g.mustStaticRenderer(cmd)
 	return writeStaticOut(cmd, formatLockDiffHuman(r, diff))
 }
 

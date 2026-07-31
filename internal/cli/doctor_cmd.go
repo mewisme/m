@@ -38,7 +38,7 @@ func newPMDoctorCmd() *cobra.Command {
 				return app.DoctorExitError(report)
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			if err := writeStaticOut(cmd, r.Summary(doctorSummary(report))); err != nil {
 				return err
 			}

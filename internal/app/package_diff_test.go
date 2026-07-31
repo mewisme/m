@@ -105,14 +105,14 @@ func TestDiffKeysScopedPackageUpdate(t *testing.T) {
 
 func TestDiffKeysMixedOperations(t *testing.T) {
 	prior := map[string]string{
-		"zod@4.0.13":       "4.0.13",
-		"removed@1.0.0":    "1.0.0",
-		"unchanged@1.0.0":  "1.0.0",
+		"zod@4.0.13":      "4.0.13",
+		"removed@1.0.0":   "1.0.0",
+		"unchanged@1.0.0": "1.0.0",
 	}
 	next := map[string]string{
-		"zod@4.0.14":       "4.0.14",
-		"added@2.0.0":      "2.0.0",
-		"unchanged@1.0.0":  "1.0.0",
+		"zod@4.0.14":      "4.0.14",
+		"added@2.0.0":     "2.0.0",
+		"unchanged@1.0.0": "1.0.0",
 	}
 	res := diffKeys(prior, next)
 	if res.Added != 1 || res.Removed != 1 || res.Changed != 1 {

@@ -65,7 +65,7 @@ func ParseMXInvocation(argv []string) (MXInvocation, error) {
 			}
 			inv.CWD = argv[j+1]
 			j += 2
-		case arg == "--config", arg == "--reporter", arg == "--color", arg == "--debug", arg == "--no-color", arg == "--prefer-offline", arg == "--unsafe-diagnostics":
+		case arg == "--config", arg == "--debug", arg == "--no-color", arg == "--prefer-offline", arg == "--unsafe-diagnostics":
 			if strings.Contains(arg, "=") {
 				j++
 			} else if j+1 < len(argv) && !strings.HasPrefix(argv[j+1], "-") {

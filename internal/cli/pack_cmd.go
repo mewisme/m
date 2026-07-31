@@ -1,7 +1,6 @@
 package cli
 
 import (
-
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/app"
@@ -31,7 +30,7 @@ func newPackCmd() *cobra.Command {
 				return err
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticPrint(cmd, r.PlainText(app.FormatPackLine(res)))
 		},
 	}

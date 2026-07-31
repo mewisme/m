@@ -197,7 +197,7 @@ func measureRunnerCase(ctx context.Context, fixtureRoot, caseID string, samples 
 		}
 		start := time.Now()
 		cmd := exec.CommandContext(ctx, "go", "run", filepath.Join(repoRoot, "cmd", "m"),
-			"--cwd", fixtureRoot, "--reporter", "silent", "run", "dev")
+			"--cwd", fixtureRoot, "--output", "silent", "run", "dev")
 		cmd.Dir = repoRoot
 		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		if err := cmd.Run(); err != nil {

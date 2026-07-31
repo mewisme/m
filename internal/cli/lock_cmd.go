@@ -65,7 +65,7 @@ func newLockFormatCmd() *cobra.Command {
 				return enc.Encode(map[string]any{"changed": changed, "path": path})
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			if changed {
 				if err := mlock.WriteAtomic(path, doc); err != nil {
 					return err
@@ -116,7 +116,7 @@ func newLockValidateCmd() *cobra.Command {
 				})
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticOut(cmd, lockValidateView(r, result))
 		},
 	}
@@ -220,7 +220,7 @@ func newLockMigrateCmd() *cobra.Command {
 				return enc.Encode(payload)
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticOut(cmd, r.Summary(presentation.Summary{
 				Status: presentation.StatusSuccess,
 				Title:  "migrated",

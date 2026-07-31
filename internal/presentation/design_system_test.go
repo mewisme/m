@@ -11,45 +11,23 @@ import (
 	"github.com/mewisme/mew/internal/presentation"
 )
 
-func TestColorAlwaysOverridesNOColor(t *testing.T) {
-	caps := presentation.Capabilities{
-		StdoutTTY:    true,
-		StderrTTY:    true,
-		NoColorEnv:   true,
-		ColorProfile: presentation.ColorProfileTrueColor,
-		Width:        80,
-		Unicode:      true,
-	}
-	got, err := presentation.Resolve(presentation.Input{
-		ColorFlag: "always",
-		Env:       map[string]string{"NO_COLOR": "1"},
-	}, caps)
+func TestNoColorDisablesColor(t *testing.T) {
+	got, err := presentation.Resolve(presentation.Input{NoColor: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Color != presentation.TriAlways {
-		t.Fatalf("color=%q want always", got.Color)
-	}
-	eff := presentation.Effective(got, caps)
-	if !eff.UseColor {
-		t.Fatal("expected UseColor with --color=always")
+	if got.Color {
+		t.Fatalf("color should be false with --no-color")
 	}
 }
 
-func TestNOColorForcesNeverWithoutAlways(t *testing.T) {
-	caps := presentation.Capabilities{
-		StdoutTTY: true, StderrTTY: true,
-		NoColorEnv: true, ColorProfile: presentation.ColorProfileTrueColor,
-		Width: 80, Unicode: true,
-	}
-	got, err := presentation.Resolve(presentation.Input{
-		Env: map[string]string{"NO_COLOR": "1"},
-	}, caps)
+func TestDefaultColorEnabledForRich(t *testing.T) {
+	got, err := presentation.Resolve(presentation.Input{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Color != presentation.TriNever {
-		t.Fatalf("color=%q want never", got.Color)
+	if !got.Color {
+		t.Fatal("color should default to true for rich output")
 	}
 }
 
@@ -60,8 +38,6 @@ func TestDetectCapabilitiesInjected(t *testing.T) {
 			return "dumb", true
 		case "CI":
 			return "1", true
-		case "NO_COLOR":
-			return "1", true
 		case "COLORFGBG":
 			return "15;0", true
 		default:
@@ -69,7 +45,7 @@ func TestDetectCapabilitiesInjected(t *testing.T) {
 		}
 	}
 	caps := presentation.DetectCapabilities(nil, bytes.NewBuffer(nil), bytes.NewBuffer(nil), lookup)
-	if !caps.DumbTerminal || !caps.CI || !caps.NoColorEnv {
+	if !caps.DumbTerminal || !caps.CI {
 		t.Fatalf("%+v", caps)
 	}
 	if caps.Background != presentation.BackgroundDark {
@@ -122,7 +98,7 @@ func TestUnicodeSymbolsAndWidths(t *testing.T) {
 		Text:   "Added zod",
 		Detail: "4.0.14",
 	})
-	if !strings.HasPrefix(out, "✓ ") {
+	if !strings.HasPrefix(out, "\u2713 ") {
 		t.Fatalf("%q", out)
 	}
 	if bad := presentation.ValidateSymbolWidths(presentation.UnicodeSymbols); len(bad) != 0 {
@@ -189,7 +165,7 @@ func TestRichThemeEmitsANSI(t *testing.T) {
 	}
 }
 
-func TestEffectiveOutputGatesStaticColor(t *testing.T) {
+func TestOutputModeGatesStaticColor(t *testing.T) {
 	richCaps := presentation.Capabilities{
 		StdoutTTY: true, StderrTTY: true,
 		ColorProfile: presentation.ColorProfileTrueColor,
@@ -197,13 +173,13 @@ func TestEffectiveOutputGatesStaticColor(t *testing.T) {
 	}
 	status := presentation.StatusLine{Status: presentation.StatusSuccess, Text: "ok"}
 
-	t.Run("tty auto rich emits ANSI", func(t *testing.T) {
-		opts, err := presentation.Resolve(presentation.Input{}, richCaps)
+	t.Run("tty rich emits ANSI", func(t *testing.T) {
+		opts, err := presentation.Resolve(presentation.Input{})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if opts.EffectiveOutput != presentation.OutputRich {
-			t.Fatalf("effective=%s", opts.EffectiveOutput)
+		if opts.Output != presentation.OutputRich {
+			t.Fatalf("output=%s", opts.Output)
 		}
 		eff := presentation.Effective(opts, richCaps)
 		if !eff.UseColor {
@@ -216,12 +192,12 @@ func TestEffectiveOutputGatesStaticColor(t *testing.T) {
 	})
 
 	t.Run("explicit plain no ANSI on color TTY", func(t *testing.T) {
-		opts, err := presentation.Resolve(presentation.Input{OutputFlag: "plain"}, richCaps)
+		opts, err := presentation.Resolve(presentation.Input{OutputFlag: "plain"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if opts.EffectiveOutput != presentation.OutputPlain {
-			t.Fatalf("effective=%s", opts.EffectiveOutput)
+		if opts.Output != presentation.OutputPlain {
+			t.Fatalf("output=%s", opts.Output)
 		}
 		eff := presentation.Effective(opts, richCaps)
 		if eff.UseColor {
@@ -233,8 +209,8 @@ func TestEffectiveOutputGatesStaticColor(t *testing.T) {
 		}
 	})
 
-	t.Run("color never no ANSI", func(t *testing.T) {
-		opts, err := presentation.Resolve(presentation.Input{ColorFlag: "never"}, richCaps)
+	t.Run("no color no ANSI", func(t *testing.T) {
+		opts, err := presentation.Resolve(presentation.Input{NoColor: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -244,63 +220,21 @@ func TestEffectiveOutputGatesStaticColor(t *testing.T) {
 		}
 		out := presentation.NewStaticRenderer(eff).Status(status)
 		if strings.ContainsAny(out, "\x1b") {
-			t.Fatalf("ANSI with --color=never: %q", out)
+			t.Fatalf("ANSI with --no-color: %q", out)
 		}
 	})
 
-	t.Run("force color on non-TTY stdout", func(t *testing.T) {
-		caps := presentation.Capabilities{
-			StdoutTTY: false, StderrTTY: false,
-			ColorProfile: presentation.ColorProfileASCII,
-			NoColorEnv:   true,
-		}
-		opts := presentation.ResolvedOptions{
-			RequestedOutput: presentation.OutputAuto,
-			EffectiveOutput: presentation.OutputPlain,
-			Color:           presentation.TriAlways,
-		}
-		eff := presentation.Effective(opts, caps)
-		if !eff.UseColor {
-			t.Fatal("expected UseColor for --color=always on non-TTY")
-		}
-		out := presentation.NewStaticRenderer(eff).Status(status)
-		if !strings.Contains(out, "\x1b") {
-			t.Fatalf("expected ANSI with ForceColor: %q", out)
-		}
-	})
-
-	t.Run("requested rich forces color on non-TTY", func(t *testing.T) {
-		caps := presentation.Capabilities{
-			StdoutTTY: false, StderrTTY: true,
-			ColorProfile: presentation.ColorProfileTrueColor,
-		}
-		// RichEligible needs stderr TTY, not CI/dumb — EffectiveOutput can be rich.
-		opts := presentation.ResolvedOptions{
-			RequestedOutput: presentation.OutputRich,
-			EffectiveOutput: presentation.OutputRich,
-			Color:           presentation.TriAuto,
-		}
-		eff := presentation.Effective(opts, caps)
-		if !eff.UseColor {
-			t.Fatal("expected UseColor for requested --output=rich")
-		}
-		out := presentation.NewStaticRenderer(eff).Status(status)
-		if !strings.Contains(out, "\x1b") {
-			t.Fatalf("expected ANSI: %q", out)
-		}
-	})
-
-	t.Run("plain wins over color always", func(t *testing.T) {
+	t.Run("plain wins over no color double", func(t *testing.T) {
 		opts, err := presentation.Resolve(presentation.Input{
 			OutputFlag: "plain",
-			ColorFlag:  "always",
-		}, richCaps)
+			NoColor:    true,
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		eff := presentation.Effective(opts, richCaps)
 		if eff.UseColor {
-			t.Fatal("--output=plain must suppress ANSI even with --color=always")
+			t.Fatal("--output=plain must suppress ANSI")
 		}
 	})
 }
@@ -315,33 +249,31 @@ func TestMiddleTruncateAndCJK(t *testing.T) {
 	if presentation.CellWidth(got) > 24 {
 		t.Fatalf("%q", got)
 	}
-	cjk := presentation.CellWidth("日本語パッケージ")
+	cjk := presentation.CellWidth("\u65e5\u672c\u8a9e\u30d1\u30c3\u30b1\u30fc\u30b8")
 	if cjk < 8 {
 		t.Fatalf("cjk width=%d", cjk)
 	}
 }
 
-func TestCapabilityMatrix(t *testing.T) {
+func TestOutputModeDirectMapping(t *testing.T) {
 	cases := []struct {
 		name string
-		caps presentation.Capabilities
-		acc  bool
+		in   presentation.Input
 		want presentation.OutputMode
 	}{
-		{"tty", presentation.Capabilities{StderrTTY: true, StdoutTTY: true}, false, presentation.OutputRich},
-		{"pipe", presentation.Capabilities{}, false, presentation.OutputPlain},
-		{"ci", presentation.Capabilities{StderrTTY: true, StdoutTTY: true, CI: true}, false, presentation.OutputPlain},
-		{"dumb", presentation.Capabilities{StderrTTY: true, StdoutTTY: true, DumbTerminal: true}, false, presentation.OutputPlain},
-		{"accessible", presentation.Capabilities{StderrTTY: true, StdoutTTY: true}, true, presentation.OutputPlain},
+		{"default rich", presentation.Input{}, presentation.OutputRich},
+		{"explicit rich", presentation.Input{OutputFlag: "rich"}, presentation.OutputRich},
+		{"explicit plain", presentation.Input{OutputFlag: "plain"}, presentation.OutputPlain},
+		{"explicit json", presentation.Input{OutputFlag: "json"}, presentation.OutputJSON},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := presentation.Resolve(presentation.Input{Accessible: tc.acc}, tc.caps)
+			got, err := presentation.Resolve(tc.in)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.EffectiveOutput != tc.want {
-				t.Fatalf("got %q want %q", got.EffectiveOutput, tc.want)
+			if got.Output != tc.want {
+				t.Fatalf("got %q want %q", got.Output, tc.want)
 			}
 		})
 	}

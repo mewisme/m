@@ -84,25 +84,25 @@ type PackageChange struct {
 
 // InstallResult summarizes package changes.
 type InstallResult struct {
-	Added                        int        `json:"added"`
-	Removed                      int        `json:"removed"`
-	Changed                      int        `json:"changed"`
-	Packages                     int        `json:"packages"`
-	Downloaded                   int        `json:"downloaded,omitempty"`
-	Reused                       int        `json:"reused,omitempty"`
-	ScriptsRun                   int        `json:"scriptsRun,omitempty"`
-	ScriptsBlocked               int        `json:"scriptsBlocked,omitempty"`
-	DurationMs                   int64      `json:"durationMs,omitempty"`
-	Plan                         *plan.Plan `json:"plan,omitempty"`
-	Committed                    bool       `json:"committed,omitempty"`
-	RolledBack                   bool       `json:"rolledBack,omitempty"`
-	RecoveryRequired             bool       `json:"recoveryRequired,omitempty"`
-	CleanupIncomplete            bool       `json:"cleanupIncomplete,omitempty"`
-	TransactionCleanupIncomplete bool       `json:"transactionCleanupIncomplete,omitempty"`
-	StoreCleanupIncomplete       bool       `json:"storeCleanupIncomplete,omitempty"`
-	StoreMaintenanceRequired     bool       `json:"storeMaintenanceRequired,omitempty"`
-	CleanupWarningCodes          []string   `json:"cleanupWarningCodes,omitempty"`
-	CleanupWarnings              []string   `json:"cleanupWarnings,omitempty"`
+	Added                        int             `json:"added"`
+	Removed                      int             `json:"removed"`
+	Changed                      int             `json:"changed"`
+	Packages                     int             `json:"packages"`
+	Downloaded                   int             `json:"downloaded,omitempty"`
+	Reused                       int             `json:"reused,omitempty"`
+	ScriptsRun                   int             `json:"scriptsRun,omitempty"`
+	ScriptsBlocked               int             `json:"scriptsBlocked,omitempty"`
+	DurationMs                   int64           `json:"durationMs,omitempty"`
+	Plan                         *plan.Plan      `json:"plan,omitempty"`
+	Committed                    bool            `json:"committed,omitempty"`
+	RolledBack                   bool            `json:"rolledBack,omitempty"`
+	RecoveryRequired             bool            `json:"recoveryRequired,omitempty"`
+	CleanupIncomplete            bool            `json:"cleanupIncomplete,omitempty"`
+	TransactionCleanupIncomplete bool            `json:"transactionCleanupIncomplete,omitempty"`
+	StoreCleanupIncomplete       bool            `json:"storeCleanupIncomplete,omitempty"`
+	StoreMaintenanceRequired     bool            `json:"storeMaintenanceRequired,omitempty"`
+	CleanupWarningCodes          []string        `json:"cleanupWarningCodes,omitempty"`
+	CleanupWarnings              []string        `json:"cleanupWarnings,omitempty"`
 	PackageChanges               []PackageChange `json:"-"`
 }
 

@@ -23,7 +23,7 @@ func ShouldEmitCompletionSummary(opts ResolvedOptions, intent TerminalIntent, in
 	if !opts.Summary {
 		return false
 	}
-	if opts.Structured() || opts.EffectiveOutput == OutputSilent {
+	if opts.Structured() || opts.Output == OutputSilent {
 		return false
 	}
 	if interactiveChild || intent == TerminalInteractive {

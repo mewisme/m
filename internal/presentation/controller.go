@@ -19,7 +19,6 @@ type StreamWriters struct {
 type Controller interface {
 	Reporter() diagnostics.Reporter
 	Mode() OutputMode
-	EffectiveMode() OutputMode
 	Options() ResolvedOptions
 	Capabilities() Capabilities
 	Suspend(ctx context.Context) error
@@ -33,18 +32,17 @@ type Controller interface {
 }
 
 type controller struct {
-	mu          sync.Mutex
-	resolved    ResolvedOptions
-	caps        Capabilities
-	reporter    diagnostics.Reporter
-	streams     StreamWriters
-	sink        ProgressSink
-	runner      *RunnerPresentation
-	intent      TerminalIntent
-	suspended   bool
-	closed      bool
-	closeErr    error
-	debugOnDown bool
+	mu        sync.Mutex
+	resolved  ResolvedOptions
+	caps      Capabilities
+	reporter  diagnostics.Reporter
+	streams   StreamWriters
+	sink      ProgressSink
+	runner    *RunnerPresentation
+	intent    TerminalIntent
+	suspended bool
+	closed    bool
+	closeErr  error
 }
 
 // NewController builds a presentation controller and diagnostics reporter bridge.
@@ -65,85 +63,66 @@ func NewController(resolved ResolvedOptions, caps Capabilities, streams StreamWr
 		TermWidth: resolved.TermWidth,
 	}
 
-	var settings EffectiveSettings
-	if !resolved.Legacy && !resolved.Structured() {
-		settings = Effective(resolved, caps)
+	settings := Effective(resolved, caps)
+	if !resolved.Structured() {
 		mapOpts := MapOptions{Debug: resolved.Debug, Redact: diagnostics.Redact}
 		opts.HumanErrorRender = func(err error) string {
 			return NewStaticRenderer(settings).Error(MapError(err, mapOpts))
 		}
 	}
 
-	sink, downgraded, err := selectProgressSink(resolved, caps, settings, streams.Err)
+	sink, err := selectProgressSink(resolved, caps, settings, streams.Err)
 	if err != nil {
 		return nil, err
 	}
 	attachProgressHooks(&opts, sink)
 
 	var runnerPres *RunnerPresentation
-	if !resolved.Legacy && !resolved.Structured() && resolved.EffectiveOutput != OutputSilent {
-		if settings.Width == 0 {
-			settings = Effective(resolved, caps)
-		}
+	if !resolved.Structured() && resolved.Output != OutputSilent {
 		runnerPres = newRunnerPresentation(settings, streams.Err, resolved.Debug, resolved.Summary)
 		attachRunnerHooks(&opts, runnerPres)
 	}
 
 	c := &controller{
-		resolved:    resolved,
-		caps:        caps,
-		reporter:    diagnostics.NewReporter(opts),
-		streams:     streams,
-		sink:        sink,
-		runner:      runnerPres,
-		intent:      TerminalAuto,
-		debugOnDown: resolved.DowngradedRich || downgraded,
-	}
-	if c.debugOnDown {
-		c.reporter.Debug("presentation: rich mode downgraded to plain")
+		resolved: resolved,
+		caps:     caps,
+		reporter: diagnostics.NewReporter(opts),
+		streams:  streams,
+		sink:     sink,
+		runner:   runnerPres,
+		intent:   TerminalAuto,
 	}
 	return c, nil
 }
 
-// selectProgressSink picks live, plain, or nil progress rendering for human modes.
-func selectProgressSink(resolved ResolvedOptions, caps Capabilities, settings EffectiveSettings, errW io.Writer) (ProgressSink, bool, error) {
-	if resolved.Legacy || resolved.Structured() || resolved.EffectiveOutput == OutputSilent {
-		return nil, false, nil
+// selectProgressSink picks live, static-rich, plain, or nil progress rendering for human modes.
+func selectProgressSink(resolved ResolvedOptions, caps Capabilities, settings EffectiveSettings, errW io.Writer) (ProgressSink, error) {
+	if resolved.Structured() || resolved.Output == OutputSilent {
+		return nil, nil
 	}
-	if resolved.Progress == TriNever {
-		return nil, false, nil
-	}
-	if settings.Width == 0 {
-		settings = Effective(resolved, caps)
+	if !resolved.Progress {
+		return nil, nil
 	}
 
-	wantLive := settings.UseProgress
-	if wantLive {
-		if !caps.StderrTTY {
-			if resolved.Progress == TriAlways {
-				return nil, false, &RichUnsupportedError{
-					Reason: "live progress requires a TTY on stderr (--progress=always)",
-				}
+	// Rich output: use live renderer on TTY, static-rich otherwise.
+	if resolved.Output == OutputRich {
+		if caps.StderrTTY {
+			live, err := NewLiveInstallRenderer(errW, settings)
+			if err != nil {
+				return NewStaticRichProgressRenderer(errW, settings), nil
 			}
-			return NewPlainProgressRenderer(errW), true, nil
+			return live, nil
 		}
-		live, err := NewLiveInstallRenderer(errW, settings)
-		if err != nil {
-			if resolved.Progress == TriAlways {
-				return nil, false, err
-			}
-			return NewPlainProgressRenderer(errW), true, nil
-		}
-		return live, false, nil
+		return NewStaticRichProgressRenderer(errW, settings), nil
 	}
-	return NewPlainProgressRenderer(errW), false, nil
+
+	// Plain output: use plain renderer.
+	return NewPlainProgressRenderer(errW), nil
 }
 
 func (c *controller) Reporter() diagnostics.Reporter { return c.reporter }
 
-func (c *controller) Mode() OutputMode { return c.resolved.RequestedOutput }
-
-func (c *controller) EffectiveMode() OutputMode { return c.resolved.EffectiveOutput }
+func (c *controller) Mode() OutputMode { return c.resolved.Output }
 
 func (c *controller) Options() ResolvedOptions { return c.resolved }
 
@@ -251,7 +230,6 @@ func (c *controller) Close(ctx context.Context, outcome Outcome) error {
 	return closeErr
 }
 
-// cleanupContext returns a bounded context for renderer teardown.
 func cleanupContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	if ctx == nil {
 		return context.WithTimeout(context.Background(), 2*time.Second)

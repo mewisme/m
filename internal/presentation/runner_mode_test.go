@@ -13,11 +13,10 @@ func TestControllerSuspendStopsWorkspaceStatus(t *testing.T) {
 	var errBuf bytes.Buffer
 	caps := presentation.Capabilities{StderrTTY: true, Width: 80}
 	resolved := presentation.ResolvedOptions{
-		RequestedOutput: presentation.OutputPlain,
-		EffectiveOutput: presentation.OutputPlain,
-		Summary:         true,
-		Progress:        presentation.TriNever,
-		TermWidth:       80,
+		Output:    presentation.OutputPlain,
+		Summary:   true,
+		Progress:  false,
+		TermWidth: 80,
 	}
 	ctrl, err := presentation.NewController(resolved, caps, presentation.StreamWriters{
 		Out: bytes.NewBuffer(nil),

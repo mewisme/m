@@ -50,10 +50,8 @@ func (inv ScriptInvocation) ToRunOptions() app.RunOptions {
 
 // leadingDispatchFlags holds root globals and workspace runner flags parsed before the selector.
 type leadingDispatchFlags struct {
-	reporter      string
 	output        string
 	debug         bool
-	color         string
 	noColor       bool
 	unsafe        bool
 	cwd           string
@@ -222,12 +220,8 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 	switch name {
 	case "output":
 		leading.output = value
-	case "reporter":
-		leading.reporter = value
 	case "debug":
 		leading.debug = true
-	case "color":
-		leading.color = value
 	case "no-color":
 		leading.noColor = true
 	case "unsafe-diagnostics":
@@ -277,7 +271,7 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 
 func needsValue(name string) bool {
 	switch name {
-	case "reporter", "output", "color", "cwd", "config", "filter", "workspace-concurrency", "workspace-order", "workspace-output":
+	case "output", "cwd", "config", "filter", "workspace-concurrency", "workspace-order", "workspace-output":
 		return true
 	default:
 		return false
@@ -361,14 +355,8 @@ func applyLeadingToGlobalFlags(g *globalFlags, leading leadingDispatchFlags) {
 	if leading.output != "" {
 		g.output = leading.output
 	}
-	if leading.reporter != "" {
-		g.reporter = leading.reporter
-	}
 	if leading.debug {
 		g.debug = true
-	}
-	if leading.color != "" {
-		g.color = leading.color
 	}
 	if leading.noColor {
 		g.noColor = true

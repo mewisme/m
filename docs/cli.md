@@ -25,17 +25,14 @@ Official release installers remain planned (MVP **0072**); for local development
 | `--config` | | Extra JSONC overlay (CLI layer) |
 | `--offline` | false | Force offline |
 | `--prefer-offline` | false | Prefer cache |
-| `--reporter` | env / `default` | Legacy alias; see `--output` |
-| `--output` | `auto` | `auto` \| `rich` \| `plain` \| `json` \| `ndjson` \| `silent` |
-| `--progress` | `auto` | `auto` \| `always` \| `never` — live/plain install phase progress on stderr |
-| `--unicode` | `auto` | `auto` \| `always` \| `never` |
-| `--interactive` | `auto` | `auto` \| `always` \| `never` — prompts only when policy allows (stdin TTY, human mode; never in CI/`json`/`ndjson`/`silent` for `auto`) |
-| `--log-level` | `error` | `error` \| `warn` \| `info` \| `debug` |
-| `--accessible` | false | Accessible append-only output and numbered prompts |
+| `--output` | `rich` | `rich` \| `plain` \| `json` \| `ndjson` \| `silent` — rich is always the default |
+| `--no-color` | false | Disable ANSI color |
+| `--no-progress` | false | Disable progress output |
+| `--ascii` | false | Use ASCII instead of Unicode symbols |
+| `--accessible` | false | Accessible append-only output and numbered prompts; preserves rich formatting |
 | `--no-summary` | false | Suppress success summaries (never suppresses errors or security/lifecycle notices) |
-| `--debug` | false | Verbose diagnostics |
-| `--color` | `auto` | `auto` \| `always` \| `never` (TTY-aware; `--color=always` overrides `NO_COLOR`) |
-| `--no-color` | false | Force no ANSI (overridden by `--color=always`) |
+| `--log-level` | `error` | `error` \| `warn` \| `info` \| `debug` |
+| `--debug` | false | Verbose diagnostics (also `MEW_DEBUG` / `M_LOG=debug` env vars) |
 | `-r` / `--recursive` | false | Workspace recursive mode (`m run`; install-family commands have local `-r`) |
 | `--filter` | | pnpm-style workspace package filter (install family and `m run`) |
 
@@ -83,26 +80,13 @@ Topic sources live under [`docs/terminal-help/`](terminal-help/) and are curated
 separately from authoritative docs; each topic ends with a See also pointer.
 
 Auto mode uses Glamour on a human color stdout TTY. Pipe, CI, `TERM=dumb`,
-accessible, `--color=never`, and explicit `--output=plain` stay on the plain
+accessible, and explicit `--output=plain` stay on the plain
 renderer (headings keep `#` markers; no ANSI). The same gate applies to static
-design-system output (version, lock, resolve, summaries, errors). IDE terminals
-that report non-TTY still get styled output when color is forced:
+design-system output (version, lock, resolve, summaries, errors).
 
-```text
-m --color=always help --pager=never runner
-m --color=always version
-```
-
-`--color=always` overrides `NO_COLOR` for help and other human static output.
-Structured modes (`json` / `ndjson`) never use Glamour or Lip Gloss.
-`--output=rich` also selects styled output when rich mode is accepted
-(interactive stderr); use `--color=always` when the terminal is non-TTY.
-Explicit `--output=plain` wins over `--color=always` for static and topic help.
-
-Glamour's standard style follows effective `ui.theme` (`auto`\|`light`\|`dark`;
+Glamour's standard style follows effective theme (`auto`\|`light`\|`dark`;
 `accessible`/`none` map to Glamour `notty`). `auto` uses the terminal background
-hint (`COLORFGBG`). Theme selection still applies under `--color=always` /
-ForceColor on non-TTY stdout.
+hint (`COLORFGBG`).
 
 ### Topic pager
 
@@ -120,8 +104,7 @@ passed on stdin.
 ## Human errors
 
 Typed CLI failures render through `ErrorView` (title, message, context, code,
-hints) on stderr in human modes. `--presentation-legacy` keeps the pre-UX-0003
-error format. JSON/NDJSON error documents are unchanged.
+hints) on stderr in human modes. JSON/NDJSON error documents are unchanged.
 
 ## Configuration commands
 
@@ -451,10 +434,9 @@ m --filter api... test
 
 **Argument rules:**
 
-- Root globals (`--cwd`, `--reporter`, `-r`, `--filter`, workspace flags before
+- Root globals (`--cwd`, `-r`, `--filter`, workspace flags before
   the selector) are parsed only **before** the script name.
 - Tokens after the selector are forwarded verbatim to the script child.
-- `m dev --reporter ndjson` passes `--reporter` to the script, not Mew.
 - One `--` after the selector is stripped; following tokens forward verbatim.
 
 **Bare `m`:** always `ERR_M_USAGE` (exit 2); lists up to 10 script names when a

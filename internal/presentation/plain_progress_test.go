@@ -85,13 +85,14 @@ func TestPlainProgressCancelledAndFailed(t *testing.T) {
 }
 
 func TestControllerAttachesPlainProgress(t *testing.T) {
+	// Rich output without TTY attaches static rich progress.
 	var errb bytes.Buffer
-	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "plain"}, testkit.PipeCapabilities())
+	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "rich"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.Progress == presentation.TriNever {
-		t.Fatal("expected progress auto")
+	if !resolved.Progress {
+		t.Fatal("expected progress for rich output")
 	}
 	ctrl, err := presentation.NewController(resolved, testkit.PipeCapabilities(), presentation.StreamWriters{
 		Out: bytes.NewBuffer(nil), Err: &errb,
@@ -102,10 +103,7 @@ func TestControllerAttachesPlainProgress(t *testing.T) {
 	rep := ctrl.Reporter()
 	rep.OperationStarted(diagnostics.OperationStartedEvent{ID: "install/1/resolve", Kind: "resolve"})
 	rep.OperationCompleted(diagnostics.OperationCompletedEvent{ID: "install/1/resolve", Status: "ok", DurationMs: 10})
-	if !strings.Contains(errb.String(), "resolve started") {
-		t.Fatalf("stderr=%q", errb.String())
-	}
-	if !strings.Contains(errb.String(), "resolve completed") {
+	if !strings.Contains(errb.String(), "resolve") {
 		t.Fatalf("stderr=%q", errb.String())
 	}
 }
@@ -113,8 +111,8 @@ func TestControllerAttachesPlainProgress(t *testing.T) {
 func TestControllerProgressNeverSuppressesPhaseLines(t *testing.T) {
 	var errb bytes.Buffer
 	resolved, err := presentation.Resolve(presentation.Input{
-		OutputFlag: "plain", ProgressFlag: "never",
-	}, testkit.PipeCapabilities())
+		OutputFlag: "plain", NoProgress: true,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,30 +124,11 @@ func TestControllerProgressNeverSuppressesPhaseLines(t *testing.T) {
 	}
 	ctrl.Reporter().OperationStarted(diagnostics.OperationStartedEvent{ID: "x", Kind: "resolve"})
 	if errb.Len() != 0 {
-		t.Fatalf("progress=never must suppress phase lines: %q", errb.String())
+		t.Fatalf("--no-progress must suppress phase lines: %q", errb.String())
 	}
-	// Notices still surface without a progress sink.
 	ctrl.Reporter().Notice(diagnostics.NoticeEvent{Severity: "warning", Message: "lifecycle blocked"})
 	if !strings.Contains(errb.String(), "lifecycle") {
 		t.Fatalf("notices must remain visible: %q", errb.String())
-	}
-}
-
-func TestControllerProgressAlwaysRequiresTTY(t *testing.T) {
-	resolved, err := presentation.Resolve(presentation.Input{
-		OutputFlag: "plain", ProgressFlag: "always",
-	}, testkit.PipeCapabilities())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = presentation.NewController(resolved, testkit.PipeCapabilities(), presentation.StreamWriters{
-		Out: bytes.NewBuffer(nil), Err: bytes.NewBuffer(nil),
-	})
-	if err == nil {
-		t.Fatal("expected RichUnsupportedError")
-	}
-	if _, ok := err.(*presentation.RichUnsupportedError); !ok {
-		t.Fatalf("got %T %v", err, err)
 	}
 }
 

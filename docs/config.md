@@ -45,21 +45,17 @@ Config is never written beside the `m` executable.
 | `runner.exec.direct_dispatch.enabled` | bool | `false` — direct `m <binary>` shortcuts with verified bin metadata (or `MEW_EXPERIMENTAL_EXEC_DIRECT_DISPATCH=1`) |
 | `runner.mx.cache.retention_days` | int | `7` — default prune retention for mx execution environments |
 | `runner.mx.cache.dir` | string | empty — mx cache root (default `<cache>/mx`) |
-| `ui.output` | string | `auto` — presentation output mode |
-| `ui.color` | string | `auto` |
-| `ui.progress` | string | `auto` |
-| `ui.unicode` | string | `auto` |
-| `ui.interactive` | string | `auto` — `auto`\|`always`\|`never` prompt policy (`MEW_INTERACTIVE`) |
-| `ui.accessible` | bool | `false` — numbered prompts + append-only output (`MEW_ACCESSIBLE`) |
-| `ui.summary` | bool | `true` |
-| `ui.theme` | string | empty/`auto` — `auto`\|`light`\|`dark`\|`accessible`\|`none` |
 | `ui.pager` | string | empty — optional pager command for `m help` topics (`MEW_PAGER` / `PAGER`) |
+| `ui.markdown_theme` | string | `dark` — Glamour Markdown theme for `m help` and topics: `dark|light|dracula|tokyo-night|notty` (user-scoped; `--markdown-theme` flag) |
 | `log.level` | string | `error` |
 
 Presentation modes, streams, and rollout stages:
 [`architecture/cli-presentation.md`](architecture/cli-presentation.md).
 Accessible mode: [`accessibility.md`](accessibility.md).
-`MEW_PRESENTATION=legacy` / `--presentation-legacy` remains until Stage 5 cleanup.
+
+Presentation is controlled exclusively by CLI flags (`--output`, `--no-color`,
+`--no-progress`, `--ascii`, `--accessible`, `--no-summary`). Environment
+variables and config keys no longer influence presentation output.
 
 Environment:
 

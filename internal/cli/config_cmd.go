@@ -17,6 +17,12 @@ import (
 	"github.com/mewisme/mew/internal/project"
 )
 
+// userScopedKeys are config keys that can only be written to user config,
+// never project config. Attempting --local for these keys is rejected.
+var userScopedKeys = map[string]bool{
+	"ui.markdown_theme": true,
+}
+
 func newConfigCmd(g *globalFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
@@ -63,7 +69,7 @@ func newConfigGetCmd(g *globalFlags) *cobra.Command {
 					"path":   v.Path,
 				})
 			}
-			r := g.mustStaticRenderer(cmd, eff)
+			r := g.mustStaticRenderer(cmd)
 			out := val + "\n\n" + r.KeyValues([]presentation.KeyValue{
 				{Key: "Source", Value: src},
 				{Key: "Path", Value: v.Path, Style: presentation.ValuePath},
@@ -91,6 +97,9 @@ func newConfigSetCmd(g *globalFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := checkUserScopedKey(key, target); err != nil {
+				return err
+			}
 			if err := config.SetFile(target.Path, key, val); err != nil {
 				return err
 			}
@@ -111,6 +120,9 @@ func newConfigUnsetCmd(g *globalFlags) *cobra.Command {
 			key := args[0]
 			target, err := resolveConfigWriteTarget(flags.options(g))
 			if err != nil {
+				return err
+			}
+			if err := checkUserScopedKey(key, target); err != nil {
 				return err
 			}
 			if err := config.UnsetFile(target.Path, key); err != nil {
@@ -161,7 +173,7 @@ func newConfigPathsCmd(g *globalFlags) *cobra.Command {
 			if root, err := project.FindRoot(cwd); err == nil {
 				projectPath = filepath.Join(root, "m.jsonc")
 			}
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticOut(cmd, r.KeyValues([]presentation.KeyValue{
 				{Key: "User", Value: userPath, Style: presentation.ValuePath},
 				{Key: "Project", Value: projectPath, Style: presentation.ValuePath},
@@ -181,7 +193,7 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			r := g.mustStaticRenderer(cmd, eff)
+			r := g.mustStaticRenderer(cmd)
 			entries := config.List(eff)
 			cols := []presentation.TableColumn{
 				{Key: "key", Header: "KEY", MinWidth: 8, Prefer: 28, Primary: true, Truncate: presentation.TruncateMiddle},
@@ -222,7 +234,7 @@ func writeConfigMutationResult(g *globalFlags, cmd *cobra.Command, verb, key, va
 	if configOutputQuiet(g, cmd) {
 		return nil
 	}
-	r := g.mustStaticRenderer(cmd, nil)
+	r := g.mustStaticRenderer(cmd)
 	var headline string
 	if value == "" {
 		headline = fmt.Sprintf("%s %s", verb, key)
@@ -237,7 +249,7 @@ func writeConfigMutationResult(g *globalFlags, cmd *cobra.Command, verb, key, va
 }
 
 func configOutputStructured(g *globalFlags, cmd *cobra.Command) bool {
-	ctrl, err := g.controller(cmd, nil)
+	ctrl, err := g.controller(cmd)
 	if err != nil {
 		return false
 	}
@@ -245,12 +257,12 @@ func configOutputStructured(g *globalFlags, cmd *cobra.Command) bool {
 }
 
 func configOutputQuiet(g *globalFlags, cmd *cobra.Command) bool {
-	ctrl, err := g.controller(cmd, nil)
+	ctrl, err := g.controller(cmd)
 	if err != nil {
 		return false
 	}
 	opts := ctrl.Options()
-	return opts.Structured() || opts.EffectiveOutput == presentation.OutputSilent
+	return opts.Structured() || opts.Output == presentation.OutputSilent
 }
 
 // loadEffective rebuilds config for m config subcommands (not the mutation reload path).
@@ -335,6 +347,18 @@ func loadFileOverlay(path string) (map[string]any, error) {
 	}
 	_ = parsed
 	return out, nil
+}
+
+// checkUserScopedKey rejects project-scoped writes for keys that are user-only.
+func checkUserScopedKey(key string, target configWriteTarget) error {
+	if !userScopedKeys[key] {
+		return nil
+	}
+	if target.Scope == configWriteProject {
+		return apperr.New(apperr.Usage, "config.set", key,
+			key+" is a user-scoped setting; cannot write to project config")
+	}
+	return nil
 }
 
 func formatConfigValue(v any) string {

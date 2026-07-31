@@ -36,7 +36,7 @@ func main() {
 
 	specs := []struct {
 		file, name, version string
-		extra             map[string]any
+		extra               map[string]any
 	}{
 		{"pkg-a-1.0.0.tgz", "pkg-a", "1.0.0", map[string]any{"dependencies": map[string]string{"pkg-b": "^1.0.0"}}},
 		{"pkg-b-1.2.0.tgz", "pkg-b", "1.2.0", map[string]any{"dependencies": map[string]string{"pkg-c": "^1.0.0"}}},

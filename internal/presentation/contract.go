@@ -8,7 +8,6 @@ import "fmt"
 type OutputMode string
 
 const (
-	OutputAuto   OutputMode = "auto"
 	OutputRich   OutputMode = "rich"
 	OutputPlain  OutputMode = "plain"
 	OutputJSON   OutputMode = "json"
@@ -20,15 +19,6 @@ const (
 func (m OutputMode) Structured() bool {
 	return m == OutputJSON || m == OutputNDJSON
 }
-
-// TriState is a three-value policy used for color, progress, unicode, and interactive.
-type TriState string
-
-const (
-	TriAuto   TriState = "auto"
-	TriAlways TriState = "always"
-	TriNever  TriState = "never"
-)
 
 // LogLevel controls diagnostic verbosity.
 type LogLevel string
@@ -68,16 +58,4 @@ func (e *InvalidModeError) Error() string {
 		return "invalid presentation mode"
 	}
 	return fmt.Sprintf("invalid %s: %q", e.Field, e.Value)
-}
-
-// RichUnsupportedError reports rich output requested on an unsupported terminal.
-type RichUnsupportedError struct {
-	Reason string
-}
-
-func (e *RichUnsupportedError) Error() string {
-	if e == nil || e.Reason == "" {
-		return "rich output is not supported in this environment"
-	}
-	return e.Reason
 }

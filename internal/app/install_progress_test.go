@@ -161,14 +161,3 @@ func TestInstallPhaseDebugTiming(t *testing.T) {
 		t.Fatalf("debug=%v", rep.debug)
 	}
 }
-
-func TestLegacyProgressEmitsCoarseEvent(t *testing.T) {
-	t.Setenv("MEW_PRESENTATION", "legacy")
-	rep := &opCaptureReporter{}
-	ac := &Context{Reporter: rep}
-	ph := beginInstallPhase(ac, "8", phaseResolve)
-	ph.Complete(statusOK)
-	if len(rep.progressE) != 1 || rep.progressE[0].Phase != phaseResolve {
-		t.Fatalf("legacy progress=%v", rep.progressE)
-	}
-}

@@ -49,7 +49,7 @@ func newResolveCmd() *cobra.Command {
 				return enc.Encode(res)
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			graph := res.Graph
 			arrow := r.Settings().Symbols.Arrow
 			if err := writeStaticOut(cmd, r.Summary(presentation.Summary{

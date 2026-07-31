@@ -93,7 +93,7 @@ func skipMXLeadingArgs(argv []string) int {
 		switch {
 		case arg == "--yes", arg == "--offline", arg == "--debug", arg == "--no-color", arg == "--prefer-offline", arg == "--unsafe-diagnostics":
 			i++
-		case arg == "-p", arg == "--package", arg == "--cwd", arg == "--config", arg == "--reporter", arg == "--color":
+		case arg == "-p", arg == "--package", arg == "--cwd", arg == "--config":
 			if i+1 >= len(argv) {
 				return len(argv)
 			}

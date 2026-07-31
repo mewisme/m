@@ -54,7 +54,7 @@ func newPolicyCheckCmd() *cobra.Command {
 
 func formatPolicyResult(result policy.PolicyResult, cmd *cobra.Command) error {
 	g := ownerFlags(cmd.Root())
-	r := g.mustStaticRenderer(cmd, nil)
+	r := g.mustStaticRenderer(cmd)
 	if err := writeStaticOut(cmd, r.Summary(policySummary(result))); err != nil {
 		return err
 	}

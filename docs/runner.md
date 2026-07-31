@@ -26,7 +26,7 @@ win (`m add` runs the built-in; `m run add` runs the script). Workspace direct
 shortcuts require both direct-script and workspace gates.
 
 Globals before the selector are consumed by Mew; tokens after the selector
-forward verbatim to the script (including `--reporter`, `--workspace-concurrency`,
+forward verbatim to the script (including `--workspace-concurrency`,
 etc. when placed after the script name).
 
 ## Workspace orchestration (`m -r run` / `--filter`)
@@ -161,7 +161,7 @@ m run "/^test:/"
 m run test --if-present
 ```
 
-Global `--reporter` applies (`default`, `silent`, `json`, `ndjson`). See
+Global `--output` applies (`rich`, `plain`, `json`, `ndjson`, `silent`). See
 [`reporters.md`](reporters.md).
 
 ## Script lookup
@@ -256,7 +256,7 @@ Stdin, stdout, and stderr default to the parent TTY streams.
 ## Reporters
 
 Progress events use `phase: "run"` and `package: <script-stage>` (NDJSON/JSON
-via global `--reporter`). Workspace runs add `workspace-task`, `child-output`,
+via global `--output`). Workspace runs add `workspace-task`, `child-output`,
 and `workspace-summary` events.
 
 ## Fixtures and tests

@@ -93,15 +93,8 @@ var ownedKeys = map[string]string{
 	"runner.mx.cache.retention_days": "int",
 	"runner.mx.cache.dir":            "string",
 	"provenance.trusted_public_key":  "string",
-	"ui.output":                      "string",
-	"ui.color":                       "string",
-	"ui.progress":                    "string",
-	"ui.unicode":                     "string",
-	"ui.interactive":                 "string",
-	"ui.accessible":                  "bool",
-	"ui.summary":                     "bool",
-	"ui.theme":                       "string",
 	"ui.pager":                       "string",
+	"ui.markdown_theme":              "string",
 	"log.level":                      "string",
 }
 
@@ -110,13 +103,8 @@ var ownedKeys = map[string]string{
 var allowedValuesByKey = map[string]string{
 	"install.linker":         "auto|hoisted|isolated",
 	"lifecycle.script_trust": "allow|deny|ask",
-	"ui.output":              "auto|rich|plain|json|ndjson|silent",
-	"ui.color":               "auto|always|never",
-	"ui.progress":            "auto|always|never",
-	"ui.unicode":             "auto|always|never",
-	"ui.interactive":         "auto|always|never",
-	"ui.theme":               "auto|light|dark|accessible|none",
 	"log.level":              "error|warn|info|debug",
+	"ui.markdown_theme":      "dark|light|dracula|tokyo-night|notty",
 }
 
 // AllowedValues returns the pipe-joined settable values for key, or "" when free-form.
@@ -165,15 +153,8 @@ func defaults() map[string]any {
 		"workspaces.enabled":             false,
 		"runner.mx.cache.retention_days": 7,
 		"runner.mx.cache.dir":            "",
-		"ui.output":                      "auto",
-		"ui.color":                       "auto",
-		"ui.progress":                    "auto",
-		"ui.unicode":                     "auto",
-		"ui.interactive":                 "auto",
-		"ui.accessible":                  false,
-		"ui.summary":                     true,
-		"ui.theme":                       "",
 		"ui.pager":                       "",
+		"ui.markdown_theme":              "dark",
 		"log.level":                      "error",
 	}
 }
@@ -312,12 +293,6 @@ var envVarByKey = map[string]string{
 	"provenance.trusted_public_key":  "MEW_PROVENANCE_TRUSTED_PUBLIC_KEY",
 	"runner.mx.cache.dir":            "MEW_MX_CACHE_DIR",
 	"link.use_global_store":          "MEW_EXPERIMENTAL_GLOBAL_STORE",
-	"ui.output":                      "MEW_OUTPUT",
-	"ui.color":                       "MEW_COLOR",
-	"ui.progress":                    "MEW_PROGRESS",
-	"ui.unicode":                     "MEW_UNICODE",
-	"ui.interactive":                 "MEW_INTERACTIVE",
-	"ui.accessible":                  "MEW_ACCESSIBLE",
 	"ui.pager":                       "MEW_PAGER",
 	"log.level":                      "MEW_LOG_LEVEL",
 }
@@ -446,6 +421,13 @@ func validateKeyValue(key string, v any) error {
 			case "allow", "deny", "ask", "":
 			default:
 				return fmt.Errorf("lifecycle.script_trust: want allow|deny|ask")
+			}
+		}
+		if key == "ui.markdown_theme" {
+			switch s {
+			case "dark", "light", "dracula", "tokyo-night", "notty", "":
+			default:
+				return fmt.Errorf("ui.markdown_theme: want dark|light|dracula|tokyo-night|notty")
 			}
 		}
 	case "bool":

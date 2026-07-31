@@ -234,3 +234,132 @@ func TestConfigListSourcesDisplaysUser(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigGetMarkdownThemeDefault(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("MEW_CONFIG_DIR", cfgDir)
+
+	root := NewMRoot(testBuildInfo())
+	buf := new(bytes.Buffer)
+	root.SetOut(buf)
+	root.SetArgs([]string{"config", "get", "ui.markdown_theme"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(buf.String()); got != "dark" {
+		t.Fatalf("default markdown theme: got %q, want dark", got)
+	}
+}
+
+func TestConfigGetMarkdownThemeSource(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("MEW_CONFIG_DIR", cfgDir)
+
+	root := NewMRoot(testBuildInfo())
+	buf := new(bytes.Buffer)
+	root.SetOut(buf)
+	root.SetArgs([]string{"config", "get", "ui.markdown_theme", "--source"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "dark") {
+		t.Fatalf("value missing:\n%s", out)
+	}
+	if !strings.Contains(out, "defaults") && !strings.Contains(out, "Source") {
+		t.Fatalf("source info missing:\n%s", out)
+	}
+}
+
+func TestConfigSetMarkdownThemeUser(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("MEW_CONFIG_DIR", cfgDir)
+
+	root := NewMRoot(testBuildInfo())
+	buf := new(bytes.Buffer)
+	root.SetOut(buf)
+	root.SetArgs([]string{"config", "set", "ui.markdown_theme", "tokyo-night"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(cfgDir, "config.jsonc")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"tokyo-night"`) {
+		t.Fatalf("user config:\n%s", b)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "tokyo-night") {
+		t.Fatalf("stdout:\n%s", out)
+	}
+}
+
+func TestConfigUnsetMarkdownThemeRestoresDefault(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("MEW_CONFIG_DIR", cfgDir)
+	path := filepath.Join(cfgDir, "config.jsonc")
+	if err := config.SetFile(path, "ui.markdown_theme", "dracula"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify set
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "dracula") {
+		t.Fatalf("config not set: %s", b)
+	}
+
+	root := NewMRoot(testBuildInfo())
+	root.SetArgs([]string{"config", "unset", "ui.markdown_theme"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	b, err = os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "markdown_theme") {
+		t.Fatalf("still present:\n%s", b)
+	}
+}
+
+func TestConfigSetMarkdownThemeLocalRejected(t *testing.T) {
+	proj := t.TempDir()
+	if err := os.WriteFile(filepath.Join(proj, "package.json"), []byte(`{"name":"app"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfgDir := t.TempDir()
+	t.Setenv("MEW_CONFIG_DIR", cfgDir)
+
+	root := NewMRoot(testBuildInfo())
+	root.SetArgs([]string{"--cwd", proj, "config", "set", "ui.markdown_theme", "light", "--local"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for --local on user-scoped key")
+	}
+	if !strings.Contains(err.Error(), "user-scoped") {
+		t.Fatalf("error should mention user-scoped: %v", err)
+	}
+	if apperr.CodeOf(err) != apperr.Usage {
+		t.Fatalf("code=%s, want usage", apperr.CodeOf(err))
+	}
+}
+
+func TestConfigSetMarkdownThemeInvalidValue(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("MEW_CONFIG_DIR", cfgDir)
+
+	root := NewMRoot(testBuildInfo())
+	root.SetArgs([]string{"config", "set", "ui.markdown_theme", "pink"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for invalid theme")
+	}
+	if !strings.Contains(err.Error(), "ui.markdown_theme") {
+		t.Fatalf("error should mention key: %v", err)
+	}
+}

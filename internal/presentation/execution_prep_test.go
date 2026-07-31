@@ -111,7 +111,7 @@ func TestTerminalIntentAutoSuspend(t *testing.T) {
 }
 
 func TestNoSummaryPolicy(t *testing.T) {
-	opts := presentation.ResolvedOptions{Summary: false, EffectiveOutput: presentation.OutputPlain}
+	opts := presentation.ResolvedOptions{Summary: false, Output: presentation.OutputPlain}
 	if presentation.ShouldEmitCompletionSummary(opts, presentation.TerminalAuto, false) {
 		t.Fatal("--no-summary must suppress")
 	}
@@ -122,7 +122,7 @@ func TestNoSummaryPolicy(t *testing.T) {
 	if presentation.ShouldEmitCompletionSummary(opts, presentation.TerminalInteractive, false) {
 		t.Fatal("interactive suppresses summary")
 	}
-	opts.EffectiveOutput = presentation.OutputJSON
+	opts.Output = presentation.OutputJSON
 	if presentation.ShouldEmitCompletionSummary(opts, presentation.TerminalAuto, false) {
 		t.Fatal("structured suppresses summary")
 	}

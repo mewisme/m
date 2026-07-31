@@ -63,7 +63,7 @@ func newStoreStatusCmd() *cobra.Command {
 				return enc.Encode(st)
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticOut(cmd, r.KeyValues(storeStatusView(st)))
 		},
 	}
@@ -97,7 +97,7 @@ func newStorePruneCmd() *cobra.Command {
 				return enc.Encode(res)
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticOut(cmd, r.Summary(storePruneSummary(res.Removed, res.Kept, res.DryRun)))
 		},
 	}

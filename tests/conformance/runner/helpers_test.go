@@ -41,7 +41,7 @@ func runMProject(t *testing.T, projDir string, args ...string) (int, string) {
 	errBuf := new(bytes.Buffer)
 	cliRoot.SetOut(outBuf)
 	cliRoot.SetErr(errBuf)
-	full := append([]string{"--cwd", projDir, "--reporter", "silent"}, args...)
+	full := append([]string{"--cwd", projDir, "--output", "silent"}, args...)
 	cliRoot.SetArgs(full)
 	code := cli.ExecuteWithContext(cliRoot, context.Background())
 	out := outBuf.String()

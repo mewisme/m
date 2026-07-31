@@ -90,7 +90,7 @@ func writeTopicHelp(cmd *cobra.Command, body []byte, pagerFlag string) error {
 	if ac := app.FromContext(cmd.Context()); ac != nil {
 		cfg = ac.Config
 	}
-	ctrl, err := g.controller(cmd, cfg)
+	ctrl, err := g.controller(cmd)
 	if err != nil {
 		return wrapPresentationErr(err)
 	}
@@ -100,21 +100,22 @@ func writeTopicHelp(cmd *cobra.Command, body []byte, pagerFlag string) error {
 
 	structured := opts.Structured()
 	plain := topicHelpUsePlain(opts, caps, eff)
-	forceColor := !plain && (opts.Color == presentation.TriAlways ||
-		opts.RequestedOutput == presentation.OutputRich)
+	forceColor := !plain && (opts.Color || opts.Output == presentation.OutputRich)
 	human := !structured
-	// Prefer ui.theme via ThemePreference so ForceColor (non-TTY) still gets
-	// light/dark — Effective.ThemeMode is ThemeNone when useColor is false.
 	theme := presentation.ThemePreference(opts, caps)
 
+	// Markdown theme: CLI flag > config > default, then apply color/ascii overrides.
+	markdownTheme := resolveTopicMarkdownTheme(g.markdownTheme, cfg, !eff.UseColor, !eff.UseUnicode)
+
 	rendered, err := helpmd.Render(string(body), helpmd.RenderOptions{
-		Width:      eff.Width,
-		Plain:      plain,
-		Accessible: eff.Accessible,
-		Hyperlinks: caps.Hyperlinks && !plain && !eff.Accessible,
-		Theme:      theme,
-		Style:      helpmd.GlamourStyle(theme),
-		ForceColor: forceColor,
+		Width:         eff.Width,
+		Plain:         plain,
+		Accessible:    eff.Accessible,
+		Hyperlinks:    caps.Hyperlinks && !plain && !eff.Accessible,
+		Theme:         theme,
+		Style:         markdownTheme.GlamourStyle(),
+		MarkdownTheme: markdownTheme,
+		ForceColor:    forceColor,
 	})
 	if err != nil {
 		return err
@@ -142,14 +143,24 @@ func writeTopicHelp(cmd *cobra.Command, body []byte, pagerFlag string) error {
 }
 
 // topicHelpUsePlain decides whether topic Markdown uses the plain renderer.
-// Matches Effective.UseColor: plain/accessible/--color=never stay plain;
-// --color=always or requested --output=rich force Glamour (IDE non-TTY).
 func topicHelpUsePlain(opts presentation.ResolvedOptions, caps presentation.Capabilities, eff presentation.EffectiveSettings) bool {
 	_ = caps
 	if opts.Structured() {
 		return true
 	}
 	return !eff.UseColor
+}
+
+// resolveTopicMarkdownTheme builds the effective MarkdownTheme for help rendering.
+// Priority: CLI flag > config > default. Then applies no-color/ascii overrides.
+// accessible (--accessible) must not change the configured theme per acceptance criteria.
+func resolveTopicMarkdownTheme(cliFlag string, cfg *config.Effective, noColor bool, ascii bool) presentation.MarkdownTheme {
+	raw := cliFlag
+	if raw == "" && cfg != nil {
+		raw = config.String(cfg, "ui.markdown_theme", "")
+	}
+	configured, _ := presentation.ParseMarkdownTheme(raw)
+	return presentation.ResolveMarkdownTheme(configured, noColor, ascii)
 }
 
 func topicHelpCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

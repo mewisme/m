@@ -8,14 +8,12 @@ independent output and keyboard-only prompts.
 | Surface | Value |
 |---|---|
 | Flag | `--accessible` |
-| Environment | `MEW_ACCESSIBLE=1` |
-| Config | `ui.accessible=true` |
 
-Accessible mode forces plain human output (no rich live redraw, no color
-dependence) and selects the numbered prompt adapter.
+Accessible mode preserves rich output formatting while selecting the numbered
+prompt adapter. Use `--no-color` or `--ascii` for additional accessibility
+adjustments.
 
-Related: `--color=never` / `NO_COLOR`, `--unicode=never`, `--output=plain`,
-`--interactive=never`.
+Related: `--no-color`, `--ascii`, `--output=plain`, `--no-progress`.
 
 ## Prompt contract
 

@@ -9,8 +9,6 @@ import (
 	helpmd "github.com/mewisme/mew/internal/presentation/help"
 )
 
-// TestHelpViaExecutePath covers Phase A direct dispatch: "help" must fall through
-// to Cobra/topic routing (root.Execute alone does not exercise tryDirectDispatch).
 func TestHelpViaExecutePath(t *testing.T) {
 	cases := []struct {
 		name string
@@ -60,135 +58,58 @@ func TestHelpTopicRunner(t *testing.T) {
 	}
 }
 
-func TestTopicHelpUsePlainColorAlwaysForcesRich(t *testing.T) {
+func TestTopicHelpUsePlainRichColorForcesGlamour(t *testing.T) {
 	caps := presentation.Capabilities{
-		StdoutTTY:    false,
-		StderrTTY:    false,
-		CI:           false,
-		DumbTerminal: false,
-		NoColorEnv:   true,
-		ColorProfile: presentation.ColorProfileASCII,
+		StdoutTTY:    true,
+		StderrTTY:    true,
+		ColorProfile: presentation.ColorProfileTrueColor,
+		Width:        80,
 	}
 	opts := presentation.ResolvedOptions{
-		RequestedOutput: presentation.OutputAuto,
-		EffectiveOutput: presentation.OutputPlain,
-		Color:           presentation.TriAlways,
+		Output: presentation.OutputRich,
+		Color:  true,
 	}
 	eff := presentation.Effective(opts, caps)
 	if topicHelpUsePlain(opts, caps, eff) {
-		t.Fatal("expected Glamour path for --color=always on non-TTY")
+		t.Fatal("expected Glamour path for color-enabled rich on TTY")
 	}
 }
 
-func TestTopicHelpUsePlainAutoNonTTYStaysPlain(t *testing.T) {
+func TestTopicHelpUsePlainNoColorStaysPlain(t *testing.T) {
 	caps := presentation.Capabilities{
 		StdoutTTY:    false,
 		StderrTTY:    false,
 		ColorProfile: presentation.ColorProfileTrueColor,
 	}
 	opts := presentation.ResolvedOptions{
-		RequestedOutput: presentation.OutputAuto,
-		EffectiveOutput: presentation.OutputPlain,
-		Color:           presentation.TriAuto,
+		Output: presentation.OutputRich,
+		Color:  false,
 	}
 	eff := presentation.Effective(opts, caps)
 	if !topicHelpUsePlain(opts, caps, eff) {
-		t.Fatal("expected plain path for auto color on non-TTY")
+		t.Fatal("expected plain path for no-color")
 	}
 }
 
-func TestHelpTopicColorAlwaysForcesGlamour(t *testing.T) {
-	// strings.Builder stdout is non-TTY; --color=always must still select Glamour.
+func TestHelpTopicNoColorUsesPlain(t *testing.T) {
 	clearHelpEnv(t)
 	root := NewMRoot(testBuildInfo())
 	buf := new(strings.Builder)
 	root.SetOut(buf)
 	root.SetErr(buf)
-	root.SetArgs([]string{"--color=always", "help", "--pager=never", "runner"})
+	root.SetArgs([]string{"--no-color", "help", "--pager=never", "runner"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if strings.Contains(out, "# Runner") {
-		t.Fatalf("plain renderer still selected (# heading):\n%s", out)
-	}
-	if !strings.Contains(out, "\x1b[") {
-		t.Fatalf("expected ANSI from Glamour with --color=always:\n%q", out)
-	}
-	if !strings.Contains(out, "•") {
-		t.Fatalf("expected Glamour bullet:\n%s", out)
-	}
-}
-
-func TestHelpTopicConfigColorAlwaysForcesGlamour(t *testing.T) {
-	// Regression: --color default must not be literal "auto", or ui.color never applies.
-	// Empty Setenv still leaves NO_COLOR present (LookupEnv ok); unset fully.
-	clearHelpEnv(t)
-	dir := t.TempDir()
-	cfgPath := dir + string(os.PathSeparator) + "color-always.jsonc"
-	if err := os.WriteFile(cfgPath, []byte(`{"ui":{"color":"always"}}`+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	root := NewMRoot(testBuildInfo())
-	buf := new(strings.Builder)
-	root.SetOut(buf)
-	root.SetErr(buf)
-	root.SetArgs([]string{"--config", cfgPath, "help", "--pager=never", "runner"})
-	if err := root.Execute(); err != nil {
-		t.Fatal(err)
-	}
-	out := buf.String()
-	if strings.Contains(out, "# Runner") {
-		t.Fatalf("plain renderer still selected with ui.color=always:\n%s", out)
-	}
-	if !strings.Contains(out, "\x1b[") {
-		t.Fatalf("expected ANSI from Glamour with ui.color=always:\n%q", out)
-	}
-}
-
-func TestHelpTopicConfigThemeSelectsGlamourStyle(t *testing.T) {
-	// ForceColor (--color=always) on non-TTY: ui.theme must still pick light vs dark.
-	clearHelpEnv(t)
-
-	render := func(theme string) string {
-		t.Helper()
-		dir := t.TempDir()
-		cfgPath := dir + string(os.PathSeparator) + "theme.jsonc"
-		body := `{"ui":{"theme":"` + theme + `"}}` + "\n"
-		if err := os.WriteFile(cfgPath, []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		root := NewMRoot(testBuildInfo())
-		buf := new(strings.Builder)
-		root.SetOut(buf)
-		root.SetErr(buf)
-		root.SetArgs([]string{
-			"--color=always", "--config", cfgPath,
-			"help", "--pager=never", "runner",
-		})
-		if err := root.Execute(); err != nil {
-			t.Fatal(err)
-		}
-		out := buf.String()
-		if strings.Contains(out, "# Runner") {
-			t.Fatalf("plain renderer with ui.theme=%s:\n%s", theme, out)
-		}
-		if !strings.Contains(out, "\x1b[") {
-			t.Fatalf("expected ANSI with ui.theme=%s:\n%q", theme, out)
-		}
-		return out
-	}
-
-	dark := render("dark")
-	light := render("light")
-	if dark == light {
-		t.Fatal("ui.theme=dark and ui.theme=light must produce different Glamour output")
+	if strings.Contains(out, "\x1b[") {
+		t.Fatalf("expected no ANSI with --no-color:\n%q", out)
 	}
 }
 
 func clearHelpEnv(t *testing.T) {
 	t.Helper()
-	for _, key := range []string{"CI", "GITHUB_ACTIONS", "NO_COLOR", "MEW_COLOR", "COLORFGBG"} {
+	for _, key := range []string{"CI", "GITHUB_ACTIONS", "NO_COLOR", "COLORFGBG"} {
 		key := key
 		prev, had := os.LookupEnv(key)
 		_ = os.Unsetenv(key)
@@ -200,18 +121,19 @@ func clearHelpEnv(t *testing.T) {
 
 func TestTopicHelpGlamourStyleFollowsThemePreference(t *testing.T) {
 	caps := presentation.Capabilities{
-		StdoutTTY:    false,
-		ColorProfile: presentation.ColorProfileASCII,
+		StdoutTTY:    true,
+		ColorProfile: presentation.ColorProfileANSI,
 		Background:   presentation.BackgroundDark,
+		Width:        80,
 	}
 	opts := presentation.ResolvedOptions{
-		Color: presentation.TriAlways,
-		Theme: "light",
+		Color:  true,
+		Theme:  "light",
+		Output: presentation.OutputRich,
 	}
-	// ForceColor path: Effective.ThemeMode may still be set, but preference is authoritative.
 	eff := presentation.Effective(opts, caps)
 	if eff.ThemeMode != presentation.ThemeLight {
-		t.Fatalf("ThemeMode=%q want light with color=always", eff.ThemeMode)
+		t.Fatalf("ThemeMode=%q want light with color", eff.ThemeMode)
 	}
 	pref := presentation.ThemePreference(opts, caps)
 	if pref != presentation.ThemeLight {
@@ -221,12 +143,14 @@ func TestTopicHelpGlamourStyleFollowsThemePreference(t *testing.T) {
 		t.Fatalf("GlamourStyle=%q", helpmd.GlamourStyle(pref))
 	}
 
-	// Non-TTY without TriAlways: Effective is ThemeNone, preference still follows ui.theme.
-	opts.Color = presentation.TriAuto
-	opts.Theme = "dark"
+	opts = presentation.ResolvedOptions{
+		Color:  false,
+		Theme:  "dark",
+		Output: presentation.OutputRich,
+	}
 	eff = presentation.Effective(opts, caps)
 	if eff.ThemeMode != presentation.ThemeNone {
-		t.Fatalf("ThemeMode=%q want none without color on non-TTY", eff.ThemeMode)
+		t.Fatalf("ThemeMode=%q want none without color", eff.ThemeMode)
 	}
 	pref = presentation.ThemePreference(opts, caps)
 	if pref != presentation.ThemeDark {
@@ -242,7 +166,6 @@ func TestHelpCommandWinsOverTopicAlias(t *testing.T) {
 	buf := new(strings.Builder)
 	root.SetOut(buf)
 	root.SetErr(buf)
-	// "trust" is both a command and a lifecycle-trust alias; command wins.
 	root.SetArgs([]string{"help", "trust"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
@@ -276,7 +199,6 @@ func TestHelpErrorsCode(t *testing.T) {
 	buf := new(strings.Builder)
 	root.SetOut(buf)
 	root.SetErr(buf)
-	// Local flags must precede args for Cobra.
 	root.SetArgs([]string{"help", "--pager=never", "errors", "ERR_M_LOCKFILE"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)

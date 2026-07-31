@@ -50,7 +50,7 @@ func newAuditCmd() *cobra.Command {
 				}
 			} else {
 				g := ownerFlags(cmd.Root())
-				r := g.mustStaticRenderer(cmd, nil)
+				r := g.mustStaticRenderer(cmd)
 				if text := advisory.FormatTable(result.Report); text != "" {
 					if err := writeStaticOut(cmd, r.PlainText(text)); err != nil {
 						return err

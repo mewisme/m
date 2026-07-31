@@ -124,7 +124,7 @@ func TestResolveWorkspaceTilde(t *testing.T) {
 	for _, e := range res.Graph.Edges {
 		if e.From == string(graph.RootImporter) && strings.HasPrefix(e.To, "pkg-a@") {
 			if e.Range != "workspace:~" {
-				t.Fatalf("edge range=%q want workspace:~" , e.Range)
+				t.Fatalf("edge range=%q want workspace:~", e.Range)
 			}
 			return
 		}

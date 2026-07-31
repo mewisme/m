@@ -1318,10 +1318,6 @@ func emitLinkSummary(ac *Context, summary linker.LinkSummary) {
 	}
 	subject := fmt.Sprintf("hardlink=%d reflink=%d copy=%d symlink=%d junction=%d mkdir=%d",
 		summary.Hardlink, summary.Reflink, summary.Copy, summary.Symlink, summary.Junction, summary.Mkdir)
-	if legacyProgressEnabled() {
-		ac.Reporter.Progress(diagnostics.Event{V: 1, Type: "progress", Phase: "link", Package: subject})
-		return
-	}
 	ac.Reporter.Debug("link summary", diagnostics.Attr{Key: "ops", Value: subject})
 }
 

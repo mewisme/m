@@ -2,9 +2,9 @@
 
 ## Program status
 
-- Current standalone plan: **UX-0008 — CLI UX Certification and Rollout** (complete except Stage 5)
-- Status: done — Stage 4 certified; Stage 5 legacy-path removal deferred one milestone
-- Do now: keep `--presentation-legacy` / `MEW_PRESENTATION=legacy`; fill Linux/macOS evidence slots from green CI when available
+- Current standalone plan: **UX-0008 — CLI UX Certification and Rollout** (complete)
+- Status: done — Stage 4 certified; Stage 5 legacy-path removal complete
+- Do now: all stages complete
 - Recommended repository path: `plans/ux/`
 - Numbering namespace: `UX-0001` through `UX-0008`
 - Main roadmap status: independent; no `00xx` IDs are consumed
@@ -118,9 +118,9 @@
 - [x] Certify JSON/NDJSON and completions. *(matrix + existing completion/no-ANSI coverage)*
 - [x] Benchmark startup, binary size, and live rendering. *(advisory — `performance-baseline.md`)*
 - [x] Review licenses, vulnerabilities, and dependency pins. *(charm review refreshed; govulncheck findings recorded)*
-- [x] Execute staged rollout. *(Stage 4 current; Stage 5 deferred — see `cli-presentation.md`)*
+- [x] Execute staged rollout. *(Stage 4 current; Stage 5 complete — legacy path removed)*
 - [x] Update docs, inventory, plan index, and checklist.
-- [ ] Remove temporary legacy path after stability window. *(deferred one milestone — keep `--presentation-legacy` / `MEW_PRESENTATION=legacy`)*
+- [x] Remove temporary legacy path after stability window. *(complete — `--presentation-legacy` / `MEW_PRESENTATION=legacy` removed)*
 
 ## Global non-negotiable gates
 

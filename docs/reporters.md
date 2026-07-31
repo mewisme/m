@@ -5,61 +5,44 @@ events; terminal rendering is a reporter concern.
 
 ## Formats
 
-| Mode | Flag / env | Behavior |
+| Mode | Flag | Behavior |
 |---|---|---|
-| `default` / `plain` / `rich` | `--output auto\|plain\|rich` or `--reporter default` | Human text on stderr; `rich` enables design-system styling when capable |
-| `ndjson` | `--output ndjson` or `--reporter ndjson` or `MEW_LOG_FORMAT=ndjson` | One JSON object per line on stdout |
-| `json` | `--output json` or `--reporter json` | Single JSON error document on stdout |
-| `silent` | `--output silent` or `--reporter silent` | No progress; errors still on stderr |
+| `rich` | `--output=rich` (default) | Rich design-system styled output on stderr; TTY uses live renderer, non-TTY uses static-rich append-only |
+| `plain` | `--output=plain` | Append-only zero-ANSI lines on stderr |
+| `json` | `--output=json` | Single JSON error document on stdout |
+| `ndjson` | `--output=ndjson` | One JSON object per line on stdout |
+| `silent` | `--output=silent` | No progress; errors still on stderr |
 
-Resolution is centralized in [`internal/presentation`](../internal/presentation). Conflicting
-`--output` and `--reporter` values return a usage error.
+Rich is always the default. The `auto`/`default`/`human` values are no longer
+accepted — use `rich` explicitly if desired, or omit the flag for the default.
+Resolution is centralized in [`internal/presentation`](../internal/presentation)
+and driven only by explicit CLI flags. Environment variables and config keys no
+longer influence presentation.
 
-## Flags and environment
+## Flags
 
-| Flag / env | Purpose |
+| Flag | Purpose |
 |---|---|
-| `--output` | Canonical output mode (`auto`, `rich`, `plain`, `json`, `ndjson`, `silent`) |
-| `--reporter` | Legacy alias for structured/human reporter selection |
-| `MEW_OUTPUT` | Default output mode when `--output` unset |
-| `MEW_LOG_FORMAT` | Legacy env alias (same precedence tier as `MEW_OUTPUT`) |
-| `--progress` / `MEW_PROGRESS` / `ui.progress` | Progress policy (`auto`, `always`, `never`) |
-| `--unicode` / `MEW_UNICODE` / `ui.unicode` | Unicode symbol policy |
-| `--interactive` / `MEW_INTERACTIVE` / `ui.interactive` | Interactive UI policy |
-| `--accessible` / `MEW_ACCESSIBLE` / `ui.accessible` | Append-only accessible output |
-| `--log-level` / `MEW_LOG_LEVEL` / `log.level` | Diagnostic verbosity |
-| `--no-summary` / `ui.summary` | Suppress command summaries |
-| `--presentation-legacy` / `MEW_PRESENTATION=legacy` | Hidden rollout switch (forces legacy human path) |
-| `--debug` / `MEW_DEBUG` / `M_LOG=debug` | Verbose debug lines |
-| `--color` / `--no-color` / `NO_COLOR` / `ui.color` | ANSI color policy |
-| `ui.theme` | Theme palette: `auto`, `light`, `dark`, `accessible`, `none` |
-| `--unsafe-diagnostics` | Disable redaction (hidden; dangerous) |
+| `--output` | Canonical output mode: `rich` (default), `plain`, `json`, `ndjson`, `silent` |
+| `--no-color` | Disable ANSI color |
+| `--no-progress` | Disable progress output |
+| `--ascii` | Use ASCII instead of Unicode symbols |
+| `--accessible` | Accessible append-only output; preserves rich formatting |
+| `--no-summary` | Suppress command summary output |
+| `--log-level` | Diagnostic verbosity: `error` (default), `warn`, `info`, `debug` |
+| `--debug` | Shorthand for `--log-level=debug` plus `MEW_DEBUG` / `M_LOG=debug` env vars |
 
-### Color and `NO_COLOR`
+### Color
 
-Precedence for color:
-
-1. `--color=always|never`
-2. `MEW_COLOR`
-3. `ui.color`
-4. `NO_COLOR` / `--no-color` force never **unless** `--color=always` was set
-5. Auto requires a suitable stdout TTY, non-dumb `TERM`, and a color-capable profile
-
-Explicit `--color=always` overrides `NO_COLOR`. Static design-system output
-(status, summaries, tables, errors) and topic help share one color gate:
-
-- Explicit `--output=plain` → plain renderer (zero ANSI), even with `--color=always`
-- `--color=never`, accessible, legacy, structured, and silent → plain
-- `--color=always` or requested `--output=rich` → styled output even when stdout
-  is non-TTY (IDE terminals)
-- Auto rich → styled when effective mode is `rich` and stdout is a color TTY
-
-Plain / pipe / CI / accessible paths use the first-class plain renderer (zero
-ANSI); rich output is never stripped to fake plain.
+- `--no-color` disables ANSI color entirely.
+- Explicit `--output=plain` and structured modes (`json` / `ndjson` / `silent`) produce no ANSI.
+- Rich output uses color when available on a TTY; `--no-color` forces plain symbols.
 
 ### Width and Unicode
 
-Terminal width is detected once per invocation (default 80; clamped 20–500). Tables stack below ~60 columns. Unicode symbols are selected via `--unicode` / `MEW_UNICODE` / `ui.unicode`, with ASCII fallbacks (`OK`, `WARN`, `ERROR`, `->`).
+Terminal width is detected once per invocation (default 80; clamped 20–500).
+Tables stack below ~60 columns. Unicode symbols are used by default; `--ascii`
+selects ASCII fallbacks (`OK`, `WARN`, `ERROR`, `->`).
 
 Command-local `--json` emits command **result** documents and must not be combined with
 global `--output=json` or `--output=ndjson`.
@@ -82,13 +65,13 @@ Additional NDJSON event schemas (v1): `operation-started`, `operation-progress`,
 Install-family mutations emit typed `Operation*` events for phases: `resolve`,
 `fetch`, `link`, `lifecycle`, `validate`, `commit`, `rollback`, `cleanup`.
 
-| Effective mode | Progress rendering |
+| Output mode | Progress rendering |
 |---|---|
-| `plain` / CI / accessible / redirected stderr | Append-only zero-ANSI lines on stderr (`resolve started`, `fetch completed duration=…`) |
-| `rich` with `--progress=auto` and stderr TTY | Inline Bubble Tea renderer on stderr (no alt screen, no stdin ownership) |
-| `--progress=never` | No phase lines; lifecycle/security `Notice` events still print |
-| `--progress=always` without stderr TTY | Usage error before mutation start |
-| Auto-rich when live UI cannot start | One-shot downgrade to plain + debug notice; product continues |
+| `rich` (TTY) | Inline Bubble Tea renderer on stderr (no alt screen, no stdin ownership) |
+| `rich` (non-TTY) | Static-rich append-only lines on stderr with symbols and optional color |
+| `plain` | Append-only zero-ANSI lines on stderr |
+| `json` / `ndjson` / `silent` | No progress rendering |
+| `--no-progress` | No phase lines; lifecycle/security `Notice` events still print |
 
 Final human mutation summary is written to **stdout** via `StaticRenderer`
 (`Installed N packages in …` with Added/Updated/Removed metrics). `--no-summary`
@@ -113,15 +96,14 @@ the lease. Live install progress Suspend/Resume also covers runner children.
 Schema: [`schemas/diagnostics/error.schema.json`](../schemas/diagnostics/error.schema.json).
 Codes: [`errors.md`](errors.md).
 
-Human errors (default/plain/rich reporters) map typed `apperr` failures to an
+Human errors (rich/plain reporters) map typed `apperr` failures to an
 `ErrorView` in `internal/presentation`: title, message, optional context rows,
 `ERR_M_*` code, and up to three deterministic hints. Rich mode applies semantic
 error styling; plain mode prefixes `ERROR` with no ANSI. Debug mode may append a
 short cause chain.
 
 `diagnostics.Options.HumanErrorRender` injects the presentation renderer without
-import cycles. When `--presentation-legacy` or `MEW_PRESENTATION=legacy` is set,
-human errors keep the legacy `formatHumanError` path (including optional red ANSI).
+import cycles.
 
 JSON and NDJSON error documents are unchanged.
 

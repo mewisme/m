@@ -417,16 +417,20 @@ structured reporters do not depend on live Bubble Tea models
 - remove legacy renderer and temporary switch after stability window;
 - keep permanent `--output=plain`.
 
+**Stage 5 is now complete.** The legacy presentation path (`--presentation-legacy`,
+`MEW_PRESENTATION=legacy`), `--reporter`, tri-state flags, and all
+presentation-related environment variables and config keys have been removed.
+Rich output is the default, controlled only by explicit CLI flags.
+
 ## Rollback strategy
 
 A presentation rollback must not require reverting domain changes.
 
 Maintain:
 
-- plain renderer as permanent fallback;
-- feature/config gate during rollout;
+- plain renderer as permanent fallback (use `--output=plain`);
 - structured reporters independent from rich renderer;
-- ability to disable live Bubble Tea while retaining static Lip Gloss output.
+- ability to disable live Bubble Tea via `--no-progress` while retaining static Lip Gloss output.
 
 ## Documentation updates
 

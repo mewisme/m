@@ -78,9 +78,9 @@ func TestMutationSummaryUpdate(t *testing.T) {
 
 func TestMutationSummaryMixedAddUpdateRemove(t *testing.T) {
 	result := app.InstallResult{
-		Added:   1,
-		Changed: 1,
-		Removed: 1,
+		Added:    1,
+		Changed:  1,
+		Removed:  1,
 		Packages: 3,
 		PackageChanges: []app.PackageChange{
 			{Kind: app.PackageChangeAdded, Name: "new-pkg", ToVersion: "1.0.0", ToKey: "new-pkg@1.0.0"},

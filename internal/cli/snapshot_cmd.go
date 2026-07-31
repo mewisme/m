@@ -48,11 +48,11 @@ func newSnapshotListCmd() *cobra.Command {
 			}
 			if len(list) == 0 {
 				g := ownerFlags(cmd.Root())
-				r := g.mustStaticRenderer(cmd, nil)
+				r := g.mustStaticRenderer(cmd)
 				return writeStaticOut(cmd, r.Notice(emptyNotice("no snapshots")))
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticOut(cmd, r.Table(snapshotTableModel(list)))
 		},
 	}
@@ -108,7 +108,7 @@ func newRecoverCmd() *cobra.Command {
 				return enc.Encode(result)
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticOut(cmd, r.Status(presentation.StatusLine{
 				Status: presentation.StatusSuccess,
 				Text:   "recover: " + result.Action,

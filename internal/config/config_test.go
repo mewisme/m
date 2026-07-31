@@ -244,11 +244,8 @@ func TestListSorted(t *testing.T) {
 }
 
 func TestAllowedValuesKnownKeys(t *testing.T) {
-	if got := config.AllowedValues("ui.color"); got != "auto|always|never" {
-		t.Fatalf("ui.color values=%q", got)
-	}
-	if got := config.AllowedValues("ui.output"); got != "auto|rich|plain|json|ndjson|silent" {
-		t.Fatalf("ui.output values=%q", got)
+	if got := config.AllowedValues("log.level"); got != "error|warn|info|debug" {
+		t.Fatalf("log.level values=%q", got)
 	}
 	if got := config.AllowedValues("install.linker"); got != "auto|hoisted|isolated" {
 		t.Fatalf("install.linker values=%q", got)
@@ -270,20 +267,20 @@ func TestListIncludesValuesColumn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var color, registry, linker config.Entry
-	var foundColor, foundRegistry, foundLinker bool
+	var logLevel, registry, linker config.Entry
+	var foundLog, foundRegistry, foundLinker bool
 	for _, e := range config.List(eff) {
 		switch e.Key {
-		case "ui.color":
-			color, foundColor = e, true
+		case "log.level":
+			logLevel, foundLog = e, true
 		case "registry":
 			registry, foundRegistry = e, true
 		case "install.linker":
 			linker, foundLinker = e, true
 		}
 	}
-	if !foundColor || color.Values != "auto|always|never" {
-		t.Fatalf("ui.color entry=%+v found=%v", color, foundColor)
+	if !foundLog || logLevel.Values != "error|warn|info|debug" {
+		t.Fatalf("log.level entry=%+v found=%v", logLevel, foundLog)
 	}
 	if !foundRegistry || registry.Values != "" {
 		t.Fatalf("registry entry=%+v found=%v", registry, foundRegistry)

@@ -1,76 +1,46 @@
 package cli
 
 import (
-	"strconv"
-
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/apperr"
-	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/diagnostics"
 	"github.com/mewisme/mew/internal/presentation"
 )
 
 func (g *globalFlags) bindPresentation(cmd *cobra.Command) {
-	cmd.PersistentFlags().StringVar(&g.output, "output", "", "output mode: auto|rich|plain|json|ndjson|silent")
-	cmd.PersistentFlags().StringVar(&g.progress, "progress", "", "progress: auto|always|never")
-	cmd.PersistentFlags().StringVar(&g.unicode, "unicode", "", "unicode symbols: auto|always|never")
-	cmd.PersistentFlags().StringVar(&g.interactive, "interactive", "", "interactive UI: auto|always|never")
+	cmd.PersistentFlags().StringVar(&g.output, "output", "", "output mode: rich|plain|json|ndjson|silent")
 	cmd.PersistentFlags().StringVar(&g.logLevel, "log-level", "", "log level: error|warn|info|debug")
+	cmd.PersistentFlags().BoolVar(&g.noColor, "no-color", false, "disable ANSI color")
+	cmd.PersistentFlags().BoolVar(&g.noProgress, "no-progress", false, "disable progress output")
+	cmd.PersistentFlags().BoolVar(&g.ascii, "ascii", false, "use ASCII instead of Unicode symbols")
 	cmd.PersistentFlags().BoolVar(&g.noSummary, "no-summary", false, "suppress command summary output")
 	cmd.PersistentFlags().BoolVar(&g.accessible, "accessible", false, "accessible append-only output")
-	cmd.PersistentFlags().BoolVar(&g.presentationLegacy, "presentation-legacy", false, "force legacy human presentation (hidden rollout switch)")
-	_ = cmd.PersistentFlags().MarkHidden("presentation-legacy")
+	cmd.PersistentFlags().StringVar(&g.markdownTheme, "markdown-theme", "", "Markdown help theme: dark|light|dracula|tokyo-night|notty")
 }
 
-func (g *globalFlags) presentationInput(cfg *config.Effective) presentation.Input {
-	in := presentation.Input{
-		OutputFlag:      g.output,
-		ReporterFlag:    g.reporter,
-		ColorFlag:       g.color,
-		NoColor:         g.noColor,
-		ProgressFlag:    g.progress,
-		UnicodeFlag:     g.unicode,
-		InteractiveFlag: g.interactive,
-		LogLevelFlag:    g.logLevel,
-		NoSummary:       g.noSummary,
-		Accessible:      g.accessible,
-		LegacyFlag:      g.presentationLegacy,
-		Debug:           g.resolveDebug(),
-		Unsafe:          g.unsafe,
-		Env:             presentation.EnvMap(),
-		Config:          presentationConfig(cfg),
+func (g *globalFlags) presentationInput() presentation.Input {
+	return presentation.Input{
+		OutputFlag:    g.output,
+		NoColor:       g.noColor,
+		ASCII:         g.ascii,
+		NoProgress:    g.noProgress,
+		Accessible:    g.accessible,
+		NoSummary:     g.noSummary,
+		LogLevelFlag:  g.logLevel,
+		Debug:         g.resolveDebug(),
+		Unsafe:        g.unsafe,
+		MarkdownTheme: g.markdownTheme,
 	}
-	return in
 }
 
-func presentationConfig(cfg *config.Effective) map[string]string {
-	if cfg == nil || len(cfg.Values) == 0 {
-		return nil
-	}
-	flat := make(map[string]string, len(cfg.Values))
-	for k, v := range cfg.Values {
-		switch raw := v.Raw.(type) {
-		case string:
-			flat[k] = raw
-		case bool:
-			flat[k] = strconv.FormatBool(raw)
-		case float64:
-			flat[k] = strconv.FormatFloat(raw, 'f', -1, 64)
-		case int:
-			flat[k] = strconv.Itoa(raw)
-		}
-	}
-	return presentation.ConfigMap(flat)
-}
-
-func (g *globalFlags) controller(cmd *cobra.Command, cfg *config.Effective) (presentation.Controller, error) {
+func (g *globalFlags) controller(cmd *cobra.Command) (presentation.Controller, error) {
 	if g.ctrl != nil {
 		return g.ctrl, nil
 	}
 	streams := presentation.WriterPair(cmd.OutOrStdout(), cmd.ErrOrStderr())
 	caps := presentation.DetectCapabilities(cmd.InOrStdin(), streams.Out, streams.Err, nil)
-	resolved, err := presentation.Resolve(g.presentationInput(cfg), caps)
+	resolved, err := presentation.Resolve(g.presentationInput())
 	if err != nil {
 		return nil, err
 	}
@@ -83,8 +53,8 @@ func (g *globalFlags) controller(cmd *cobra.Command, cfg *config.Effective) (pre
 }
 
 // staticRenderer returns the design-system renderer for this invocation.
-func (g *globalFlags) staticRenderer(cmd *cobra.Command, cfg *config.Effective) (presentation.StaticRenderer, error) {
-	ctrl, err := g.controller(cmd, cfg)
+func (g *globalFlags) staticRenderer(cmd *cobra.Command) (presentation.StaticRenderer, error) {
+	ctrl, err := g.controller(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +63,8 @@ func (g *globalFlags) staticRenderer(cmd *cobra.Command, cfg *config.Effective) 
 }
 
 // mustStaticRenderer returns a plain renderer when controller setup fails.
-func (g *globalFlags) mustStaticRenderer(cmd *cobra.Command, cfg *config.Effective) presentation.StaticRenderer {
-	r, err := g.staticRenderer(cmd, cfg)
+func (g *globalFlags) mustStaticRenderer(cmd *cobra.Command) presentation.StaticRenderer {
+	r, err := g.staticRenderer(cmd)
 	if err != nil {
 		return presentation.NewStaticRenderer(presentation.EffectiveSettings{
 			ThemeMode:  presentation.ThemeNone,
@@ -106,16 +76,16 @@ func (g *globalFlags) mustStaticRenderer(cmd *cobra.Command, cfg *config.Effecti
 	return r
 }
 
-func (g *globalFlags) resolveReporter(cmd *cobra.Command, cfg *config.Effective) (diagnostics.Reporter, error) {
-	ctrl, err := g.controller(cmd, cfg)
+func (g *globalFlags) resolveReporter(cmd *cobra.Command) (diagnostics.Reporter, error) {
+	ctrl, err := g.controller(cmd)
 	if err != nil {
 		return nil, err
 	}
 	return ctrl.Reporter(), nil
 }
 
-func (g *globalFlags) mustReporter(cmd *cobra.Command, cfg *config.Effective) diagnostics.Reporter {
-	rep, err := g.resolveReporter(cmd, cfg)
+func (g *globalFlags) mustReporter(cmd *cobra.Command) diagnostics.Reporter {
+	rep, err := g.resolveReporter(cmd)
 	if err != nil {
 		return diagnostics.NewReporter(diagnostics.Options{
 			Out: cmd.OutOrStdout(),
@@ -130,7 +100,7 @@ func wrapPresentationErr(err error) error {
 		return nil
 	}
 	switch err.(type) {
-	case *presentation.ConflictError, *presentation.InvalidModeError, *presentation.RichUnsupportedError:
+	case *presentation.ConflictError, *presentation.InvalidModeError:
 		return apperr.Wrap(apperr.Usage, "cli.presentation", "", err)
 	default:
 		return err
@@ -138,7 +108,7 @@ func wrapPresentationErr(err error) error {
 }
 
 func (g *globalFlags) validateStructuredConflict(cmd *cobra.Command) error {
-	ctrl, err := g.controller(cmd, nil)
+	ctrl, err := g.controller(cmd)
 	if err != nil {
 		return wrapPresentationErr(err)
 	}

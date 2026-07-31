@@ -54,15 +54,12 @@ type Capabilities struct {
 	Background   BackgroundMode
 	Hyperlinks   bool
 	Term         string
-	NoColorEnv   bool
 }
 
 // EnvLookup reads one environment variable (typically os.LookupEnv).
 type EnvLookup func(key string) (string, bool)
 
 // DetectCapabilities probes readers/writers and environment once per invocation.
-// Color profile uses an injected env slice (or os.Environ when lookup is nil).
-// Background prefers COLORFGBG; does not query the terminal via OSC.
 func DetectCapabilities(stdin io.Reader, stdout, stderr io.Writer, lookup EnvLookup) Capabilities {
 	var env []string
 	if lookup == nil {
@@ -90,12 +87,6 @@ func DetectCapabilities(stdin io.Reader, stdout, stderr io.Writer, lookup EnvLoo
 		caps.Term = termName
 		caps.DumbTerminal = strings.EqualFold(termName, "dumb")
 	}
-	if _, ok := lookup("NO_COLOR"); ok {
-		caps.NoColorEnv = true
-	}
-	if v, ok := lookup("MEW_ACCESSIBLE"); ok && isTruthy(v) {
-		caps.ScreenReader = true
-	}
 
 	caps.ColorProfile = mapColorProfile(colorprofile.Detect(stdout, env))
 	caps.Background = detectBackground(lookup)
@@ -120,9 +111,8 @@ func DetectCapabilities(stdin io.Reader, stdout, stderr io.Writer, lookup EnvLoo
 
 func environFromLookup(lookup EnvLookup) []string {
 	keys := []string{
-		"TERM", "COLORTERM", "NO_COLOR", "CLICOLOR", "CLICOLOR_FORCE",
+		"TERM", "COLORTERM", "CLICOLOR", "CLICOLOR_FORCE",
 		"CI", "GITHUB_ACTIONS", "WT_SESSION", "TERM_PROGRAM", "COLORFGBG",
-		"MEW_UNICODE", "MEW_ACCESSIBLE", "MEW_COLOR",
 	}
 	out := make([]string, 0, len(keys))
 	for _, k := range keys {
@@ -159,7 +149,6 @@ func detectBackground(lookup EnvLookup) BackgroundMode {
 	if err != nil {
 		return BackgroundLight
 	}
-	// 0–6 and 8 are typically dark ANSI backgrounds.
 	if n <= 6 || n == 8 {
 		return BackgroundDark
 	}
@@ -170,11 +159,7 @@ func unicodeCapable(caps Capabilities, lookup EnvLookup) bool {
 	if caps.DumbTerminal || caps.ScreenReader {
 		return false
 	}
-	if v, ok := lookup("MEW_UNICODE"); ok && strings.EqualFold(strings.TrimSpace(v), "never") {
-		return false
-	}
 	if runtime.GOOS == "windows" {
-		// Modern Windows consoles (Windows Terminal, conhost UTF-8) are assumed OK.
 		return true
 	}
 	return true
@@ -228,14 +213,6 @@ func isTruthy(v string) bool {
 	default:
 		return true
 	}
-}
-
-// RichEligible reports whether auto mode may select rich output.
-func (c Capabilities) RichEligible(accessible bool) bool {
-	if accessible || c.ScreenReader {
-		return false
-	}
-	return c.StderrTTY && !c.CI && !c.DumbTerminal
 }
 
 // SupportsColor reports whether the profile can emit ANSI colors.

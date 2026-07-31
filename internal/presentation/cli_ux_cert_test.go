@@ -61,14 +61,14 @@ func TestCLIUXWidthsErrorTableSummary(t *testing.T) {
 }
 
 func TestCLIUXAccessibleNoANSI(t *testing.T) {
-	caps := testkit.PipeCapabilities()
-	resolved, err := presentation.Resolve(presentation.Input{Accessible: true}, caps)
+	resolved, err := presentation.Resolve(presentation.Input{Accessible: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.EffectiveOutput != presentation.OutputPlain {
-		t.Fatalf("accessible effective=%s want plain", resolved.EffectiveOutput)
+	if resolved.Output != presentation.OutputRich {
+		t.Fatalf("accessible output=%s want rich", resolved.Output)
 	}
+	caps := testkit.PipeCapabilities()
 	settings := presentation.Effective(resolved, caps)
 	if settings.UseColor {
 		t.Fatal("accessible must not use color")
@@ -100,7 +100,8 @@ func TestCLIUXAccessibleNoANSI(t *testing.T) {
 
 func TestCLIUXProgressNotOnStdout(t *testing.T) {
 	var out, errb bytes.Buffer
-	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "plain"}, testkit.PipeCapabilities())
+	// Rich output without TTY uses static rich progress on stderr.
+	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "rich"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,17 +116,14 @@ func TestCLIUXProgressNotOnStdout(t *testing.T) {
 	if out.Len() != 0 {
 		t.Fatalf("progress/notices leaked to stdout: %q", out.String())
 	}
-	if !strings.Contains(errb.String(), "resolve started") {
+	if !strings.Contains(errb.String(), "resolve") {
 		t.Fatalf("expected progress on stderr: %q", errb.String())
-	}
-	if presentation.ContainsCSI(out.Bytes()) || presentation.ContainsCSI(errb.Bytes()) {
-		t.Fatalf("plain pipe must not emit CSI stdout=%q stderr=%q", out.String(), errb.String())
 	}
 }
 
 func TestCLIUXControllerCleanup(t *testing.T) {
 	var errb bytes.Buffer
-	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "plain"}, testkit.PipeCapabilities())
+	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "plain"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +141,6 @@ func TestCLIUXControllerCleanup(t *testing.T) {
 	if err := ctrl.Close(ctx, presentation.Outcome{}); err != nil {
 		t.Fatal(err)
 	}
-	// Close again is idempotent (no live program left).
 	if err := ctrl.Close(ctx, presentation.Outcome{}); err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +167,6 @@ func TestCLIUXPerformanceAdvisory(t *testing.T) {
 	}
 	elapsed := time.Since(start)
 	per := elapsed / n
-	// Advisory bound only — fail loudly if something is pathologically slow.
 	if per > 5*time.Millisecond {
 		t.Fatalf("advisory: static summary median-ish %s > 5ms (total %s for %d)", per, elapsed, n)
 	}

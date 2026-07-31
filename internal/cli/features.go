@@ -57,7 +57,7 @@ func runFeatures(cmd *cobra.Command, format, module, status string) error {
 		return err
 	case "table":
 		g := ownerFlags(cmd.Root())
-		r := g.mustStaticRenderer(cmd, nil)
+		r := g.mustStaticRenderer(cmd)
 		return writeStaticOut(cmd, r.Table(featuresTableModel(filtered)))
 	default:
 		return fmt.Errorf("unsupported format %q", format)

@@ -164,7 +164,7 @@ func newVersionCmd(binary string, info BuildInfo) *cobra.Command {
 				return enc.Encode(doc)
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			out := r.Status(presentation.StatusLine{
 				Text: fmt.Sprintf("%s %s", binary, info.Version),
 			})

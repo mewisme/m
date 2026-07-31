@@ -4,26 +4,23 @@ import "github.com/mewisme/mew/internal/diagnostics"
 
 // ResolvedOptions is the immutable presentation configuration for one invocation.
 type ResolvedOptions struct {
-	RequestedOutput OutputMode
-	EffectiveOutput OutputMode
-	Color           TriState
-	Progress        TriState
-	Unicode         TriState
-	Interactive     TriState
-	Accessible      bool
-	Summary         bool
-	Theme           string
-	LogLevel        LogLevel
-	Debug           bool
-	Unsafe          bool
-	Legacy          bool
-	DowngradedRich  bool
-	TermWidth       int
+	Output        OutputMode
+	Color         bool
+	Progress      bool
+	Unicode       bool
+	Accessible    bool
+	Summary       bool
+	Theme         string
+	MarkdownTheme string
+	LogLevel      LogLevel
+	Debug         bool
+	Unsafe        bool
+	TermWidth     int
 }
 
 // ReporterFormat maps effective output to diagnostics reporter format names.
 func (o ResolvedOptions) ReporterFormat() string {
-	switch o.EffectiveOutput {
+	switch o.Output {
 	case OutputJSON:
 		return "json"
 	case OutputNDJSON:
@@ -37,19 +34,15 @@ func (o ResolvedOptions) ReporterFormat() string {
 
 // ColorMode maps resolved color policy to diagnostics.ColorMode.
 func (o ResolvedOptions) ColorMode() diagnostics.ColorMode {
-	switch o.Color {
-	case TriAlways:
+	if o.Color {
 		return diagnostics.ColorAlways
-	case TriNever:
-		return diagnostics.ColorNever
-	default:
-		return diagnostics.ColorAuto
 	}
+	return diagnostics.ColorNever
 }
 
 // Structured reports whether machine-only reporter output is active.
 func (o ResolvedOptions) Structured() bool {
-	switch o.EffectiveOutput {
+	switch o.Output {
 	case OutputJSON, OutputNDJSON:
 		return true
 	default:

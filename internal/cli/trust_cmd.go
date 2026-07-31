@@ -34,7 +34,7 @@ func newTrustCmd() *cobra.Command {
 				return apperr.New(apperr.Usage, "trust", "", "package name required (or use --interactive)")
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			for _, pkg := range args {
 				if err := store.AddTrusted(pkg); err != nil {
 					return err
@@ -73,7 +73,7 @@ func newApproveBuildsCmd() *cobra.Command {
 				return err
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			for _, pkg := range args {
 				if err := store.AddTrusted(pkg); err != nil {
 					return err
@@ -101,7 +101,7 @@ func runTrustInteractive(cmd *cobra.Command, ac *app.Context, store *lifecycle.T
 		return apperr.New(apperr.Usage, "trust", "", "interactive trust requires a TTY on stdin")
 	}
 	g := ownerFlags(cmd.Root())
-	r := g.mustStaticRenderer(cmd, nil)
+	r := g.mustStaticRenderer(cmd)
 	for _, pkg := range names {
 		ans, err := ac.Prompter.Prompt(cmd.Context(), prompt.PromptRequest{
 			ID:        "trust.interactive",

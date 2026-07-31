@@ -72,8 +72,8 @@ func TestDispatchDirectBuildArgv(t *testing.T) {
 	}{
 		{"mode-flag", []string{"build", "--mode", "x"}, `["--mode","x"]`},
 		{"separator", []string{"build", "--", "--mode", "x"}, `["--mode","x"]`},
-		{"reporter-before", []string{"--reporter", "silent", "build", "--mode", "x"}, `["--mode","x"]`},
-		{"reporter-forwarded", []string{"build", "--reporter", "ndjson"}, `["--reporter","ndjson"]`},
+		{"output-before", []string{"--output", "silent", "build", "--mode", "x"}, `["--mode","x"]`},
+		{"custom-flag-forwarded", []string{"build", "--custom-flag", "testval"}, `["--custom-flag","testval"]`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

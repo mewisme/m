@@ -21,14 +21,3 @@ func TestOutputPlainNoANSIOnPipe(t *testing.T) {
 		t.Fatalf("stdout contains ANSI: %q", out.String())
 	}
 }
-
-func TestConflictingOutputReporterFlags(t *testing.T) {
-	root := cli.NewMRoot(cli.BuildInfo{Version: "0.0.0-test"})
-	root.SetOut(bytes.NewBuffer(nil))
-	root.SetErr(bytes.NewBuffer(nil))
-	root.SetArgs([]string{"version", "--output=json", "--reporter=ndjson"})
-	code := cli.ExecuteWithArgv(root, nil, []string{"version", "--output=json", "--reporter=ndjson"})
-	if code == 0 {
-		t.Fatal("expected usage failure")
-	}
-}

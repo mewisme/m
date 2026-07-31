@@ -4,165 +4,181 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"strings"
 	"testing"
 
+	"github.com/mewisme/mew/internal/diagnostics"
 	"github.com/mewisme/mew/internal/presentation"
 )
-
-func pipeCaps() presentation.Capabilities {
-	return presentation.Capabilities{}
-}
 
 func ttyCaps() presentation.Capabilities {
 	return presentation.Capabilities{StderrTTY: true, StdoutTTY: true}
 }
 
-func TestResolveOutputPrecedence(t *testing.T) {
+func pipeCaps() presentation.Capabilities {
+	return presentation.Capabilities{}
+}
+
+func TestResolveOutputDefaults(t *testing.T) {
 	cases := []struct {
 		name string
 		in   presentation.Input
-		caps presentation.Capabilities
 		want presentation.OutputMode
 	}{
 		{
-			name: "cli output wins",
-			in: presentation.Input{
-				OutputFlag: "json",
-				Env:        map[string]string{"MEW_OUTPUT": "plain"},
-			},
-			want: presentation.OutputJSON,
-		},
-		{
-			name: "reporter when no output flag",
-			in:   presentation.Input{ReporterFlag: "ndjson"},
-			want: presentation.OutputNDJSON,
-		},
-		{
-			name: "env output",
-			in:   presentation.Input{Env: map[string]string{"MEW_OUTPUT": "silent"}},
-			want: presentation.OutputSilent,
-		},
-		{
-			name: "auto rich on tty",
+			name: "no flags defaults to rich",
 			in:   presentation.Input{},
-			caps: ttyCaps(),
 			want: presentation.OutputRich,
 		},
 		{
-			name: "auto plain on pipe",
-			in:   presentation.Input{},
-			caps: pipeCaps(),
+			name: "explicit rich",
+			in:   presentation.Input{OutputFlag: "rich"},
+			want: presentation.OutputRich,
+		},
+		{
+			name: "explicit plain",
+			in:   presentation.Input{OutputFlag: "plain"},
 			want: presentation.OutputPlain,
 		},
 		{
-			name: "accessible forces plain",
-			in:   presentation.Input{Accessible: true},
-			caps: ttyCaps(),
-			want: presentation.OutputPlain,
+			name: "explicit json",
+			in:   presentation.Input{OutputFlag: "json"},
+			want: presentation.OutputJSON,
 		},
 		{
-			name: "legacy forces plain",
-			in:   presentation.Input{LegacyFlag: true},
-			caps: ttyCaps(),
-			want: presentation.OutputPlain,
+			name: "explicit ndjson",
+			in:   presentation.Input{OutputFlag: "ndjson"},
+			want: presentation.OutputNDJSON,
+		},
+		{
+			name: "explicit silent",
+			in:   presentation.Input{OutputFlag: "silent"},
+			want: presentation.OutputSilent,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			caps := tc.caps
-			if caps == (presentation.Capabilities{}) && tc.name != "auto rich on tty" && tc.name != "accessible forces plain" && tc.name != "legacy forces plain" {
-				caps = pipeCaps()
-			}
-			got, err := presentation.Resolve(tc.in, caps)
+			got, err := presentation.Resolve(tc.in)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.EffectiveOutput != tc.want {
-				t.Fatalf("effective=%q want %q", got.EffectiveOutput, tc.want)
+			if got.Output != tc.want {
+				t.Fatalf("output=%q want %q", got.Output, tc.want)
 			}
 		})
 	}
 }
 
-func TestResolveConflictingFlags(t *testing.T) {
-	_, err := presentation.Resolve(presentation.Input{
-		OutputFlag:   "json",
-		ReporterFlag: "ndjson",
-	}, pipeCaps())
-	if err == nil {
-		t.Fatal("expected conflict")
-	}
-	var ce *presentation.ConflictError
-	if !asConflict(err, &ce) {
-		t.Fatalf("got %T %v", err, err)
-	}
-}
-
-func asConflict(err error, target **presentation.ConflictError) bool {
-	if err == nil {
-		return false
-	}
-	ce, ok := err.(*presentation.ConflictError)
-	if !ok {
-		return false
-	}
-	*target = ce
-	return true
-}
-
-func TestForcedRichUnsupported(t *testing.T) {
-	_, err := presentation.Resolve(presentation.Input{OutputFlag: "rich"}, pipeCaps())
-	if err == nil {
-		t.Fatal("expected rich unsupported")
-	}
-	if _, ok := err.(*presentation.RichUnsupportedError); !ok {
-		t.Fatalf("got %T", err)
+func TestResolveRejectsAutoDefaultHuman(t *testing.T) {
+	for _, v := range []string{"auto", "default", "human"} {
+		t.Run(v, func(t *testing.T) {
+			_, err := presentation.Resolve(presentation.Input{OutputFlag: v})
+			if err == nil {
+				t.Fatalf("expected error for --output=%s", v)
+			}
+			var ie *presentation.InvalidModeError
+			if !asInvalid(err, &ie) {
+				t.Fatalf("expected InvalidModeError, got %T: %v", err, err)
+			}
+		})
 	}
 }
 
-func TestResolveColorConfigWhenFlagUnset(t *testing.T) {
-	// ColorFlag "" (CLI unset) must not shadow ui.color. A default of "auto" would.
-	got, err := presentation.Resolve(presentation.Input{
-		Config: map[string]string{"ui.color": "always"},
-	}, pipeCaps())
+func TestResolveBoolFlags(t *testing.T) {
+	cases := []struct {
+		name  string
+		in    presentation.Input
+		check func(t *testing.T, opts presentation.ResolvedOptions)
+	}{
+		{
+			name: "--no-color disables color",
+			in:   presentation.Input{NoColor: true},
+			check: func(t *testing.T, opts presentation.ResolvedOptions) {
+				if opts.Color {
+					t.Fatal("Color should be false")
+				}
+			},
+		},
+		{
+			name: "--ascii disables unicode",
+			in:   presentation.Input{ASCII: true},
+			check: func(t *testing.T, opts presentation.ResolvedOptions) {
+				if opts.Unicode {
+					t.Fatal("Unicode should be false")
+				}
+			},
+		},
+		{
+			name: "--no-progress disables progress",
+			in:   presentation.Input{NoProgress: true},
+			check: func(t *testing.T, opts presentation.ResolvedOptions) {
+				if opts.Progress {
+					t.Fatal("Progress should be false")
+				}
+			},
+		},
+		{
+			name: "--accessible keeps rich output",
+			in:   presentation.Input{Accessible: true},
+			check: func(t *testing.T, opts presentation.ResolvedOptions) {
+				if opts.Output != presentation.OutputRich {
+					t.Fatalf("Output=%q want rich", opts.Output)
+				}
+				if !opts.Accessible {
+					t.Fatal("Accessible should be true")
+				}
+			},
+		},
+		{
+			name: "--no-summary sets Summary=false",
+			in:   presentation.Input{NoSummary: true},
+			check: func(t *testing.T, opts presentation.ResolvedOptions) {
+				if opts.Summary {
+					t.Fatal("Summary should be false")
+				}
+			},
+		},
+		{
+			name: "defaults: color, unicode, progress all true",
+			in:   presentation.Input{},
+			check: func(t *testing.T, opts presentation.ResolvedOptions) {
+				if !opts.Color {
+					t.Fatal("Color should default to true for rich")
+				}
+				if !opts.Unicode {
+					t.Fatal("Unicode should default to true")
+				}
+				if !opts.Progress {
+					t.Fatal("Progress should default to true for rich")
+				}
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := presentation.Resolve(tc.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tc.check(t, got)
+		})
+	}
+}
+
+func TestResolvePlainOutputDisablesRichFeatures(t *testing.T) {
+	got, err := presentation.Resolve(presentation.Input{OutputFlag: "plain"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Color != presentation.TriAlways {
-		t.Fatalf("color=%q want always from ui.color", got.Color)
+	if got.Color {
+		t.Fatal("Color should be false for plain output")
 	}
-}
-
-func TestResolveColorFlagAutoShadowsConfig(t *testing.T) {
-	// Explicit --color=auto is CLI precedence and must win over config.
-	got, err := presentation.Resolve(presentation.Input{
-		ColorFlag: "auto",
-		Config:    map[string]string{"ui.color": "always"},
-	}, pipeCaps())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Color != presentation.TriAuto {
-		t.Fatalf("color=%q want auto from ColorFlag", got.Color)
-	}
-}
-
-func TestResolveColorMEWColorWhenFlagUnset(t *testing.T) {
-	got, err := presentation.Resolve(presentation.Input{
-		Env:    map[string]string{"MEW_COLOR": "always"},
-		Config: map[string]string{"ui.color": "never"},
-	}, pipeCaps())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Color != presentation.TriAlways {
-		t.Fatalf("color=%q want always from MEW_COLOR", got.Color)
+	if got.Progress {
+		t.Fatal("Progress should be false for plain output")
 	}
 }
 
 func TestStructuredCommandJSONConflict(t *testing.T) {
-	opts := presentation.ResolvedOptions{EffectiveOutput: presentation.OutputJSON}
+	opts := presentation.ResolvedOptions{Output: presentation.OutputJSON}
 	if err := presentation.StructuredConflictsWithCommandJSON(opts, true); err == nil {
 		t.Fatal("expected conflict")
 	}
@@ -170,7 +186,7 @@ func TestStructuredCommandJSONConflict(t *testing.T) {
 
 func TestControllerCloseIdempotent(t *testing.T) {
 	var out, errb bytes.Buffer
-	resolved, err := presentation.Resolve(presentation.Input{}, pipeCaps())
+	resolved, err := presentation.Resolve(presentation.Input{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +204,7 @@ func TestControllerCloseIdempotent(t *testing.T) {
 }
 
 func TestControllerSuspendResume(t *testing.T) {
-	resolved, err := presentation.Resolve(presentation.Input{}, pipeCaps())
+	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "plain"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,41 +221,44 @@ func TestControllerSuspendResume(t *testing.T) {
 	}
 }
 
-func TestEnvMapIncludesMEWOutput(t *testing.T) {
+func TestEnvMapNoLongerIncludesPresentation(t *testing.T) {
 	t.Setenv("MEW_OUTPUT", "plain")
+	t.Setenv("MEW_COLOR", "never")
 	m := presentation.EnvMap()
-	if m["MEW_OUTPUT"] != "plain" {
-		t.Fatalf("%v", m)
+	if m["MEW_OUTPUT"] != "" {
+		t.Fatal("MEW_OUTPUT should not be in EnvMap")
+	}
+	if m["MEW_COLOR"] != "" {
+		t.Fatal("MEW_COLOR should not be in EnvMap")
 	}
 }
 
 func TestReporterFormatMapping(t *testing.T) {
-	opts := presentation.ResolvedOptions{EffectiveOutput: presentation.OutputNDJSON}
+	opts := presentation.ResolvedOptions{Output: presentation.OutputNDJSON}
 	if opts.ReporterFormat() != "ndjson" {
 		t.Fatalf("%q", opts.ReporterFormat())
 	}
 }
 
-func TestDowngradeRichEmitsDebug(t *testing.T) {
-	var errb bytes.Buffer
-	in := presentation.Input{OutputFlag: "auto"}
-	caps := presentation.Capabilities{CI: true}
-	resolved, err := presentation.Resolve(in, caps)
-	if err != nil {
-		t.Fatal(err)
+func TestColorModeMapping(t *testing.T) {
+	opts := presentation.ResolvedOptions{Color: true}
+	if opts.ColorMode() != diagnostics.ColorAlways {
+		t.Fatalf("ColorMode=%d want ColorAlways (%d)", opts.ColorMode(), diagnostics.ColorAlways)
 	}
-	// auto on CI becomes plain without DowngradedRich when rich was never requested.
-	if resolved.DowngradedRich {
-		t.Fatalf("unexpected DowngradedRich for auto+CI: %+v", resolved)
+	opts = presentation.ResolvedOptions{Color: false}
+	if opts.ColorMode() != diagnostics.ColorNever {
+		t.Fatalf("ColorMode=%d want ColorNever (%d)", opts.ColorMode(), diagnostics.ColorNever)
 	}
-	resolved.Debug = true
-	resolved.DowngradedRich = true
-	ctrl, err := presentation.NewController(resolved, caps, presentation.StreamWriters{Out: io.Discard, Err: &errb})
-	if err != nil {
-		t.Fatal(err)
+}
+
+func asInvalid(err error, target **presentation.InvalidModeError) bool {
+	if err == nil {
+		return false
 	}
-	_ = ctrl
-	if !strings.Contains(errb.String(), "downgraded") {
-		t.Fatalf("stderr=%q", errb.String())
+	ie, ok := err.(*presentation.InvalidModeError)
+	if !ok {
+		return false
 	}
+	*target = ie
+	return true
 }

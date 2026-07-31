@@ -25,26 +25,23 @@ import (
 
 // globalFlags holds persistent CLI presentation options.
 type globalFlags struct {
-	reporter           string
-	output             string
-	progress           string
-	unicode            string
-	interactive        string
-	logLevel           string
-	debug              bool
-	color              string
-	noColor            bool
-	noSummary          bool
-	accessible         bool
-	presentationLegacy bool
-	unsafe             bool
-	cwd                string
-	configPath         string
-	offline            bool
-	preferOffline      bool
-	filter             []string
-	recursive          bool
-	ctrl               presentation.Controller
+	output        string
+	logLevel      string
+	debug         bool
+	noColor       bool
+	noProgress    bool
+	ascii         bool
+	noSummary     bool
+	accessible    bool
+	unsafe        bool
+	cwd           string
+	configPath    string
+	offline       bool
+	preferOffline bool
+	filter        []string
+	recursive     bool
+	markdownTheme string
+	ctrl          presentation.Controller
 }
 
 var flagOwners sync.Map     // *cobra.Command -> *globalFlags
@@ -65,12 +62,7 @@ func loadRootBuildInfo(root *cobra.Command) BuildInfo {
 
 func (g *globalFlags) bind(cmd *cobra.Command) {
 	g.bindPresentation(cmd)
-	cmd.PersistentFlags().StringVar(&g.reporter, "reporter", "", "output reporter: default|ndjson|json|silent (alias for --output; env MEW_LOG_FORMAT)")
 	cmd.PersistentFlags().BoolVar(&g.debug, "debug", false, "verbose diagnostics (env MEW_DEBUG or M_LOG=debug)")
-	// Empty default (not "auto"): a literal "auto" would shadow MEW_COLOR / ui.color
-	// via firstNonEmpty in presentation.Resolve. Unset resolves to TriAuto there.
-	cmd.PersistentFlags().StringVar(&g.color, "color", "", "color: auto|always|never")
-	cmd.PersistentFlags().BoolVar(&g.noColor, "no-color", false, "disable ANSI color")
 	cmd.PersistentFlags().BoolVar(&g.unsafe, "unsafe-diagnostics", false, "disable secret redaction (dangerous)")
 	_ = cmd.PersistentFlags().MarkHidden("unsafe-diagnostics")
 	cmd.PersistentFlags().StringVar(&g.cwd, "cwd", "", "project working directory")
@@ -85,14 +77,13 @@ func (g *globalFlags) bindRecursive(cmd *cobra.Command) {
 }
 
 func (g *globalFlags) newReporter(cmd *cobra.Command) diagnostics.Reporter {
-	return g.mustReporter(cmd, nil)
+	return g.mustReporter(cmd)
 }
 
 func (g *globalFlags) resolveDebug() bool {
 	if g.debug {
 		return true
 	}
-	// intentional: pre-app.New debug flags read ambient env before snapshot exists.
 	if os.Getenv("MEW_DEBUG") != "" {
 		return true
 	}
@@ -154,7 +145,7 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 		ConfigPath:    g.configPath,
 		Offline:       g.offline,
 		PreferOffline: g.preferOffline,
-		Reporter:      g.mustReporter(cmd, nil),
+		Reporter:      g.mustReporter(cmd),
 		Version:       info.Version,
 		Commit:        info.Commit,
 		BuildDate:     info.BuildDate,
@@ -163,7 +154,7 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 		return nil, err
 	}
 	g.ctrl = nil
-	rep, err := g.resolveReporter(cmd, ac.Config)
+	rep, err := g.resolveReporter(cmd)
 	if err != nil {
 		return nil, wrapPresentationErr(err)
 	}
@@ -184,15 +175,9 @@ func attachPrompter(ac *app.Context, cmd *cobra.Command, ctrl presentation.Contr
 	resolved := ctrl.Options()
 	caps := ctrl.Capabilities()
 	settings := presentation.Effective(resolved, caps)
-	policy := prompt.InteractiveAuto
-	switch resolved.Interactive {
-	case presentation.TriAlways:
-		policy = prompt.InteractiveAlways
-	case presentation.TriNever:
-		policy = prompt.InteractiveNever
-	}
-	human := !resolved.Structured() && resolved.EffectiveOutput != presentation.OutputSilent
-	decision := prompt.ResolveInteractive(policy, prompt.Caps{
+
+	human := !resolved.Structured() && resolved.Output != presentation.OutputSilent
+	decision := prompt.ResolveInteractive(prompt.InteractiveAuto, prompt.Caps{
 		StdinTTY:     caps.StdinTTY,
 		HumanMode:    human,
 		CI:           caps.CI,
@@ -207,7 +192,7 @@ func attachPrompter(ac *app.Context, cmd *cobra.Command, ctrl presentation.Contr
 	useRich := !decision.UseAccessible &&
 		settings.UseInteractive &&
 		!settings.Accessible &&
-		resolved.EffectiveOutput == presentation.OutputRich
+		resolved.Output == presentation.OutputRich
 	ac.Prompter = presprompt.New(presprompt.Options{
 		Stdin:      cmd.InOrStdin(),
 		Stderr:     cmd.ErrOrStderr(),
@@ -223,7 +208,7 @@ func attachPrompter(ac *app.Context, cmd *cobra.Command, ctrl presentation.Contr
 
 func execute(root *cobra.Command, info BuildInfo, argv []string) (exit int) {
 	g := ownerFlags(root)
-	rep, err := g.resolveReporter(root, nil)
+	rep, err := g.resolveReporter(root)
 	if err != nil {
 		fallback := diagnostics.NewReporter(diagnostics.Options{
 			Out: root.OutOrStdout(),
@@ -263,7 +248,7 @@ func execute(root *cobra.Command, info BuildInfo, argv []string) (exit int) {
 
 	root.SetArgs(argv)
 	execErr := root.ExecuteContext(ctx)
-	rep, repErr := g.resolveReporter(root, nil)
+	rep, repErr := g.resolveReporter(root)
 	if repErr != nil {
 		fallback := diagnostics.NewReporter(diagnostics.Options{
 			Out: root.OutOrStdout(),

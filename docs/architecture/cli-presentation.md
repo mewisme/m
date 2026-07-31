@@ -8,26 +8,22 @@ terminal drawing.
 
 | Mode | Selection | Properties |
 |---|---|---|
-| `auto` | Default | Rich when `RichEligible`; otherwise plain |
-| `rich` | `--output=rich` | Styled human output; fails closed if stderr is not an interactive eligible TTY |
-| `plain` | `--output=plain`, CI, pipe, dumb, accessible, legacy auto | Append-only, zero ANSI / cursor control |
+| `rich` | Default (no flag needed) | Rich design-system styled output; TTY uses live renderer, non-TTY uses static-rich append-only |
+| `plain` | `--output=plain` | Append-only, zero ANSI / cursor control |
 | `json` | `--output=json` | Structured stdout only; no human prefix |
 | `ndjson` | `--output=ndjson` | Line-delimited events on stdout |
 | `silent` | `--output=silent` | No progress/summary; required errors still surface |
 
-Resolution lives in `presentation.Resolve` (`internal/presentation/resolve.go`).
-Precedence for mode: CLI `--output` → `--reporter` → `MEW_OUTPUT` /
-`MEW_LOG_FORMAT` → `ui.output` → `auto`.
-
-`RichEligible` requires stderr TTY, non-CI, non-dumb terminal, and not
-accessible / screen-reader.
+Rich is always the default. Resolution lives in `presentation.Resolve`
+(`internal/presentation/resolve.go`) and is driven exclusively by CLI flags.
+Environment variables and config keys no longer influence presentation.
 
 ## Streams
 
 | Stream | Owns |
 |---|---|
 | stdout | Machine payloads (JSON/NDJSON), help text when written to stdout, completion scripts, child stdout passthrough |
-| stderr | Human progress, notices, ErrorView, prompts, live Bubble Tea frames |
+| stderr | Human progress, notices, ErrorView, prompts, live Bubble Tea frames, static-rich append-only lines |
 
 Progress and human notices must never contaminate stdout. Completions are
 ANSI-free. Child single-task runs keep raw stdin/stdout/stderr ownership;
@@ -66,19 +62,8 @@ resources; product cleanup completes and presentation errors surface afterward.
 
 ## Accessibility
 
-`--accessible` / `MEW_ACCESSIBLE` / `ui.accessible` forces append-only plain
-output and numbered prompts. See [`docs/accessibility.md`](../accessibility.md).
-
-## Rollout stages
-
-| Stage | Status |
-|---|---|
-| 1–3 | Historical — UX-0001–0003 foundation, design system, static output |
-| 4 Default rich auto | **Current** — rich only when `RichEligible`; CI/pipe/accessible/legacy → plain |
-| 5 Cleanup | **Deferred** — remove `--presentation-legacy` / `MEW_PRESENTATION=legacy` after one stable release window and green `cli-ux` matrix on Ubuntu, Windows, and macOS |
-
-Permanent controls independent of Stage 5: `--output=plain`, structured
-reporters (`json` / `ndjson` / `silent`), and `--accessible`.
+`--accessible` preserves rich output formatting while selecting the numbered
+prompt adapter. See [`docs/accessibility.md`](../accessibility.md).
 
 ## Certification
 

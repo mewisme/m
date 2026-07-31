@@ -48,7 +48,7 @@ func newCacheVerifyCmd() *cobra.Command {
 				return enc.Encode(res)
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticOut(cmd, r.Summary(cacheVerifySummary(res.OK, res.Bad, res.Skip)))
 		},
 	}

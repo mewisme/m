@@ -71,7 +71,7 @@ func newProjectInfoCmd() *cobra.Command {
 				return enc.Encode(doc)
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			kvs := []presentation.KeyValue{
 				{Key: "root", Value: p.Root, Style: presentation.ValuePath},
 				{Key: "identity", Value: string(p.Identity)},

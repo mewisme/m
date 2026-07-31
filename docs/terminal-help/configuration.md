@@ -40,16 +40,6 @@ m config unset <key> [--local|--file]
 
 `--global` is a deprecated alias for user scope. `--config` is read-overlay only.
 `m config edit` is deferred.
-## UI-related keys
-
-| Key | Meaning |
-|---|---|
-| `ui.output` | `auto` \| `rich` \| `plain` \| `json` \| `ndjson` \| `silent` |
-| `ui.color` | color policy |
-| `ui.theme` | `auto` \| `light` \| `dark` \| `accessible` \| `none` — Glamour help style |
-| `ui.accessible` | accessible append-only mode |
-| `ui.interactive` | prompt policy |
-| `ui.pager` | optional pager command for topic help |
 
 ## See also
 

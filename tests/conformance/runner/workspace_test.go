@@ -100,7 +100,7 @@ func TestWorkspaceOutputPrefixMode(t *testing.T) {
 func TestWorkspaceOutputJSONMode(t *testing.T) {
 	skipWithoutNode(t)
 	proj := setupWorkspaceFixture(t, "large")
-	code, _ := runMProject(t, proj, "-r", "run", "build", "--workspace-order", "parallel", "--reporter", "json")
+	code, _ := runMProject(t, proj, "-r", "run", "build", "--workspace-order", "parallel", "--output", "json")
 	if code != 0 {
 		t.Fatalf("exit=%d", code)
 	}

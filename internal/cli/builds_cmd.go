@@ -42,11 +42,11 @@ func newBuildsListCmd() *cobra.Command {
 			}
 			if len(entries) == 0 {
 				g := ownerFlags(cmd.Root())
-				r := g.mustStaticRenderer(cmd, nil)
+				r := g.mustStaticRenderer(cmd)
 				return writeStaticOut(cmd, r.Notice(emptyNotice("no lifecycle audit entries")))
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			return writeStaticOut(cmd, r.Table(buildsTableModel(entries)))
 		},
 	}

@@ -202,7 +202,7 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 		return enc.Encode(result)
 	}
 	g := ownerFlags(cmd.Root())
-	r := g.mustStaticRenderer(cmd, nil)
+	r := g.mustStaticRenderer(cmd)
 
 	// Plain CI progress final line on stderr (independent of --no-summary).
 	writePlainProgressFooter(cmd, g, result, dryRun)
@@ -240,7 +240,7 @@ func writePlainProgressFooter(cmd *cobra.Command, g *globalFlags, result app.Ins
 		return
 	}
 	opts := g.ctrl.Options()
-	if opts.Legacy || opts.Structured() || opts.Progress == presentation.TriNever {
+	if opts.Structured() || !opts.Progress {
 		return
 	}
 	settings := presentation.Effective(opts, g.ctrl.Capabilities())

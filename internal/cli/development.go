@@ -133,7 +133,7 @@ func runDoctor(cmd *cobra.Command) error {
 	}
 
 	g := ownerFlags(cmd.Root())
-	r := g.mustStaticRenderer(cmd, nil)
+	r := g.mustStaticRenderer(cmd)
 	return writeStaticOut(cmd, r.Summary(summary))
 }
 

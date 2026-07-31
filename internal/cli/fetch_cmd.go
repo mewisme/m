@@ -44,7 +44,7 @@ func newFetchCmd() *cobra.Command {
 				return enc.Encode(results)
 			}
 			g := ownerFlags(cmd.Root())
-			r := g.mustStaticRenderer(cmd, nil)
+			r := g.mustStaticRenderer(cmd)
 			arrow := r.Settings().Symbols.Arrow
 			for _, res := range results {
 				if err := writeStaticOut(cmd, r.Status(presentation.StatusLine{

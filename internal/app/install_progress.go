@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"sync/atomic"
 	"time"
 
@@ -92,13 +91,6 @@ func (p *installProgress) startPhase() {
 		Unit:  p.unit,
 	}
 	p.ac.Reporter.OperationStarted(ev)
-	if legacyProgressEnabled() {
-		subject := ""
-		if p.total != nil {
-			subject = fmt.Sprintf("%s=%d", p.unit, *p.total)
-		}
-		p.ac.Reporter.Progress(diagnostics.Event{V: 1, Type: "progress", Phase: p.phase, Package: subject})
-	}
 }
 
 // Progress emits OperationProgress when totals are authoritative.
@@ -164,10 +156,6 @@ func statusFromErr(err error) string {
 		return statusCancelled
 	}
 	return statusFailed
-}
-
-func legacyProgressEnabled() bool {
-	return os.Getenv("MEW_PRESENTATION") == "legacy"
 }
 
 // emitInstallNotice emits a typed Notice (lifecycle blocked/security).

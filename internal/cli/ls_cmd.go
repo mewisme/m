@@ -89,7 +89,7 @@ func runLsDepTree(cmd *cobra.Command, proj *project.Project, depth int, prodOnly
 		return nil
 	}
 	gf := ownerFlags(cmd.Root())
-	r := gf.mustStaticRenderer(cmd, nil)
+	r := gf.mustStaticRenderer(cmd)
 	return writeStaticOut(cmd, r.PlainText(text))
 }
 
@@ -104,7 +104,7 @@ func runLsWorkspace(cmd *cobra.Command, ac *app.Context, proj *project.Project, 
 	}
 	if len(patterns) == 0 {
 		g := ownerFlags(cmd.Root())
-		r := g.mustStaticRenderer(cmd, nil)
+		r := g.mustStaticRenderer(cmd)
 		return writeStaticOut(cmd, r.KeyValues([]presentation.KeyValue{
 			{Key: "name", Value: proj.Normalized.Name, Style: presentation.ValuePackage},
 			{Key: "version", Value: proj.Doc.Version, Style: presentation.ValueVersion},
@@ -127,7 +127,7 @@ func runLsWorkspace(cmd *cobra.Command, ac *app.Context, proj *project.Project, 
 		paths = wg.MemberPaths()
 	} else {
 		g := ownerFlags(cmd.Root())
-		r := g.mustStaticRenderer(cmd, nil)
+		r := g.mustStaticRenderer(cmd)
 		return writeStaticOut(cmd, r.KeyValues([]presentation.KeyValue{
 			{Key: "name", Value: proj.Normalized.Name, Style: presentation.ValuePackage},
 			{Key: "version", Value: proj.Doc.Version, Style: presentation.ValueVersion},
@@ -149,7 +149,7 @@ func runLsWorkspace(cmd *cobra.Command, ac *app.Context, proj *project.Project, 
 		rows = append(rows, workspaceListRow{Name: mem.Name, Version: mem.Version, Path: p})
 	}
 	g := ownerFlags(cmd.Root())
-	r := g.mustStaticRenderer(cmd, nil)
+	r := g.mustStaticRenderer(cmd)
 	return writeStaticOut(cmd, r.Table(workspaceListTable(rows)))
 }
 

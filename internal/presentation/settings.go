@@ -15,15 +15,16 @@ const (
 
 // EffectiveSettings is the immutable rendering policy derived once per invocation.
 type EffectiveSettings struct {
-	UseColor       bool
-	UseUnicode     bool
-	UseProgress    bool
-	UseInteractive bool
-	ThemeMode      ThemeMode
-	Width          int
-	Accessible     bool
-	Legacy         bool
-	Symbols        Symbols
+	UseColor                bool
+	UseUnicode              bool
+	UseProgress             bool
+	UseInteractive          bool
+	ThemeMode               ThemeMode
+	ConfiguredMarkdownTheme MarkdownTheme
+	MarkdownTheme           MarkdownTheme
+	Width                   int
+	Accessible              bool
+	Symbols                 Symbols
 }
 
 // Effective derives rendering settings from resolved options and capabilities.
@@ -35,88 +36,46 @@ func Effective(resolved ResolvedOptions, caps Capabilities) EffectiveSettings {
 	width = ClampWidth(width)
 
 	useColor := resolveUseColor(resolved, caps)
-	useUnicode := resolveUseUnicode(resolved.Unicode, caps)
-	useProgress := resolveUseProgress(resolved, caps)
-	useInteractive := resolveUseInteractive(resolved.Interactive, caps)
+	useUnicode := resolved.Unicode
+	useProgress := resolved.Progress && caps.StderrTTY && !caps.CI && !caps.DumbTerminal && !resolved.Accessible && !caps.ScreenReader
+	useInteractive := caps.Interactive
 	themeMode := resolveThemeMode(resolved, caps, useColor)
+	configuredMarkdown, _ := ParseMarkdownTheme(resolved.MarkdownTheme)
+	effectiveMarkdown := ResolveMarkdownTheme(configuredMarkdown, !useColor, !resolved.Unicode)
 
 	return EffectiveSettings{
-		UseColor:       useColor,
-		UseUnicode:     useUnicode,
-		UseProgress:    useProgress,
-		UseInteractive: useInteractive,
-		ThemeMode:      themeMode,
-		Width:          width,
-		Accessible:     resolved.Accessible || caps.ScreenReader,
-		Legacy:         resolved.Legacy,
-		Symbols:        SelectSymbols(useUnicode),
+		UseColor:                useColor,
+		UseUnicode:              useUnicode,
+		UseProgress:             useProgress,
+		UseInteractive:          useInteractive,
+		ThemeMode:               themeMode,
+		ConfiguredMarkdownTheme: configuredMarkdown,
+		MarkdownTheme:           effectiveMarkdown,
+		Width:                   width,
+		Accessible:              resolved.Accessible || caps.ScreenReader,
+		Symbols:                 SelectSymbols(useUnicode),
 	}
 }
 
 // resolveUseColor decides whether static rich styling (Lip Gloss ANSI) is allowed.
-// Explicit --output=plain, accessible, legacy, structured, silent, and --color=never
-// never get color. ForceColor (--color=always or requested --output=rich) keeps
-// color on non-TTY stdout (IDE parity), including when auto downgraded to plain.
+// Explicit --output=plain, accessible, structured, silent, and --no-color never get color.
 func resolveUseColor(resolved ResolvedOptions, caps Capabilities) bool {
-	if resolved.Legacy || resolved.Accessible || caps.ScreenReader {
+	if resolved.Accessible || caps.ScreenReader {
 		return false
 	}
-	if resolved.Color == TriNever {
+	if !resolved.Color {
 		return false
 	}
-	if resolved.Structured() || resolved.EffectiveOutput == OutputSilent {
+	if resolved.Structured() || resolved.Output == OutputSilent {
 		return false
 	}
-	// Explicit --output=plain: zero ANSI even on a color TTY / with --color=always.
-	if resolved.RequestedOutput == OutputPlain {
+	if resolved.Output == OutputPlain {
 		return false
 	}
-	// ForceColor: IDE / non-TTY parity with topic help.
-	if resolved.Color == TriAlways || resolved.RequestedOutput == OutputRich {
-		return true
+	if resolved.Output == OutputRich {
+		return caps.StdoutTTY && !caps.DumbTerminal && caps.SupportsColor()
 	}
-	if resolved.EffectiveOutput != OutputRich {
-		return false
-	}
-	return caps.StdoutTTY && !caps.DumbTerminal && caps.SupportsColor()
-}
-
-func resolveUseUnicode(unicode TriState, caps Capabilities) bool {
-	switch unicode {
-	case TriAlways:
-		return true
-	case TriNever:
-		return false
-	default:
-		return caps.Unicode
-	}
-}
-
-func resolveUseProgress(resolved ResolvedOptions, caps Capabilities) bool {
-	switch resolved.Progress {
-	case TriAlways:
-		return true
-	case TriNever:
-		return false
-	default:
-		return resolved.EffectiveOutput == OutputRich &&
-			caps.StderrTTY &&
-			!caps.CI &&
-			!caps.DumbTerminal &&
-			!resolved.Accessible &&
-			!caps.ScreenReader
-	}
-}
-
-func resolveUseInteractive(interactive TriState, caps Capabilities) bool {
-	switch interactive {
-	case TriAlways:
-		return caps.StdinTTY
-	case TriNever:
-		return false
-	default:
-		return caps.Interactive
-	}
+	return false
 }
 
 func resolveThemeMode(resolved ResolvedOptions, caps Capabilities, useColor bool) ThemeMode {
@@ -127,8 +86,6 @@ func resolveThemeMode(resolved ResolvedOptions, caps Capabilities, useColor bool
 }
 
 // ThemePreference resolves ui.theme (and auto background) without the color gate.
-// Use this for Glamour help styles when ForceColor still renders rich on a non-TTY
-// (Effective.ThemeMode is ThemeNone when useColor is false).
 func ThemePreference(resolved ResolvedOptions, caps Capabilities) ThemeMode {
 	if resolved.Accessible || caps.ScreenReader {
 		return ThemeAccessible

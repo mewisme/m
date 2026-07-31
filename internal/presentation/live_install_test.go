@@ -2,7 +2,6 @@ package presentation_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -33,14 +32,12 @@ func TestLiveInstallRendererStartStop(t *testing.T) {
 	if err := r.Close(); err != nil {
 		t.Fatal(err)
 	}
-	// Closing twice is idempotent.
 	if err := r.Close(); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestLiveInstallRendererLazyStartNoTerminalIO(t *testing.T) {
-	// Commands that never emit progress must not start Bubble Tea (no ESC leaks).
 	var buf bytes.Buffer
 	settings := presentation.EffectiveSettings{
 		UseUnicode: false,
@@ -64,50 +61,23 @@ func TestLiveInstallRendererLazyStartNoTerminalIO(t *testing.T) {
 	}
 }
 
-func TestControllerAutoRichDowngradesToPlain(t *testing.T) {
-	// Progress auto + effective rich eligibility false → plain sink, not an error.
-	caps := testkit.PipeCapabilities()
-	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "auto", ProgressFlag: "auto"}, caps)
+func TestControllerPlainOutputUsesPlainProgress(t *testing.T) {
+	// Plain output no longer has progress by default. Verify no progress sink is created.
+	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "plain"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.EffectiveOutput != presentation.OutputPlain {
-		t.Fatalf("effective=%s", resolved.EffectiveOutput)
+	if resolved.Output != presentation.OutputPlain {
+		t.Fatalf("output=%s", resolved.Output)
 	}
-	var errb bytes.Buffer
-	ctrl, err := presentation.NewController(resolved, caps, presentation.StreamWriters{
-		Out: bytes.NewBuffer(nil), Err: &errb,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctrl.Reporter().OperationStarted(diagnostics.OperationStartedEvent{ID: "i/1/fetch", Kind: "fetch"})
-	if !strings.Contains(errb.String(), "fetch started") {
-		t.Fatalf("expected plain progress after auto downgrade path: %q", errb.String())
-	}
-	ctx := context.Background()
-	if err := ctrl.Suspend(ctx); err != nil {
-		t.Fatal(err)
-	}
-	ctrl.Reporter().OperationStarted(diagnostics.OperationStartedEvent{ID: "i/1/link", Kind: "link"})
-	if strings.Contains(errb.String(), "link started") {
-		t.Fatalf("suspended sink must drop events: %q", errb.String())
-	}
-	if err := ctrl.Resume(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if err := ctrl.Close(ctx, presentation.Outcome{}); err != nil {
-		t.Fatal(err)
+	if resolved.Progress {
+		t.Fatal("plain output should not have progress")
 	}
 }
 
-func TestControllerLiveDowngradeWhenTTYMissingForAutoProgress(t *testing.T) {
-	// Force UseProgress via Progress=always is an error; for auto with rich output
-	// on non-TTY Resolve already downgrades. Simulate resolved rich + UseProgress
-	// by using Progress always on plain... already covered. Here: Progress auto
-	// with TTY caps but we pass non-TTY writers — UseProgress true from caps.
+func TestControllerRichTTYUsesLiveProgress(t *testing.T) {
 	caps := testkit.TTYCapabilities()
-	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "rich", ProgressFlag: "auto"}, caps)
+	resolved, err := presentation.Resolve(presentation.Input{OutputFlag: "rich"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,11 +85,10 @@ func TestControllerLiveDowngradeWhenTTYMissingForAutoProgress(t *testing.T) {
 	if !settings.UseProgress {
 		t.Fatal("expected UseProgress on TTY rich")
 	}
-	// Override caps for sink selection by building controller with pipe caps
-	// while keeping UseProgress true via Progress=always — that errors.
-	// Instead verify select path: Progress auto + non-TTY caps → plain.
+
+	// With non-TTY caps, rich should use static-rich progress.
 	pipe := testkit.PipeCapabilities()
-	resolved2, err := presentation.Resolve(presentation.Input{OutputFlag: "plain", ProgressFlag: "auto"}, pipe)
+	resolved2, err := presentation.Resolve(presentation.Input{OutputFlag: "rich"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +100,7 @@ func TestControllerLiveDowngradeWhenTTYMissingForAutoProgress(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctrl.Reporter().OperationStarted(diagnostics.OperationStartedEvent{ID: "x", Kind: "validate"})
-	if !strings.Contains(errb.String(), "validate started") {
-		t.Fatalf("%q", errb.String())
+	if !strings.Contains(errb.String(), "validate") {
+		t.Fatalf("expected static-rich progress: %q", errb.String())
 	}
 }

@@ -130,7 +130,7 @@ func TestConfigListValuesColumn(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixture := filepath.Join(modRoot, "fixtures", "identity", "mew-native")
-	root.SetArgs([]string{"--cwd", fixture, "--color", "never", "config", "list"})
+	root.SetArgs([]string{"--cwd", fixture, "--no-color", "config", "list"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
@@ -139,15 +139,15 @@ func TestConfigListValuesColumn(t *testing.T) {
 		t.Fatalf("missing VALUES header:\n%s", out)
 	}
 	for _, line := range strings.Split(out, "\n") {
-		if !strings.Contains(line, "ui.color") {
+		if !strings.Contains(line, "log.level") {
 			continue
 		}
-		if strings.Contains(line, "auto") && strings.Contains(line, "always") && strings.Contains(line, "never") {
+		if strings.Contains(line, "error") && strings.Contains(line, "warn") && strings.Contains(line, "info") && strings.Contains(line, "debug") {
 			return
 		}
-		t.Fatalf("ui.color row missing auto|always|never:\n%s\nfull:\n%s", line, out)
+		t.Fatalf("log.level row missing error|warn|info|debug:\n%s\nfull:\n%s", line, out)
 	}
-	t.Fatalf("ui.color row missing:\n%s", out)
+	t.Fatalf("log.level row missing:\n%s", out)
 }
 
 func TestRecoverPanic(t *testing.T) {

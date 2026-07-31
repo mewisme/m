@@ -40,20 +40,8 @@ func TestCLIUXOutputModes(t *testing.T) {
 			},
 		},
 		{
-			name: "ci-env-plain-no-csi",
-			args: []string{"version"},
-			env:  map[string]string{"CI": "1"},
-			check: func(t *testing.T, code int, stdout, stderr string) {
-				t.Helper()
-				if code != 0 {
-					t.Fatalf("exit=%d stderr=%q", code, stderr)
-				}
-				assertNoCSI(t, stdout, stderr)
-			},
-		},
-		{
-			name: "legacy-presentation-no-csi",
-			args: []string{"version", "--presentation-legacy"},
+			name: "no-color-version-no-csi",
+			args: []string{"version", "--no-color"},
 			check: func(t *testing.T, code int, stdout, stderr string) {
 				t.Helper()
 				if code != 0 {
@@ -107,14 +95,14 @@ func TestCLIUXOutputModes(t *testing.T) {
 			},
 		},
 		{
-			name: "forced-rich-on-pipe-unsupported",
+			name: "rich-on-pipe-works",
 			args: []string{"version", "--output=rich"},
 			check: func(t *testing.T, code int, stdout, stderr string) {
 				t.Helper()
-				if code == 0 {
-					t.Fatal("expected rich on non-TTY to fail")
+				// Rich is now always the default and works on non-TTY.
+				if code != 0 {
+					t.Fatalf("exit=%d stderr=%q", code, stderr)
 				}
-				assertNoCSI(t, stdout, stderr)
 			},
 		},
 	}
