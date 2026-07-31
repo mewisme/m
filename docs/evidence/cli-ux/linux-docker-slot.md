@@ -11,23 +11,9 @@ Re-checked 2026-07-31: Docker client present, Linux engine pipe missing
 
 | Field | Value |
 |---|---|
-| Commit SHA | `b1c3bbfefcd07b1a94a67dca4d69ab1c620412ad` |
-| Workflow run ID | `30590802511` |
+| Commit SHA | `6641a4f8417c3c2e2160548f997153d64da0a477` |
+| Workflow run ID | `30591819891` |
 | Job name | `conformance-cli-ux` (ubuntu-latest) |
 | Result | **success** (`m conformance run cli-ux --json`) |
 
-## When Docker is available
-
-Use a pinned Linux image matching CI Go/Node, isolated `HOME`, `CGO_ENABLED=0`:
-
-```powershell
-docker run --rm `
-  --mount "type=bind,source=<ABSOLUTE_REPOSITORY_PATH>,target=/workspace" `
-  --mount type=volume,source=mew-go-mod-cache,target=/go/pkg/mod `
-  --mount type=volume,source=mew-go-build-cache,target=/root/.cache/go-build `
-  --workdir /workspace `
-  --env CGO_ENABLED=0 `
-  --env HOME=/tmp/mew-home `
-  <PINNED_TEST_IMAGE> `
-  bash -lc 'go build -o /tmp/m ./cmd/m && go build -o /tmp/mx ./cmd/mx && go run ./cmd/m conformance run cli-ux --json'
-```
+Full workflow on that SHA: success (48/48 jobs).

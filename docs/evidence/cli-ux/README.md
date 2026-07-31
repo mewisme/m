@@ -8,8 +8,8 @@ and the UX-0008 certification gate.
 | Platform | Status | Artifact |
 |---|---|---|
 | Windows native | **Measured** (this host) | [`windows-2026-07-31.md`](windows-2026-07-31.md) |
-| Linux | **CI** — Ubuntu `conformance-cli-ux` on `b1c3bbf` (local Docker unavailable) | [`linux-docker-slot.md`](linux-docker-slot.md) |
-| macOS | **CI** — `conformance-cli-ux` on `b1c3bbf` run `30590802511` | [`macos-ci-slot.md`](macos-ci-slot.md) |
+| Linux | **CI** — Ubuntu `conformance-cli-ux` on tip (local Docker unavailable) | [`linux-docker-slot.md`](linux-docker-slot.md) |
+| macOS | **CI** — `conformance-cli-ux` on tip run `30591819891` | [`macos-ci-slot.md`](macos-ci-slot.md) |
 
 ## Related documents
 
@@ -26,6 +26,4 @@ go run ./cmd/m conformance run cli-ux --json
 ```
 
 The versioned matrix lives at `tests/conformance/cli-ux/manifest.json`.
-Platform certification for the matrix: Windows local + Linux/macOS via
-`conformance-cli-ux` on the recorded SHA. Full-workflow green on tip may still
-be blocked by unrelated jobs (lint unused, govulncheck, plan enrich).
+Platform certification: Windows local + Linux/macOS via `conformance-cli-ux`.
