@@ -15,6 +15,7 @@ Enforced by [`internal/archcheck`](../../internal/archcheck/) tests.
 | Domain / `internal/prompt` | `charm.land/*`, `github.com/charmbracelet/*`, `internal/presentation` | Prompt contract is stdlib-only; adapters live under `internal/presentation/prompt` |
 | `internal/config`, `internal/project` | `resolver`, `linker`, `fetch` | Config/identity stay free of mutate path |
 | `internal/graph`, `plan`, `snapshot`, `manifest`, `policy`, `capsule` | `fetch`, `linker`, `registry` | Canonical models stay free of network/mutate |
+| `internal/runtime`, `internal/node` | `resolver`, `linker`, `store`, `fetch`, `transform` | Runtime and Node stay free of PM engine |
 
 ## Allowed cmd imports
 

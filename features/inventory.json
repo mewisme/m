@@ -1243,7 +1243,7 @@
       "name": "run JS/CJS/ESM",
       "module": "runtime",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0050",
       "tests": []
@@ -1363,7 +1363,7 @@
       "name": "plain Node escape hatch",
       "module": "runtime",
       "nub_status": "shipped",
-      "mew_status": "planned",
+      "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0050",
       "tests": []

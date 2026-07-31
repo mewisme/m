@@ -15,6 +15,7 @@ import (
 	"github.com/mewisme/mew/internal/manifest"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/runner"
+	"github.com/mewisme/mew/internal/runtime"
 	"github.com/mewisme/mew/internal/workspace"
 )
 
@@ -69,6 +70,8 @@ type leadingDispatchFlags struct {
 	wsBailSet     bool
 	noWsBail      bool
 	wsOnlyTouched bool
+
+	node bool
 }
 
 // PhaseAResult is the output of the leading-global parser (Phase A).
@@ -86,6 +89,7 @@ const (
 	OutcomeBuiltin DispatchOutcomeKind = "builtin"
 	OutcomeAlias   DispatchOutcomeKind = "alias"
 	OutcomeScript  DispatchOutcomeKind = "script"
+	OutcomeFileRun DispatchOutcomeKind = "fileRun"
 	OutcomeBin     DispatchOutcomeKind = "bin"
 	OutcomeSuggest DispatchOutcomeKind = "suggest"
 	OutcomeUnknown DispatchOutcomeKind = "unknown"
@@ -115,6 +119,7 @@ type DispatchResult struct {
 	Canonical    string
 	Invocation   *ScriptInvocation
 	Bin          *BinInvocation
+	FileRunPath  string // resolved absolute path for OutcomeFileRun
 	Suggestions  []Suggestion
 	DirectGateOn bool
 	Message      string
@@ -260,6 +265,8 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 	case "no-workspace-bail":
 		leading.noWsBail = true
 		leading.wsOnlyTouched = true
+	case "node":
+		leading.node = true
 	default:
 		return 0, apperr.New(apperr.Usage, "dispatch", name, fmt.Sprintf("unknown flag %q", name))
 	}
@@ -448,6 +455,15 @@ func ResolveDispatch(root *cobra.Command, phase PhaseAResult, cwd string, eff *c
 	selector := phase.Selector
 	if kind, canonical := lookupBuiltin(root, selector); kind != "" {
 		return DispatchResult{Kind: kind, Canonical: canonical, DirectGateOn: directOn}
+	}
+
+	// Detect JS file selectors for m <file.js> direct execution.
+	if RuntimeEnabled() && runtime.IsJSFile(selector) {
+		resolved, err := runtime.ResolveEntrypoint(cwd, selector)
+		if err != nil {
+			return DispatchResult{Kind: OutcomeUnknown, Canonical: selector, Err: err, DirectGateOn: directOn}
+		}
+		return DispatchResult{Kind: OutcomeFileRun, Canonical: selector, FileRunPath: resolved, DirectGateOn: directOn}
 	}
 
 	builtinNames, aliasNames := builtinAndAliasNames(root)

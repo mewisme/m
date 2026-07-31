@@ -35,6 +35,7 @@ Official release installers remain planned (MVP **0072**); for local development
 | `--debug` | false | Verbose diagnostics (also `MEW_DEBUG` / `M_LOG=debug` env vars) |
 | `-r` / `--recursive` | false | Workspace recursive mode (`m run`; install-family commands have local `-r`) |
 | `--filter` | | pnpm-style workspace package filter (install family and `m run`) |
+| `--node` | false | Run a JS file with stock Node (zero-augmentation; gate: `MEW_EXPERIMENTAL_RUNTIME=1`) |
 
 Requires [`workspaces.md`](workspaces.md) gate (`MEW_EXPERIMENTAL_WORKSPACES=1` or
 `workspaces.enabled`).
@@ -405,15 +406,45 @@ dispatch is always single-importer.
 
 See [`runner.md`](runner.md#local-binary-execution-m-exec).
 
+## Node launch
+
+```text
+m app.js                       # augmented (default, gate: MEW_EXPERIMENTAL_RUNTIME=1)
+m --node app.js                # zero-augmentation (stock Node)
+m node-args -- --trace-warnings app.js [-- app-args]
+```
+
+**Gate:** `MEW_EXPERIMENTAL_RUNTIME=1`. When enabled, bare `.js`, `.mjs`, and `.cjs`
+selectors are dispatched as file-run before the bin-dispatch check.
+
+**Augmentation:** By default, `m <file.js>` injects the Mew runtime preloads
+(`--require preload.cjs`, `--import preload.mjs`) so that plan 0051 can add
+TypeScript transforms. Use `--node` to bypass all injection and run stock Node.
+
+**`m node-args`:** Run a JS file with explicit Node/V8 flags. The `--` separator
+is required before Node flags:
+
+```text
+m node-args -- --max-old-space-size=4096 server.mjs -- --port 3000
+```
+
+Node discovery uses the system `PATH`. Version management, download, and network
+are deferred to plan 0060. Entrypoints must exist on disk and have a supported
+extension (`.js`, `.mjs`, `.cjs`).
+
+See [`runtime.md`](runtime.md).
+
 ## Command precedence
 
 1. Built-in command
 2. Built-in alias
 3. Exact `package.json` script when `runner.direct_scripts.enabled` or
    `MEW_EXPERIMENTAL_DIRECT_SCRIPTS=1` (case-sensitive key only)
-4. Verified local binary when `runner.exec.direct_dispatch.enabled` or
+4. Existing JavaScript entrypoint (`.js`, `.mjs`, `.cjs`) when
+   `MEW_EXPERIMENTAL_RUNTIME=1` (**0050**) — dispatched as `m <file>` or `m --node <file>`
+5. Verified local binary when `runner.exec.direct_dispatch.enabled` or
    `MEW_EXPERIMENTAL_EXEC_DIRECT_DISPATCH=1` (**0043**; metadata-verified only)
-5. Typed suggestions (max 3) and `ERR_M_USAGE`
+6. Typed suggestions (max 3) and `ERR_M_USAGE`
 
 Use `m run <script>` to force a script when a name collides with a built-in.
 

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "bundleVersion": "1",
+  "assets": [
+    {
+      "name": "preload.cjs",
+      "path": "preload.cjs",
+      "moduleType": "cjs",
+      "size": 183,
+      "sha256": "5586aaabda61d32a072fae18845b1b11a586592d0232cb48e0809be692e1a734"
+    },
+    {
+      "name": "preload.mjs",
+      "path": "preload.mjs",
+      "moduleType": "esm",
+      "size": 164,
+      "sha256": "2d5e3cc87e2d67aa952e705d7fed7c0c9c18e2eea0fa3816dbca3b09282a5e77"
+    }
+  ]
+}

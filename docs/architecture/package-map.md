@@ -61,10 +61,10 @@ Every path named in [`AGENTS.md`](../../AGENTS.md) repository shape must appear 
 |---|---|---|---|
 | `internal/runner/` | Scripts, exec, dlx environment builder | exists | scaffolded |
 | `internal/process/` | Signals, shells, child execution | exists | shipped |
-| `internal/runtime/` | Node launch orchestration | exists | scaffolded |
-| `internal/runtime/assets/` | Embedded loader/preload JS | exists | scaffolded |
+| `internal/runtime/` | Node launch orchestration | exists | shipped |
+| `internal/runtime/assets/` | Embedded loader/preload JS | exists | shipped |
 | `internal/transform/` | Go transform service + IPC | exists | scaffolded |
-| `internal/node/` | Node discovery and provisioning | exists | scaffolded |
+| `internal/node/` | Node discovery and provisioning | exists | shipped |
 | `internal/pmmanager/` | External PM detect/pin/invoke | exists | shipped |
 | `internal/shim/` | Cross-platform shims | reserved | planned |
 | `runtime/` | Source for go:embed runtime assets | exists | scaffolded |

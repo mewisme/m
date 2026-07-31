@@ -12,6 +12,7 @@ const (
 	DispatchBuiltin DispatchKind = "builtin"
 	DispatchAlias   DispatchKind = "alias"
 	DispatchScript  DispatchKind = "script"
+	DispatchFileRun DispatchKind = "fileRun"
 )
 
 // Suggestion is a ranked dispatch hint for unknown selectors.
@@ -99,8 +100,10 @@ func kindRank(k DispatchKind) int {
 		return 1
 	case DispatchScript:
 		return 2
-	default:
+	case DispatchFileRun:
 		return 3
+	default:
+		return 4
 	}
 }
 

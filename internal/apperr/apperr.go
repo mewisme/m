@@ -35,6 +35,16 @@ const (
 	PNPUnsupported      Code = "ERR_M_PNP_UNSUPPORTED"
 	Exec                Code = "ERR_M_EXEC"
 	Timeout             Code = "ERR_M_TIMEOUT"
+	RuntimeNodeNotFound Code = "ERR_M_RUNTIME_NODE_NOT_FOUND"
+	RuntimeNodeVersion  Code = "ERR_M_RUNTIME_NODE_VERSION"
+	RuntimeNodeUnsupported Code = "ERR_M_RUNTIME_NODE_UNSUPPORTED"
+	RuntimeEntrypoint   Code = "ERR_M_RUNTIME_ENTRYPOINT"
+	RuntimeInvocation   Code = "ERR_M_RUNTIME_INVOCATION"
+	RuntimeAssetManifest Code = "ERR_M_RUNTIME_ASSET_MANIFEST"
+	RuntimeAssetDigest  Code = "ERR_M_RUNTIME_ASSET_DIGEST"
+	RuntimeAssetExtract Code = "ERR_M_RUNTIME_ASSET_EXTRACTION"
+	RuntimeAssetCache   Code = "ERR_M_RUNTIME_ASSET_CACHE"
+	RuntimeNodeStart    Code = "ERR_M_RUNTIME_NODE_START"
 )
 
 // registry maps every published code to a process exit status.
@@ -64,6 +74,16 @@ var registry = map[Code]int{
 	PNPUnsupported:      1,
 	Exec:                1,
 	Timeout:             1,
+	RuntimeNodeNotFound: 1,
+	RuntimeNodeVersion:  1,
+	RuntimeNodeUnsupported: 1,
+	RuntimeEntrypoint:   1,
+	RuntimeInvocation:   1,
+	RuntimeAssetManifest: 1,
+	RuntimeAssetDigest:  1,
+	RuntimeAssetExtract: 1,
+	RuntimeAssetCache:   1,
+	RuntimeNodeStart:    1,
 }
 
 // AllCodes returns registered codes in a stable order for docs and tests.
@@ -72,6 +92,10 @@ func AllCodes() []Code {
 		OK, Usage, Cancelled, Internal, InternalPanic,
 		IO, Config, Network, Integrity, Lockfile, LockUnsupported, LockAmbiguous, LockUnrepresentable, Unimplemented, Unsupported,
 		Manifest, NotFound, Resolve, Install, Transaction, Store, Policy, PNPUnsupported, Exec, Timeout,
+		RuntimeNodeNotFound, RuntimeNodeVersion, RuntimeNodeUnsupported,
+		RuntimeEntrypoint, RuntimeInvocation,
+		RuntimeAssetManifest, RuntimeAssetDigest, RuntimeAssetExtract, RuntimeAssetCache,
+		RuntimeNodeStart,
 	}
 }
 

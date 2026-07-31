@@ -21,6 +21,7 @@ import (
 	"github.com/mewisme/mew/internal/presentation"
 	presprompt "github.com/mewisme/mew/internal/presentation/prompt"
 	"github.com/mewisme/mew/internal/prompt"
+	"github.com/mewisme/mew/internal/runtime"
 )
 
 // globalFlags holds persistent CLI presentation options.
@@ -357,6 +358,41 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 		return apperr.ExitCode(err), true
 	case OutcomeSuggest, OutcomeUnknown:
 		return emitDispatchFailure(root, g, res)
+	case OutcomeFileRun:
+		if res.FileRunPath == "" {
+			err := apperr.New(apperr.Internal, "dispatch", res.Canonical, "missing file run path")
+			rep := g.newReporter(root)
+			rep.Error(err)
+			return apperr.ExitCode(err), true
+		}
+		augMode := runtime.AugmentDefault
+		if phase.Leading.node {
+			augMode = runtime.AugmentNone
+		}
+		req := runtime.LaunchRequest{
+			Entrypoint:       res.FileRunPath,
+			AppArgs:          phase.ForwardedArgs,
+			WorkingDir:       ac.CWD,
+			AugmentationMode: augMode,
+			Stdio: runtime.LaunchStdio{
+				Stdin:  os.Stdin,
+				Stdout: os.Stdout,
+				Stderr: os.Stderr,
+			},
+		}
+		plan, planErr := runtime.Plan(ctx, req, ac.Config)
+		if planErr != nil {
+			rep := g.newReporter(root)
+			rep.Error(classifyCLIError(planErr))
+			return apperr.ExitCode(planErr), true
+		}
+		launchErr := runtime.Launch(ctx, plan, req)
+		if launchErr == nil {
+			return 0, true
+		}
+		rep := g.newReporter(root)
+		rep.Error(classifyCLIError(launchErr))
+		return apperr.ExitCode(launchErr), true
 	default:
 		return 0, false
 	}

@@ -370,4 +370,5 @@ Integration: `tests/integration/unified_exec_test.go`. Fixtures:
 
 - [`cli.md`](cli.md) — command registration and precedence
 - [`errors.md`](errors.md) — `ERR_M_NOT_FOUND` for missing scripts
+- [`runtime.md`](runtime.md) — Node.js discovery, launch, and file-run dispatch
 - [`compatibility-axes.md`](compatibility-axes.md) — `m run` and workspace orchestration parity

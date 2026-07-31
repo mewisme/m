@@ -158,6 +158,23 @@ See [`runner.md`](runner.md).
 
 See [`runner.md`](runner.md) and [`cli.md`](cli.md).
 
+## Runtime (MVP 0050)
+
+| Situation | Code | Exit | Notes |
+|---|---|---|---|
+| Node binary not found on PATH | `ERR_M_RUNTIME_NODE_NOT_FOUND` | 1 | `node.discover` |
+| Node version unparseable | `ERR_M_RUNTIME_NODE_VERSION` | 1 | `node.discover` / `node.query-version` |
+| Node version unsupported | `ERR_M_RUNTIME_NODE_UNSUPPORTED` | 1 | capability check |
+| Invalid or missing entrypoint | `ERR_M_RUNTIME_ENTRYPOINT` | 1 | `runtime.entrypoint` / `runtime.node-args` |
+| Node process invocation failure | `ERR_M_RUNTIME_INVOCATION` | 1 | `runtime.launch` (non-zero child exit propagates via ExitHint) |
+| Corrupt asset manifest | `ERR_M_RUNTIME_ASSET_MANIFEST` | 1 | `assets.manifest` |
+| Asset digest mismatch | `ERR_M_RUNTIME_ASSET_DIGEST` | 1 | `assets.verify` / `runtime.cache` |
+| Asset extraction failure | `ERR_M_RUNTIME_ASSET_EXTRACTION` | 1 | `runtime.cache` |
+| Asset cache read failure | `ERR_M_RUNTIME_ASSET_CACHE` | 1 | `assets.read` / `runtime.verify` |
+| Node process failed to start | `ERR_M_RUNTIME_NODE_START` | 1 | `runtime.launch` |
+
+See [`runtime.md`](runtime.md).
+
 ## Go API
 
 Package [`internal/apperr`](../internal/apperr): `New`, `Wrap`, `CodeOf`, `ExitCode`.

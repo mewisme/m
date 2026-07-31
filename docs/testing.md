@@ -217,6 +217,22 @@ go test ./tests/integration/... -run "WorkspaceFilter|SnapshotWorkspace" -count=
 go test -tags crash ./tests/integration/... -run WorkspaceSnapshotRestoreCrash -count=1 -timeout 30m
 ```
 
+## Stabilization pass 18 suites (Node launch / runtime)
+
+| Area | Tests | What it proves |
+|------|-------|----------------|
+| Node discovery and version | `internal/node/discover_test.go` | Stock Node detection, PATH fallback, version parsing, capabilities |
+| Node argument parsing | `internal/runtime/nodeargs_test.go` | V8 flag partitioning, value-taking flags, entrypoint detection, app-arg separation |
+| Entrypoint resolution | `internal/runtime/entrypoint_test.go` | JS/CJS/ESM detection, missing file, directory, unsupported extension |
+| Augmentation argv building | `internal/runtime/nodeargs_test.go` | Preload injection order, zero-augmentation bypass |
+| CLI dispatch integration | `internal/cli/dispatch_test.go` | File-run dispatch, `--node` flag, gate on/off, builtin precedence |
+
+```powershell
+go test ./internal/runtime/... -count=1
+go test ./internal/node/... -count=1
+go test ./internal/cli/... -run "FileRun|NodeFlag|RuntimeGate" -count=1
+```
+
 ## Stabilization pass 13 suites (workspace / lifecycle / snapshot)
 
 | Area | Tests | What it proves |

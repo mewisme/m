@@ -66,6 +66,9 @@ Configuration and development
   version        Print version information
   completion     Generate shell completion scripts
 
+Other
+  node-args      Run a JS file with explicit Node/V8 flags
+
 Flags:
       --accessible              accessible append-only output
       --ascii                   use ASCII instead of Unicode symbols

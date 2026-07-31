@@ -258,3 +258,121 @@ func containsString(list []string, want string) bool {
 	}
 	return false
 }
+
+func TestParsePhaseANodeFlag(t *testing.T) {
+	phase, err := ParsePhaseA([]string{"--node", "app.js"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !phase.Leading.node {
+		t.Fatal("expected --node flag to be parsed")
+	}
+	if phase.Selector != "app.js" {
+		t.Fatalf("selector=%q, want app.js", phase.Selector)
+	}
+}
+
+func TestRuntimeGate(t *testing.T) {
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "")
+	if RuntimeEnabled() {
+		t.Fatal("expected disabled")
+	}
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	if !RuntimeEnabled() {
+		t.Fatal("expected enabled")
+	}
+}
+
+func TestFileRunDispatch(t *testing.T) {
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	projDir := t.TempDir()
+
+	// create a JS file
+	jsPath := projDir + "/app.js"
+	if err := os.WriteFile(jsPath, []byte("console.log(1);"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	root := NewMRoot(testBuildInfo())
+	eff := &config.Effective{Values: map[string]config.Value{}}
+
+	phase := PhaseAResult{Selector: "app.js"}
+	res := ResolveDispatch(root, phase, projDir, eff)
+	if res.Kind != OutcomeFileRun {
+		t.Fatalf("kind=%s, want fileRun", res.Kind)
+	}
+	if res.FileRunPath == "" {
+		t.Fatal("expected FileRunPath to be set")
+	}
+}
+
+func TestFileRunDispatchDisabled(t *testing.T) {
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "")
+	projDir := t.TempDir()
+
+	jsPath := projDir + "/app.js"
+	if err := os.WriteFile(jsPath, []byte("console.log(1);"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	root := NewMRoot(testBuildInfo())
+	eff := &config.Effective{Values: map[string]config.Value{}}
+
+	phase := PhaseAResult{Selector: "app.js"}
+	res := ResolveDispatch(root, phase, projDir, eff)
+	if res.Kind == OutcomeFileRun {
+		t.Fatal("fileRun dispatch should be disabled when gate is off")
+	}
+}
+
+func TestFileRunDispatchMissingFile(t *testing.T) {
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	projDir := t.TempDir()
+	root := NewMRoot(testBuildInfo())
+	eff := &config.Effective{Values: map[string]config.Value{}}
+
+	phase := PhaseAResult{Selector: "missing.js"}
+	res := ResolveDispatch(root, phase, projDir, eff)
+	if res.Kind != OutcomeUnknown {
+		t.Fatalf("kind=%s, want unknown", res.Kind)
+	}
+	if res.Err == nil {
+		t.Fatal("expected error for missing file")
+	}
+}
+
+func TestFileRunDispatchBuiltinWins(t *testing.T) {
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	root := NewMRoot(testBuildInfo())
+
+	// "install" is a builtin, so it should win even if install.js exists
+	phase := PhaseAResult{Selector: "install"}
+	res := ResolveDispatch(root, phase, t.TempDir(), &config.Effective{Values: map[string]config.Value{}})
+	if res.Kind != OutcomeBuiltin {
+		t.Fatalf("kind=%s, want builtin (builtin beats file-run)", res.Kind)
+	}
+}
+
+func TestDispatchJSONFileRun(t *testing.T) {
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	projDir := t.TempDir()
+
+	jsPath := projDir + "/app.js"
+	if err := os.WriteFile(jsPath, []byte("console.log(1);"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	root := NewMRoot(testBuildInfo())
+	res := ResolveDispatch(root, PhaseAResult{Selector: "app.js"}, projDir, &config.Effective{Values: map[string]config.Value{}})
+	raw, err := encodeDispatchJSON(res, "app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc dispatchJSON
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Kind != "fileRun" {
+		t.Fatalf("kind=%s, want fileRun", doc.Kind)
+	}
+}
