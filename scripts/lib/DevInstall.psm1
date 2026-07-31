@@ -128,26 +128,12 @@ function Resolve-DevInstallMetadata {
         $script:DevInstallVersion = $env:MEW_VERSION
     }
     else {
-        $gitRoot = $script:DevInstallRepoRoot
-        if (Test-Path (Join-Path $gitRoot '.git')) {
-            try {
-                $tag = git -C $gitRoot describe --tags --exact-match 2>$null
-                if ($tag) { $script:DevInstallVersion = $tag } else { $script:DevInstallVersion = '0.0.0-dev' }
-                $script:DevInstallCommit = (git -C $gitRoot rev-parse HEAD 2>$null)
-            }
-            catch {
-                $script:DevInstallVersion = '0.0.0-dev'
-                $script:DevInstallCommit = ''
-            }
-        }
-        else {
-            $script:DevInstallVersion = '0.0.0-dev'
-            $script:DevInstallCommit = ''
-        }
+        $script:DevInstallVersion = '0.0.0-dev'
     }
-    if (-not $script:DevInstallCommit -and (Test-Path (Join-Path $script:DevInstallRepoRoot '.git'))) {
-        $script:DevInstallCommit = (git -C $script:DevInstallRepoRoot rev-parse HEAD 2>$null)
-    }
+    # Development installs build the current working tree, which may not match
+    # HEAD. Leave commit unset rather than attributing source changes to a Git
+    # commit that does not fully describe them.
+    $script:DevInstallCommit = ''
     $script:DevInstallBuildDate = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
 }
 
@@ -491,9 +477,9 @@ function Write-DevInstallSummary {
     @"
 MewJS development install summary
   repo:        $script:DevInstallRepoRoot
+  source:      working tree
   target:      $script:DevInstallTargetGoOS/$script:DevInstallTargetGoArch
   version:     $script:DevInstallVersion
-  commit:      $script:DevInstallCommit
   build date:  $script:DevInstallBuildDate
   install dir: $(if ($script:DevInstallInstallDir) { $script:DevInstallInstallDir } else { '<build-only>' })
   completion:  $(if ($script:DevInstallCompletionBase) { $script:DevInstallCompletionBase } else { '<skipped>' })

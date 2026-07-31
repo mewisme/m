@@ -71,7 +71,7 @@ stage check 'validating prerequisites'
 GO_VER="$(devinstall_check_go_version "$(devinstall_go_mod_version "$REPO_ROOT")")"
 devinstall_check_repo
 devinstall_resolve_metadata "$FLAG_VERSION"
-stage check "go=${GO_VER%% *} version=${DEVINSTALL_VERSION} commit=${DEVINSTALL_COMMIT} date=${DEVINSTALL_BUILD_DATE}"
+stage check "go=${GO_VER%% *} source=working-tree version=${DEVINSTALL_VERSION} date=${DEVINSTALL_BUILD_DATE}"
 BIN_DIR="$REPO_ROOT/bin"
 
 stage build 'building binaries'

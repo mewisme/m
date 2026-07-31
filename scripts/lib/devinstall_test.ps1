@@ -108,6 +108,17 @@ Assert-True (($aliasBlock -match 'mew') -and ($aliasBlock -match 'mewx')) 'alias
 $customBase = Get-DevInstallCompletionBaseFromInstallDir 'C:\Custom\MewJS\bin'
 Assert-True ($customBase -eq 'C:\Custom\MewJS\completions') 'custom install dir paths'
 
+# 14. Source-build metadata never claims the current Git commit
+$savedMewVersion = $env:MEW_VERSION
+Remove-Item Env:MEW_VERSION -ErrorAction SilentlyContinue
+Resolve-DevInstallMetadata
+Assert-True ($DevInstallVersion -eq '0.0.0-dev') 'source build dev version'
+Assert-True ($DevInstallCommit -eq '') 'source build commit unset'
+Resolve-DevInstallMetadata -VersionOverride '1.2.3-local'
+Assert-True ($DevInstallVersion -eq '1.2.3-local') 'source build version override'
+Assert-True ($DevInstallCommit -eq '') 'source build override commit unset'
+if ($null -ne $savedMewVersion) { $env:MEW_VERSION = $savedMewVersion }
+
 Remove-Item -Recurse -Force $tmpdir -ErrorAction SilentlyContinue
 
 Write-Host ''

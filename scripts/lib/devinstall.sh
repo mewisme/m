@@ -149,17 +149,18 @@ devinstall_check_go() {
 }
 
 devinstall_resolve_metadata() {
-  local version_override="${1:-}" tag
+  local version_override="${1:-}"
   if [[ -n "$version_override" ]]; then
     DEVINSTALL_VERSION="$version_override"
   elif [[ -n "${MEW_VERSION:-}" ]]; then
     DEVINSTALL_VERSION="$MEW_VERSION"
-  elif tag="$(cd "$DEVINSTALL_REPO_ROOT" && git describe --tags --exact-match 2>/dev/null)"; then
-    DEVINSTALL_VERSION="$tag"
   else
     DEVINSTALL_VERSION='0.0.0-dev'
   fi
-  DEVINSTALL_COMMIT="$(cd "$DEVINSTALL_REPO_ROOT" && git rev-parse HEAD 2>/dev/null || true)"
+  # Development installs build the current working tree, which may not match
+  # HEAD. Leave commit unset rather than attributing source changes to a Git
+  # commit that does not fully describe them.
+  DEVINSTALL_COMMIT=''
   DEVINSTALL_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 
@@ -440,9 +441,9 @@ devinstall_print_summary() {
 
 MewJS development install summary
   repo:        $DEVINSTALL_REPO_ROOT
+  source:      working tree
   target:      $DEVINSTALL_TARGET_GOOS/$DEVINSTALL_TARGET_GOARCH
   version:     $DEVINSTALL_VERSION
-  commit:      $DEVINSTALL_COMMIT
   build date:  $DEVINSTALL_BUILD_DATE
   install dir: ${DEVINSTALL_INSTALL_DIR:-<build-only>}
   completion:  ${DEVINSTALL_COMPLETION_BASE:-<skipped>}

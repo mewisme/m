@@ -78,14 +78,23 @@ IFS='|' read -r IDIR CDIR <<<"$PATHS"
 assert_eq 'custom install dir' '/tmp/custom mew/bin' "$IDIR"
 assert_contains 'custom completion root' 'completions' "$CDIR"
 
-# 7. Managed-block idempotency
+# 7. Source-build metadata never claims the current Git commit
+unset MEW_VERSION
+devinstall_resolve_metadata ''
+assert_eq 'source build dev version' '0.0.0-dev' "$DEVINSTALL_VERSION"
+assert_eq 'source build commit unset' '' "$DEVINSTALL_COMMIT"
+devinstall_resolve_metadata '1.2.3-local'
+assert_eq 'source build version override' '1.2.3-local' "$DEVINSTALL_VERSION"
+assert_eq 'source build override commit unset' '' "$DEVINSTALL_COMMIT"
+
+# 8. Managed-block idempotency
 IDEM="$(mktemp)"
 trap 'rm -f "$TMP" "$IDEM"' EXIT
 devinstall_upsert_managed_block "$IDEM" "$DEVINSTALL_PATH_START" "$DEVINSTALL_PATH_END" 'export PATH="/x:$PATH"'
 devinstall_upsert_managed_block "$IDEM" "$DEVINSTALL_PATH_START" "$DEVINSTALL_PATH_END" 'export PATH="/x:$PATH"'
 assert_eq 'idempotent markers' '1' "$(grep -c '>>> mewjs dev installer' "$IDEM")"
 
-# 8. Alias completion body shape (bash)
+# 9. Alias completion body shape (bash)
 ALIAS_TMP="$(mktemp)"
 devinstall_upsert_managed_block "$ALIAS_TMP" "$DEVINSTALL_COMPLETION_START" "$DEVINSTALL_COMPLETION_END" $'complete -o default -F _m mew\ncomplete -o default -F _mx mewx'
 ALIAS_CONTENT="$(cat "$ALIAS_TMP")"
@@ -93,7 +102,7 @@ assert_contains 'alias bash mew' 'mew' "$ALIAS_CONTENT"
 assert_contains 'alias bash mewx' 'mewx' "$ALIAS_CONTENT"
 rm -f "$ALIAS_TMP"
 
-# 9. Install unix symlink + force (isolated temp)
+# 10. Install unix symlink + force (isolated temp)
 INSTALL_TMP="$(mktemp -d)"
 BIN_TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP" "$IDEM" "$INSTALL_TMP" "$BIN_TMP"' EXIT
@@ -125,7 +134,7 @@ case "$(uname -s)" in
     ;;
 esac
 
-# 10. Uninstall cleans owned files
+# 11. Uninstall cleans owned files
 IFS='|' read -r IDIR CDIR <<<"$LINE"
 devinstall_uninstall_unix "$IDIR" "$CDIR" 0 0
 if [[ ! -e "$IDIR/m" && ! -e "$IDIR/mew" ]]; then ok 'uninstall removes owned files'; else fail 'uninstall removes owned files'; fi

@@ -60,7 +60,9 @@ Install pinned lint/vuln tools:
 
 The repo ships a **development installer** — not an official release installer. It builds
 `m` / `mx` from source, copies them into a user-local directory, updates PATH, and optionally
-installs shell completions. No admin or root access is required.
+installs shell completions. The build uses the current working tree and does not identify it as
+the checked-out Git tag or commit, so uncommitted source changes are represented accurately. No
+admin or root access is required.
 
 ### One-liner
 

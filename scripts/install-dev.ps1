@@ -32,7 +32,7 @@ Write-DevInstallStage check 'validating prerequisites'
 Test-DevInstallGo
 Test-DevInstallRepo
 Resolve-DevInstallMetadata -VersionOverride $Version
-Write-DevInstallStage check "version=$script:DevInstallVersion commit=$script:DevInstallCommit date=$script:DevInstallBuildDate"
+Write-DevInstallStage check "source=working-tree version=$script:DevInstallVersion date=$script:DevInstallBuildDate"
 
 Invoke-DevInstallBuild
 
