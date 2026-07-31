@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/app"
+	"github.com/mewisme/mew/internal/presentation"
 )
 
 func newDevelopmentCmd() *cobra.Command {
@@ -60,27 +61,80 @@ func newDoctorFilesystemCmd() *cobra.Command {
 	}
 }
 
+type devDoctorCheck struct {
+	Name   string
+	Status presentation.Status
+	Value  string
+	Detail string
+}
+
 func runDoctor(cmd *cobra.Command) error {
-	out := cmd.OutOrStdout()
 	versions := loadVersionsEnv()
-
 	goVer := runtime.Version()
-	fmt.Fprintf(out, "status=ok check=go value=%s want>=go1.26.5\n", goVer)
 
+	hasStub := false
+
+	goCheck := devDoctorCheck{
+		Name:   "Go",
+		Value:  goVer,
+		Detail: "(>= go1.26.5)",
+		Status: presentation.StatusSuccess,
+	}
+
+	golangciLintValue := "unknown"
 	if v, ok := versions["GOLANGCI_LINT_VERSION"]; ok {
-		fmt.Fprintf(out, "status=stub check=golangci-lint want=%s note=install_via_tools/install\n", v)
-	} else {
-		fmt.Fprintln(out, "status=missing check=golangci-lint note=tools/versions.env_unreadable")
+		golangciLintValue = v
 	}
-	if v, ok := versions["GOVULNCHECK_VERSION"]; ok {
-		fmt.Fprintf(out, "status=stub check=govulncheck want=%s note=install_via_tools/install\n", v)
-	} else {
-		fmt.Fprintln(out, "status=missing check=govulncheck note=tools/versions.env_unreadable")
+	hasStub = true
+	golangciLintCheck := devDoctorCheck{
+		Name:   "golangci-lint",
+		Value:  golangciLintValue,
+		Detail: "(stub)",
+		Status: presentation.StatusWarning,
 	}
 
-	fmt.Fprintln(out, "status=stub check=make note=optional_see_CONTRIBUTING")
-	fmt.Fprintln(out, "doctor=stub see=docs/development-doctor.md")
-	return nil
+	govulncheckValue := "unknown"
+	if v, ok := versions["GOVULNCHECK_VERSION"]; ok {
+		govulncheckValue = v
+	}
+	govulncheckCheck := devDoctorCheck{
+		Name:   "govulncheck",
+		Value:  govulncheckValue,
+		Detail: "(stub)",
+		Status: presentation.StatusWarning,
+	}
+
+	makeCheck := devDoctorCheck{
+		Name:   "make",
+		Value:  "stub",
+		Detail: "(optional)",
+		Status: presentation.StatusWarning,
+	}
+
+	checks := []devDoctorCheck{goCheck, golangciLintCheck, govulncheckCheck, makeCheck}
+
+	overallStatus := presentation.StatusSuccess
+	if hasStub {
+		overallStatus = presentation.StatusWarning
+	}
+
+	metrics := make([]presentation.KeyValue, 0, len(checks))
+	for _, c := range checks {
+		metrics = append(metrics, presentation.KeyValue{
+			Key:   c.Name,
+			Value: c.Value + "  " + c.Detail,
+		})
+	}
+
+	summary := presentation.Summary{
+		Status:  overallStatus,
+		Title:   "Development prerequisites checked",
+		Metrics: metrics,
+	}
+
+	g := ownerFlags(cmd.Root())
+	r := g.mustStaticRenderer(cmd, nil)
+	return writeStaticOut(cmd, r.Summary(summary))
 }
 
 func loadVersionsEnv() map[string]string {

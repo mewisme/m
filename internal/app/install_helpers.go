@@ -533,19 +533,141 @@ func packageKeysFromGraph(g *graph.Graph) map[string]string {
 func diffKeys(prior, next map[string]string) InstallResult {
 	var res InstallResult
 	res.Packages = len(next)
+
+	// Phase 1: exact key matches.
+	unmatchedPrior := make(map[string]string, len(prior))
+	for k, v := range prior {
+		unmatchedPrior[k] = v
+	}
+	unmatchedNext := make(map[string]string, len(next))
+
+	type keyVersion struct {
+		key     string
+		version string
+	}
+
 	for k, ver := range next {
 		old, ok := prior[k]
 		if !ok {
-			res.Added++
-		} else if old != ver {
+			unmatchedNext[k] = ver
+			continue
+		}
+		delete(unmatchedPrior, k)
+		if old != ver {
 			res.Changed++
+			res.PackageChanges = append(res.PackageChanges, PackageChange{
+				Kind:        PackageChangeUpdated,
+				Name:        packageNameFromKey(k),
+				FromVersion: old,
+				ToVersion:   ver,
+				FromKey:     k,
+				ToKey:       k,
+			})
 		}
 	}
-	for k := range prior {
-		if _, ok := next[k]; !ok {
+
+	// Phase 2: group unmatched entries by package name and pair deterministically.
+	type nameGroup struct {
+		prior []keyVersion
+		next  []keyVersion
+	}
+	groups := map[string]*nameGroup{}
+
+	for k, v := range unmatchedPrior {
+		n := packageNameFromKey(k)
+		g := groups[n]
+		if g == nil {
+			g = &nameGroup{}
+			groups[n] = &nameGroup{}
+		}
+		groups[n].prior = append(groups[n].prior, keyVersion{key: k, version: v})
+	}
+	for k, v := range unmatchedNext {
+		n := packageNameFromKey(k)
+		g := groups[n]
+		if g == nil {
+			g = &nameGroup{}
+			groups[n] = &nameGroup{}
+		}
+		groups[n].next = append(groups[n].next, keyVersion{key: k, version: v})
+	}
+
+	names := make([]string, 0, len(groups))
+	for n := range groups {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		g := groups[name]
+		sort.Slice(g.prior, func(i, j int) bool {
+			if g.prior[i].version != g.prior[j].version {
+				return g.prior[i].version < g.prior[j].version
+			}
+			return g.prior[i].key < g.prior[j].key
+		})
+		sort.Slice(g.next, func(i, j int) bool {
+			if g.next[i].version != g.next[j].version {
+				return g.next[i].version < g.next[j].version
+			}
+			return g.next[i].key < g.next[j].key
+		})
+
+		pi, ni := 0, 0
+		for pi < len(g.prior) && ni < len(g.next) {
+			res.Changed++
+			res.PackageChanges = append(res.PackageChanges, PackageChange{
+				Kind:        PackageChangeUpdated,
+				Name:        name,
+				FromVersion: g.prior[pi].version,
+				ToVersion:   g.next[ni].version,
+				FromKey:     g.prior[pi].key,
+				ToKey:       g.next[ni].key,
+			})
+			pi++
+			ni++
+		}
+		for ; pi < len(g.prior); pi++ {
 			res.Removed++
+			res.PackageChanges = append(res.PackageChanges, PackageChange{
+				Kind:        PackageChangeRemoved,
+				Name:        name,
+				FromVersion: g.prior[pi].version,
+				FromKey:     g.prior[pi].key,
+			})
+		}
+		for ; ni < len(g.next); ni++ {
+			res.Added++
+			res.PackageChanges = append(res.PackageChanges, PackageChange{
+				Kind:      PackageChangeAdded,
+				Name:      name,
+				ToVersion: g.next[ni].version,
+				ToKey:     g.next[ni].key,
+			})
 		}
 	}
+
+	// Sort PackageChanges for deterministic output.
+	sort.Slice(res.PackageChanges, func(i, j int) bool {
+		ci, cj := res.PackageChanges[i], res.PackageChanges[j]
+		if ci.Kind != cj.Kind {
+			return ci.Kind < cj.Kind
+		}
+		if ci.Name != cj.Name {
+			return ci.Name < cj.Name
+		}
+		if ci.FromVersion != cj.FromVersion {
+			return ci.FromVersion < cj.FromVersion
+		}
+		if ci.ToVersion != cj.ToVersion {
+			return ci.ToVersion < cj.ToVersion
+		}
+		if ci.FromKey != cj.FromKey {
+			return ci.FromKey < cj.FromKey
+		}
+		return ci.ToKey < cj.ToKey
+	})
+
 	return res
 }
 

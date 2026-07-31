@@ -60,6 +60,28 @@ type UpdateResolveOptions struct {
 	PriorFingerprints *resolver.PriorFingerprints
 }
 
+// PackageChangeKind classifies a package-level mutation.
+type PackageChangeKind string
+
+const (
+	PackageChangeAdded   PackageChangeKind = "added"
+	PackageChangeUpdated PackageChangeKind = "updated"
+	PackageChangeRemoved PackageChangeKind = "removed"
+)
+
+// PackageChange is one typed package-level change produced by the install diff.
+type PackageChange struct {
+	Kind PackageChangeKind
+
+	Name string
+
+	FromVersion string
+	ToVersion   string
+
+	FromKey string
+	ToKey   string
+}
+
 // InstallResult summarizes package changes.
 type InstallResult struct {
 	Added                        int        `json:"added"`
@@ -81,6 +103,7 @@ type InstallResult struct {
 	StoreMaintenanceRequired     bool       `json:"storeMaintenanceRequired,omitempty"`
 	CleanupWarningCodes          []string   `json:"cleanupWarningCodes,omitempty"`
 	CleanupWarnings              []string   `json:"cleanupWarnings,omitempty"`
+	PackageChanges               []PackageChange `json:"-"`
 }
 
 // AddOptions controls m add.

@@ -1,5 +1,7 @@
 package presentation
 
+import "strings"
+
 type richRenderer struct {
 	settings EffectiveSettings
 	theme    Theme
@@ -71,21 +73,19 @@ func (r *richRenderer) Hint(h Hint) string {
 }
 
 func (r *richRenderer) Summary(s Summary) string {
-	parts := []string{r.Status(StatusLine{Status: s.Status, Text: s.Title})}
-	if len(s.Metrics) > 0 {
-		parts = append(parts, "", r.KeyValues(s.Metrics))
-	}
+	var noticesAndHints []string
 	for _, n := range s.Notices {
-		parts = append(parts, r.Notice(n))
+		noticesAndHints = append(noticesAndHints, r.Notice(n))
 	}
 	for _, h := range s.Hints {
-		parts = append(parts, r.Hint(h))
+		noticesAndHints = append(noticesAndHints, r.Hint(h))
 	}
-	out := parts[0]
-	for i := 1; i < len(parts); i++ {
-		out += "\n" + parts[i]
-	}
-	return out
+	return joinSummarySections(
+		r.Status(StatusLine{Status: s.Status, Text: s.Title}),
+		r.PackageDeltas(s.Deltas),
+		r.KeyValues(s.Metrics),
+		strings.Join(noticesAndHints, "\n"),
+	)
 }
 
 func (r *richRenderer) PackageDeltas(deltas []PackageDelta) string {

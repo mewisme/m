@@ -53,6 +53,7 @@ type Hint struct {
 type Summary struct {
 	Status  Status
 	Title   string
+	Deltas  []PackageDelta
 	Metrics []KeyValue
 	Notices []Notice
 	Hints   []Hint
@@ -75,6 +76,15 @@ type PackageDelta struct {
 	From    string
 	To      string
 }
+
+// PackageDeltaOptions controls how PackageDelta lists are rendered.
+type PackageDeltaOptions struct {
+	GroupByKind bool
+	MaxRows     int // 0 means unlimited.
+}
+
+// maxSummaryPackageDeltas bounds human delta lists to prevent unbounded output.
+const maxSummaryPackageDeltas = 50
 
 // ColumnAlign is table cell alignment.
 type ColumnAlign int

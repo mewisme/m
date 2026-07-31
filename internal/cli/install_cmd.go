@@ -74,9 +74,10 @@ func newAddCmd() *cobra.Command {
 		asJSON        bool
 	)
 	cmd := &cobra.Command{
-		Use:   "add <package>",
-		Short: "Add a dependency",
-		Args:  cobra.ExactArgs(1),
+		Use:     "add <package>",
+		Aliases: []string{"a"},
+		Short:   "Add a dependency",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ac := app.FromContext(cmd.Context())
 			if ac == nil {

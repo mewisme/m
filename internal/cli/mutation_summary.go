@@ -20,6 +20,7 @@ func mutationSummary(result app.InstallResult, dryRun bool) presentation.Summary
 			}},
 		}
 		s.Metrics = installMetrics(result)
+		s.Deltas = mutationPackageDeltas(result.PackageChanges)
 		return s
 	}
 
@@ -40,6 +41,7 @@ func mutationSummary(result app.InstallResult, dryRun bool) presentation.Summary
 	s := presentation.Summary{
 		Status:  st,
 		Title:   title,
+		Deltas:  mutationPackageDeltas(result.PackageChanges),
 		Metrics: installMetrics(result),
 	}
 	appendCleanupNotices(&s, result)
@@ -139,4 +141,31 @@ func recoveryRequiredSummary() presentation.Summary {
 		}},
 		Hints: []presentation.Hint{{Message: "Run `m recover`"}},
 	}
+}
+
+// mutationPackageDeltas maps app.PackageChange values into presentation.PackageDelta rows.
+func mutationPackageDeltas(changes []app.PackageChange) []presentation.PackageDelta {
+	if len(changes) == 0 {
+		return nil
+	}
+	out := make([]presentation.PackageDelta, 0, len(changes))
+	for _, c := range changes {
+		d := presentation.PackageDelta{
+			Name: c.Name,
+		}
+		switch c.Kind {
+		case app.PackageChangeAdded:
+			d.Kind = presentation.DeltaAdded
+			d.Version = c.ToVersion
+		case app.PackageChangeUpdated:
+			d.Kind = presentation.DeltaUpdated
+			d.From = c.FromVersion
+			d.To = c.ToVersion
+		case app.PackageChangeRemoved:
+			d.Kind = presentation.DeltaRemoved
+			d.Version = c.FromVersion
+		}
+		out = append(out, d)
+	}
+	return out
 }

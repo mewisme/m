@@ -38,10 +38,13 @@ func TestDevelopmentDoctor(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "check=go") {
-		t.Fatalf("doctor output missing go check:\n%s", out)
+	if !strings.Contains(out, "Development prerequisites checked") {
+		t.Fatalf("doctor output missing title:\n%s", out)
 	}
-	if !strings.Contains(out, "doctor=stub") {
+	if !strings.Contains(out, "Go") {
+		t.Fatalf("doctor output missing Go check:\n%s", out)
+	}
+	if !strings.Contains(out, "(stub)") {
 		t.Fatalf("doctor output missing stub marker:\n%s", out)
 	}
 }

@@ -1,6 +1,9 @@
 package presentation
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type plainRenderer struct {
 	settings EffectiveSettings
@@ -51,17 +54,19 @@ func (r *plainRenderer) Hint(h Hint) string {
 }
 
 func (r *plainRenderer) Summary(s Summary) string {
-	parts := []string{r.Status(StatusLine{Status: s.Status, Text: s.Title})}
-	if len(s.Metrics) > 0 {
-		parts = append(parts, "", r.KeyValues(s.Metrics))
-	}
+	var noticesAndHints []string
 	for _, n := range s.Notices {
-		parts = append(parts, r.Notice(n))
+		noticesAndHints = append(noticesAndHints, r.Notice(n))
 	}
 	for _, h := range s.Hints {
-		parts = append(parts, r.Hint(h))
+		noticesAndHints = append(noticesAndHints, r.Hint(h))
 	}
-	return strings.Join(parts, "\n")
+	return joinSummarySections(
+		r.Status(StatusLine{Status: s.Status, Text: s.Title}),
+		r.PackageDeltas(s.Deltas),
+		r.KeyValues(s.Metrics),
+		strings.Join(noticesAndHints, "\n"),
+	)
 }
 
 func (r *plainRenderer) PackageDeltas(deltas []PackageDelta) string {
@@ -156,6 +161,85 @@ func styleValue(val string, kind ValueKind, color bool, theme Theme) string {
 }
 
 func formatPackageDeltas(deltas []PackageDelta, settings EffectiveSettings, color bool, theme Theme) string {
+	return formatPackageDeltasWithOptions(deltas, settings, color, theme, PackageDeltaOptions{
+		GroupByKind: true,
+		MaxRows:     maxSummaryPackageDeltas,
+	})
+}
+
+func formatPackageDeltasWithOptions(deltas []PackageDelta, settings EffectiveSettings, color bool, theme Theme, opts PackageDeltaOptions) string {
+	if len(deltas) == 0 {
+		return ""
+	}
+
+	truncated := false
+	omitted := 0
+	if opts.MaxRows > 0 && len(deltas) > opts.MaxRows {
+		truncated = true
+		omitted = len(deltas) - opts.MaxRows
+		deltas = deltas[:opts.MaxRows]
+	}
+
+	if !opts.GroupByKind {
+		body := formatFlatPackageDeltas(deltas, settings, color, theme)
+		if truncated {
+			return body + "\n" + formatDeltaTruncationNotice(omitted, color, theme)
+		}
+		return body
+	}
+
+	// Group by kind: Added, Updated, Removed.
+	groups := [][]PackageDelta{
+		nil, // DeltaAdded
+		nil, // DeltaUpdated
+		nil, // DeltaRemoved
+	}
+	for _, d := range deltas {
+		switch d.Kind {
+		case DeltaAdded:
+			groups[0] = append(groups[0], d)
+		case DeltaUpdated:
+			groups[1] = append(groups[1], d)
+		case DeltaRemoved:
+			groups[2] = append(groups[2], d)
+		}
+	}
+
+	kindNames := []string{"Added", "Updated", "Removed"}
+	var parts []string
+	for i, group := range groups {
+		if len(group) == 0 {
+			continue
+		}
+		heading := kindNames[i]
+		if color {
+			heading = applyStyle(theme.Primary, heading, true)
+		}
+		body := formatFlatPackageDeltas(group, settings, color, theme)
+		parts = append(parts, heading+"\n"+body)
+	}
+
+	out := strings.Join(parts, "\n\n")
+	if truncated {
+		out += "\n" + formatDeltaTruncationNotice(omitted, color, theme)
+	}
+	return out
+}
+
+func formatDeltaTruncationNotice(omitted int, color bool, theme Theme) string {
+	arrow := "→"
+	if color {
+		arrow = applyStyle(theme.Muted, arrow, true)
+	}
+	msg := fmt.Sprintf("%s %d additional package changes are not shown.", arrow, omitted)
+	msg += fmt.Sprintf("\n  Run `m plan` for the complete mutation plan.")
+	if color {
+		msg = applyStyle(theme.Muted, msg, true)
+	}
+	return msg
+}
+
+func formatFlatPackageDeltas(deltas []PackageDelta, settings EffectiveSettings, color bool, theme Theme) string {
 	if len(deltas) == 0 {
 		return ""
 	}
@@ -218,4 +302,17 @@ func formatPackageDeltas(deltas []PackageDelta, settings EffectiveSettings, colo
 		}
 	}
 	return b.String()
+}
+
+// joinSummarySections joins major summary sections with one blank line, discarding empties.
+func joinSummarySections(sections ...string) string {
+	var filtered []string
+	for _, s := range sections {
+		if strings.TrimSpace(s) == "" {
+			continue
+		}
+		filtered = append(filtered, s)
+	}
+	out := strings.Join(filtered, "\n\n")
+	return strings.TrimSpace(out)
 }
