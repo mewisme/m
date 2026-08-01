@@ -46,8 +46,8 @@ func TestEsbuildEngine_BasicTS(t *testing.T) {
 	if strings.Contains(code, ": number") {
 		t.Fatal("type annotation not stripped")
 	}
-	if res.CacheStatus != CacheStatusMiss {
-		t.Fatalf("cache status %d, want miss", res.CacheStatus)
+	if res.CacheStatus != CacheStatusBypass {
+		t.Fatalf("cache status %d, want bypass", res.CacheStatus)
 	}
 	if res.Transformer.Name != "esbuild" {
 		t.Fatalf("transformer=%q", res.Transformer.Name)

@@ -88,7 +88,7 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 		SourceMap:    sourceMapBytes,
 		OutputDigest: outputDigest,
 		Diagnostics:  diags,
-		CacheStatus:  CacheStatusMiss,
+		CacheStatus:  CacheStatusBypass,
 		Transformer:  e.Identity(),
 		Elapsed:      time.Since(start),
 	}, nil

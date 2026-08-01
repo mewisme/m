@@ -6,7 +6,10 @@ let endpoint = null;
 let token = null;
 let conn = null;
 let seq = 0;
-let pendingResolve = null;
+// Per-request resolve/reject map keyed by request ID for concurrent transforms.
+const pending = new Map();
+
+const DEFAULT_TIMEOUT = 60000; // 60s per request
 
 function ensureEnv() {
   if (endpoint && token) return true;
@@ -18,6 +21,15 @@ function ensureEnv() {
 export function stripPrivateEnv() {
   delete process.env.MEW_TRANSFORM_ENDPOINT;
   delete process.env.MEW_TRANSFORM_TOKEN;
+}
+
+// Reject all pending requests — called on disconnect or fatal error.
+function rejectAllPending(err) {
+  for (const [id, entry] of pending) {
+    clearTimeout(entry.timer);
+    entry.reject(err);
+  }
+  pending.clear();
 }
 
 function getConn() {
@@ -56,7 +68,6 @@ function getConn() {
             c.removeAllListeners('data');
             c.on('data', onResponse);
             resolve(c);
-            pendingResolve = null;
           } catch (e) { reject(e); }
           return;
         }
@@ -75,26 +86,44 @@ function getConn() {
           buf = buf.subarray(headerLen);
           headerLen = -1;
           try {
-            if (pendingResolve) {
-              const r = pendingResolve;
-              pendingResolve = null;
-              r(JSON.parse(body));
+            const resp = JSON.parse(body);
+            const id = resp.id;
+            if (id != null && pending.has(id)) {
+              const entry = pending.get(id);
+              clearTimeout(entry.timer);
+              pending.delete(id);
+              if (resp.ok) {
+                entry.resolve(resp);
+              } else {
+                entry.reject(new Error(resp.error || 'transform failed'));
+              }
             }
+            // Unknown/duplicate IDs: drop silently (timed-out or already resolved).
           } catch (e) { /* drop malformed frame */ }
         }
       }
 
       c.on('data', onData);
-      c.once('error', (e) => { conn = null; reject(e); });
-      c.once('close', () => { conn = null; });
+      c.once('error', (e) => { conn = null; rejectAllPending(e); reject(e); });
+      c.once('close', () => {
+        conn = null;
+        rejectAllPending(new Error('transform service disconnected'));
+      });
     });
-    c.once('error', (e) => { conn = null; reject(e); });
+    c.once('error', (e) => { conn = null; rejectAllPending(e); reject(e); });
   });
 }
 
-function sendFrame(c, obj) {
-  return new Promise((resolve) => {
-    pendingResolve = resolve;
+function sendFrame(c, obj, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const id = obj.id;
+    const timer = setTimeout(() => {
+      if (pending.has(id)) {
+        pending.delete(id);
+        reject(new Error(`transform request ${id} timed out`));
+      }
+    }, timeoutMs || DEFAULT_TIMEOUT);
+    pending.set(id, { resolve, reject, timer });
     const body = Buffer.from(JSON.stringify(obj), 'utf8');
     const header = Buffer.alloc(4);
     header.writeUInt32LE(body.length, 0);
