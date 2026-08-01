@@ -2,13 +2,27 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/presentation"
 )
 
+// fixBin replaces backtick-quoted `m ` with the actual binary name in hint messages.
+func fixBin(msg, bin string) string {
+	if bin == "" || bin == "m" {
+		return msg
+	}
+	msg = strings.ReplaceAll(msg, "`m ", "`"+bin+" ")
+	msg = strings.ReplaceAll(msg, "`m<", "`"+bin+" <")
+	return msg
+}
+
 // mutationSummary builds the install-family StaticRenderer Summary model.
-func mutationSummary(result app.InstallResult, dryRun bool) presentation.Summary {
+func mutationSummary(result app.InstallResult, dryRun bool, binName string) presentation.Summary {
+	if binName == "" {
+		binName = "m"
+	}
 	if dryRun {
 		s := presentation.Summary{
 			Status: presentation.StatusInfo,
@@ -31,7 +45,7 @@ func mutationSummary(result app.InstallResult, dryRun bool) presentation.Summary
 		if result.DurationMs > 0 {
 			s.Title += " [" + presentation.FormatDuration(result.DurationMs) + "]"
 		}
-		appendCleanupNotices(&s, result)
+		appendCleanupNotices(&s, result, binName)
 		return s
 	}
 
@@ -50,13 +64,13 @@ func mutationSummary(result app.InstallResult, dryRun bool) presentation.Summary
 		Deltas:  mutationPackageDeltas(deltas),
 		Metrics: mutationCompletionMetrics(result),
 	}
-	appendCleanupNotices(&s, result)
+	appendCleanupNotices(&s, result, binName)
 	if result.ScriptsBlocked > 0 {
 		s.Notices = append(s.Notices, presentation.Notice{
 			Status:  presentation.StatusWarning,
 			Message: fmt.Sprintf("%d lifecycle scripts were blocked", result.ScriptsBlocked),
 		})
-		s.Hints = append(s.Hints, presentation.Hint{Message: "Run `m builds` to review them"})
+		s.Hints = append(s.Hints, presentation.Hint{Message: fixBin("Run `m builds` to review them", binName)})
 	}
 	return s
 }
@@ -76,40 +90,40 @@ func mutationCompletionMetrics(result app.InstallResult) []presentation.KeyValue
 	return rows
 }
 
-func appendCleanupNotices(s *presentation.Summary, result app.InstallResult) {
+func appendCleanupNotices(s *presentation.Summary, result app.InstallResult, binName string) {
 	if result.Committed && (result.TransactionCleanupIncomplete || result.RecoveryRequired) {
 		s.Notices = append(s.Notices, presentation.Notice{
 			Status:  presentation.StatusWarning,
 			Message: "Installation committed, but transaction cleanup is incomplete.",
 		})
-		s.Hints = append(s.Hints, presentation.Hint{Message: "Run `m recover` to clear stale transaction metadata."})
+		s.Hints = append(s.Hints, presentation.Hint{Message: fixBin("Run `m recover` to clear stale transaction metadata.", binName)})
 	}
 	if result.RolledBack && (result.TransactionCleanupIncomplete || result.RecoveryRequired) {
 		s.Notices = append(s.Notices, presentation.Notice{
 			Status:  presentation.StatusWarning,
 			Message: "Rollback completed with cleanup warnings.",
 		})
-		s.Hints = append(s.Hints, presentation.Hint{Message: "Run `m recover` if stale transaction metadata remains."})
+		s.Hints = append(s.Hints, presentation.Hint{Message: fixBin("Run `m recover` if stale transaction metadata remains.", binName)})
 	}
 	if result.StoreCleanupIncomplete || result.StoreMaintenanceRequired {
 		s.Notices = append(s.Notices, presentation.Notice{
 			Status:  presentation.StatusWarning,
 			Message: "Store cleanup is incomplete.",
 		})
-		s.Hints = append(s.Hints, presentation.Hint{Message: "Run `m store status` for details."})
+		s.Hints = append(s.Hints, presentation.Hint{Message: fixBin("Run `m store status` for details.", binName)})
 	}
 }
 
-func rollbackSummary(result app.InstallResult) presentation.Summary {
+func rollbackSummary(result app.InstallResult, binName string) presentation.Summary {
 	s := presentation.Summary{
 		Status: presentation.StatusWarning,
 		Title:  "Installation failed; project changes were rolled back",
 	}
-	appendCleanupNotices(&s, result)
+	appendCleanupNotices(&s, result, binName)
 	return s
 }
 
-func recoveryRequiredSummary() presentation.Summary {
+func recoveryRequiredSummary(binName string) presentation.Summary {
 	return presentation.Summary{
 		Status: presentation.StatusError,
 		Title:  "Installation failed",
@@ -117,7 +131,7 @@ func recoveryRequiredSummary() presentation.Summary {
 			Status:  presentation.StatusError,
 			Message: "Recovery is required before the next mutation.",
 		}},
-		Hints: []presentation.Hint{{Message: "Run `m recover`"}},
+		Hints: []presentation.Hint{{Message: fixBin("Run `m recover`", binName)}},
 	}
 }
 

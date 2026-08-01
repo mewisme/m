@@ -64,8 +64,9 @@ func NewController(resolved ResolvedOptions, caps Capabilities, streams StreamWr
 	}
 
 	settings := Effective(resolved, caps)
+	settings.BinaryName = resolved.BinaryName
 	if !resolved.Structured() {
-		mapOpts := MapOptions{Debug: resolved.Debug, Redact: diagnostics.Redact}
+		mapOpts := MapOptions{Debug: resolved.Debug, Redact: diagnostics.Redact, BinaryName: resolved.BinaryName}
 		opts.HumanErrorRender = func(err error) string {
 			return NewStaticRenderer(settings).Error(MapError(err, mapOpts))
 		}

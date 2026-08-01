@@ -53,9 +53,13 @@ var hintRules = []hintRule{
 }
 
 // HintsFor returns deterministic hints for an error (capped in default mode).
-func HintsFor(meta ErrorMetadata, debug bool) []Hint {
+// binName is the invoked binary name to use in command references ("m", "mew", etc.).
+func HintsFor(meta ErrorMetadata, debug bool, binName string) []Hint {
 	if meta.Code == apperr.Cancelled {
 		return nil
+	}
+	if binName == "" {
+		binName = "m"
 	}
 	var out []Hint
 	seen := make(map[string]struct{})
@@ -69,11 +73,13 @@ func HintsFor(meta ErrorMetadata, debug bool) []Hint {
 		if rule.predicate != nil && !rule.predicate(meta) {
 			continue
 		}
-		if _, ok := seen[rule.message]; ok {
+		msg := strings.ReplaceAll(rule.message, "`m ", "`"+binName+" ")
+		msg = strings.ReplaceAll(msg, "`m<", "`"+binName+" <")
+		if _, ok := seen[msg]; ok {
 			continue
 		}
-		seen[rule.message] = struct{}{}
-		out = append(out, Hint{Message: rule.message})
+		seen[msg] = struct{}{}
+		out = append(out, Hint{Message: msg})
 		if !debug && len(out) >= maxDefaultHints {
 			break
 		}

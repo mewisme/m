@@ -140,6 +140,33 @@ Global Flags:
 {{- end}}
 `
 
+// aliasSuffix returns " (m a)" or " (m a, m in)" for commands with public aliases.
+func aliasSuffix(cmd *cobra.Command) string {
+	aliases := cmd.Aliases
+	if len(aliases) == 0 {
+		return ""
+	}
+	bin := "m"
+	if cmd.Root() != nil && cmd.Root().Use != "" {
+		bin = cmd.Root().Use
+	}
+	var parts []string
+	for _, a := range aliases {
+		if a == "" || a == cmd.Name() {
+			continue
+		}
+		parts = append(parts, bin+" "+a)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return " (" + strings.Join(parts, ", ") + ")"
+}
+
+func formatCommandLine(cmd *cobra.Command) string {
+	return fmt.Sprintf("  %-14s %s%s", cmd.Name(), cmd.Short, aliasSuffix(cmd))
+}
+
 func renderGroupedCommands(cmd *cobra.Command) string {
 	byName := map[string]*cobra.Command{}
 	for _, c := range cmd.Commands() {
@@ -158,7 +185,7 @@ func renderGroupedCommands(cmd *cobra.Command) string {
 				continue
 			}
 			seen[name] = struct{}{}
-			lines = append(lines, fmt.Sprintf("  %-14s %s", c.Name(), c.Short))
+			lines = append(lines, formatCommandLine(c))
 		}
 		if len(lines) == 0 {
 			continue
@@ -178,7 +205,7 @@ func renderGroupedCommands(cmd *cobra.Command) string {
 		if _, ok := seen[name]; ok {
 			continue
 		}
-		other = append(other, fmt.Sprintf("  %-14s %s", c.Name(), c.Short))
+		other = append(other, formatCommandLine(c))
 	}
 	if len(other) > 0 {
 		if b.Len() > 0 {
@@ -238,6 +265,10 @@ func renderBareScripts(cmd *cobra.Command) string {
 	if total > bareMScriptListLimit {
 		fmt.Fprintf(&b, ", … and %d more", total-bareMScriptListLimit)
 	}
-	b.WriteString("\n\nRun `m run <script>` to execute.\n")
+	bin := "m"
+	if cmd != nil && cmd.Root() != nil && cmd.Root().Use != "" {
+		bin = cmd.Root().Use
+	}
+	fmt.Fprintf(&b, "\n\nRun `%s run <script>` to execute.\n", bin)
 	return b.String()
 }

@@ -183,7 +183,7 @@ func formatPackageDeltasWithOptions(deltas []PackageDelta, settings EffectiveSet
 	if !opts.GroupByKind {
 		body := formatFlatPackageDeltas(deltas, settings, color, theme)
 		if truncated {
-			return body + "\n" + formatDeltaTruncationNotice(omitted, color, theme)
+			return body + "\n" + formatDeltaTruncationNotice(omitted, color, theme, settings)
 		}
 		return body
 	}
@@ -221,18 +221,18 @@ func formatPackageDeltasWithOptions(deltas []PackageDelta, settings EffectiveSet
 
 	out := strings.Join(parts, "\n\n")
 	if truncated {
-		out += "\n" + formatDeltaTruncationNotice(omitted, color, theme)
+		out += "\n" + formatDeltaTruncationNotice(omitted, color, theme, settings)
 	}
 	return out
 }
 
-func formatDeltaTruncationNotice(omitted int, color bool, theme Theme) string {
+func formatDeltaTruncationNotice(omitted int, color bool, theme Theme, settings EffectiveSettings) string {
 	arrow := "→"
 	if color {
 		arrow = applyStyle(theme.Muted, arrow, true)
 	}
 	msg := fmt.Sprintf("%s %d additional package changes are not shown.", arrow, omitted)
-	msg += "\n  Run `m plan` for the complete mutation plan."
+	msg += "\n  Run `" + settings.BinName() + " plan` for the complete mutation plan."
 	if color {
 		msg = applyStyle(theme.Muted, msg, true)
 	}

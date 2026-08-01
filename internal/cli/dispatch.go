@@ -633,13 +633,16 @@ func listBareMScripts(cwd string) ([]string, int, error) {
 
 const bareMScriptListLimit = 10
 
-func bareMUsageMessage(cwd string) string {
+func bareMUsageMessage(cwd, bin string) string {
+	if bin == "" {
+		bin = "m"
+	}
 	names, total, err := listBareMScripts(cwd)
 	if err != nil || len(names) == 0 {
-		return "usage: m <command> [args]\n\nRun m run <script> to execute a package script."
+		return fmt.Sprintf("usage: %s <command> [args]\n\nRun %s run <script> to execute a package script.", bin, bin)
 	}
 	var b strings.Builder
-	b.WriteString("usage: m <command> [args]\n\nAvailable scripts:")
+	fmt.Fprintf(&b, "usage: %s <command> [args]\n\nAvailable scripts:", bin)
 	show := names
 	if len(show) > bareMScriptListLimit {
 		show = show[:bareMScriptListLimit]
@@ -651,7 +654,7 @@ func bareMUsageMessage(cwd string) string {
 	if total > bareMScriptListLimit {
 		fmt.Fprintf(&b, "\n  … and %d more", total-bareMScriptListLimit)
 	}
-	b.WriteString("\n\nRun m run <script> to execute a package script.")
+	fmt.Fprintf(&b, "\n\nRun %s run <script> to execute a package script.", bin)
 	return b.String()
 }
 

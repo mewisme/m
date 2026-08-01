@@ -17,7 +17,7 @@ func TestMutationSummaryInstallWithAdditions(t *testing.T) {
 			{Kind: app.PackageChangeAdded, Name: "vite", ToVersion: "7.0.4", ToKey: "vite@7.0.4"},
 		},
 	}
-	s := mutationSummary(result, false)
+	s := mutationSummary(result, false, "")
 	if s.Status != presentation.StatusSuccess {
 		t.Fatalf("status=%v", s.Status)
 	}
@@ -42,7 +42,7 @@ func TestMutationSummaryRemove(t *testing.T) {
 			{Kind: app.PackageChangeRemoved, Name: "lodash", FromVersion: "4.17.20", FromKey: "lodash@4.17.20"},
 		},
 	}
-	s := mutationSummary(result, false)
+	s := mutationSummary(result, false, "")
 	if s.Status != presentation.StatusSuccess {
 		t.Fatalf("status=%v", s.Status)
 	}
@@ -63,7 +63,7 @@ func TestMutationSummaryUpdate(t *testing.T) {
 			{Kind: app.PackageChangeUpdated, Name: "react", FromVersion: "19.1.0", ToVersion: "19.1.1", FromKey: "react@19.1.0", ToKey: "react@19.1.1"},
 		},
 	}
-	s := mutationSummary(result, false)
+	s := mutationSummary(result, false, "")
 	if len(s.Deltas) != 1 {
 		t.Fatalf("deltas=%d", len(s.Deltas))
 	}
@@ -85,7 +85,7 @@ func TestMutationSummaryMixedAddUpdateRemove(t *testing.T) {
 			{Kind: app.PackageChangeRemoved, Name: "old-pkg", FromVersion: "2.0.0", FromKey: "old-pkg@2.0.0"},
 		},
 	}
-	s := mutationSummary(result, false)
+	s := mutationSummary(result, false, "")
 	if len(s.Deltas) != 3 {
 		t.Fatalf("deltas=%d", len(s.Deltas))
 	}
@@ -99,7 +99,7 @@ func TestMutationSummaryDryRun(t *testing.T) {
 			{Kind: app.PackageChangeAdded, Name: "zod", ToVersion: "4.0.14", ToKey: "zod@4.0.14"},
 		},
 	}
-	s := mutationSummary(result, true)
+	s := mutationSummary(result, true, "")
 	if s.Status != presentation.StatusInfo {
 		t.Fatalf("status=%v want info", s.Status)
 	}
@@ -113,7 +113,7 @@ func TestMutationSummaryDryRun(t *testing.T) {
 
 func TestMutationSummaryAlreadyUpToDate(t *testing.T) {
 	result := app.InstallResult{Added: 0, Removed: 0, Changed: 0, Packages: 126}
-	s := mutationSummary(result, false)
+	s := mutationSummary(result, false, "")
 	if s.Title != "Already up to date" {
 		t.Fatalf("title=%q", s.Title)
 	}
@@ -131,7 +131,7 @@ func TestMutationSummaryScriptsBlocked(t *testing.T) {
 			{Kind: app.PackageChangeAdded, Name: "pkg", ToVersion: "1.0.0", ToKey: "pkg@1.0.0"},
 		},
 	}
-	s := mutationSummary(result, false)
+	s := mutationSummary(result, false, "")
 	if len(s.Notices) == 0 {
 		t.Fatalf("expected scripts blocked notice")
 	}

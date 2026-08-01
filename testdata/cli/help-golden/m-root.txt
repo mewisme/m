@@ -5,8 +5,8 @@ Usage:
 
 
 Common workflows
-  install        Install dependencies
-  add            Add a dependency
+  install        Install dependencies (m i)
+  add            Add a dependency (m a)
   run            Run a package script
   exec           Execute a local package binary
   ci             Clean install from lockfile
@@ -14,7 +14,7 @@ Common workflows
 
 Project and dependencies
   init           Initialize a project
-  remove         Remove a dependency
+  remove         Remove a dependency (m rm)
   link           Link a local package
   dedupe         Reduce duplicate dependencies in the lockfile
   prune          Remove extraneous packages from node_modules
@@ -31,9 +31,9 @@ Run and execute
   view           View package metadata from the registry
 
 Inspect and diagnose
-  ls             List dependency tree or workspace packages
+  ls             List dependency tree or workspace packages (m list)
   outdated       Check for outdated package versions
-  explain        Explain resolution decisions
+  explain        Explain resolution decisions (m why)
   plan           Preview install mutations
   history        Show install snapshot timeline
   snapshot       Manage install snapshots
@@ -50,7 +50,7 @@ Security and policy
   sbom           Export a software bill of materials
   builds         Lifecycle build script audit
   trust          Trust lifecycle scripts for packages
-  approve-builds Approve lifecycle scripts for packages (alias for m trust)
+  approve-builds Approve lifecycle scripts for packages (alias for m trust) (m approve-build)
 
 Cache, store, and artifacts
   cache          Manage the download cache
@@ -61,7 +61,7 @@ Cache, store, and artifacts
 Configuration and development
   config         Get and set configuration
   development    Developer tooling
-  benchmark      Performance benchmarks
+  benchmark      Performance benchmarks (m bench)
   conformance    Run certification conformance suites
   version        Print version information
   completion     Generate shell completion scripts

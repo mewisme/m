@@ -10,8 +10,9 @@ import (
 
 // MapOptions controls ErrorView mapping.
 type MapOptions struct {
-	Debug  bool
-	Redact func(string) string
+	Debug      bool
+	Redact     func(string) string
+	BinaryName string // "m", "mew", "mx", "mewx"
 }
 
 func (o MapOptions) redact(s string) string {
@@ -27,7 +28,7 @@ func MapError(err error, opts MapOptions) ErrorView {
 		return ErrorView{}
 	}
 	meta, view := mapPrimaryError(err, opts)
-	view.Hints = HintsFor(meta, opts.Debug)
+	view.Hints = HintsFor(meta, opts.Debug, opts.BinaryName)
 	if opts.Debug {
 		view.Causes = collectCauses(err, opts)
 	}

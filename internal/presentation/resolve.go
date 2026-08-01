@@ -17,6 +17,7 @@ type Input struct {
 	Debug         bool
 	Unsafe        bool
 	MarkdownTheme string
+	BinaryName    string // invoked binary: "m", "mew", "mx", "mewx"
 }
 
 // Resolve computes immutable presentation options from explicit CLI flags.
@@ -49,6 +50,7 @@ func Resolve(input Input) (ResolvedOptions, error) {
 		LogLevel:      logLevel,
 		Debug:         logLevel == LogDebug,
 		Unsafe:        input.Unsafe,
+		BinaryName:    input.BinaryName,
 	}, nil
 }
 

@@ -62,9 +62,13 @@ func runLifecyclePhase(ctx context.Context, ac *Context, proj *project.Project, 
 		res.ScriptsBlocked += lifeRes.Skipped
 	}
 	if lifeRes.Skipped > 0 {
+		bin := ac.BinaryName
+		if bin == "" {
+			bin = "m"
+		}
 		emitInstallNotice(ac, "warning", "ERR_M_LIFECYCLE",
 			fmt.Sprintf("%d lifecycle scripts were blocked", lifeRes.Skipped),
-			"Run `m builds` to review them")
+			"Run `"+bin+" builds` to review them")
 	}
 	if err != nil {
 		lifeErr = err

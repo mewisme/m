@@ -61,7 +61,7 @@ func newCapsuleRestoreCmd() *cobra.Command {
 			}
 			g := ownerFlags(cmd.Root())
 			r := g.mustStaticRenderer(cmd)
-			return writeStaticOut(cmd, r.Summary(mutationSummary(res, false)))
+			return writeStaticOut(cmd, r.Summary(mutationSummary(res, false, g.invokedBinary)))
 		},
 	}
 	return cmd

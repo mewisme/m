@@ -16,6 +16,7 @@ type ResolvedOptions struct {
 	Debug         bool
 	Unsafe        bool
 	TermWidth     int
+	BinaryName    string // "m", "mew", "mx", "mewx"
 }
 
 // ReporterFormat maps effective output to diagnostics reporter format names.

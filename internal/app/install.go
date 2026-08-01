@@ -175,12 +175,12 @@ func FormatInstallSummary(r InstallResult) string {
 	seen := map[string]bool{}
 	line := fmt.Sprintf("added %d, removed %d, changed %d (%d packages)", r.Added, r.Removed, r.Changed, r.Packages)
 	if r.Committed && (r.TransactionCleanupIncomplete || r.RecoveryRequired) {
-		line += "\nInstallation committed, but transaction cleanup is incomplete. Run m recover to clear stale transaction metadata."
+		line += "\nInstallation committed, but transaction cleanup is incomplete. Run `m recover` to clear stale transaction metadata."
 		for _, w := range formatCleanupSection(r, criticalTxnCleanupCodes, seen) {
 			line += "\n  " + w
 		}
 	} else if r.RolledBack && (r.TransactionCleanupIncomplete || r.RecoveryRequired) {
-		line += "\nRollback completed with cleanup warnings. Run m recover if stale transaction metadata remains."
+		line += "\nRollback completed with cleanup warnings. Run `m recover` if stale transaction metadata remains."
 		for _, w := range formatCleanupSection(r, criticalTxnCleanupCodes, seen) {
 			line += "\n  " + w
 		}
@@ -192,7 +192,7 @@ func FormatInstallSummary(r InstallResult) string {
 		}
 	}
 	if r.StoreCleanupIncomplete || r.StoreMaintenanceRequired {
-		line += "\nStore cleanup is incomplete. Run m store status for details."
+		line += "\nStore cleanup is incomplete. Run `m store status` for details."
 		for _, w := range formatCleanupSection(r, storeCleanupCodes, seen) {
 			line += "\n  " + w
 		}
@@ -321,7 +321,7 @@ func cleanupPairContains(codes, warnings []string, code, msg string) bool {
 func storeMaintenanceIncompleteError(res InstallResult) error {
 	_ = res
 	return apperr.New(apperr.Store, "app.install.store_cleanup", "",
-		"Installation committed, but store cleanup is incomplete. Run m store status for details.")
+		"Installation committed, but store cleanup is incomplete. Run `m store status` for details.")
 }
 
 func populateCleanupResult(res *InstallResult, finish transaction.FinishResult) {
@@ -371,7 +371,7 @@ func populateWarningCleanup(res *InstallResult, finish transaction.FinishResult)
 }
 
 func installCleanupIncompleteError(res InstallResult) error {
-	msg := "Installation committed, but transaction cleanup is incomplete. Run m recover to clear stale transaction metadata."
+	msg := "Installation committed, but transaction cleanup is incomplete. Run `m recover` to clear stale transaction metadata."
 	return apperr.New(apperr.Transaction, "app.install.cleanup", "", msg)
 }
 

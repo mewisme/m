@@ -31,6 +31,7 @@ func (g *globalFlags) presentationInput() presentation.Input {
 		Debug:         g.resolveDebug(),
 		Unsafe:        g.unsafe,
 		MarkdownTheme: g.markdownTheme,
+		BinaryName:    g.invokedBinary,
 	}
 }
 
@@ -59,6 +60,7 @@ func (g *globalFlags) staticRenderer(cmd *cobra.Command) (presentation.StaticRen
 		return nil, err
 	}
 	settings := presentation.Effective(ctrl.Options(), ctrl.Capabilities())
+	settings.BinaryName = g.invokedBinary
 	return presentation.NewStaticRenderer(settings), nil
 }
 
@@ -71,6 +73,7 @@ func (g *globalFlags) mustStaticRenderer(cmd *cobra.Command) presentation.Static
 			Width:      80,
 			UseUnicode: false,
 			Symbols:    presentation.ASCIISymbols,
+			BinaryName: g.invokedBinary,
 		})
 	}
 	return r

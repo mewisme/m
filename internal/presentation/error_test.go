@@ -56,14 +56,14 @@ func TestErrorPlainGoldenWidths(t *testing.T) {
 
 func TestErrorHintsCapped(t *testing.T) {
 	meta := ErrorMetadata{Code: apperr.Usage}
-	hints := HintsFor(meta, false)
+	hints := HintsFor(meta, false, "")
 	if len(hints) > maxDefaultHints {
 		t.Fatalf("got %d hints", len(hints))
 	}
 }
 
 func TestCancelledHasNoHints(t *testing.T) {
-	hints := HintsFor(ErrorMetadata{Code: apperr.Cancelled}, false)
+	hints := HintsFor(ErrorMetadata{Code: apperr.Cancelled}, false, "")
 	if len(hints) != 0 {
 		t.Fatalf("hints=%v", hints)
 	}

@@ -203,6 +203,7 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 	}
 	g := ownerFlags(cmd.Root())
 	r := g.mustStaticRenderer(cmd)
+	binName := g.invokedBinary
 
 	// Emit invocation header once at start of output. Suppressed when no summary or no controller.
 	writeInvocationHeaderOnce(cmd)
@@ -212,10 +213,10 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 
 	if !result.Committed && !dryRun {
 		if result.RolledBack {
-			return writeStaticErr(cmd, r.Summary(rollbackSummary(result)))
+			return writeStaticErr(cmd, r.Summary(rollbackSummary(result, binName)))
 		}
 		if result.RecoveryRequired {
-			return writeStaticErr(cmd, r.Summary(recoveryRequiredSummary()))
+			return writeStaticErr(cmd, r.Summary(recoveryRequiredSummary(binName)))
 		}
 		return nil
 	}
@@ -231,7 +232,7 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 		return nil
 	}
 
-	summary := mutationSummary(result, dryRun)
+	summary := mutationSummary(result, dryRun, binName)
 	return writeStaticOut(cmd, r.Summary(summary))
 }
 

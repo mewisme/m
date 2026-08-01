@@ -25,6 +25,15 @@ type EffectiveSettings struct {
 	Width                   int
 	Accessible              bool
 	Symbols                 Symbols
+	BinaryName              string // invoked binary name: "m", "mew", "mx", or "mewx"
+}
+
+// BinName returns the binary name for user-facing command references, defaulting to "m".
+func (s EffectiveSettings) BinName() string {
+	if s.BinaryName != "" {
+		return s.BinaryName
+	}
+	return "m"
 }
 
 // Effective derives rendering settings from resolved options and capabilities.

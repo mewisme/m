@@ -21,6 +21,7 @@ type Context struct {
 	Version        string
 	Commit         string
 	BuildDate      string
+	BinaryName     string // "m", "mew", "mx", "mewx"
 	Ctx            context.Context
 	// SuspendUI / ResumeUI pause live progress around child I/O (presentation-owned).
 	SuspendUI func(context.Context) error
@@ -42,6 +43,7 @@ type Options struct {
 	Version       string
 	Commit        string
 	BuildDate     string
+	BinaryName    string // "m", "mew", "mx", "mewx"
 }
 
 type ctxKey struct{}
@@ -131,6 +133,7 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 		Version:        opts.Version,
 		Commit:         opts.Commit,
 		BuildDate:      opts.BuildDate,
+		BinaryName:     opts.BinaryName,
 		Ctx:            ctx,
 	}, nil
 }

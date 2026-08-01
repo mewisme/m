@@ -184,6 +184,7 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 		Version:       info.Version,
 		Commit:        info.Commit,
 		BuildDate:     info.BuildDate,
+		BinaryName:    g.invokedBinary,
 	})
 	if err != nil {
 		return nil, err
@@ -471,7 +472,7 @@ func handleBareM(ctx context.Context, root *cobra.Command, g *globalFlags, info 
 	_ = ctx
 	_ = info
 	cwd := dispatchCWD(g, phase)
-	msg := bareMUsageMessage(cwd)
+	msg := bareMUsageMessage(cwd, g.invokedBinary)
 	err := apperr.New(apperr.Usage, "cli", "", msg)
 	rep := g.newReporter(root)
 	rep.Error(err)
