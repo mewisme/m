@@ -2,587 +2,323 @@ name: ci
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-jobs:
-  no-cgo-gate:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: No-CGO test, vet, and build
-        run: |
-          go test ./internal/archcheck/... -count=1 -run TestProduction
-          go test ./... -count=1
-          go vet ./...
-          go build ./cmd/m
-          go build ./cmd/mx
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
-  test:
-    name: test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    env:
-      CGO_ENABLED: "0"
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+env:
+  CGO_ENABLED: "0"
+  GOTOOLCHAIN: local
+  NODE_VERSION: "22"
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.x"
-      - name: Test
-        run: go test ./... -count=1
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="$(git ls-files -z '*.go' | xargs -0 gofmt -l)"
+          if [[ -n "$files" ]]; then
+            echo "The following files need gofmt:" >&2
+            echo "$files" >&2
+            exit 1
+          fi
+
+      - name: Verify module files
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
       - name: Vet
         run: go vet ./...
-      - name: Build
-        run: |
-          go build -o bin/m${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/m
-          go build -o bin/mx${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/mx
-      - name: Doctor stub
-        run: go run ./cmd/m development doctor
 
-  race:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Race
-        run: go test -race ./... -count=1
-
-  race-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Race (transaction, store, fsx)
-        run: go test -race ./internal/transaction/... ./internal/store/... ./internal/fsx/... -count=1
-
-  crash-shard-verify:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Prove crash tests partition Windows shards
-        run: go run ./tools/ci/verify-crash-shards
-
-  crash-integration:
-    needs: crash-shard-verify
-    name: crash-integration (${{ matrix.label }})
-    runs-on: ${{ matrix.os }}
-    env:
-      CGO_ENABLED: "0"
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: ubuntu-latest
-            os: ubuntu-latest
-            shard: full
-            run: Crash
-          - label: windows-latest/snapshot
-            os: windows-latest
-            shard: snapshot
-            run: TestSnapshotCrash|TestWorkspaceSnapshotRestoreCrash
-          - label: windows-latest/install
-            os: windows-latest
-            shard: install
-            run: TestTxnCrash
-          - label: windows-latest/update
-            os: windows-latest
-            shard: update
-            run: TestUpdateCrash
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Process crash matrix (${{ matrix.shard }})
-        id: crash
-        shell: bash
-        run: |
-          set -euo pipefail
-          start=$(date +%s)
-          go test -tags crash ./tests/integration/... -count=1 -run '${{ matrix.run }}' -timeout 30m
-          end=$(date +%s)
-          duration=$((end - start))
-          echo "duration=${duration}" >> "$GITHUB_OUTPUT"
-          echo "${duration}" > crash-duration.txt
-      - name: Upload shard timing
-        if: always() && steps.crash.outcome != 'skipped'
-        uses: actions/upload-artifact@v4
-        with:
-          name: crash-timing-${{ matrix.os }}-${{ matrix.shard }}
-          path: crash-duration.txt
-          retention-days: 7
-
-  crash-integration-report:
-    needs: crash-integration
-    if: always() && !cancelled() && needs.crash-integration.result != 'skipped'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: crash-timing-*
-          path: timings
-          merge-multiple: false
-      - name: Compare Windows shard durations to sequential baseline
-        shell: bash
-        run: |
-          set -euo pipefail
-          baseline=420
-          {
-            echo "## Crash integration timings"
-            echo ""
-            echo "| Shard | Duration |"
-            echo "| --- | --- |"
-          } >> "$GITHUB_STEP_SUMMARY"
-          max_win=0
-          max_win_label=""
-          for dir in timings/crash-timing-*; do
-            [ -d "$dir" ] || continue
-            name="${dir#timings/crash-timing-}"
-            dur="$(tr -d '[:space:]' < "$dir/crash-duration.txt")"
-            mins=$((dur / 60))
-            secs=$((dur % 60))
-            echo "| ${name} | ${mins}m ${secs}s (${dur}s) |" >> "$GITHUB_STEP_SUMMARY"
-            case "$name" in
-              windows-latest-*)
-                if [ "$dur" -gt "$max_win" ]; then
-                  max_win=$dur
-                  max_win_label=$name
-                fi
-                ;;
-            esac
-          done
-          {
-            echo ""
-            echo "**Previous sequential Windows job:** ~7m (${baseline}s)"
-            if [ "$max_win" -gt 0 ]; then
-              max_mins=$((max_win / 60))
-              max_secs=$((max_win % 60))
-              echo "**Longest Windows shard (${max_win_label}):** ${max_mins}m ${max_secs}s (${max_win}s)"
-              if [ "$max_win" -lt "$baseline" ]; then
-                saved=$((baseline - max_win))
-                saved_mins=$((saved / 60))
-                saved_secs=$((saved % 60))
-                echo "**Parallel wall-clock savings vs sequential:** ~${saved_mins}m ${saved_secs}s (${saved}s)"
-              else
-                echo "**Note:** longest shard exceeds sequential baseline; check shard balance."
-              fi
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  race-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Race (transaction, store, resolver)
-        run: go test -race ./internal/transaction/... ./internal/store/... ./internal/resolver/... -count=1
-
-  platform-lock:
-    name: platform-lock (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    env:
-      CGO_ENABLED: "0"
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Cross-process lock and identity tests
-        run: go test ./internal/transaction/... ./internal/store/... ./internal/fsx/... -count=1 -run 'Proc|Identity|Takeover|Import|ABA'
-
-  cross:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    strategy:
-      fail-fast: false
-      matrix:
-        goos: [linux, darwin, windows]
-        goarch: [amd64, arm64]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Cross-compile
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: |
-          ext=""
-          if [ "$GOOS" = "windows" ]; then ext=".exe"; fi
-          go build -o "/tmp/m-${GOOS}-${GOARCH}${ext}" ./cmd/m
-          go build -o "/tmp/mx-${GOOS}-${GOARCH}${ext}" ./cmd/mx
-
-  lint:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
       - name: Load tool versions
-        id: ver
+        id: tools
+        shell: bash
         run: |
           set -a
-          # shellcheck disable=SC1091
           source tools/versions.env
           set +a
           echo "golangci=${GOLANGCI_LINT_VERSION}" >> "$GITHUB_OUTPUT"
-      - uses: golangci/golangci-lint-action@v9
-        with:
-          version: ${{ steps.ver.outputs.golangci }}
-      - name: Verify go.mod tidy
-        run: |
-          go mod tidy
-          git diff --exit-code go.mod go.sum
 
-  vuln:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
         with:
-          go-version: "1.26.x"
-      - name: govulncheck
-        run: |
-          set -a
-          # shellcheck disable=SC1091
-          source tools/versions.env
-          set +a
-          go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
-          govulncheck ./...
+          version: ${{ steps.tools.outputs.golangci }}
 
-  allowlist:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: License and deps
+      - name: Verify production architecture
+        run: go test ./internal/archcheck/... -count=1 -run TestProduction
+
+      - name: Verify licenses and dependency allowlist
         run: |
           go run ./tools/check-license
           go run ./tools/check-deps
           go test ./tools/check-deps -count=1
 
-  gate-probe:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Prove go vet fails on bad input
-        run: |
-          set -euo pipefail
-          dir="$(mktemp -d)"
-          cd "$dir"
-          go mod init badprobe
-          cat >bad.go <<'EOF'
-          package badprobe
-          import "fmt"
-          func F() { x := 1 }
-          EOF
-          if go vet ./...; then
-            echo "expected go vet to fail" >&2
-            exit 1
-          fi
-          echo "ok: go vet rejected bad input"
-      - name: Prove allowlist probe rejects banned module
-        run: go test ./tools/check-deps -count=1 -run TestAllowlistRejectsUnknown
-
-  fixture-verify:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Verify lock bridge fixtures
+      - name: Verify generated fixtures
         run: go run ./tools/conformance/verify-fixtures
 
-  plan-generation-idempotency:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Verify plan generation idempotency
-        run: python tools/ci/verify_plan_generation.py
+      - name: Verify crash shard assignments
+        run: go run ./tools/ci/verify-crash-shards
 
-  markdown-link-check:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Check Markdown relative links
+      - name: Check relative Markdown links
         run: go run ./tools/check-links
 
-  conformance-pnpm-9:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
+  platform:
+    name: platform (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: linux
+            os: ubuntu-latest
+            ext: ""
+          - label: macos
+            os: macos-latest
+            ext: ""
+          - label: windows
+            os: windows-latest
+            ext: .exe
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.x"
-      - name: Load pnpm versions
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Test
+        run: go test ./... -count=1 -timeout 30m
+
+      - name: Cross-process lock and identity tests
+        run: >-
+          go test ./internal/transaction/... ./internal/store/... ./internal/fsx/...
+          -count=1 -run 'Proc|Identity|Takeover|Import|ABA'
+
+      - name: Race detector for Windows-critical packages
+        if: matrix.label == 'windows'
+        env:
+          CGO_ENABLED: "1"
+        run: >-
+          go test -race ./internal/transaction/... ./internal/store/... ./internal/fsx/...
+          -count=1 -timeout 20m
+
+      - name: Race detector for macOS-critical packages
+        if: matrix.label == 'macos'
+        env:
+          CGO_ENABLED: "1"
+        run: >-
+          go test -race ./internal/transaction/... ./internal/store/... ./internal/resolver/...
+          -count=1 -timeout 20m
+
+      - name: Build binaries
+        run: |
+          go build -trimpath -o "${{ runner.temp }}/m${{ matrix.ext }}" ./cmd/m
+          go build -trimpath -o "${{ runner.temp }}/mx${{ matrix.ext }}" ./cmd/mx
+
+      - name: Doctor
+        run: go run ./cmd/m --cwd fixtures/projects/mlock-greenfield doctor --json
+
+  race:
+    name: race (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Race detector
+        run: go test -race ./... -count=1 -timeout 40m
+
+  cross-compile:
+    name: cross-compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Build all supported targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for target in \
+            linux/amd64 linux/arm64 \
+            darwin/amd64 darwin/arm64 \
+            windows/amd64 windows/arm64
+          do
+            goos="${target%/*}"
+            goarch="${target#*/}"
+            ext=""
+            [[ "$goos" == windows ]] && ext=".exe"
+
+            GOOS="$goos" GOARCH="$goarch" \
+              go build -trimpath -o "${RUNNER_TEMP}/m-${goos}-${goarch}${ext}" ./cmd/m
+            GOOS="$goos" GOARCH="$goarch" \
+              go build -trimpath -o "${RUNNER_TEMP}/mx-${goos}-${goarch}${ext}" ./cmd/mx
+          done
+
+  lock-pnpm:
+    name: lock conformance (pnpm ${{ matrix.major }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        major: [9, 10, 11]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Resolve pinned pnpm version
         id: pnpm
+        shell: bash
         run: |
           set -a
-          # shellcheck disable=SC1091
           source tools/conformance/pnpm-versions.env
           set +a
-          echo "version=$PNPM9_VERSION" >> "$GITHUB_OUTPUT"
+          case "${{ matrix.major }}" in
+            9) version="$PNPM9_VERSION" ;;
+            10) version="$PNPM10_VERSION" ;;
+            11) version="$PNPM11_VERSION" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ steps.pnpm.outputs.version }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: pnpm 9 lock bridge conformance
-        run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm9($|MutationSuite|PeerContext)' -v
 
-  conformance-pnpm-10:
+      - name: Run pnpm lock bridge suite
+        shell: bash
+        run: >-
+          go test ./tests/conformance/... -count=1
+          -run 'TestLockBridgePnpm${{ matrix.major }}($|MutationSuite|PeerContext)'
+          -v -timeout 30m
+
+  lock-adapters:
+    name: lock conformance (other adapters)
     runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.x"
-      - name: Load pnpm versions
-        id: pnpm
-        run: |
-          set -a
-          # shellcheck disable=SC1091
-          source tools/conformance/pnpm-versions.env
-          set +a
-          echo "version=$PNPM10_VERSION" >> "$GITHUB_OUTPUT"
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ steps.pnpm.outputs.version }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: pnpm 10 lock bridge conformance
-        run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm10($|MutationSuite|PeerContext)' -v
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
-  conformance-pnpm-11:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-node@v7
         with:
-          go-version: "1.26.x"
-      - name: Load pnpm versions
-        id: pnpm
-        run: |
-          set -a
-          # shellcheck disable=SC1091
-          source tools/conformance/pnpm-versions.env
-          set +a
-          echo "version=$PNPM11_VERSION" >> "$GITHUB_OUTPUT"
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ steps.pnpm.outputs.version }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: pnpm 11 lock bridge conformance
-        run: go test ./tests/conformance/... -count=1 -run 'TestLockBridgePnpm11($|MutationSuite|PeerContext)' -v
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
 
-  conformance-pnpm-unsupported:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: pnpm legacy lock rejection
-        run: go test ./tests/conformance/... -count=1 -run TestLockBridgePnpmUnsupported -v
+      - name: Run npm, Yarn, Bun, Nub, and rejection suites
+        shell: bash
+        run: >-
+          go test ./tests/conformance/... -count=1
+          -run 'TestLockBridgePnpmUnsupported|TestLockBridgeNubFixtures|Npm|Bun|Yarn'
+          -v -timeout 25m
 
-  conformance-npm:
+  core-certification:
+    name: core certification
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: npm lock bridge conformance
-        run: go test ./tests/conformance/... -count=1 -run Npm -v
-
-  conformance-bun:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: bun lock bridge conformance
-        run: go test ./tests/conformance/... -count=1 -run Bun -v
-
-  conformance-yarn:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: yarn lock bridge conformance
-        run: go test ./tests/conformance/... -count=1 -run Yarn -v
-
-  conformance-nub-fixtures:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Nub lock fixture validation
-        run: go test ./tests/conformance/... -count=1 -run TestLockBridgeNubFixtures -v
-
-  bench-regression:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    env:
-      CGO_ENABLED: "0"
-      MEW_BENCH_RUNNER_CLASS: github-actions-ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install bench regression (advisory)
-        run: python tools/bench/check_regression.py --mode warm
-      - name: Upload bench result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bench-regression-result
-          path: bench-result.json
-          if-no-files-found: ignore
-
-  bench-correctness:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-      MEW_BENCH_RUNNER_CLASS: github-actions-ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install bench correctness (blocking)
-        run: python tools/bench/check_correctness.py --mode warm
-      - name: Upload bench result
-        uses: actions/upload-artifact@v4
-        with:
-          name: bench-correctness-result
-          path: bench-result.json
-
-  core-stabilization:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
       MEW_CONFORMANCE_REQUIRE_TOOLS: "1"
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.x"
-      - uses: actions/setup-python@v5
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
         with:
-          python-version: "3.12"
-      - name: Load pnpm versions
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Load pinned pnpm versions
         id: pnpm
+        shell: bash
         run: |
           set -a
-          # shellcheck disable=SC1091
           source tools/conformance/pnpm-versions.env
           set +a
-          echo "pnpm9=$PNPM9_VERSION" >> "$GITHUB_OUTPUT"
-          echo "pnpm10=$PNPM10_VERSION" >> "$GITHUB_OUTPUT"
           echo "pnpm11=$PNPM11_VERSION" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
+
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ steps.pnpm.outputs.pnpm11 }}
+
       - name: Install pnpm 9 and 10 shims
+        shell: bash
         run: |
+          set -euo pipefail
           set -a
-          # shellcheck disable=SC1091
           source tools/conformance/pnpm-versions.env
           set +a
           corepack enable
@@ -593,181 +329,232 @@ jobs:
           ln -sf "$(command -v pnpm)" "$HOME/.local/bin/pnpm10"
           corepack prepare "pnpm@${PNPM11_VERSION}" --activate
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Core certification matrix
-        run: go run ./cmd/m conformance run core --json > core-report.json
-      - name: PM doctor health check
-        run: go run ./cmd/m --cwd fixtures/projects/mlock-greenfield doctor --json
-      - name: Soak install loop
-        run: python tools/soak/install_loop.py --count 10 --mode warm
-      - name: Bench correctness warm
-        run: python tools/bench/check_correctness.py --mode warm
-      - name: Upload core certification report
-        uses: actions/upload-artifact@v4
-        with:
-          name: core-certification-report
-          path: core-report.json
-          if-no-files-found: error
 
-  cert-negative-probes:
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Zero-match probe must fail closed
+      - name: Run core certification matrix
+        shell: bash
+        run: go run ./cmd/m conformance run core --json > core-report.json
+
+      - name: Prove certification fails closed
         shell: bash
         run: |
           set -euo pipefail
-          if go run ./cmd/m conformance run core --filter integration.cert-negative-zero-match --json > zero-match.json; then
-            echo "expected zero-match probe to fail"
+
+          if go run ./cmd/m conformance run core \
+            --filter integration.cert-negative-zero-match \
+            --json > zero-match.json
+          then
+            echo "zero-match certification unexpectedly passed" >&2
             exit 1
           fi
           grep -q '"status": "failed"' zero-match.json
           grep -q 'zero tests matched' zero-match.json
-      - name: Forced-skip probe must fail closed
-        shell: bash
-        run: |
-          set -euo pipefail
-          if go run ./cmd/m conformance run core --filter integration.cert-negative-forced-skip --json > forced-skip.json; then
-            echo "expected forced-skip probe to fail"
+
+          if go run ./cmd/m conformance run core \
+            --filter integration.cert-negative-forced-skip \
+            --json > forced-skip.json
+          then
+            echo "forced-skip certification unexpectedly passed" >&2
             exit 1
           fi
           grep -q '"status": "failed"' forced-skip.json
           grep -q 'skipped' forced-skip.json
 
-  conformance-cli-ux:
+      - name: Check PM health
+        run: go run ./cmd/m --cwd fixtures/projects/mlock-greenfield doctor --json
+
+      - name: Upload core certification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: core-certification-report
+          path: |
+            core-report.json
+            zero-match.json
+            forced-skip.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  platform-certification:
+    name: platform certification (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    env:
-      CGO_ENABLED: "0"
+        include:
+          - label: linux
+            os: ubuntu-latest
+          - label: macos
+            os: macos-latest
+          - label: windows
+            os: windows-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.x"
-      - name: CLI UX certification matrix
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: CLI UX certification
         shell: bash
-        run: go run ./cmd/m conformance run cli-ux --json > cli-ux-report.json
-      - name: Upload CLI UX report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cli-ux-report-${{ matrix.os }}
-          path: cli-ux-report.json
-          if-no-files-found: error
+        run: >-
+          go run ./cmd/m conformance run cli-ux --json
+          > cli-ux-report-${{ matrix.label }}.json
 
-  conformance-runner-linux:
+      - name: Runner certification
+        shell: bash
+        run: >-
+          go run ./cmd/m conformance run runner --json
+          --output runner-report-${{ matrix.label }}.json --force
+
+      - name: Upload platform reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: platform-certification-${{ matrix.label }}
+          path: |
+            cli-ux-report-${{ matrix.label }}.json
+            runner-report-${{ matrix.label }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  runner-certification:
+    name: runner certification aggregate
     runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: "0"
+    timeout-minutes: 15
+    needs: platform-certification
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.x"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Runner certification matrix
-        run: go run ./cmd/m conformance run runner --json --output runner-report-linux.json --force
-      - name: Upload runner report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: runner-report-linux
-          path: runner-report-linux.json
-          if-no-files-found: error
+          persist-credentials: false
 
-  conformance-runner-windows:
-    runs-on: windows-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.x"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Runner certification matrix
-        run: go run ./cmd/m conformance run runner --json --output runner-report-windows.json --force
-      - name: Upload runner report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: runner-report-windows
-          path: runner-report-windows.json
-          if-no-files-found: error
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
-  conformance-runner-macos:
-    runs-on: macos-latest
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/download-artifact@v8
         with:
-          go-version: "1.26.x"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Runner certification matrix
-        run: go run ./cmd/m conformance run runner --json --output runner-report-macos.json --force
-      - name: Upload runner report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: runner-report-macos
-          path: runner-report-macos.json
-          if-no-files-found: error
+          pattern: platform-certification-*
+          path: certification-reports
+          merge-multiple: true
 
-  conformance-runner-aggregate:
-    runs-on: ubuntu-latest
-    needs:
-      - conformance-runner-linux
-      - conformance-runner-windows
-      - conformance-runner-macos
-    env:
-      CGO_ENABLED: "0"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-      - name: Download linux report
-        uses: actions/download-artifact@v4
-        with:
-          name: runner-report-linux
-          path: runner-reports
-      - name: Download windows report
-        uses: actions/download-artifact@v4
-        with:
-          name: runner-report-windows
-          path: runner-reports
-      - name: Download macos report
-        uses: actions/download-artifact@v4
-        with:
-          name: runner-report-macos
-          path: runner-reports
       - name: Aggregate runner certification
+        shell: bash
         run: |
           go run ./cmd/m conformance verify runner \
-            --report runner-reports/runner-report-linux.json \
-            --report runner-reports/runner-report-windows.json \
-            --report runner-reports/runner-report-macos.json \
+            --report certification-reports/runner-report-linux.json \
+            --report certification-reports/runner-report-windows.json \
+            --report certification-reports/runner-report-macos.json \
             --output runner-certification-summary.json \
             --force
-      - name: Upload certification summary
-        if: always()
-        uses: actions/upload-artifact@v4
+
+      - name: Upload runner summary
+        uses: actions/upload-artifact@v7
         with:
           name: runner-certification-summary
           path: runner-certification-summary.json
           if-no-files-found: error
+          retention-days: 14
+
+  crash-integration:
+    name: crash integration (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: linux-full
+            os: ubuntu-latest
+            run: Crash
+          - label: windows-snapshot
+            os: windows-latest
+            run: TestSnapshotCrash|TestWorkspaceSnapshotRestoreCrash
+          - label: windows-install
+            os: windows-latest
+            run: TestTxnCrash
+          - label: windows-update
+            os: windows-latest
+            run: TestUpdateCrash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Run crash recovery suite
+        shell: bash
+        run: >-
+          go test -tags crash ./tests/integration/... -count=1
+          -run '${{ matrix.run }}' -v -timeout 30m
+
+  security:
+    name: vulnerability scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Run govulncheck
+        shell: bash
+        run: |
+          set -a
+          source tools/versions.env
+          set +a
+          go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...
+
+  gate:
+    name: CI gate
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - quality
+      - platform
+      - race
+      - cross-compile
+      - lock-pnpm
+      - lock-adapters
+      - core-certification
+      - runner-certification
+      - crash-integration
+      - security
+    steps:
+      - name: Verify required jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for result in \
+            "${{ needs.quality.result }}" \
+            "${{ needs.platform.result }}" \
+            "${{ needs.race.result }}" \
+            "${{ needs.cross-compile.result }}" \
+            "${{ needs.lock-pnpm.result }}" \
+            "${{ needs.lock-adapters.result }}" \
+            "${{ needs.core-certification.result }}" \
+            "${{ needs.runner-certification.result }}" \
+            "${{ needs.crash-integration.result }}" \
+            "${{ needs.security.result }}"
+          do
+            [[ "$result" == success ]] || exit 1
+          done
