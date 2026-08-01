@@ -251,7 +251,6 @@ Policies: topological, reverse-topological, parallel, sequential, bail, continue
 
 - Default workspace-concurrency heuristic for CI vs interactive
 - Whether changed-only requires VCS integration in v1
-- **Changed-only and resume (deferred)**: Changed-only selection and resume metadata are deferred to a follow-up plan (candidate: 0041-b). Rationale: these features require a versioned metadata schema, deterministic baseline identity, hermetic VCS-free fixture design, and stale/incompatible metadata rejection — each a non-trivial design surface. The current workspace runner ships with topological scheduling, concurrency control, bail/continue, and deterministic ordering. Decision date: 2026-08-02. Owner: stabilization-0040-0051.
 
 <!-- ENRICHMENT:END -->
 

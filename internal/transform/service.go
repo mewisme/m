@@ -23,7 +23,6 @@ type Session struct {
 	endpointEnv string // MEW_TRANSFORM_ENDPOINT env value
 	tokenEnv    string // MEW_TRANSFORM_TOKEN env value
 
-	mu       sync.Mutex
 	listener net.Listener
 	engine   Engine
 	cacheDir string
@@ -116,10 +115,10 @@ func (s *Session) Start(ctx context.Context) error {
 	// Health check: connect to ourselves.
 	conn, err := net.DialTimeout("tcp", s.Endpoint, 5*time.Second)
 	if err != nil {
-		s.listener.Close()
+		_ = s.listener.Close()
 		return fmt.Errorf("health check dial: %w", err)
 	}
-	conn.Close()
+	_ = conn.Close()
 
 	go s.serve(ctx)
 	return nil
@@ -128,7 +127,7 @@ func (s *Session) Start(ctx context.Context) error {
 // serve accepts connections on the listener. Exits when ctx is done,
 // the listener is closed, or idle timeout expires with no active requests.
 func (s *Session) serve(ctx context.Context) {
-	defer s.listener.Close()
+	defer func() { _ = s.listener.Close() }()
 
 	for {
 		if s.idleTimeout > 0 && s.active.Load() == 0 {
@@ -168,7 +167,7 @@ func isTimeoutErr(err error) bool {
 
 // handleConn handles a single TCP connection.
 func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Step 1: authenticate via hello.
 	var hello HelloRequest
@@ -354,9 +353,10 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 	}
 
 	cacheStr := "miss"
-	if result.CacheStatus == CacheStatusHit {
+	switch result.CacheStatus {
+	case CacheStatusHit:
 		cacheStr = "hit"
-	} else if result.CacheStatus == CacheStatusBypass {
+	case CacheStatusBypass:
 		cacheStr = "bypass"
 	}
 

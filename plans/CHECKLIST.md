@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current MVP: **0050** — Runtime MVP 1 — Node Launch
+- Current MVP: **0050** — Runtime MVP 1 — Node Launch and Compatibility Boundary
 - Last updated: 2026-08-02
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
@@ -10,10 +10,10 @@
 
 ## Do now
 
-**Next:** [0051 - Runtime MVP 2 — TypeScript Transform Service](0051-go-transform-service.md)
+**Next:** [0050 - Runtime MVP 1 — Node Launch and Compatibility Boundary](0050-node-launch-compat.md)
 
 <!-- CHECKLIST:NARRATIVE:BEGIN -->
-**Stabilization pass 17 (2026-08-02):** Runner/runtime stabilization — P0 defects fixed across 0040-0051: ExitStatus type for child exits (no ERR_M_INTERNAL), graceful cancellation with 10s grace period, workspace cancellation error, conditional TS loader injection, runtime asset pre-execution verification, transform cache wired into execution, concurrent loader request map, Phase A boolean parity, UsedFallback telemetry, corrupt environment recovery, 13 ERR_M_TRANSFORM_* codes, tsconfig wiring, manifest validation, file URL compliance, staging cleanup, timeout result discarding. 13 commits, 1576 tests pass. Evidence: [`docs/evidence/core/pass33-ci.md`](../docs/evidence/core/pass33-ci.md).
+**Stabilization pass 17 (2026-08-02):** Runner/runtime stabilization — P0 defects fixed across 0040-0051: ExitStatus type for child exits (no ERR_M_INTERNAL), graceful cancellation with 10s grace period, workspace cancellation error, conditional TS loader injection, runtime asset pre-execution verification, transform cache wired into execution, concurrent loader request map, Phase A boolean parity, UsedFallback telemetry, corrupt environment recovery, 13 ERR_M_TRANSFORM_* codes, tsconfig wiring, manifest validation, file URL compliance, staging cleanup, timeout result discarding. 13 commits, 1576 tests pass. Evidence: [`docs/evidence/core/pass32-ci.md`](../docs/evidence/core/pass32-ci.md).
 
 MVP 0021 lifecycle scripts shipped on `main`. Stabilization pass 11 complete on `67a0ed7` — CI https://github.com/mewisme/mew/actions/runs/30310739645 (21/21 green).
 
@@ -69,15 +69,15 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 | 0029 | Core MVP 20 — Performance, Offline Operation, and Portabl... | Core / MVP 20 | 0018, 0026, 0028 | [x] | [0029](0029-performance-offline-capsules.md) |
 | 0030 | Core MVP 21 — Audit, SBOM, Provenance, and Supply-Chain P... | Core / MVP 21 | 0012, 0021, 0027, 0029 | [x] | [0030](0030-security-audit-sbom.md) |
 | 0031 | Core MVP 22 — Package-Manager Core Stabilization Gate | Core / Stabilization | 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018, 0019, 0020, 0021, 0022, 0023, 0024, 0025, 0026, 0027, 0028, 0029, 0030 | [x] | [0031](0031-core-stabilization.md) |
-| 0040 | Runner MVP 1 — Package Script Runner | Runner / MVP 1 | 0031 | [x] | [0040](0040-script-runner.md) |
-| 0041 | Runner MVP 2 — Workspace Script Orchestration | Runner / MVP 2 | 0022, 0040 | [x] | [0041](0041-workspace-runner.md) |
-| 0042 | Runner MVP 3 — Direct `m <script>` Shortcuts | Runner / Mew Extension | 0010, 0040 | [x] | [0042](0042-direct-script-shortcuts.md) |
-| 0043 | Runner MVP 4 — Local Package Binary Execution | Runner / MVP 4 | 0019, 0040 | [x] | [0043](0043-local-exec.md) |
-| 0044 | Runner MVP 5 — `mx` Remote Fetch and Execution | Runner / MVP 5 | 0021, 0029, 0043 | [x] | [0044](0044-mx-dlx.md) |
-| 0045 | Runner MVP 6 — Unified Execution and Snapshot Environments | Runner / MVP 6 | 0028, 0029, 0043, 0044 | [x] | [0045](0045-unified-execution.md) |
-| 0046 | Runner Stabilization Gate | Runner / Stabilization | 0040, 0041, 0042, 0043, 0044, 0045 | [x] | [0046](0046-runner-stabilization.md) |
-| 0050 | Runtime MVP 1 — Node Launch and Compatibility Boundary | Runtime / MVP 1 | 0046 | [x] | [0050](0050-node-launch-compat.md) |
-| 0051 | Runtime MVP 2 — Go Transform Service and TypeScript Execu... | Runtime / MVP 2 | 0050 | [.] | [0051](0051-go-transform-service.md) |
+| 0040 | Runner MVP 1 — Package Script Runner | Runner / MVP 1 | 0031 | [ ] | [0040](0040-script-runner.md) |
+| 0041 | Runner MVP 2 — Workspace Script Orchestration | Runner / MVP 2 | 0022, 0040 | [ ] | [0041](0041-workspace-runner.md) |
+| 0042 | Runner MVP 3 — Direct `m <script>` Shortcuts | Runner / Mew Extension | 0010, 0040 | [ ] | [0042](0042-direct-script-shortcuts.md) |
+| 0043 | Runner MVP 4 — Local Package Binary Execution | Runner / MVP 4 | 0019, 0040 | [ ] | [0043](0043-local-exec.md) |
+| 0044 | Runner MVP 5 — `mx` Remote Fetch and Execution | Runner / MVP 5 | 0021, 0029, 0043 | [ ] | [0044](0044-mx-dlx.md) |
+| 0045 | Runner MVP 6 — Unified Execution and Snapshot Environments | Runner / MVP 6 | 0028, 0029, 0043, 0044 | [ ] | [0045](0045-unified-execution.md) |
+| 0046 | Runner Stabilization Gate | Runner / Stabilization | 0040, 0041, 0042, 0043, 0044, 0045 | [ ] | [0046](0046-runner-stabilization.md) |
+| 0050 | Runtime MVP 1 — Node Launch and Compatibility Boundary | Runtime / MVP 1 | 0046 | [ ] | [0050](0050-node-launch-compat.md) |
+| 0051 | Runtime MVP 2 — Go Transform Service and TypeScript Execu... | Runtime / MVP 2 | 0050 | [ ] | [0051](0051-go-transform-service.md) |
 | 0052 | Runtime MVP 3 — JSX, Decorators, and Source-Map Parity | Runtime / MVP 3 | 0051 | [ ] | [0052](0052-jsx-decorators-sourcemaps.md) |
 | 0053 | Runtime MVP 4 — Module Resolution, Path Aliases, and Cust... | Runtime / MVP 4 | 0019, 0025, 0052 | [ ] | [0053](0053-module-resolution-loaders.md) |
 | 0054 | Runtime MVP 5 — Environment Loading, Workers, Storage, an... | Runtime / MVP 5 | 0050, 0053 | [ ] | [0054](0054-env-modern-apis.md) |
@@ -1099,7 +1099,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0040 - Runner MVP 1 — Package Script Runner
 
-- status: done
+- status: planned
 - plan: [0040-script-runner.md](0040-script-runner.md)
 
 - [ ] Define ScriptRunner interface with context cancellation and stable error codes
@@ -1132,7 +1132,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0041 - Runner MVP 2 — Workspace Script Orchestration
 
-- status: done
+- status: planned
 - plan: [0041-workspace-runner.md](0041-workspace-runner.md)
 
 - [ ] Integrate workspace filter from 0022 into script runner dispatch
@@ -1165,7 +1165,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0042 - Runner MVP 3 — Direct `m <script>` Shortcuts
 
-- status: done
+- status: planned
 - plan: [0042-direct-script-shortcuts.md](0042-direct-script-shortcuts.md)
 
 - [ ] Implement two-pass CLI dispatch after built-in and alias resolution
@@ -1198,7 +1198,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0043 - Runner MVP 4 — Local Package Binary Execution
 
-- status: done
+- status: planned
 - plan: [0043-local-exec.md](0043-local-exec.md)
 
 - [ ] Implement bin index and lookup for current importer
@@ -1231,7 +1231,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0044 - Runner MVP 5 — `mx` Remote Fetch and Execution
 
-- status: done
+- status: planned
 - plan: [0044-mx-dlx.md](0044-mx-dlx.md)
 
 - [ ] Implement mx argument parser and top-level dispatch
@@ -1264,7 +1264,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0045 - Runner MVP 6 — Unified Execution and Snapshot Environments
 
-- status: done
+- status: planned
 - plan: [0045-unified-execution.md](0045-unified-execution.md)
 
 - [ ] Define ExecutionRequest and PreparedEnvironment interfaces
@@ -1297,7 +1297,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0046 - Runner Stabilization Gate
 
-- status: done
+- status: planned
 - plan: [0046-runner-stabilization.md](0046-runner-stabilization.md)
 
 - [ ] Assemble real-world script corpus across npm/pnpm/Yarn/Bun layouts
@@ -1330,7 +1330,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0050 - Runtime MVP 1 — Node Launch and Compatibility Boundary
 
-- status: done
+- status: in-progress
 - plan: [0050-node-launch-compat.md](0050-node-launch-compat.md)
 
 - [ ] Implement file-run dispatch without colliding with built-ins and scripts
@@ -1363,7 +1363,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0051 - Runtime MVP 2 — Go Transform Service and TypeScript Execution
 
-- status: in-progress
+- status: planned
 - plan: [0051-go-transform-service.md](0051-go-transform-service.md)
 
 - [ ] Benchmark candidate Go transformers (e.g. esbuild) against Nub/OXC corpus

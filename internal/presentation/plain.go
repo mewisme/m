@@ -232,7 +232,7 @@ func formatDeltaTruncationNotice(omitted int, color bool, theme Theme) string {
 		arrow = applyStyle(theme.Muted, arrow, true)
 	}
 	msg := fmt.Sprintf("%s %d additional package changes are not shown.", arrow, omitted)
-	msg += fmt.Sprintf("\n  Run `m plan` for the complete mutation plan.")
+	msg += "\n  Run `m plan` for the complete mutation plan."
 	if color {
 		msg = applyStyle(theme.Muted, msg, true)
 	}

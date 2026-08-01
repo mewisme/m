@@ -103,7 +103,9 @@ func verifyPrepared(env PreparedEnvironment) error {
 		return apperr.New(apperr.Internal, "envexec.verify", "", "incomplete prepared environment")
 	}
 	// Verify the warm environment's identity if this is a shared-cache env.
-	if env.SharedCache {
+	// DLX-sourced environments use dlx.VerifyWarmEnvironment (different
+	// ready.json format); the DLX provider already verifies before returning.
+	if env.SharedCache && env.Source != SourceDLX {
 		if err := VerifyWarmEnvironment(env.Root, env.Identity); err != nil {
 			return err
 		}

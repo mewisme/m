@@ -115,7 +115,7 @@ func TestGroupedPackageDeltasDeterministicGroupOrder(t *testing.T) {
 		if addedIdx < 0 || updatedIdx < 0 || removedIdx < 0 {
 			t.Fatalf("run %d: missing group:\n%s", i, out)
 		}
-		if !(addedIdx < updatedIdx && updatedIdx < removedIdx) {
+		if addedIdx >= updatedIdx || updatedIdx >= removedIdx {
 			t.Fatalf("run %d: group order wrong: added=%d updated=%d removed=%d\n%s", i, addedIdx, updatedIdx, removedIdx, out)
 		}
 	}

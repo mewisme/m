@@ -45,9 +45,10 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 	esbuildTarget := mapTarget(req.NormalizedOpts.Target, req.TargetNodeMajor)
 
 	sourceMap := api.SourceMapNone
-	if req.SourceMapMode == SourceMapInline {
+	switch req.SourceMapMode {
+	case SourceMapInline:
 		sourceMap = api.SourceMapInline
-	} else if req.SourceMapMode == SourceMapExternal {
+	case SourceMapExternal:
 		sourceMap = api.SourceMapExternal
 	}
 

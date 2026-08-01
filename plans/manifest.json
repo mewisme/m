@@ -355,8 +355,8 @@
     },
     {
       "path": "CHECKLIST.md",
-      "bytes": 128103,
-      "sha256": "14caeafbfb58b336ceff8f8b98c89770b69ded49e6221b1e4acb79758627442d"
+      "bytes": 128846,
+      "sha256": "2dcfd9285e49ea8ae69fb9054a56c4573721267a00787b43611bc716a6e3b2bc"
     },
     {
       "path": "INDEX.md",
@@ -420,8 +420,8 @@
     },
     {
       "path": "status.json",
-      "bytes": 761,
-      "sha256": "8a8402e3b5e8c5effe90dc74adbc93470450bef7b3dd3500b48ba90a323ff5ec"
+      "bytes": 1056,
+      "sha256": "86f4fbf9dbcf75b690440482d84679537fe634b64ce434fe45a3965baab646d4"
     },
     {
       "path": "ux/accessibility-evidence.md",
@@ -435,8 +435,8 @@
     },
     {
       "path": "ux/CHECKLIST.md",
-      "bytes": 6474,
-      "sha256": "66c6550fbd6d9a47d743aeb640ca97bc2ef69c3300bf4914d3fdfc686ae3316c"
+      "bytes": 6329,
+      "sha256": "3de2d1f01dafe0ce6196fd14cd221720a2a6c170ea69e19e10f20d2e4d39e730"
     },
     {
       "path": "ux/INDEX.md",
@@ -500,8 +500,8 @@
     },
     {
       "path": "ux/UX-0008-cli-ux-certification-and-rollout.md",
-      "bytes": 13783,
-      "sha256": "a7b52adeaf9fc128ee425c451849921aa5ce8fe6fa1a33d7ebccd8110a108a8d"
+      "bytes": 14085,
+      "sha256": "2765a2cbb036ac6e465b28921877fb8a071e70e439b1d66cff6eac736f4ac442"
     }
   ]
 }
