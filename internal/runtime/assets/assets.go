@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -70,18 +72,94 @@ func LoadManifest() (*AssetManifest, error) {
 	if err := json.Unmarshal(manifestRaw, &m); err != nil {
 		return nil, apperr.Wrap(apperr.RuntimeAssetManifest, "assets.manifest", "", err)
 	}
-	switch m.SchemaVersion {
-	case 1, 2:
-		// Accepted.
-	default:
-		return nil, apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", "",
+	if err := ValidateManifest(&m); err != nil {
+		return nil, err
+	}
+	normalizeManifestRoles(&m)
+	if err := validateManifestRoles(&m); err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+// validateManifestRoles checks all roles are known after normalization.
+func validateManifestRoles(m *AssetManifest) error {
+	for i := range m.Assets {
+		e := &m.Assets[i]
+		switch e.Role {
+		case RolePreloadCJS, RolePreloadESM, RoleLoaderRegistration, RoleLoaderSupport:
+			// valid
+		default:
+			return apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", e.Name,
+				fmt.Sprintf("unknown asset role %q", e.Role))
+		}
+	}
+	return nil
+}
+
+// ValidateManifest checks the manifest for structural and security invariants.
+func ValidateManifest(m *AssetManifest) error {
+	if m.SchemaVersion != 1 && m.SchemaVersion != 2 {
+		return apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", "",
 			fmt.Sprintf("unsupported manifest schema version %d", m.SchemaVersion))
 	}
 	if m.BundleVersion == "" {
-		return nil, apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", "", "missing bundle version")
+		return apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", "", "missing bundle version")
 	}
-	normalizeManifestRoles(&m)
-	return &m, nil
+
+	seenNames := map[string]bool{}
+	seenPaths := map[string]bool{}
+	sha256RE := regexp.MustCompile(`^[a-fA-F0-9]{64}$`)
+
+	for i := range m.Assets {
+		e := &m.Assets[i]
+
+		// Unique logical name.
+		if seenNames[e.Name] {
+			return apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", e.Name,
+				"duplicate asset name")
+		}
+		seenNames[e.Name] = true
+
+		// Unique extraction path.
+		if seenPaths[e.Path] {
+			return apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", e.Path,
+				"duplicate asset path")
+		}
+		seenPaths[e.Path] = true
+
+		// No path traversal or absolute paths.
+		clean := filepath.Clean(e.Path)
+		if strings.Contains(clean, "..") || filepath.IsAbs(clean) {
+			return apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", e.Path,
+				"asset path must be relative and must not contain ..")
+		}
+
+		// SHA-256 format: 64 hex chars.
+		if !sha256RE.MatchString(e.SHA256) {
+			return apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", e.Name,
+				fmt.Sprintf("invalid SHA-256 digest %q", e.SHA256))
+		}
+
+		// Declared size must match embedded source.
+		data, err := ReadAsset(e.Path)
+		if err != nil {
+			return apperr.Wrap(apperr.RuntimeAssetManifest, "assets.manifest", e.Path, err)
+		}
+		if int64(len(data)) != e.Size {
+			return apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", e.Name,
+				fmt.Sprintf("declared size %d does not match embedded size %d", e.Size, len(data)))
+		}
+
+		// Module type must be known.
+		switch e.ModuleType {
+		case "cjs", "esm":
+		default:
+			return apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", e.Name,
+				fmt.Sprintf("unknown module type %q", e.ModuleType))
+		}
+	}
+	return nil
 }
 
 // normalizeManifestRoles backfills Role from ModuleType for schema v1 manifests

@@ -2,8 +2,9 @@ package runtime
 
 import (
 	"context"
-	"fmt"
 	"errors"
+	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -153,13 +154,14 @@ func BuildArgv(plan *LaunchPlan, v8Args []string) []string {
 
 // fileURL converts an absolute Windows path to a file:// URL.
 func fileURL(p string) string {
-	// Convert backslashes to forward slashes.
-	p = strings.ReplaceAll(p, "\\", "/")
-	// Remove leading slash for the drive letter format.
-	p = strings.TrimPrefix(p, "/")
-	// Encode spaces and other special chars in path segments (ponytail: minimal).
-	p = strings.ReplaceAll(p, " ", "%20")
-	return "file:///" + p
+	// Use url.URL for standards-compliant file:// URL construction.
+	// Handles drive letters, spaces, Unicode, and special chars correctly.
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		abs = p
+	}
+	u := &url.URL{Scheme: "file", Path: filepath.ToSlash(abs)}
+	return u.String()
 }
 
 // Launch starts a Node process from a fully resolved plan.
