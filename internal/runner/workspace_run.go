@@ -43,7 +43,20 @@ func RunWorkspace(
 	aggStdout := map[int]*AggregateBuffer{}
 	aggStderr := map[int]*AggregateBuffer{}
 
-	newTaskIO := func(t ScheduledTask) (TaskIO, func(), error) {
+	stdin := opts.Stdin
+	if stdin == nil {
+		stdin = os.Stdin
+	}
+	stdout := opts.Stdout
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+	stderr := opts.Stderr
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+
+		newTaskIO := func(t ScheduledTask) (TaskIO, func(), error) {
 		if aggregate {
 			key := fmt.Sprintf("%d-%s", t.Index, t.Path)
 			so := NewAggregateBuffer(tempDir, key, "stdout")
@@ -52,16 +65,16 @@ func RunWorkspace(
 			aggStdout[t.Index] = so
 			aggStderr[t.Index] = se
 			aggMu.Unlock()
-			return TaskIO{Stdout: so, Stderr: se, Stdin: os.Stdin}, func() {
+			return TaskIO{Stdout: so, Stderr: se, Stdin: stdin}, func() {
 				_ = so.Close()
 				_ = se.Close()
 			}, nil
 		}
 		structured := diagnostics.IsStructured(rep)
 		return TaskIO{
-			Stdin:  os.Stdin,
-			Stdout: NewPrefixWriter(t.Name, opts.Selector, "stdout", os.Stdout, rep, structured),
-			Stderr: NewPrefixWriter(t.Name, opts.Selector, "stderr", os.Stderr, rep, structured),
+			Stdin:  stdin,
+			Stdout: NewPrefixWriter(t.Name, opts.Selector, "stdout", stdout, rep, structured),
+			Stderr: NewPrefixWriter(t.Name, opts.Selector, "stderr", stderr, rep, structured),
 		}, nil, nil
 	}
 

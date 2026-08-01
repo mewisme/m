@@ -60,6 +60,46 @@ func TestDetectCapabilities(t *testing.T) {
 	}
 }
 
+func TestDetectCapabilitiesBoundaries(t *testing.T) {
+	// Boundary version tests for capability gating.
+	tests := []struct {
+		version string
+		has     []string // must-have capabilities
+		lacks   []string // must-NOT-have capabilities
+	}{
+		// module-register: stable from 20.6, experimental from 18.19
+		{"20.6.0", []string{"module-register", "source-maps"}, nil},
+		{"20.5.0", nil, []string{"module-register", "source-maps"}},
+		{"21.0.0", []string{"module-register", "source-maps"}, nil},
+		{"18.19.0", []string{"module-register"}, []string{"source-maps"}},
+		{"18.18.0", nil, []string{"module-register", "source-maps"}},
+		// source-maps: stable from 20.6 (major > 20 OR major == 20 && minor >= 6)
+		{"20.6.0", []string{"source-maps"}, nil},
+		{"20.5.0", nil, []string{"source-maps"}},
+		{"22.0.0", []string{"source-maps"}, nil},
+		// import-preload from 16, require-preload from 12
+		{"15.0.0", []string{"require-preload"}, []string{"import-preload"}},
+		{"11.0.0", nil, []string{"import-preload", "require-preload"}},
+	}
+	for _, tt := range tests {
+		got := detectCapabilities(tt.version)
+		gotSet := make(map[string]bool)
+		for _, c := range got {
+			gotSet[c] = true
+		}
+		for _, c := range tt.has {
+			if !gotSet[c] {
+				t.Errorf("detectCapabilities(%q): missing %q (got %v)", tt.version, c, got)
+			}
+		}
+		for _, c := range tt.lacks {
+			if gotSet[c] {
+				t.Errorf("detectCapabilities(%q): unexpected %q (got %v)", tt.version, c, got)
+			}
+		}
+	}
+}
+
 func TestDiscoverNodeFound(t *testing.T) {
 	// Only run if node is available on PATH.
 	if _, err := exec.LookPath("node"); err != nil {

@@ -31,13 +31,14 @@ func (CapsuleProvider) Plan(ctx context.Context, deps ProviderDeps, req Executio
 		linkerMode = deps.Config.LinkerMode()
 	}
 	id := EnvironmentIdentity{
-		SchemaVersion:  IdentitySchemaVersion,
-		Source:         SourceCapsule,
-		GraphDigest:    open.ArchiveDigest,
-		MaterialDigest: open.ArchiveDigest,
-		SourceDigest:   src.Path,
-		Platform:       CurrentPlatform(),
-		LinkerMode:     linkerMode,
+		SchemaVersion:     IdentitySchemaVersion,
+		Source:            SourceCapsule,
+		GraphDigest:       open.ArchiveDigest, // capsule identity rooted in archive content
+		MaterialDigest:    open.ArchiveDigest,
+		SourceDigest:      src.Path,
+		SourceBlobDigest:  open.ArchiveDigest, // explicit: the archive is the source blob
+		Platform:          CurrentPlatform(),
+		LinkerMode:        linkerMode,
 	}
 	envDir := ""
 	warm := false

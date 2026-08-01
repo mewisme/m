@@ -22,14 +22,15 @@ func BareDigestHex(s string) string {
 // EnvironmentIdentity is the typed security identity for a materialized environment.
 // Command names and child args are intentionally excluded.
 type EnvironmentIdentity struct {
-	SchemaVersion  int                 `json:"schemaVersion"`
-	Source         SourceKind          `json:"source"`
-	GraphDigest    string              `json:"graphDigest"`
-	MaterialDigest string              `json:"materialDigest"`
-	SourceDigest   string              `json:"sourceDigest"`
-	Platform       PlatformFingerprint `json:"platform"`
-	LinkerMode     string              `json:"linkerMode"`
-	NodeABI        string              `json:"nodeAbi,omitempty"`
+	SchemaVersion    int                 `json:"schemaVersion"`
+	Source           SourceKind          `json:"source"`
+	GraphDigest      string              `json:"graphDigest"`
+	MaterialDigest   string              `json:"materialDigest"`
+	SourceDigest     string              `json:"sourceDigest"`
+	SourceBlobDigest string              `json:"sourceBlobDigest,omitempty"`
+	Platform         PlatformFingerprint `json:"platform"`
+	LinkerMode       string              `json:"linkerMode"`
+	NodeABI          string              `json:"nodeAbi,omitempty"`
 }
 
 // PlatformFingerprint captures the execution platform binding.

@@ -179,6 +179,81 @@ func TestParseNodeArgsWithDoubleDashBeforeEntrypoint(t *testing.T) {
 	}
 }
 
+
+func TestParseNodeArgsEdgeCases(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		wantV8         []string
+		wantEntrypoint string
+		wantApp        []string
+		wantErr        bool
+	}{
+		{
+			name:           "entrypoint starting with dash via explicit path",
+			args:           []string{"./-app.js"},
+			wantV8:         nil,
+			wantEntrypoint: "./-app.js",
+			wantApp:        nil,
+		},
+		{
+			name:           "double dash before entrypoint with app args",
+			args:           []string{"--", "app.js", "--port", "3000"},
+			wantV8:         nil,
+			wantEntrypoint: "app.js",
+			wantApp:        []string{"--port", "3000"},
+		},
+		{
+			name:           "node flag with equals form",
+			args:           []string{"--max-old-space-size=4096", "app.js"},
+			wantV8:         []string{"--max-old-space-size=4096"},
+			wantEntrypoint: "app.js",
+			wantApp:        nil,
+		},
+		{
+			name:           "multiple node flags with mixed forms",
+			args:           []string{"--inspect", "--max-old-space-size=4096", "app.js", "arg1"},
+			wantV8:         []string{"--inspect", "--max-old-space-size=4096"},
+			wantEntrypoint: "app.js",
+			wantApp:        []string{"arg1"},
+		},
+		{
+			name:           "node flag requiring value",
+			args:           []string{"--require", "./polyfill.js", "app.js"},
+			wantV8:         []string{"--require", "./polyfill.js"},
+			wantEntrypoint: "app.js",
+			wantApp:        nil,
+		},
+		{
+			name:           "unknown flag after entrypoint treated as app arg",
+			args:           []string{"app.js", "--unknown-flag"},
+			wantV8:         nil,
+			wantEntrypoint: "app.js",
+			wantApp:        []string{"--unknown-flag"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			v8, entry, app, err := ParseNodeArgs(tc.args)
+			if tc.wantErr && err == nil {
+				t.Fatal("expected error")
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !strSliceEq(v8, tc.wantV8) {
+				t.Fatalf("v8=%v, want %v", v8, tc.wantV8)
+			}
+			if entry != tc.wantEntrypoint {
+				t.Fatalf("entry=%q, want %q", entry, tc.wantEntrypoint)
+			}
+			if !strSliceEq(app, tc.wantApp) {
+				t.Fatalf("app=%v, want %v", app, tc.wantApp)
+			}
+		})
+	}
+}
+
 func strSliceEq(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
