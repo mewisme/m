@@ -61,3 +61,5 @@ internal/app/AppData/
 /.agents
 
 *.log
+
+.mcp.json

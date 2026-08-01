@@ -63,19 +63,19 @@ func TestParseNodeArgs(t *testing.T) {
 			wantApp:        []string{"--port", "3000"},
 		},
 		{
-			name:           "empty args",
-			args:           []string{},
-			wantErr:        true,
+			name:    "empty args",
+			args:    []string{},
+			wantErr: true,
 		},
 		{
-			name:           "no entrypoint, only flags",
-			args:           []string{"--trace-warnings"},
-			wantErr:        true,
+			name:    "no entrypoint, only flags",
+			args:    []string{"--trace-warnings"},
+			wantErr: true,
 		},
 		{
-			name:           "flag missing value",
-			args:           []string{"--max-old-space-size"},
-			wantErr:        true,
+			name:    "flag missing value",
+			args:    []string{"--max-old-space-size"},
+			wantErr: true,
 		},
 		{
 			name:           "stdin dash entrypoint",

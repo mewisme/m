@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -54,6 +55,7 @@ var commandHelpRegistry = map[string]cmdHelpMeta{
 func configureGroupedHelp(root *cobra.Command) {
 	root.SetHelpTemplate(groupedRootHelpTemplate)
 	root.SetUsageTemplate(groupedUsageTemplate)
+	cobra.AddTemplateFunc("mewBareScripts", renderBareScripts)
 	cobra.AddTemplateFunc("mewGroupedCommands", renderGroupedCommands)
 	cobra.AddTemplateFunc("mewCommandSections", renderCommandSections)
 	for _, cmd := range root.Commands() {
@@ -78,7 +80,7 @@ const groupedRootHelpTemplate = `{{with (or .Long .Short)}}{{. | trimTrailingWhi
 
 {{end}}{{- if .HasSubCommands}}Usage:
   {{.CommandPath}} [command]
-{{end}}{{if .HasSubCommands}}
+{{end}}{{mewBareScripts .}}{{if .HasSubCommands}}
 
 {{mewGroupedCommands .}}
 {{- end}}
@@ -214,5 +216,28 @@ func renderCommandSections(cmd *cobra.Command) string {
 			b.WriteByte('\n')
 		}
 	}
+	return b.String()
+}
+
+func renderBareScripts(cmd *cobra.Command) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	names, total, err := listBareMScripts(cwd)
+	if err != nil || len(names) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\nAvailable scripts (from package.json):\n  ")
+	show := names
+	if len(show) > bareMScriptListLimit {
+		show = show[:bareMScriptListLimit]
+	}
+	b.WriteString(strings.Join(show, ", "))
+	if total > bareMScriptListLimit {
+		fmt.Fprintf(&b, ", … and %d more", total-bareMScriptListLimit)
+	}
+	b.WriteString("\n\nRun `m run <script>` to execute.\n")
 	return b.String()
 }

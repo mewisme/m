@@ -505,15 +505,7 @@ tests, fixtures, benchmarks   conformance, integration, corpora, performance
 
 The authoritative map is [`docs/architecture/package-map.md`](docs/architecture/package-map.md).
 
-## 8. Agent threads and dispatched work
-
-Use `.agents/threads/<slug>.md` only when the prompt assigns or authorizes a durable thread. Valid statuses are `planning`, `planned`, `enqueued`, `active`, `blocked`, `done`, and `dismissed`.
-
-A thread records current truth, not a diary. Keep `Goal`, `Status`, `Decisions`, `Open questions`, `Steps`, and `Next step` current. Only the assigned owner edits it.
-
-A dispatched agent must remain bounded, collect child results before completion, and return a concrete handoff using [`L1_AGENTS.md`](L1_AGENTS.md). Do not self-merge a substantive PR or wait indefinitely for CI unless explicitly assigned CI ownership.
-
-## 9. Rule synchronization
+## 8. Rule synchronization
 
 When any of the four `.cursor/rules` files above changes, update the
 matching injected block in this file in the same change. Keep the
