@@ -102,6 +102,16 @@ func verifyPrepared(env PreparedEnvironment) error {
 	if env.Root == "" || env.NodeModules == "" {
 		return apperr.New(apperr.Internal, "envexec.verify", "", "incomplete prepared environment")
 	}
+	// Verify the warm environment's identity if this is a shared-cache env.
+	if env.SharedCache {
+		if err := VerifyWarmEnvironment(env.Root, env.Identity); err != nil {
+			return err
+		}
+	}
+	// Verify binding file is present for bin resolution.
+	if _, err := loadBindingFile(env.Root); err != nil {
+		return apperr.Wrap(apperr.Integrity, "envexec.verify", env.Root, err)
+	}
 	return nil
 }
 

@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"io"
 	"path/filepath"
 	"sort"
 
@@ -55,6 +56,9 @@ type WorkspaceRunOptions struct {
 	HostEnv       []string
 	TempDir       string // workspace-run spill dir; empty = derive from project
 	Executor      WorkspaceTaskExecutor // optional; nil uses RealWorkspaceExecutor
+	Stdin         io.Reader
+	Stdout        io.Writer
+	Stderr        io.Writer
 	// Suspend / Resume pause presentation around child launch when tasks inherit TTYs.
 	Suspend func(context.Context) error
 	Resume  func(context.Context) error
