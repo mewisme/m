@@ -50,7 +50,7 @@ Security and policy
   sbom           Export a software bill of materials
   builds         Lifecycle build script audit
   trust          Trust lifecycle scripts for packages
-  approve-builds Approve lifecycle scripts for packages (alias for m trust) (m approve-build)
+  approve-builds Approve lifecycle scripts for packages (m approve-build)
 
 Cache, store, and artifacts
   cache          Manage the download cache

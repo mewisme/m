@@ -57,7 +57,7 @@ func newTrustCmd() *cobra.Command {
 func newApproveBuildsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "approve-builds [package...]",
-		Short:   "Approve lifecycle scripts for packages (alias for m trust)",
+		Short:   "Approve lifecycle scripts for packages",
 		Aliases: []string{"approve-build"},
 		Args:    cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
