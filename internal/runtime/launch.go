@@ -48,6 +48,9 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 	}
 
 	if req.AugmentationMode != AugmentNone {
+		// Verify cached assets before use; corrupt entries are deleted.
+		// After verification failure, EnsureAssets will re-extract missing files.
+		_ = VerifyCache(eff)
 		assetPaths, err := EnsureAssets(eff)
 		if err != nil {
 			return nil, err
@@ -56,8 +59,13 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 		if err != nil {
 			return nil, err
 		}
+		needsTransform := isTypeScriptEntrypoint(req.Entrypoint)
 		for _, entry := range m.AssetsSorted() {
 			if !entry.Role.Injected() {
+				continue
+			}
+			// Only inject transform-related assets for TypeScript entrypoints.
+			if entry.Role == assets.RoleLoaderRegistration && !needsTransform {
 				continue
 			}
 			p, ok := assetPaths[entry.Name]
@@ -74,6 +82,15 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 	// Build argv
 	plan.NodeArgv = BuildArgv(plan, req.NodeV8Args)
 	return plan, nil
+}
+
+// isTypeScriptEntrypoint reports whether the entrypoint needs transform support.
+func isTypeScriptEntrypoint(p string) bool {
+	switch strings.ToLower(filepath.Ext(p)) {
+	case ".ts", ".mts", ".cts", ".tsx":
+		return true
+	}
+	return false
 }
 
 // BuildArgv constructs the full Node argument vector.
