@@ -257,6 +257,7 @@ Non-TTY without --yes fails closed on implicit fetch.
 
 - Default execution-cache retention TTL
 - Whether mx shares consent store with m pm operations
+- **Shell mode (deferred)**: The original scope included "Multiple packages and shell mode." Shell mode (`mx --shell` or equivalent) is deferred to a follow-up plan (candidate: 0044-b or 0058). Rationale: core DLX execution contracts (consent, cache, lease, offline) must stabilize first. Shell mode requires explicit command grammar, platform shell selection, no implicit fallback, and quoting/exit-code tests that are out of scope for the initial mx delivery. Decision date: 2026-08-02. Owner: stabilization-0040-0051.
 
 <!-- ENRICHMENT:END -->
 
