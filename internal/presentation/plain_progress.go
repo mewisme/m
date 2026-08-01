@@ -90,7 +90,7 @@ func (p *PlainProgressRenderer) OperationCompleted(ev diagnostics.OperationCompl
 	}
 	if ev.DurationMs > 0 {
 		b.WriteString(" duration=")
-		b.WriteString(formatDurationMs(ev.DurationMs))
+		b.WriteString(FormatDuration(ev.DurationMs))
 	}
 	metrics := append([]diagnostics.Metric(nil), ev.Metrics...)
 	sort.Slice(metrics, func(i, j int) bool { return metrics[i].Name < metrics[j].Name })
@@ -166,17 +166,6 @@ func phaseKindFromID(id string) string {
 	return parts[len(parts)-1]
 }
 
-func formatDurationMs(ms int64) string {
-	if ms < 1000 {
-		return fmt.Sprintf("%dms", ms)
-	}
-	sec := float64(ms) / 1000
-	if sec < 10 {
-		return fmt.Sprintf("%.1fs", sec)
-	}
-	return fmt.Sprintf("%.0fs", sec)
-}
-
 func sanitizeNoticeToken(msg string) string {
 	msg = strings.ReplaceAll(msg, " ", "-")
 	return strings.ToLower(msg)
@@ -199,7 +188,7 @@ func WritePlainInstallSummary(w io.Writer, added, updated, removed int, duration
 	}
 	line := fmt.Sprintf("installed added=%d updated=%d removed=%d", added, updated, removed)
 	if durationMs > 0 {
-		line += " duration=" + formatDurationMs(durationMs)
+		line += " duration=" + FormatDuration(durationMs)
 	}
 	_, _ = fmt.Fprintln(w, line)
 }
