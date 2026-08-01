@@ -1,65 +1,66 @@
-# Python bytecode
+# Python
 __pycache__/
 *.py[cod]
 
-# Build output
+# Build artifacts
 /bin/
 *.exe
 *.dll
 *.so
 *.dylib
 
-# Go test / profile artifacts
+# Test / Coverage
 *.test
 *.out
 *.prof
-coverage.*
 *.coverprofile
+coverage.*
 
-# Package-manager trees (local dev, fixtures, dogfooding)
+# Dependencies & caches
 /node_modules/
 node_modules.mew-old
 .mew-stage/
-
-# Local caches and stores (MEW_HOME / XDG defaults)
 .mew/
+.cache
 
-# Secrets and local overrides
+# Environment & local config
 .env
 .env.*
 !.env.example
+
 AGENTS.local.md
 CLAUDE.local.md
+.mcp.json
 
-# CodeGraph index (machine-local; see .codegraph/.gitignore)
-.codegraph/
-
-# Cursor MCP config contains absolute paths
-.cursor/mcp.json
-
-# Agent session state (durable threads stay local)
+# Agent data
+/.agents
 .agents/threads/
 
-# OS junk
-.DS_Store
-Thumbs.db
-Desktop.ini
+# CodeGraph
+.codegraph/
 
-# Editor / IDE (project rules live in .cursor/rules/)
+# Cursor
+.cursor/mcp.json
+
+# Claude
+.claude/worktrees/
+
+# IDE / Editor
 .idea/
 .vscode/
 *.swp
 *~
 
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Project-specific
 internal/app/AppData/
 
 /m
 /mx
-
-.cache
-
-/.agents
-
-*.log
-
-.mcp.json
