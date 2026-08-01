@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"errors"
 	"os"
 	"path/filepath"
@@ -27,6 +28,13 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// Enforce required Node capabilities before building argv.
+	if req.AugmentationMode != AugmentNone {
+		if err := enforceCapabilities(nodeInst, req.Entrypoint); err != nil {
+			return nil, err
+		}
 	}
 
 	plan := &LaunchPlan{
@@ -82,6 +90,25 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 	// Build argv
 	plan.NodeArgv = BuildArgv(plan, req.NodeV8Args)
 	return plan, nil
+}
+
+// enforceCapabilities verifies the Node installation supports required features.
+func enforceCapabilities(inst *node.Installation, entrypoint string) error {
+	capSet := make(map[string]bool, len(inst.Capabilities))
+	for _, c := range inst.Capabilities {
+		capSet[c] = true
+	}
+	required := []string{"require-preload", "import-preload"}
+	if isTypeScriptEntrypoint(entrypoint) {
+		required = append(required, "module-register")
+	}
+	for _, c := range required {
+		if !capSet[c] {
+			return apperr.New(apperr.RuntimeNodeUnsupported, "runtime.plan", inst.NormalizedVersion,
+				fmt.Sprintf("Node %s lacks required capability %q", inst.NormalizedVersion, c))
+		}
+	}
+	return nil
 }
 
 // isTypeScriptEntrypoint reports whether the entrypoint needs transform support.
