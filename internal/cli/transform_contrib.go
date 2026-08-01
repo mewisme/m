@@ -25,7 +25,7 @@ func isTypeScriptFile(path string) bool {
 // buildTransformContribution creates a transform session and returns
 // a LaunchContribution with the service endpoint, token, loader preload,
 // and cleanup hook.
-func buildTransformContribution(cwd, entrypoint string, eff *config.Effective) (*runtime.LaunchContribution, error) {
+func buildTransformContribution(ctx context.Context, cwd, entrypoint string, eff *config.Effective) (*runtime.LaunchContribution, error) {
 	cacheDir := transform.TransformCacheDir(eff)
 	sess, err := transform.NewSession(transform.ServiceOptions{
 		Engine:   transform.NewEsbuildEngine(),
@@ -37,8 +37,10 @@ func buildTransformContribution(cwd, entrypoint string, eff *config.Effective) (
 			fmt.Errorf("starting transform service: %w", err))
 	}
 
-	// Start the listener; dial-back health check passes synchronously.
-	ctx := context.Background()
+	// Start the listener using the command context for proper cancellation.
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := sess.Start(ctx); err != nil {
 		sess.Close()
 		return nil, apperr.Wrap(apperr.RuntimeNodeStart, "cli.transform", entrypoint,

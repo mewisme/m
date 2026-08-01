@@ -389,7 +389,7 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 		}
 		// Attach transform session for TypeScript entrypoints.
 		if augMode != runtime.AugmentNone && isTypeScriptFile(res.FileRunPath) {
-			contrib, contribErr := buildTransformContribution(ac.CWD, res.FileRunPath, ac.Config)
+			contrib, contribErr := buildTransformContribution(ctx, ac.CWD, res.FileRunPath, ac.Config)
 			if contribErr != nil {
 				rep := g.newReporter(root)
 				rep.Error(classifyCLIError(contribErr))
