@@ -50,9 +50,7 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 	// Apply launch contribution from app-level orchestrator.
 	if req.Contribution != nil {
 		plan.CleanupHook = req.Contribution.CleanupHook
-		for _, pa := range req.Contribution.ExtraPreloads {
-			plan.PreloadAssets = append(plan.PreloadAssets, pa)
-		}
+		plan.PreloadAssets = append(plan.PreloadAssets, req.Contribution.ExtraPreloads...)
 		plan.EnvChanges = append(plan.EnvChanges, req.Contribution.ExtraEnv...)
 	}
 

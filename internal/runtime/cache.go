@@ -134,7 +134,7 @@ func VerifyCache(eff *config.Effective) error {
 			return apperr.Wrap(apperr.RuntimeAssetCache, "runtime.verify", entry.Path, err)
 		}
 		verifyErr := assets.VerifyAsset(f, entry.SHA256)
-		f.Close()
+		_ = f.Close()
 		if verifyErr != nil {
 			_ = os.Remove(dest) // Delete corrupted file for re-extraction.
 			return verifyErr

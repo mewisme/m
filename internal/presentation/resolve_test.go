@@ -10,9 +10,6 @@ import (
 	"github.com/mewisme/mew/internal/presentation"
 )
 
-func ttyCaps() presentation.Capabilities {
-	return presentation.Capabilities{StderrTTY: true, StdoutTTY: true}
-}
 
 func pipeCaps() presentation.Capabilities {
 	return presentation.Capabilities{}

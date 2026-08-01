@@ -43,7 +43,7 @@ func buildTransformContribution(ctx context.Context, cwd, entrypoint string, eff
 		ctx = context.Background()
 	}
 	if err := sess.Start(ctx); err != nil {
-		sess.Close()
+		_ = sess.Close()
 		return nil, apperr.Wrap(apperr.RuntimeNodeStart, "cli.transform", entrypoint,
 			fmt.Errorf("transform service health check: %w", err))
 	}

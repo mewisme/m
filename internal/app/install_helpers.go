@@ -575,18 +575,14 @@ func diffKeys(prior, next map[string]string) InstallResult {
 
 	for k, v := range unmatchedPrior {
 		n := packageNameFromKey(k)
-		g := groups[n]
-		if g == nil {
-			g = &nameGroup{}
+		if groups[n] == nil {
 			groups[n] = &nameGroup{}
 		}
 		groups[n].prior = append(groups[n].prior, keyVersion{key: k, version: v})
 	}
 	for k, v := range unmatchedNext {
 		n := packageNameFromKey(k)
-		g := groups[n]
-		if g == nil {
-			g = &nameGroup{}
+		if groups[n] == nil {
 			groups[n] = &nameGroup{}
 		}
 		groups[n].next = append(groups[n].next, keyVersion{key: k, version: v})
