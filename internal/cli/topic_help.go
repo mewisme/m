@@ -57,8 +57,9 @@ func runHelpCommand(cmd *cobra.Command, args []string, pagerFlag string) error {
 		if ae, ok := err.(*apperr.Error); ok && ae.Message != "" {
 			msg = ae.Message
 		}
+		bin := rootBinaryName(cmd)
 		return apperr.New(apperr.Usage, "help", strings.Join(args, " "),
-			msg+"\n\n"+reg.FormatTopicList()+"\n\nUse \"m <command> --help\" for command help.")
+			msg+"\n\n"+reg.FormatTopicList()+"\n\nUse \""+bin+" <command> --help\" for command help.")
 	}
 	if topic == nil {
 		return root.Help()
