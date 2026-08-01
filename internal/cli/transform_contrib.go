@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/runtime"
 	"github.com/mewisme/mew/internal/transform"
 )
@@ -24,10 +25,12 @@ func isTypeScriptFile(path string) bool {
 // buildTransformContribution creates a transform session and returns
 // a LaunchContribution with the service endpoint, token, loader preload,
 // and cleanup hook.
-func buildTransformContribution(cwd, entrypoint string) (*runtime.LaunchContribution, error) {
+func buildTransformContribution(cwd, entrypoint string, eff *config.Effective) (*runtime.LaunchContribution, error) {
+	cacheDir := transform.TransformCacheDir(eff)
 	sess, err := transform.NewSession(transform.ServiceOptions{
-		Engine:  transform.NewEsbuildEngine(),
-		Workers: 4,
+		Engine:   transform.NewEsbuildEngine(),
+		CacheDir: cacheDir,
+		Workers:  4,
 	})
 	if err != nil {
 		return nil, apperr.Wrap(apperr.Internal, "cli.transform", entrypoint,

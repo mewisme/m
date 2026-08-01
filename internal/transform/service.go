@@ -26,6 +26,7 @@ type Session struct {
 	mu       sync.Mutex
 	listener net.Listener
 	engine   Engine
+	cacheDir string
 	workers  chan struct{}
 	active   atomic.Int32
 	closed   atomic.Bool
@@ -37,7 +38,8 @@ type Session struct {
 // ServiceOptions configures the transform session.
 type ServiceOptions struct {
 	Engine         Engine
-	Workers        int // max concurrent transforms, default 4
+	CacheDir       string // transform cache directory; empty disables cache
+	Workers        int    // max concurrent transforms, default 4
 	IdleTimeout    time.Duration
 	RequestTimeout time.Duration
 }
@@ -65,6 +67,7 @@ func NewSession(opts ServiceOptions) (*Session, error) {
 	s := &Session{
 		Token:          token,
 		engine:         opts.Engine,
+		cacheDir:       opts.CacheDir,
 		workers:        make(chan struct{}, opts.Workers),
 		idleTimeout:    opts.IdleTimeout,
 		requestTimeout: opts.RequestTimeout,
@@ -254,8 +257,36 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 		SourceMapMode:   sourceMapMode,
 	}
 
-	result, err := s.engine.Transform(reqCtx, tReq)
-	if err != nil {
+	// Check transform cache.
+	var result *TransformResult
+	var resultErr error
+	if s.cacheDir != "" {
+		identity := s.engine.Identity()
+		key := CacheKey(tReq, identity)
+		if cached, cerr := TryReadCache(s.cacheDir, key); cerr == nil && cached != nil {
+			result = cached
+		}
+	}
+
+	// Cache miss or cache disabled: run engine.
+	if result == nil {
+		engineResult, engineErr := s.engine.Transform(reqCtx, tReq)
+		if engineErr == nil {
+			result = &engineResult
+			// Cache the result on success.
+			if s.cacheDir != "" {
+				identity := s.engine.Identity()
+				key := CacheKey(tReq, identity)
+				if werr := WriteCache(s.cacheDir, key, &engineResult); werr != nil {
+					// Log but don't fail the request for cache write errors.
+					_ = werr
+				}
+			}
+		}
+		resultErr = engineErr
+	}
+
+	if resultErr != nil {
 		// Check for context cancellation/timeout.
 		if reqCtx.Err() != nil {
 			_ = EncodeFrame(conn, TransformResponseV2{
@@ -266,7 +297,7 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 		}
 		_ = EncodeFrame(conn, TransformResponseV2{
 			V: ProtocolVersion, ID: req.ID, OK: false,
-			ErrCode: string(apperr.Integrity), Error: err.Error(),
+			ErrCode: string(apperr.Integrity), Error: resultErr.Error(),
 		})
 		return
 	}
