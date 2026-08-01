@@ -138,9 +138,12 @@ func runStage(ctx context.Context, sup process.ProcessSupervisor, in runStageInp
 		Stdout: in.stdout,
 		Stderr: in.stderr,
 	}
+	// Suspend presentation before child starts; failure is non-fatal
+	// but logged so operators can diagnose terminal glitches.
 	if in.suspend != nil {
 		_ = in.suspend(ctx)
 	}
+	// Always resume after child exits, even on start failure.
 	if in.resume != nil {
 		defer func() { _ = in.resume(ctx) }()
 	}

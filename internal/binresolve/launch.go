@@ -98,7 +98,9 @@ func inspectUnixTarget(path string, hostEnv []string) (LaunchKind, string, strin
 		return LaunchDirect, path, path, nil
 	}
 	if line == "" {
-		return LaunchDirect, path, path, nil
+		// No shebang and not executable: must fail before process start.
+		return "", "", "", apperr.New(apperr.Exec, "binresolve.launch", path,
+			"file is not executable and has no shebang")
 	}
 	interp := shebangInterpreter(line)
 	return "", "", "", apperr.New(apperr.Unsupported, "binresolve.launch", interp, "unsupported interpreter shebang")

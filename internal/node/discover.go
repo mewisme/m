@@ -117,7 +117,7 @@ func detectCapabilities(version string) []string {
 	}
 
 	// Node >= 20.6 has stable source-map support via --enable-source-maps.
-	if major >= 20 && parseMinor(parts) >= 6 {
+	if major > 20 || (major == 20 && parseMinor(parts) >= 6) {
 		caps = append(caps, "source-maps")
 	}
 
