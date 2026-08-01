@@ -45,6 +45,7 @@ const (
 	RuntimeAssetExtract Code = "ERR_M_RUNTIME_ASSET_EXTRACTION"
 	RuntimeAssetCache   Code = "ERR_M_RUNTIME_ASSET_CACHE"
 	RuntimeNodeStart    Code = "ERR_M_RUNTIME_NODE_START"
+	ChildExit           Code = "ERR_M_CHILD_EXIT"
 )
 
 // registry maps every published code to a process exit status.
@@ -84,6 +85,7 @@ var registry = map[Code]int{
 	RuntimeAssetExtract: 1,
 	RuntimeAssetCache:   1,
 	RuntimeNodeStart:    1,
+	ChildExit:           1, // exit code taken from ExitStatus.ExitCode(), not registry
 }
 
 // AllCodes returns registered codes in a stable order for docs and tests.
@@ -96,6 +98,7 @@ func AllCodes() []Code {
 		RuntimeEntrypoint, RuntimeInvocation,
 		RuntimeAssetManifest, RuntimeAssetDigest, RuntimeAssetExtract, RuntimeAssetCache,
 		RuntimeNodeStart,
+		ChildExit,
 	}
 }
 
@@ -141,6 +144,37 @@ func (e *Error) Unwrap() error {
 	return e.Cause
 }
 
+// ExitStatus is a child process non-zero exit. It is NOT an internal Mew failure.<br>// CLI handlers must preserve the child exit code rather than formatting it as ERR_M_INTERNAL.
+type ExitStatus struct {
+	Code int
+	Err  error
+}
+
+func (e *ExitStatus) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.Err != nil {
+		return e.Err.Error()
+	}
+	return fmt.Sprintf("exit status %d", e.Code)
+}
+
+func (e *ExitStatus) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
+// ExitCode extracts an exit code from err when available.
+func (e *ExitStatus) ExitCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.Code
+}
+
 // New constructs a typed error without a cause.
 func New(code Code, op, subject, msg string) *Error {
 	return &Error{Code: code, Op: op, Subject: subject, Message: msg}
@@ -166,6 +200,10 @@ func CodeOf(err error) Code {
 	if errors.As(err, &ae) && ae != nil && ae.Code != "" {
 		return ae.Code
 	}
+	var es *ExitStatus
+	if errors.As(err, &es) && es != nil {
+		return ChildExit
+	}
 	return Internal
 }
 
@@ -173,6 +211,10 @@ func CodeOf(err error) Code {
 func ExitCode(err error) int {
 	if err == nil {
 		return 0
+	}
+	var es *ExitStatus
+	if errors.As(err, &es) && es != nil {
+		return es.ExitCode()
 	}
 	var ae *Error
 	if errors.As(err, &ae) && ae != nil {

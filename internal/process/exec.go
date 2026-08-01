@@ -9,10 +9,24 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 )
 
+const defaultGracePeriod = 10 * time.Second
+
 // ExecSupervisor is the production ProcessSupervisor using os/exec.
-type ExecSupervisor struct{}
+type ExecSupervisor struct {
+	// GracePeriod is how long to wait after a graceful cancellation signal
+	// before force-killing the process tree. Zero means use defaultGracePeriod.
+	GracePeriod time.Duration
+}
+
+func (s *ExecSupervisor) gracePeriod() time.Duration {
+	if s == nil || s.GracePeriod <= 0 {
+		return defaultGracePeriod
+	}
+	return s.GracePeriod
+}
 
 // NewExecSupervisor returns a restricted-execution process supervisor.
 func NewExecSupervisor() *ExecSupervisor {
@@ -23,8 +37,9 @@ type execHandle struct {
 	cmd *exec.Cmd
 }
 
-// Start launches a child process.
-func (s *ExecSupervisor) Start(ctx context.Context, spec Spec) (*Handle, error) {
+// Start launches a child process. The context is not wired into the child via
+// CommandContext — cancellation is handled exclusively in Wait() with a grace period.
+func (s *ExecSupervisor) Start(_ context.Context, spec Spec) (*Handle, error) {
 	if s == nil {
 		return nil, errors.New("nil supervisor")
 	}
@@ -32,7 +47,7 @@ func (s *ExecSupervisor) Start(ctx context.Context, spec Spec) (*Handle, error) 
 	if err != nil {
 		return nil, err
 	}
-	cmd := exec.CommandContext(ctx, path, args...)
+	cmd := exec.Command(path, args...)
 	cmd.Dir = spec.Dir
 	cmd.Env = spec.Env
 	cmd.Stdin = spec.Stdin
@@ -47,7 +62,9 @@ func (s *ExecSupervisor) Start(ctx context.Context, spec Spec) (*Handle, error) 
 	return &Handle{PID: cmd.Process.Pid, raw: &execHandle{cmd: cmd}}, nil
 }
 
-// Wait waits for a started process and returns non-zero exit as error.
+// Wait waits for a started process. When ctx is cancelled, it sends a graceful
+// signal, waits up to GracePeriod, then force-kills the process tree and reaps.
+// Returns the child ExitError for normal non-zero exits, or ctx.Err() on cancellation.
 func (s *ExecSupervisor) Wait(ctx context.Context, h *Handle) error {
 	if h == nil || h.raw == nil {
 		return errors.New("invalid handle")
@@ -56,15 +73,13 @@ func (s *ExecSupervisor) Wait(ctx context.Context, h *Handle) error {
 	if !ok || eh.cmd == nil {
 		return errors.New("invalid handle type")
 	}
+
 	waitDone := make(chan error, 1)
 	go func() {
 		waitDone <- eh.cmd.Wait()
 	}()
+
 	select {
-	case <-ctx.Done():
-		forwardCancelSignal(eh.cmd)
-		killProcessTree(eh.cmd)
-		return ctx.Err()
 	case err := <-waitDone:
 		if err == nil {
 			return nil
@@ -75,6 +90,31 @@ func (s *ExecSupervisor) Wait(ctx context.Context, h *Handle) error {
 			return &ExitError{Code: code, Err: err}
 		}
 		return err
+	case <-ctx.Done():
+		// Graceful signal first
+		forwardCancelSignal(eh.cmd)
+
+		// Wait for graceful exit or timeout
+		graceTimer := time.NewTimer(s.gracePeriod())
+		select {
+		case err := <-waitDone:
+			graceTimer.Stop()
+			if err == nil {
+				return nil
+			}
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				return &ExitError{Code: exitErr.ExitCode(), Err: err}
+			}
+			return err
+		case <-graceTimer.C:
+			// Grace period expired — force kill
+		}
+
+		killProcessTree(eh.cmd)
+		// Reap the killed process
+		<-waitDone
+		return ctx.Err()
 	}
 }
 

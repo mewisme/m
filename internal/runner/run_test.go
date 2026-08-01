@@ -155,7 +155,7 @@ func TestDefaultRunnerIfPresentDoesNotSwallowUsage(t *testing.T) {
 	}
 }
 
-func TestDefaultRunnerChildExitSetsExitHint(t *testing.T) {
+func TestDefaultRunnerChildExitSetsExitStatus(t *testing.T) {
 	rec := &recordSupervisor{exitCode: 42}
 	r := &runner.DefaultRunner{Supervisor: rec}
 	_, err := r.Run(context.Background(), baseRunOptions(map[string]string{"dev": "vite"}, "dev"))
@@ -165,9 +165,12 @@ func TestDefaultRunnerChildExitSetsExitHint(t *testing.T) {
 	if apperr.ExitCode(err) != 42 {
 		t.Fatalf("exit=%d, want 42", apperr.ExitCode(err))
 	}
-	var ae *apperr.Error
-	if !errors.As(err, &ae) || ae.ExitHint != 42 {
-		t.Fatalf("expected ExitHint 42, got %+v", err)
+	var es *apperr.ExitStatus
+	if !errors.As(err, &es) || es.ExitCode() != 42 {
+		t.Fatalf("expected ExitStatus with code 42, got %+v", err)
+	}
+	if apperr.CodeOf(err) != apperr.ChildExit {
+		t.Fatalf("expected ChildExit code, got %s", apperr.CodeOf(err))
 	}
 }
 

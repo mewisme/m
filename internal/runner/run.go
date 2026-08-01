@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"runtime"
@@ -155,10 +154,7 @@ func runStage(ctx context.Context, sup process.ProcessSupervisor, in runStageInp
 	}
 	code := process.ExitCode(waitErr)
 	if code != 0 {
-		ae := apperr.New(apperr.Internal, "runner.run", in.subject,
-			fmt.Sprintf("script %s exited with code %d", in.subject, code))
-		ae.ExitHint = code
-		return code, ae
+		return code, &apperr.ExitStatus{Code: code, Err: waitErr}
 	}
 	if waitErr != nil {
 		return 1, apperr.Wrap(apperr.IO, "runner.run", in.subject, waitErr)
