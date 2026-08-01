@@ -130,11 +130,29 @@ function Resolve-DevInstallMetadata {
     else {
         $script:DevInstallVersion = '0.0.0-dev'
     }
-    # Development installs build the current working tree, which may not match
-    # HEAD. Leave commit unset rather than attributing source changes to a Git
-    # commit that does not fully describe them.
+
+    # Resolve git commit from the working tree.
     $script:DevInstallCommit = ''
+    $script:DevInstallShortCommit = ''
+    $script:DevInstallDirty = $false
     $script:DevInstallBuildDate = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
+
+    Push-Location $script:DevInstallRepoRoot
+    try {
+        $gitCommit = (git rev-parse HEAD 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $gitCommit) {
+            $script:DevInstallCommit = $gitCommit.Trim()
+            $script:DevInstallShortCommit = $script:DevInstallCommit.Substring(0, [Math]::Min(7, $script:DevInstallCommit.Length))
+            # Detect dirty state: any uncommitted changes in tracked files.
+            $dirtyOut = (git status --porcelain 2>$null)
+            if ($dirtyOut) {
+                $script:DevInstallDirty = $true
+            }
+        }
+    }
+    finally {
+        Pop-Location
+    }
 }
 
 function Test-DevInstallRepo {
@@ -158,7 +176,8 @@ function Get-DevInstallBinExt {
 }
 
 function Get-DevInstallLdflags {
-    return "-X main.version=$script:DevInstallVersion -X main.commit=$script:DevInstallCommit -X main.buildDate=$script:DevInstallBuildDate"
+    $dirtyStr = if ($script:DevInstallDirty) { 'true' } else { 'false' }
+    return "-X main.version=$script:DevInstallVersion -X main.commit=$script:DevInstallCommit -X main.shortCommit=$script:DevInstallShortCommit -X main.dirty=$dirtyStr -X main.buildDate=$script:DevInstallBuildDate -X main.targetOS=$script:DevInstallTargetGoOS -X main.targetArch=$script:DevInstallTargetGoArch"
 }
 
 function Invoke-DevInstallBuild {
@@ -173,6 +192,14 @@ function Invoke-DevInstallBuild {
     if ($LASTEXITCODE -ne 0) { throw 'go build m failed' }
     & go build -ldflags $ldflags -o (Join-Path $binDir "mx$ext") ./cmd/mx
     if ($LASTEXITCODE -ne 0) { throw 'go build mx failed' }
+
+    # Create mew.exe and mewx.exe as byte-identical copies of m.exe and mx.exe.
+    # os.Args[0] determines the logical identity so copies preserve full identity.
+    $mBin = Join-Path $binDir "m$ext"
+    $mxBin = Join-Path $binDir "mx$ext"
+    Copy-Item -Force $mBin (Join-Path $binDir "mew$ext")
+    Copy-Item -Force $mxBin (Join-Path $binDir "mewx$ext")
+    Write-DevInstallStage build "created mew$ext (copy of m$ext), mewx$ext (copy of mx$ext)"
 }
 
 function Get-DevInstallDefaultInstallDirWindows {
@@ -343,14 +370,15 @@ function Install-DevInstallWindowsFiles {
     if (-not (Test-Path $InstallDir)) {
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     }
-    Invoke-DevInstallAtomicCopy (Join-Path $binDir "m$ext") (Join-Path $InstallDir "m$ext")
-    Invoke-DevInstallAtomicCopy (Join-Path $binDir "mx$ext") (Join-Path $InstallDir "mx$ext")
+    # Install all four executable identities as byte-identical copies.
+    # os.Args[0] determines the logical identity for help, headers, and hints.
+    foreach ($name in @('m', 'mx', 'mew', 'mewx')) {
+        Invoke-DevInstallAtomicCopy (Join-Path $binDir "$name$ext") (Join-Path $InstallDir "$name$ext")
+    }
 
+    # .cmd shims for terminal convenience (m, mx, mew, mewx).
     foreach ($shim in @('m', 'mx', 'mew', 'mewx')) {
         $shimPath = Join-Path $InstallDir "$shim.cmd"
-        if ((Test-Path $shimPath) -and -not $Force) {
-            # overwrite shims always — installer-owned
-        }
         $lines = Get-DevInstallWindowsShimContent $shim
         Write-DevInstallUtf8NoBom $shimPath (($lines -join "`n") + "`n")
     }
@@ -474,12 +502,16 @@ function Remove-DevInstallOwnedWindowsFiles {
 }
 
 function Write-DevInstallSummary {
+    $dirtyStr = if ($script:DevInstallDirty) { 'true' } else { 'false' }
     @"
 MewJS development install summary
   repo:        $script:DevInstallRepoRoot
   source:      working tree
   target:      $script:DevInstallTargetGoOS/$script:DevInstallTargetGoArch
   version:     $script:DevInstallVersion
+  commit:      $script:DevInstallCommit
+  short:       $script:DevInstallShortCommit
+  dirty:       $dirtyStr
   build date:  $script:DevInstallBuildDate
   install dir: $(if ($script:DevInstallInstallDir) { $script:DevInstallInstallDir } else { '<build-only>' })
   completion:  $(if ($script:DevInstallCompletionBase) { $script:DevInstallCompletionBase } else { '<skipped>' })
@@ -667,6 +699,8 @@ Export-ModuleMember -Variable @(
     'DevInstallTargetGoArch',
     'DevInstallVersion',
     'DevInstallCommit',
+    'DevInstallShortCommit',
+    'DevInstallDirty',
     'DevInstallBuildDate',
     'DevInstallInstallDir',
     'DevInstallCompletionBase',

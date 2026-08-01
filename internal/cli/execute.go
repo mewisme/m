@@ -126,29 +126,63 @@ func ownerFlags(root *cobra.Command) *globalFlags {
 	return &globalFlags{}
 }
 
-// invocationHeader builds the command invocation header using the invoked binary and build info.
+// invocationHeader builds the command invocation header using the invoked binary and command path.
+// commandPath is the Cobra CommandPath (e.g. "m install"). The binary is prepended only if the path
+// does not already start with it, avoiding "m m install".
 func invocationHeader(root *cobra.Command, commandPath string) string {
 	g := ownerFlags(root)
 	binary := g.invokedBinary
 	if binary == "" {
 		binary = "m"
 	}
-	info := loadRootBuildInfo(root)
-	return presentation.FormatInvocationHeader(binary, commandPath, info.Version, info.Commit)
+	bi := loadRootBuildInfo(root)
+
+	// Strip the root command name prefix if commandPath already starts with the binary.
+	// Cobra returns "m install" when Use is "m"; we want just "install" to avoid "m m install".
+	rel := commandPath
+	if root != nil {
+		rootName := root.Name()
+		if strings.HasPrefix(rel, rootName+" ") {
+			rel = rel[len(rootName)+1:]
+		} else if rel == rootName {
+			rel = ""
+		}
+	}
+
+	short := bi.Short()
+	return presentation.FormatInvocationHeader(binary, rel, presentation.BuildInfo{
+		Version:     bi.Version,
+		ShortCommit: short,
+		Dirty:       bi.Dirty,
+	})
 }
 
 // writeInvocationHeaderOnce emits the header line once per invocation.
+// The header is always emitted for human output regardless of --no-summary.
+// Suppressed when stdout is not a terminal (piped/redirected), for structured output,
+// or when the command has a local --json flag.
 func writeInvocationHeaderOnce(cmd *cobra.Command) {
 	g := ownerFlags(cmd.Root())
-	if g == nil || g.headerEmitted || g.noSummary {
+	if g == nil || g.headerEmitted {
 		return
 	}
-	// Only emit header when presentation controller has been set up (human interactive).
+	// Only emit header when presentation controller has been set up.
 	if g.ctrl == nil {
 		return
 	}
 	opts := g.ctrl.Options()
 	if opts.Structured() || opts.Output == presentation.OutputSilent {
+		return
+	}
+	// Suppress header for commands with local --json flag.
+	if cmd.Flags().Lookup("json") != nil {
+		if f, _ := cmd.Flags().GetBool("json"); f {
+			return
+		}
+	}
+	// Suppress header when stdout is not a terminal (piped/redirected output).
+	caps := g.ctrl.Capabilities()
+	if !caps.StdoutTTY {
 		return
 	}
 	g.headerEmitted = true

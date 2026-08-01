@@ -12,6 +12,12 @@ import (
 	"github.com/mewisme/mew/internal/prompt"
 )
 
+// TxnOutcome records the outcome of a mutation transaction for error reporting.
+type TxnOutcome struct {
+	RolledBack       bool
+	RecoveryRequired bool
+}
+
 // Context is the process-level application state for one CLI invocation.
 type Context struct {
 	CWD            string
@@ -30,6 +36,8 @@ type Context struct {
 	Prompter prompt.Prompter
 	// CanPrompt is true when InteractivePolicy permits a prompt this invocation.
 	CanPrompt bool
+	// TxnOutcome records the transaction outcome after a mutation attempt.
+	TxnOutcome *TxnOutcome
 }
 
 // Options controls Context construction from CLI globals.

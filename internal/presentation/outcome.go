@@ -121,29 +121,36 @@ func InstallCounts(reused, downloaded, linked int) string {
 	return FormatCountsInt(reused, "reused", downloaded, "downloaded", linked, "linked")
 }
 
+// BuildInfo carries version metadata for the invocation header.
+type BuildInfo struct {
+	Version     string
+	ShortCommit string
+	Dirty       bool
+}
+
 // FormatInvocationHeader builds the command invocation header line.
-// Example: "mew install v1.2.3 (a1b2c3d)" or "m install dev (a1b2c3d)".
-// version and commit are optional; the header always includes binary and command path.
-func FormatInvocationHeader(binary, commandPath, version, commit string) string {
+// Example: "mew install v1.2.3 (a1b2c3d)" or "m install 0.0.0-dev+dirty (a1b2c3d)".
+// binary is the invoked binary name (m, mew, mx, mewx).
+// commandPath is the relative command path after the binary (e.g., "install", "add lodash").
+func FormatInvocationHeader(binary, commandPath string, info BuildInfo) string {
 	var b strings.Builder
 	b.WriteString(binary)
 	if commandPath != "" {
 		b.WriteByte(' ')
 		b.WriteString(commandPath)
 	}
-	if version != "" {
+	if info.Version != "" {
 		b.WriteByte(' ')
-		b.WriteString(version)
+		b.WriteString(info.Version)
 	} else {
 		b.WriteString(" dev")
 	}
-	if commit != "" {
-		short := commit
-		if len(short) > 7 {
-			short = short[:7]
-		}
+	if info.Dirty {
+		b.WriteString("+dirty")
+	}
+	if info.ShortCommit != "" {
 		b.WriteString(" (")
-		b.WriteString(short)
+		b.WriteString(info.ShortCommit)
 		b.WriteByte(')')
 	}
 	return b.String()

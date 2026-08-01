@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 
+	lipgloss "charm.land/lipgloss/v2"
+
 	"github.com/mewisme/mew/internal/diagnostics"
 )
 
@@ -14,6 +16,7 @@ type StaticRichProgressRenderer struct {
 	mu        sync.Mutex
 	out       io.Writer
 	settings  EffectiveSettings
+	theme     Theme
 	symbols   Symbols
 	suspended bool
 	closed    bool
@@ -36,6 +39,7 @@ func NewStaticRichProgressRenderer(w io.Writer, settings EffectiveSettings) *Sta
 	return &StaticRichProgressRenderer{
 		out:      w,
 		settings: settings,
+		theme:    NewTheme(settings.ThemeMode),
 		symbols:  settings.Symbols,
 		active:   map[string]string{},
 	}
@@ -57,13 +61,7 @@ func (p *StaticRichProgressRenderer) OperationStarted(ev diagnostics.OperationSt
 	p.active[ev.ID] = kind
 
 	var b strings.Builder
-	if p.settings.UseColor {
-		b.WriteString("\x1b[36m")
-	}
-	b.WriteString(p.symbols.Running)
-	if p.settings.UseColor {
-		b.WriteString("\x1b[0m")
-	}
+	b.WriteString(p.colorSymbol(p.theme.Info, p.symbols.Running))
 	b.WriteString(" ")
 	b.WriteString(kind)
 	if ev.Total != nil && *ev.Total > 0 {
@@ -98,40 +96,19 @@ func (p *StaticRichProgressRenderer) OperationCompleted(ev diagnostics.Operation
 	}
 
 	var b strings.Builder
+	var symStyle lipgloss.Style
+	var sym string
 	switch status {
 	case "ok":
-		if p.settings.UseColor {
-			b.WriteString("\x1b[32m")
-		}
-		b.WriteString(p.symbols.Success)
-		if p.settings.UseColor {
-			b.WriteString("\x1b[0m")
-		}
+		symStyle, sym = p.theme.Success, p.symbols.Success
 	case "skipped":
-		if p.settings.UseColor {
-			b.WriteString("\x1b[33m")
-		}
-		b.WriteString(p.symbols.Skipped)
-		if p.settings.UseColor {
-			b.WriteString("\x1b[0m")
-		}
+		symStyle, sym = p.theme.Warning, p.symbols.Skipped
 	case "cancelled":
-		if p.settings.UseColor {
-			b.WriteString("\x1b[33m")
-		}
-		b.WriteString(p.symbols.Warning)
-		if p.settings.UseColor {
-			b.WriteString("\x1b[0m")
-		}
+		symStyle, sym = p.theme.Warning, p.symbols.Warning
 	default:
-		if p.settings.UseColor {
-			b.WriteString("\x1b[31m")
-		}
-		b.WriteString(p.symbols.Error)
-		if p.settings.UseColor {
-			b.WriteString("\x1b[0m")
-		}
+		symStyle, sym = p.theme.Error, p.symbols.Error
 	}
+	b.WriteString(p.colorSymbol(symStyle, sym))
 	b.WriteString(" ")
 	b.WriteString(kind)
 
@@ -148,6 +125,14 @@ func (p *StaticRichProgressRenderer) OperationCompleted(ev diagnostics.Operation
 		durationMs: ev.DurationMs,
 		metrics:    metrics,
 	})
+}
+
+// colorSymbol applies the lipgloss style to the symbol when color is enabled.
+func (p *StaticRichProgressRenderer) colorSymbol(style lipgloss.Style, sym string) string {
+	if !p.settings.UseColor {
+		return sym
+	}
+	return style.Render(sym)
 }
 
 func (p *StaticRichProgressRenderer) Notice(ev diagnostics.NoticeEvent) {

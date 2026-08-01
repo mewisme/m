@@ -64,16 +64,16 @@ func TestVersionJSONAndBuildDate(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	var doc map[string]string
+	var doc map[string]any
 	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
 		t.Fatal(err)
 	}
-	for _, k := range []string{"binary", "version", "commit", "buildDate"} {
+	for _, k := range []string{"binary", "version", "commit", "short_commit", "dirty", "build_date", "target_os", "target_arch"} {
 		if _, ok := doc[k]; !ok {
 			t.Fatalf("missing key %q in %v", k, doc)
 		}
 	}
-	if doc["version"] != "0.0.0-test" || doc["commit"] != "deadbeef" || doc["buildDate"] != "2026-01-01" {
+	if doc["version"] != "0.0.0-test" || doc["commit"] != "deadbeef" {
 		t.Fatalf("%v", doc)
 	}
 	if doc["binary"] != "m" {

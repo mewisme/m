@@ -7,9 +7,46 @@ import (
 
 // BuildInfo is injected at link time for version output.
 type BuildInfo struct {
-	Version   string
-	Commit    string
-	BuildDate string
+	Version     string
+	Commit      string
+	ShortCommit string
+	Dirty       bool
+	BuildDate   string
+	TargetOS    string
+	TargetArch  string
+}
+
+// Short returns the 7-char commit prefix, or the explicit ShortCommit if set.
+func (b BuildInfo) Short() string {
+	if b.ShortCommit != "" {
+		return b.ShortCommit
+	}
+	if len(b.Commit) >= 7 {
+		return b.Commit[:7]
+	}
+	return b.Commit
+}
+
+// DirtyStr returns "+dirty" or "".
+func (b BuildInfo) DirtyStr() string {
+	if b.Dirty {
+		return "+dirty"
+	}
+	return ""
+}
+
+// Target returns "os/arch" or "".
+func (b BuildInfo) Target() string {
+	if b.TargetOS == "" && b.TargetArch == "" {
+		return ""
+	}
+	if b.TargetOS == "" {
+		return b.TargetArch
+	}
+	if b.TargetArch == "" {
+		return b.TargetOS
+	}
+	return b.TargetOS + "/" + b.TargetArch
 }
 
 // InvokedBinary returns the logical binary name from os.Args[0] (m|mew|mx|mewx).

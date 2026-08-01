@@ -205,18 +205,17 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 	r := g.mustStaticRenderer(cmd)
 	binName := g.invokedBinary
 
-	// Emit invocation header once at start of output. Suppressed when no summary or no controller.
-	writeInvocationHeaderOnce(cmd)
-
 	// Plain CI progress final line on stderr (independent of --no-summary).
 	writePlainProgressFooter(cmd, g, result, dryRun)
 
 	if !result.Committed && !dryRun {
-		if result.RolledBack {
-			return writeStaticErr(cmd, r.Summary(rollbackSummary(result, binName)))
-		}
-		if result.RecoveryRequired {
-			return writeStaticErr(cmd, r.Summary(recoveryRequiredSummary(binName)))
+		// Store transaction outcome on app context so the global error handler
+		// can include rollback/recovery notes in the single error block.
+		if ac := app.FromContext(cmd.Context()); ac != nil {
+			ac.TxnOutcome = &app.TxnOutcome{
+				RolledBack:       result.RolledBack,
+				RecoveryRequired: result.RecoveryRequired,
+			}
 		}
 		return nil
 	}

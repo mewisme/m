@@ -3,6 +3,7 @@ package presentation
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/fsx"
@@ -42,15 +43,18 @@ func mapPrimaryError(err error, opts MapOptions) (ErrorMetadata, ErrorView) {
 	}
 	code := apperr.CodeOf(err)
 	meta := ErrorMetadata{Code: code}
-	view := ErrorView{
-		Severity: StatusError,
-		Title:    TitleForCode(code),
-		Code:     string(code),
-	}
 	var ae *apperr.Error
 	if errors.As(err, &ae) && ae != nil {
 		meta.Operation = ae.Op
 		meta.Subject = ae.Subject
+	}
+	title := contextualErrorTitle(code, meta)
+	view := ErrorView{
+		Severity: StatusError,
+		Title:    title,
+		Code:     string(code),
+	}
+	if ae != nil {
 		view.Operation = opts.redact(ae.Op)
 		view.Subject = opts.redact(ae.Subject)
 		view.Message = opts.redact(errorMessage(ae))
@@ -59,6 +63,21 @@ func mapPrimaryError(err error, opts MapOptions) (ErrorMetadata, ErrorView) {
 	}
 	view.Message = opts.redact(err.Error())
 	return meta, view
+}
+
+// contextualErrorTitle returns a subject-aware title for select NotFound errors.
+func contextualErrorTitle(code apperr.Code, meta ErrorMetadata) string {
+	if code == apperr.NotFound {
+		subj := strings.ToLower(meta.Subject)
+		op := strings.ToLower(meta.Operation)
+		if strings.Contains(subj, "yarn.lock") || strings.Contains(op, ".lock.read") {
+			return "Lockfile was not found"
+		}
+		if strings.Contains(subj, "package.json") || strings.Contains(op, "package.json") {
+			return "package.json was not found"
+		}
+	}
+	return TitleForCode(code)
 }
 
 func errorMessage(ae *apperr.Error) string {

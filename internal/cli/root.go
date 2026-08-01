@@ -145,6 +145,9 @@ func attachAppPreRun(root *cobra.Command, g *globalFlags, info BuildInfo) {
 			return err
 		}
 		cmd.SetContext(app.WithContext(ctx, ac))
+		// Emit invocation header after Cobra resolves the command path but before
+		// any application work, progress, or results.
+		writeInvocationHeaderOnce(cmd)
 		return nil
 	}
 }
@@ -156,11 +159,15 @@ func newVersionCmd(binary string, info BuildInfo) *cobra.Command {
 		Short: "Print version information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if asJSON {
-				doc := map[string]string{
-					"binary":    binary,
-					"version":   info.Version,
-					"commit":    info.Commit,
-					"buildDate": info.BuildDate,
+				doc := map[string]any{
+					"binary":       binary,
+					"version":      info.Version,
+					"commit":       info.Commit,
+					"short_commit": info.Short(),
+					"dirty":        info.Dirty,
+					"build_date":   info.BuildDate,
+					"target_os":    info.TargetOS,
+					"target_arch":  info.TargetArch,
 				}
 				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetEscapeHTML(false)
@@ -168,12 +175,19 @@ func newVersionCmd(binary string, info BuildInfo) *cobra.Command {
 			}
 			g := ownerFlags(cmd.Root())
 			r := g.mustStaticRenderer(cmd)
+			ver := info.Version
+			if info.Dirty {
+				ver += "+dirty"
+			}
 			out := r.Status(presentation.StatusLine{
-				Text: fmt.Sprintf("%s %s", binary, info.Version),
+				Text: fmt.Sprintf("%s %s", binary, ver),
 			})
 			var kvs []presentation.KeyValue
 			if info.Commit != "" {
 				kvs = append(kvs, presentation.KeyValue{Key: "commit", Value: info.Commit})
+			}
+			if info.Target() != "" {
+				kvs = append(kvs, presentation.KeyValue{Key: "target", Value: info.Target()})
 			}
 			if info.BuildDate != "" {
 				kvs = append(kvs, presentation.KeyValue{Key: "buildDate", Value: info.BuildDate, Style: presentation.ValueMuted})

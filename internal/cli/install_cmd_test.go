@@ -209,6 +209,9 @@ func TestWriteInstallResultSkipsSummaryOnRollback(t *testing.T) {
 	errb := new(bytes.Buffer)
 	cmd.SetOut(out)
 	cmd.SetErr(errb)
+	// When install did not commit, writeInstallResult returns nil without writing
+	// a separate rollback error. Rollback info goes through TxnOutcome on app context
+	// and is rendered by the global error handler in execute().
 	err := writeInstallResult(cmd, app.InstallResult{Added: 1, Packages: 31, RolledBack: true}, false, false)
 	if err != nil {
 		t.Fatal(err)
@@ -216,9 +219,8 @@ func TestWriteInstallResultSkipsSummaryOnRollback(t *testing.T) {
 	if out.Len() != 0 {
 		t.Fatalf("rollback must not print success summary on stdout: %q", out.String())
 	}
-	if !strings.Contains(errb.String(), "rolled back") {
-		t.Fatalf("rollback framing missing on stderr: %q", errb.String())
-	}
+	// Rollback info is no longer written directly to stderr by writeInstallResult.
+	// It is stored on the app context and rendered by the global error handler.
 }
 
 func TestWriteInstallResultPrintsAfterCommit(t *testing.T) {

@@ -12,6 +12,10 @@ func TestMutationSummaryInstallWithAdditions(t *testing.T) {
 	result := app.InstallResult{
 		Added:    2,
 		Packages: 2,
+		DirectPackageChanges: []app.PackageChange{
+			{Kind: app.PackageChangeAdded, Name: "zod", ToVersion: "4.0.14", ToKey: "zod@4.0.14"},
+			{Kind: app.PackageChangeAdded, Name: "vite", ToVersion: "7.0.4", ToKey: "vite@7.0.4"},
+		},
 		PackageChanges: []app.PackageChange{
 			{Kind: app.PackageChangeAdded, Name: "zod", ToVersion: "4.0.14", ToKey: "zod@4.0.14"},
 			{Kind: app.PackageChangeAdded, Name: "vite", ToVersion: "7.0.4", ToKey: "vite@7.0.4"},
@@ -38,6 +42,9 @@ func TestMutationSummaryRemove(t *testing.T) {
 	result := app.InstallResult{
 		Removed:  1,
 		Packages: 1,
+		DirectPackageChanges: []app.PackageChange{
+			{Kind: app.PackageChangeRemoved, Name: "lodash", FromVersion: "4.17.20", FromKey: "lodash@4.17.20"},
+		},
 		PackageChanges: []app.PackageChange{
 			{Kind: app.PackageChangeRemoved, Name: "lodash", FromVersion: "4.17.20", FromKey: "lodash@4.17.20"},
 		},
@@ -59,6 +66,9 @@ func TestMutationSummaryUpdate(t *testing.T) {
 	result := app.InstallResult{
 		Changed:  1,
 		Packages: 1,
+		DirectPackageChanges: []app.PackageChange{
+			{Kind: app.PackageChangeUpdated, Name: "react", FromVersion: "19.1.0", ToVersion: "19.1.1", FromKey: "react@19.1.0", ToKey: "react@19.1.1"},
+		},
 		PackageChanges: []app.PackageChange{
 			{Kind: app.PackageChangeUpdated, Name: "react", FromVersion: "19.1.0", ToVersion: "19.1.1", FromKey: "react@19.1.0", ToKey: "react@19.1.1"},
 		},
@@ -79,6 +89,11 @@ func TestMutationSummaryMixedAddUpdateRemove(t *testing.T) {
 		Changed:  1,
 		Removed:  1,
 		Packages: 3,
+		DirectPackageChanges: []app.PackageChange{
+			{Kind: app.PackageChangeAdded, Name: "new-pkg", ToVersion: "1.0.0", ToKey: "new-pkg@1.0.0"},
+			{Kind: app.PackageChangeUpdated, Name: "react", FromVersion: "19.1.0", ToVersion: "19.1.1", FromKey: "react@19.1.0", ToKey: "react@19.1.1"},
+			{Kind: app.PackageChangeRemoved, Name: "old-pkg", FromVersion: "2.0.0", FromKey: "old-pkg@2.0.0"},
+		},
 		PackageChanges: []app.PackageChange{
 			{Kind: app.PackageChangeAdded, Name: "new-pkg", ToVersion: "1.0.0", ToKey: "new-pkg@1.0.0"},
 			{Kind: app.PackageChangeUpdated, Name: "react", FromVersion: "19.1.0", ToVersion: "19.1.1", FromKey: "react@19.1.0", ToKey: "react@19.1.1"},
@@ -95,6 +110,9 @@ func TestMutationSummaryDryRun(t *testing.T) {
 	result := app.InstallResult{
 		Added:    2,
 		Packages: 2,
+		DirectPackageChanges: []app.PackageChange{
+			{Kind: app.PackageChangeAdded, Name: "zod", ToVersion: "4.0.14", ToKey: "zod@4.0.14"},
+		},
 		PackageChanges: []app.PackageChange{
 			{Kind: app.PackageChangeAdded, Name: "zod", ToVersion: "4.0.14", ToKey: "zod@4.0.14"},
 		},
@@ -127,6 +145,9 @@ func TestMutationSummaryScriptsBlocked(t *testing.T) {
 		Added:          1,
 		Packages:       1,
 		ScriptsBlocked: 3,
+		DirectPackageChanges: []app.PackageChange{
+			{Kind: app.PackageChangeAdded, Name: "pkg", ToVersion: "1.0.0", ToKey: "pkg@1.0.0"},
+		},
 		PackageChanges: []app.PackageChange{
 			{Kind: app.PackageChangeAdded, Name: "pkg", ToVersion: "1.0.0", ToKey: "pkg@1.0.0"},
 		},

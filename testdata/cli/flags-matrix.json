@@ -32,7 +32,9 @@
       "\"binary\"",
       "\"version\"",
       "\"commit\"",
-      "\"buildDate\""
+      "\"build_date\"",
+      "\"short_commit\"",
+      "\"dirty\""
     ]
   },
   {

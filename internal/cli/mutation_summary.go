@@ -55,9 +55,6 @@ func mutationSummary(result app.InstallResult, dryRun bool, binName string) pres
 		st = presentation.StatusWarning
 	}
 	deltas := result.DirectPackageChanges
-	if len(deltas) == 0 {
-		deltas = result.PackageChanges
-	}
 	s := presentation.Summary{
 		Status:  st,
 		Title:   title,
@@ -111,27 +108,6 @@ func appendCleanupNotices(s *presentation.Summary, result app.InstallResult, bin
 			Message: "Store cleanup is incomplete.",
 		})
 		s.Hints = append(s.Hints, presentation.Hint{Message: fixBin("Run `m store status` for details.", binName)})
-	}
-}
-
-func rollbackSummary(result app.InstallResult, binName string) presentation.Summary {
-	s := presentation.Summary{
-		Status: presentation.StatusWarning,
-		Title:  "Installation failed; project changes were rolled back",
-	}
-	appendCleanupNotices(&s, result, binName)
-	return s
-}
-
-func recoveryRequiredSummary(binName string) presentation.Summary {
-	return presentation.Summary{
-		Status: presentation.StatusError,
-		Title:  "Installation failed",
-		Notices: []presentation.Notice{{
-			Status:  presentation.StatusError,
-			Message: "Recovery is required before the next mutation.",
-		}},
-		Hints: []presentation.Hint{{Message: fixBin("Run `m recover`", binName)}},
 	}
 }
 

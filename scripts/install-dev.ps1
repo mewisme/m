@@ -32,7 +32,8 @@ Write-DevInstallStage check 'validating prerequisites'
 Test-DevInstallGo
 Test-DevInstallRepo
 Resolve-DevInstallMetadata -VersionOverride $Version
-Write-DevInstallStage check "source=working-tree version=$script:DevInstallVersion date=$script:DevInstallBuildDate"
+$dirtyLabel = if ($script:DevInstallDirty) { '+dirty' } else { '' }
+Write-DevInstallStage check "version=$script:DevInstallVersion$dirtyLabel commit=$script:DevInstallShortCommit target=$script:DevInstallTargetGoOS/$script:DevInstallTargetGoArch"
 
 Invoke-DevInstallBuild
 

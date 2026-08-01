@@ -6,17 +6,25 @@ import (
 	"github.com/mewisme/mew/internal/cli"
 )
 
-// Overridden via -ldflags "-X main.version=… -X main.commit=… -X main.buildDate=…".
+// Overridden via -ldflags "-X main.version=… -X main.commit=… -X main.shortCommit=… -X main.dirty=… -X main.buildDate=… -X main.targetOS=… -X main.targetArch=…".
 var (
-	version   = "0.0.0-dev"
-	commit    = ""
-	buildDate = ""
+	version     = "0.0.0-dev"
+	commit      = ""
+	shortCommit = ""
+	dirty       = "false"
+	buildDate   = ""
+	targetOS    = ""
+	targetArch  = ""
 )
 
 func main() {
 	os.Exit(cli.ExecuteM(cli.BuildInfo{
-		Version:   version,
-		Commit:    commit,
-		BuildDate: buildDate,
+		Version:     version,
+		Commit:      commit,
+		ShortCommit: shortCommit,
+		Dirty:       dirty == "true",
+		BuildDate:   buildDate,
+		TargetOS:    targetOS,
+		TargetArch:  targetArch,
 	}))
 }

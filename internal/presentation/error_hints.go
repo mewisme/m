@@ -23,6 +23,17 @@ type hintRule struct {
 }
 
 var hintRules = []hintRule{
+	// Specific not-found predicates first (checked before the generic NotFound fallback).
+	{code: apperr.NotFound, predicate: func(m ErrorMetadata) bool {
+		return strings.Contains(m.Subject, "yarn.lock") || strings.Contains(m.Operation, ".lock.read")
+	}, message: "Expected yarn.lock in the project root. Generate it with `m install`."},
+	{code: apperr.NotFound, predicate: func(m ErrorMetadata) bool {
+		return strings.Contains(m.Subject, "package.json") || strings.Contains(m.Operation, "package.json")
+	}, message: "Expected package.json in the project root."},
+	{code: apperr.NotFound, predicate: func(m ErrorMetadata) bool {
+		return strings.Contains(m.Subject, "package") || strings.Contains(m.Operation, "package")
+	}, message: "Check the package name in package.json, then run `m install`."},
+
 	{code: apperr.Usage, message: "Run `m <command> --help` for usage."},
 	{code: apperr.Usage, message: "Run `m help errors ERR_M_USAGE` for details."},
 	{code: apperr.Lockfile, operation: "install", message: "Run `m install` to update the lockfile."},

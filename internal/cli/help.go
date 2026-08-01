@@ -146,10 +146,7 @@ func aliasSuffix(cmd *cobra.Command) string {
 	if len(aliases) == 0 {
 		return ""
 	}
-	bin := "m"
-	if cmd.Root() != nil && cmd.Root().Use != "" {
-		bin = cmd.Root().Use
-	}
+	bin := rootBinaryName(cmd)
 	var parts []string
 	for _, a := range aliases {
 		if a == "" || a == cmd.Name() {
@@ -226,12 +223,13 @@ func renderCommandSections(cmd *cobra.Command) string {
 	if !ok {
 		return ""
 	}
+	bin := rootBinaryName(cmd)
 	var b strings.Builder
 	if len(meta.examples) > 0 {
 		b.WriteString("\nExamples:\n")
 		for _, ex := range meta.examples {
 			b.WriteString("  ")
-			b.WriteString(ex)
+			b.WriteString(binaryReplace(ex, bin))
 			b.WriteByte('\n')
 		}
 	}
@@ -244,6 +242,27 @@ func renderCommandSections(cmd *cobra.Command) string {
 		}
 	}
 	return b.String()
+}
+
+// binaryReplace substitutes "{binary}" with the actual invoked binary name.
+// Falls back to replacing "m " prefix for backward compatibility with hardcoded examples.
+func binaryReplace(s, bin string) string {
+	s = strings.ReplaceAll(s, "{binary}", bin)
+	if bin != "m" && strings.HasPrefix(s, "m ") {
+		s = bin + s[1:]
+	}
+	return s
+}
+
+// rootBinaryName returns the binary name from the root command (m, mew, mx, mewx).
+func rootBinaryName(cmd *cobra.Command) string {
+	if cmd == nil {
+		return "m"
+	}
+	if cmd.Root() != nil && cmd.Root().Use != "" {
+		return cmd.Root().Use
+	}
+	return "m"
 }
 
 func renderBareScripts(cmd *cobra.Command) string {
@@ -265,10 +284,7 @@ func renderBareScripts(cmd *cobra.Command) string {
 	if total > bareMScriptListLimit {
 		fmt.Fprintf(&b, ", … and %d more", total-bareMScriptListLimit)
 	}
-	bin := "m"
-	if cmd != nil && cmd.Root() != nil && cmd.Root().Use != "" {
-		bin = cmd.Root().Use
-	}
+	bin := rootBinaryName(cmd)
 	fmt.Fprintf(&b, "\n\nRun `%s run <script>` to execute.\n", bin)
 	return b.String()
 }
