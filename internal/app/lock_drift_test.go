@@ -215,14 +215,14 @@ func TestWorkspaceRemoveResolveNoRootMsEdge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fetchOut, err := fetchPackages(context.Background(), sac, sessionProj, res.Graph, res.Extensions, extractDir, false, localExtracts)
+	fetchOut, err := fetchPackages(context.Background(), sac, sessionProj, res.Graph, res.Extensions, extractDir, false, localExtracts, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	caps, _ := planner.ProbeCached(config.CacheRoot(sac.Config), extractDir, stageNM)
 	useStore := config.UseGlobalStore(sac.Config)
 	if useStore {
-		fetchOut, err = fetchPackages(context.Background(), sac, sessionProj, res.Graph, res.Extensions, extractDir, useStore, localExtracts)
+		fetchOut, err = fetchPackages(context.Background(), sac, sessionProj, res.Graph, res.Extensions, extractDir, useStore, localExtracts, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

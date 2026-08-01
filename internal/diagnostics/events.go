@@ -20,12 +20,14 @@ type OperationStartedEvent struct {
 
 // OperationProgressEvent reports incremental operation progress.
 type OperationProgressEvent struct {
-	V         int    `json:"v"`
-	Type      string `json:"type"`
-	ID        string `json:"id"`
-	Completed int64  `json:"completed"`
-	Total     *int64 `json:"total,omitempty"`
-	Detail    string `json:"detail,omitempty"`
+	V           int    `json:"v"`
+	Type        string `json:"type"`
+	ID          string `json:"id"`
+	Completed   int64  `json:"completed"`
+	Total       *int64 `json:"total,omitempty"`
+	CurrentItem string `json:"current_item,omitempty"`
+	Unit        string `json:"unit,omitempty"`
+	Detail      string `json:"detail,omitempty"`
 }
 
 // OperationCompletedEvent marks operation completion.

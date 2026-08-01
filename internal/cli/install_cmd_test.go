@@ -229,7 +229,7 @@ func TestWriteInstallResultPrintsAfterCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(out.Bytes(), []byte("Installed")) && !bytes.Contains(out.Bytes(), []byte("Added")) {
+	if !bytes.Contains(out.Bytes(), []byte("installed")) && !bytes.Contains(out.Bytes(), []byte("package")) {
 		t.Fatalf("committed install should print summary: %q", out.String())
 	}
 }

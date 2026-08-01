@@ -249,7 +249,7 @@ func fetchPatchTree(ctx context.Context, ac *Context, proj *project.Project, pkg
 	key := pkg.ID.Key()
 	dest := filepath.Join(stage, sanitizeKeyDir(key))
 	_ = os.RemoveAll(dest)
-	extracts, err := fetchGraphLegacy(ctx, ac, g, stage, nil)
+	extracts, err := fetchGraphLegacy(ctx, ac, g, stage, nil, nil)
 	if err != nil {
 		return "", err
 	}

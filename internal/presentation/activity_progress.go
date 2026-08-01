@@ -44,10 +44,12 @@ type ActivityProgressRenderer struct {
 }
 
 type activityOp struct {
-	Kind      string
-	Completed int64
-	Total     *int64
-	Detail    string
+	Kind        string
+	Completed   int64
+	Total       *int64
+	CurrentItem string
+	Unit        string
+	Detail      string
 }
 
 // NewActivityProgressRenderer prepares a single-line progress sink writing to w (stderr).
@@ -85,6 +87,7 @@ func (r *ActivityProgressRenderer) OperationStarted(ev diagnostics.OperationStar
 	r.ops[ev.ID] = &activityOp{
 		Kind:  kind,
 		Total: ev.Total,
+		Unit:  ev.Unit,
 	}
 	r.currentID = ev.ID
 	r.ensureStartedLocked()
@@ -104,6 +107,8 @@ func (r *ActivityProgressRenderer) OperationProgress(ev diagnostics.OperationPro
 	}
 	op.Completed = ev.Completed
 	op.Total = ev.Total
+	op.CurrentItem = ev.CurrentItem
+	op.Unit = ev.Unit
 	op.Detail = ev.Detail
 	r.currentID = ev.ID
 	r.ensureStartedLocked()
@@ -142,7 +147,8 @@ func (r *ActivityProgressRenderer) Notice(ev diagnostics.NoticeEvent) {
 	}
 	sym := r.settings.Symbols.Warning
 	if r.settings.UseColor {
-		sym = "\x1b[33m" + sym + "\x1b[0m"
+		theme := NewTheme(r.settings.ThemeMode)
+		sym = theme.Warning.Render(sym)
 	}
 	if r.started && len(r.ops) > 0 {
 		r.clearLineLocked()
@@ -274,16 +280,20 @@ func (r *ActivityProgressRenderer) drawLocked() {
 
 	frame := r.frames[r.frameIdx%len(r.frames)]
 	if r.settings.UseColor {
-		frame = "\x1b[36m" + frame + "\x1b[0m"
+		theme := NewTheme(r.settings.ThemeMode)
+		frame = theme.Info.Render(frame)
 	}
 
 	label := op.Kind
-	if op.Completed > 0 && op.Total != nil && *op.Total > 0 {
-		label += fmt.Sprintf(" %d/%d", op.Completed, *op.Total)
-	} else if op.Total != nil && *op.Total > 0 {
-		label += fmt.Sprintf(" 0/%d", *op.Total)
+	if op.CurrentItem != "" {
+		label += " " + op.CurrentItem
 	}
-	if op.Detail != "" {
+	if op.Completed > 0 && op.Total != nil && *op.Total > 0 {
+		label += fmt.Sprintf(" [%d/%d]", op.Completed, *op.Total)
+	} else if op.Total != nil && *op.Total > 0 {
+		label += fmt.Sprintf(" [0/%d]", *op.Total)
+	}
+	if op.CurrentItem == "" && op.Detail != "" {
 		label += " " + op.Detail
 	}
 

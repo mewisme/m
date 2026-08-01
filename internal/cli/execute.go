@@ -42,8 +42,10 @@ type globalFlags struct {
 	preferOffline bool
 	filter        []string
 	recursive     bool
-	markdownTheme string
-	ctrl          presentation.Controller
+	markdownTheme    string
+	invokedBinary    string
+	headerEmitted    bool
+	ctrl             presentation.Controller
 }
 
 var flagOwners sync.Map     // *cobra.Command -> *globalFlags
@@ -122,6 +124,37 @@ func ownerFlags(root *cobra.Command) *globalFlags {
 		return v.(*globalFlags)
 	}
 	return &globalFlags{}
+}
+
+// invocationHeader builds the command invocation header using the invoked binary and build info.
+func invocationHeader(root *cobra.Command, commandPath string) string {
+	g := ownerFlags(root)
+	binary := g.invokedBinary
+	if binary == "" {
+		binary = "m"
+	}
+	info := loadRootBuildInfo(root)
+	return presentation.FormatInvocationHeader(binary, commandPath, info.Version, info.Commit)
+}
+
+// writeInvocationHeaderOnce emits the header line once per invocation.
+func writeInvocationHeaderOnce(cmd *cobra.Command) {
+	g := ownerFlags(cmd.Root())
+	if g == nil || g.headerEmitted || g.noSummary {
+		return
+	}
+	// Only emit header when presentation controller has been set up (human interactive).
+	if g.ctrl == nil {
+		return
+	}
+	opts := g.ctrl.Options()
+	if opts.Structured() || opts.Output == presentation.OutputSilent {
+		return
+	}
+	g.headerEmitted = true
+	commandPath := cmd.CommandPath()
+	hdr := invocationHeader(cmd.Root(), commandPath)
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), hdr)
 }
 
 func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, info BuildInfo) (*app.Context, error) {

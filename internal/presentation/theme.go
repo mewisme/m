@@ -67,8 +67,8 @@ func lightTheme() Theme {
 		Error:     fg("#B91C1C"),
 		Info:      fg("#1D4ED8"),
 		Command:   fg("#1D4ED8"),
-		Package:   fg("#0F766E"),
-		Version:   fg("#4B5563"),
+		Package:   lipgloss.NewStyle(),
+		Version:   lipgloss.NewStyle(),
 		Path:      fg("#4B5563"),
 		Code:      fg("#6B21A8"),
 		Number:    fg("#1F2937"),
@@ -77,7 +77,7 @@ func lightTheme() Theme {
 		Removed:   fg("#B91C1C"),
 		Reused:    fg("#6B7280"),
 		Header:    lipgloss.NewStyle().Bold(true),
-		Label:     fg("#4B5563"),
+		Label:     lipgloss.NewStyle(),
 		Value:     lipgloss.NewStyle(),
 	}
 }
@@ -93,8 +93,8 @@ func darkTheme() Theme {
 		Error:     fg("#F87171"),
 		Info:      fg("#93C5FD"),
 		Command:   fg("#93C5FD"),
-		Package:   fg("#5EEAD4"),
-		Version:   fg("#9CA3AF"),
+		Package:   lipgloss.NewStyle(),
+		Version:   lipgloss.NewStyle(),
 		Path:      fg("#9CA3AF"),
 		Code:      fg("#D8B4FE"),
 		Number:    fg("#E5E7EB"),
@@ -103,7 +103,7 @@ func darkTheme() Theme {
 		Removed:   fg("#F87171"),
 		Reused:    fg("#6B7280"),
 		Header:    lipgloss.NewStyle().Bold(true),
-		Label:     fg("#9CA3AF"),
+		Label:     lipgloss.NewStyle(),
 		Value:     lipgloss.NewStyle(),
 	}
 }

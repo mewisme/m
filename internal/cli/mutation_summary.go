@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/presentation"
@@ -19,30 +18,37 @@ func mutationSummary(result app.InstallResult, dryRun bool) presentation.Summary
 				Message: "No project files were changed.",
 			}},
 		}
-		s.Metrics = installMetrics(result)
 		s.Deltas = mutationPackageDeltas(result.PackageChanges)
+		s.Metrics = mutationCompletionMetrics(result)
 		return s
 	}
 
 	if result.Added == 0 && result.Removed == 0 && result.Changed == 0 {
 		s := presentation.Summary{
 			Status: presentation.StatusSuccess,
-			Title:  "Dependencies are already up to date",
+			Title:  "Already up to date",
+		}
+		if result.DurationMs > 0 {
+			s.Title += " [" + presentation.FormatDuration(result.DurationMs) + "]"
 		}
 		appendCleanupNotices(&s, result)
 		return s
 	}
 
-	title := formatInstalledTitle(result)
+	title := presentation.FormatMutationCompletion(result.Added, result.Changed, result.Removed, result.DurationMs)
 	st := presentation.StatusSuccess
 	if result.RecoveryRequired || result.TransactionCleanupIncomplete || result.StoreMaintenanceRequired {
 		st = presentation.StatusWarning
 	}
+	deltas := result.DirectPackageChanges
+	if len(deltas) == 0 {
+		deltas = result.PackageChanges
+	}
 	s := presentation.Summary{
 		Status:  st,
 		Title:   title,
-		Deltas:  mutationPackageDeltas(result.PackageChanges),
-		Metrics: installMetrics(result),
+		Deltas:  mutationPackageDeltas(deltas),
+		Metrics: mutationCompletionMetrics(result),
 	}
 	appendCleanupNotices(&s, result)
 	if result.ScriptsBlocked > 0 {
@@ -55,34 +61,17 @@ func mutationSummary(result app.InstallResult, dryRun bool) presentation.Summary
 	return s
 }
 
-func formatInstalledTitle(result app.InstallResult) string {
-	n := result.Packages
-	if n <= 0 {
-		n = result.Added + result.Changed
-	}
-	if result.DurationMs > 0 {
-		return fmt.Sprintf("Installed %d packages in %s", n, presentation.FormatDuration(result.DurationMs))
-	}
-	return fmt.Sprintf("Installed %d packages", n)
-}
-
-func installMetrics(result app.InstallResult) []presentation.KeyValue {
-	rows := []presentation.KeyValue{
-		{Key: "Added", Value: strconv.Itoa(result.Added), Style: presentation.ValueNumber},
-		{Key: "Updated", Value: strconv.Itoa(result.Changed), Style: presentation.ValueNumber},
-		{Key: "Removed", Value: strconv.Itoa(result.Removed), Style: presentation.ValueNumber},
-	}
+// mutationCompletionMetrics returns secondary metrics for the compact summary.
+func mutationCompletionMetrics(result app.InstallResult) []presentation.KeyValue {
+	var rows []presentation.KeyValue
 	if result.Reused > 0 {
-		rows = append(rows, presentation.KeyValue{Key: "Reused", Value: strconv.Itoa(result.Reused), Style: presentation.ValueNumber})
+		rows = append(rows, presentation.KeyValue{Key: "Reused", Value: fmt.Sprintf("%d", result.Reused), Style: presentation.ValueNumber})
 	}
 	if result.Downloaded > 0 {
-		rows = append(rows, presentation.KeyValue{Key: "Downloaded", Value: strconv.Itoa(result.Downloaded), Style: presentation.ValueNumber})
+		rows = append(rows, presentation.KeyValue{Key: "Downloaded", Value: fmt.Sprintf("%d", result.Downloaded), Style: presentation.ValueNumber})
 	}
 	if result.ScriptsRun > 0 {
-		rows = append(rows, presentation.KeyValue{Key: "Scripts", Value: strconv.Itoa(result.ScriptsRun), Style: presentation.ValueNumber})
-	}
-	if result.DurationMs > 0 {
-		rows = append(rows, presentation.KeyValue{Key: "Duration", Value: presentation.FormatDuration(result.DurationMs), Style: presentation.ValueMuted})
+		rows = append(rows, presentation.KeyValue{Key: "Scripts", Value: fmt.Sprintf("%d", result.ScriptsRun), Style: presentation.ValueNumber})
 	}
 	return rows
 }

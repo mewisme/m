@@ -30,7 +30,7 @@ func buildDLXEnvironment(ctx context.Context, ac *Context, opts DLXOptions, reso
 		return err
 	}
 	extractDir := filepath.Join(staging, ".extract")
-	fetchOut, err := fetchPackages(ctx, ac, proj, resolved.Resolution.Graph, resolved.Resolution.Extensions, extractDir, false, nil)
+	fetchOut, err := fetchPackages(ctx, ac, proj, resolved.Resolution.Graph, resolved.Resolution.Extensions, extractDir, false, nil, nil)
 	if err != nil {
 		return err
 	}

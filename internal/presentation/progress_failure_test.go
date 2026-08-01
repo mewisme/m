@@ -54,7 +54,7 @@ func TestMutationSummaryHelpersCompile(t *testing.T) {
 	// Ensure package still builds when only presentation tests run.
 	var buf bytes.Buffer
 	presentation.WritePlainInstallSummary(&buf, 0, 0, 0, 0)
-	if buf.String() != "installed added=0 updated=0 removed=0\n" {
+	if buf.String() != "Already up to date\n" {
 		t.Fatalf("%q", buf.String())
 	}
 }

@@ -174,7 +174,7 @@ func readLockHints(ctx context.Context, ac *Context, proj *project.Project) (*gr
 	return lockfile.ReadGraph(ctx, proj.Root, proj.Identity)
 }
 
-func fetchPackages(ctx context.Context, ac *Context, proj *project.Project, g *graph.Graph, ext lockfile.Extensions, extractRoot string, useGlobalStore bool, preExtracts map[string]string) (FetchOutcome, error) {
+func fetchPackages(ctx context.Context, ac *Context, proj *project.Project, g *graph.Graph, ext lockfile.Extensions, extractRoot string, useGlobalStore bool, preExtracts map[string]string, onProgress func(completed int64, current string)) (FetchOutcome, error) {
 	if preExtracts == nil {
 		preExtracts = map[string]string{}
 	}
@@ -185,9 +185,9 @@ func fetchPackages(ctx context.Context, ac *Context, proj *project.Project, g *g
 		return FetchOutcome{}, err
 	}
 	if useGlobalStore {
-		return fetchAndImportGraph(ctx, ac, g, preExtracts)
+		return fetchAndImportGraph(ctx, ac, g, preExtracts, onProgress)
 	}
-	extracts, err := fetchGraphLegacy(ctx, ac, g, extractRoot, preExtracts)
+	extracts, err := fetchGraphLegacy(ctx, ac, g, extractRoot, preExtracts, onProgress)
 	return FetchOutcome{Extracts: extracts}, err
 }
 
@@ -411,7 +411,7 @@ func mergeFetchImportResult(out *FetchOutcome, result store.ImportResult) {
 	}
 }
 
-func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string, preExtracts map[string]string) (map[string]string, error) {
+func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractRoot string, preExtracts map[string]string, onProgress func(completed int64, current string)) (map[string]string, error) {
 	if err := os.MkdirAll(extractRoot, 0o755); err != nil {
 		return nil, apperr.Wrap(apperr.IO, "app.install", extractRoot, err)
 	}
@@ -421,6 +421,8 @@ func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractR
 	}
 	extracts := make(map[string]string, len(g.Packages))
 	opts := archive.DefaultOptions()
+	var completed int64
+	total := int64(len(g.Packages))
 	for _, pkg := range g.Packages {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -428,10 +430,21 @@ func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractR
 		key := pkg.ID.Key()
 		if dir, ok := preExtracts[key]; ok {
 			extracts[key] = dir
+			completed++
+			if onProgress != nil {
+				onProgress(completed, pkg.ID.Name)
+			}
 			continue
 		}
 		if strings.TrimSpace(pkg.TarballURL) == "" {
+			completed++
+			if onProgress != nil {
+				onProgress(completed, pkg.ID.Name)
+			}
 			continue
+		}
+		if onProgress != nil {
+			onProgress(completed, pkg.ID.Name)
 		}
 		dest := filepath.Join(extractRoot, sanitizeKeyDir(key))
 		_ = os.RemoveAll(dest)
@@ -448,11 +461,20 @@ func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractR
 			return nil, err
 		}
 		extracts[key] = dest
+		completed++
+		if onProgress != nil {
+			onProgress(completed, pkg.ID.Name)
+		}
 	}
+	// ponytail: final progress tick to ensure spinner reaches total/total.
+	if onProgress != nil {
+		onProgress(completed, "")
+	}
+	_ = total
 	return extracts, nil
 }
 
-func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preExtracts map[string]string) (FetchOutcome, error) {
+func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preExtracts map[string]string, onProgress func(completed int64, current string)) (FetchOutcome, error) {
 	var out FetchOutcome
 	dl, err := newDownloader(ac)
 	if err != nil {
@@ -467,6 +489,7 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preEx
 		pkgStore.Reporter = ac.Reporter
 	}
 	out.Extracts = make(map[string]string, len(g.Packages))
+	var completed int64
 	for _, pkg := range g.Packages {
 		if err := ctx.Err(); err != nil {
 			return out, err
@@ -475,10 +498,21 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preEx
 		if dir, ok := preExtracts[key]; ok {
 			out.Extracts[key] = dir
 			out.Reused++
+			completed++
+			if onProgress != nil {
+				onProgress(completed, pkg.ID.Name)
+			}
 			continue
 		}
 		if strings.TrimSpace(pkg.TarballURL) == "" {
+			completed++
+			if onProgress != nil {
+				onProgress(completed, pkg.ID.Name)
+			}
 			continue
+		}
+		if onProgress != nil {
+			onProgress(completed, pkg.ID.Name)
 		}
 		art, err := dl.Download(ctx, fetch.DownloadRequest{
 			URL:       pkg.TarballURL,
@@ -502,6 +536,13 @@ func fetchAndImportGraph(ctx context.Context, ac *Context, g *graph.Graph, preEx
 		}
 		out.Extracts[key] = pkgStore.PackagePath(pkgKey)
 		out.Downloaded++
+		completed++
+		if onProgress != nil {
+			onProgress(completed, pkg.ID.Name)
+		}
+	}
+	if onProgress != nil {
+		onProgress(completed, "")
 	}
 	out.LinkSummary = &linker.LinkSummary{}
 	return out, nil
@@ -725,6 +766,42 @@ func BuildMutationPlan(in MutationPlanInput) (*plan.Plan, error) {
 		plan.CommitAction{Op: "publish", Subject: "node_modules"},
 	)
 	return p, p.Normalize()
+}
+
+// directPackageKeys returns the set of package keys that are direct dependencies
+// of any importer (workspace package) in the graph. Transitive-only packages are excluded.
+func directPackageKeys(g *graph.Graph) map[string]bool {
+	if g == nil {
+		return nil
+	}
+	importerIDs := make(map[string]bool, len(g.Importers))
+	for _, imp := range g.Importers {
+		importerIDs[string(imp.ID)] = true
+	}
+	// Also treat the root importer as an importer for single-package projects.
+	importerIDs[string(graph.RootImporter)] = true
+
+	direct := make(map[string]bool)
+	for _, e := range g.Edges {
+		if importerIDs[e.From] {
+			direct[e.To] = true
+		}
+	}
+	return direct
+}
+
+// filterDirectChanges returns only PackageChanges whose ToKey or FromKey is in directKeys.
+func filterDirectChanges(changes []PackageChange, directKeys map[string]bool) []PackageChange {
+	if len(directKeys) == 0 {
+		return nil
+	}
+	out := make([]PackageChange, 0, len(changes))
+	for _, c := range changes {
+		if directKeys[c.ToKey] || directKeys[c.FromKey] {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func needsFetch(ac *Context, pkg graph.Package) bool {

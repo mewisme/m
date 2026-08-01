@@ -28,7 +28,7 @@ func (r *richRenderer) Status(line StatusLine) string {
 		sym = applyStyle(r.theme.Warning, sym, true)
 	case StatusError:
 		sym = applyStyle(r.theme.Error, sym, true)
-		text = applyStyle(r.theme.Error, text, true)
+		text = applyStyle(r.theme.Strong, text, true)
 	case StatusInfo:
 		sym = applyStyle(r.theme.Info, sym, true)
 	}

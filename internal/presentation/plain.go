@@ -213,7 +213,7 @@ func formatPackageDeltasWithOptions(deltas []PackageDelta, settings EffectiveSet
 		}
 		heading := kindNames[i]
 		if color {
-			heading = applyStyle(theme.Primary, heading, true)
+			heading = applyStyle(theme.Strong, heading, true)
 		}
 		body := formatFlatPackageDeltas(group, settings, color, theme)
 		parts = append(parts, heading+"\n"+body)
@@ -269,11 +269,7 @@ func formatFlatPackageDeltas(deltas []PackageDelta, settings EffectiveSettings, 
 		}
 		b.WriteString(mark)
 		b.WriteByte(' ')
-		name := d.Name
-		if color {
-			name = applyStyle(theme.Package, name, true)
-		}
-		b.WriteString(name)
+		b.WriteString(d.Name)
 		b.WriteString("  ")
 		switch d.Kind {
 		case DeltaUpdated:
@@ -284,21 +280,13 @@ func formatFlatPackageDeltas(deltas []PackageDelta, settings EffectiveSettings, 
 			if to == "" {
 				to = d.Version
 			}
-			if color {
-				from = applyStyle(theme.Version, from, true)
-				to = applyStyle(theme.Version, to, true)
-			}
 			b.WriteString(from)
 			b.WriteByte(' ')
 			b.WriteString(sym.Arrow)
 			b.WriteByte(' ')
 			b.WriteString(to)
 		default:
-			ver := d.Version
-			if color {
-				ver = applyStyle(theme.Version, ver, true)
-			}
-			b.WriteString(ver)
+			b.WriteString(d.Version)
 		}
 	}
 	return b.String()

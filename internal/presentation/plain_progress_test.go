@@ -136,7 +136,7 @@ func TestWritePlainInstallSummary(t *testing.T) {
 	var buf bytes.Buffer
 	presentation.WritePlainInstallSummary(&buf, 4, 2, 1, 1800)
 	got := buf.String()
-	if got != "installed added=4 updated=2 removed=1 duration=1.8s\n" {
+	if got != "6 packages installed, 1 package removed [1.8s]\n" {
 		t.Fatalf("%q", got)
 	}
 }

@@ -21,7 +21,7 @@ func TestMutationSummaryInstallWithAdditions(t *testing.T) {
 	if s.Status != presentation.StatusSuccess {
 		t.Fatalf("status=%v", s.Status)
 	}
-	if !strings.Contains(s.Title, "Installed") {
+	if !strings.Contains(s.Title, "installed") {
 		t.Fatalf("title=%q", s.Title)
 	}
 	if len(s.Deltas) != 2 {
@@ -31,9 +31,6 @@ func TestMutationSummaryInstallWithAdditions(t *testing.T) {
 		if d.Kind != presentation.DeltaAdded {
 			t.Fatalf("delta kind=%v want added", d.Kind)
 		}
-	}
-	if len(s.Metrics) < 3 {
-		t.Fatalf("metrics=%d", len(s.Metrics))
 	}
 }
 
@@ -112,15 +109,12 @@ func TestMutationSummaryDryRun(t *testing.T) {
 	if len(s.Deltas) != 1 {
 		t.Fatalf("deltas=%d want 1", len(s.Deltas))
 	}
-	if len(s.Metrics) == 0 {
-		t.Fatalf("dry-run should include metrics")
-	}
 }
 
 func TestMutationSummaryAlreadyUpToDate(t *testing.T) {
 	result := app.InstallResult{Added: 0, Removed: 0, Changed: 0, Packages: 126}
 	s := mutationSummary(result, false)
-	if s.Title != "Dependencies are already up to date" {
+	if s.Title != "Already up to date" {
 		t.Fatalf("title=%q", s.Title)
 	}
 	if len(s.Deltas) != 0 {

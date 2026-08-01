@@ -73,7 +73,7 @@ func TestFetchAndImportGraphSurfacesStoreCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := fetchAndImportGraph(context.Background(), ac, res.Graph, nil)
+	out, err := fetchAndImportGraph(context.Background(), ac, res.Graph, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

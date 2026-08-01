@@ -104,6 +104,7 @@ type InstallResult struct {
 	CleanupWarningCodes          []string        `json:"cleanupWarningCodes,omitempty"`
 	CleanupWarnings              []string        `json:"cleanupWarnings,omitempty"`
 	PackageChanges               []PackageChange `json:"-"`
+	DirectPackageChanges         []PackageChange `json:"-"`
 }
 
 // AddOptions controls m add.

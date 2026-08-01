@@ -259,6 +259,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		return res, resolveErr
 	}
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
+	res.DirectPackageChanges = filterDirectChanges(res.PackageChanges, directPackageKeys(resolution.Graph))
 	resolveErr = nil
 	phResolve.Complete(statusOK)
 
@@ -315,7 +316,9 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 			return res, fetchErr
 		}
 	}
-	fetchOut, err := fetchPackages(ctx, ac, proj, resolution.Graph, resolution.Extensions, extractDir, useStore, localExtracts)
+	fetchOut, err := fetchPackages(ctx, ac, proj, resolution.Graph, resolution.Extensions, extractDir, useStore, localExtracts, func(completed int64, current string) {
+		phFetch.Progress(completed, current)
+	})
 	applyFetchOutcome(&res, fetchOut)
 	if err != nil {
 		fetchErr = err

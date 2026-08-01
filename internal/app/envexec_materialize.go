@@ -42,7 +42,7 @@ func (m appFrozenMaterializer) Materialize(ctx context.Context, spec envexec.Fro
 	if preExtracts == nil {
 		preExtracts = map[string]string{}
 	}
-	fetchOut, err := fetchPackages(ctx, m.ac, proj, g, nil, extractDir, false, preExtracts)
+	fetchOut, err := fetchPackages(ctx, m.ac, proj, g, nil, extractDir, false, preExtracts, nil)
 	if err != nil {
 		return err
 	}

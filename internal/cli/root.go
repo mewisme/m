@@ -30,6 +30,7 @@ func NewMRoot(info BuildInfo) *cobra.Command {
 	root.SilenceUsage = true
 	root.SilenceErrors = true
 	g := attachGlobals(root)
+	g.invokedBinary = invoked
 	g.bindRecursive(root)
 	attachAppPreRun(root, g, info)
 	storeRootBuildInfo(root, info)
@@ -108,6 +109,7 @@ func NewMXRoot(info BuildInfo) *cobra.Command {
 	root.SilenceUsage = true
 	root.SilenceErrors = true
 	g := attachGlobals(root)
+	g.invokedBinary = invoked
 	attachAppPreRun(root, g, info)
 	storeRootBuildInfo(root, info)
 

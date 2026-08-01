@@ -204,6 +204,9 @@ func writeInstallResult(cmd *cobra.Command, result app.InstallResult, asJSON, dr
 	g := ownerFlags(cmd.Root())
 	r := g.mustStaticRenderer(cmd)
 
+	// Emit invocation header once at start of output. Suppressed when no summary or no controller.
+	writeInvocationHeaderOnce(cmd)
+
 	// Plain CI progress final line on stderr (independent of --no-summary).
 	writePlainProgressFooter(cmd, g, result, dryRun)
 

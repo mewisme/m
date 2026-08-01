@@ -102,12 +102,13 @@ func (p *installProgress) Progress(completed int64, detail string) {
 		return
 	}
 	p.ac.Reporter.OperationProgress(diagnostics.OperationProgressEvent{
-		V:         1,
-		Type:      "operation-progress",
-		ID:        p.id,
-		Completed: completed,
-		Total:     p.total,
-		Detail:    detail,
+		V:          1,
+		Type:       "operation-progress",
+		ID:         p.id,
+		Completed:  completed,
+		Total:      p.total,
+		CurrentItem: detail,
+		Detail:     detail,
 	})
 }
 

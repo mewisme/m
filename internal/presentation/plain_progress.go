@@ -181,14 +181,11 @@ func extractCount(msg string) int {
 	return -1
 }
 
-// WritePlainInstallSummary emits the final installed= key=value line used in CI logs.
+// WritePlainInstallSummary emits the final compact install summary line used in CI logs.
 func WritePlainInstallSummary(w io.Writer, added, updated, removed int, durationMs int64) {
 	if w == nil {
 		return
 	}
-	line := fmt.Sprintf("installed added=%d updated=%d removed=%d", added, updated, removed)
-	if durationMs > 0 {
-		line += " duration=" + FormatDuration(durationMs)
-	}
+	line := FormatMutationCompletion(added, updated, removed, durationMs)
 	_, _ = fmt.Fprintln(w, line)
 }
