@@ -26,15 +26,15 @@ platform coverage, ISO dates (`openedDate <= reviewDate <= expiryDate`), and
 
 ## Active waivers (0046)
 
-| ID | Suite | Follow-up | Expiry |
-|---|---|---|---|
-| `waiver-direct-dispatch` | `runner-dispatch-collisions` | MVP 0050 | 2026-10-31 |
-| `waiver-direct-dispatch-gates` | `runner-direct-dispatch-gates` | MVP 0050 | 2026-10-31 |
+| ID | Suite | Follow-up | Expiry | Status |
+|---|---|---|---|---|
+| `waiver-direct-dispatch` | `runner-dispatch-collisions` | MVP 0050 | 2026-10-31 | closed (0050 shipped) |
+| `waiver-direct-dispatch-gates` | `runner-direct-dispatch-gates` | MVP 0050 | 2026-10-31 | closed (0050 shipped) |
 
-Both waivers cover experimental direct-dispatch behavior shipped in MVP **0042**.
-They document gate and collision semantics only; they do not waive mx consent,
-snapshot/capsule offline boundaries, event schema, inspect schema, import
-boundaries, or network-forbidden suites.
+Both waivers covered experimental direct-dispatch behavior shipped in MVP **0042**.
+Follow-up MVP 0050 is now shipped with Phase A boolean parity, collision matrix
+tests, and gate enforcement. Waivers are closed with current conformance evidence
+at commit `49b19a91` (stabilization-0040-0051).
 
 ## Digest policy
 
