@@ -65,15 +65,15 @@ func RunWorkspace(
 		}, nil, nil
 	}
 
-	var exec WorkspaceTaskExecutor = &RealWorkspaceExecutor{
-		Selector:  opts.Selector,
-		IfPresent: opts.IfPresent,
-		Forwarded: opts.ForwardedArgs,
-		HostEnv:   opts.HostEnv,
-		Reporter:  rep,
-	}
-	if workspaceRunnerExecutor != nil {
-		exec = workspaceRunnerExecutor
+	exec := opts.Executor
+	if exec == nil {
+		exec = &RealWorkspaceExecutor{
+			Selector:  opts.Selector,
+			IfPresent: opts.IfPresent,
+			Forwarded: opts.ForwardedArgs,
+			HostEnv:   opts.HostEnv,
+			Reporter:  rep,
+		}
 	}
 
 	res, runErr := RunScheduler(ctx, sched, exec, opts, rep, newTaskIO)
@@ -85,14 +85,6 @@ func RunWorkspace(
 	}
 	emitWorkspaceSummary(rep, res.Completed, res.Failed, res.Cancelled, res.Skipped, res.NotRun, res.EffectiveConcurrent)
 	return res, runErr
-}
-
-// workspaceRunnerExecutor is set by tests to inject a fake executor.
-var workspaceRunnerExecutor WorkspaceTaskExecutor
-
-// SetWorkspaceExecutorForTest injects a fake executor for unit tests.
-func SetWorkspaceExecutorForTest(exec WorkspaceTaskExecutor) {
-	workspaceRunnerExecutor = exec
 }
 
 func emitAggregateBlocks(rep diagnostics.Reporter, sched *Schedule, stdout, stderr map[int]*AggregateBuffer, script string) error {

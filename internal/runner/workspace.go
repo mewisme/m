@@ -54,6 +54,7 @@ type WorkspaceRunOptions struct {
 	Bail          bool
 	HostEnv       []string
 	TempDir       string // workspace-run spill dir; empty = derive from project
+	Executor      WorkspaceTaskExecutor // optional; nil uses RealWorkspaceExecutor
 	// Suspend / Resume pause presentation around child launch when tasks inherit TTYs.
 	Suspend func(context.Context) error
 	Resume  func(context.Context) error
