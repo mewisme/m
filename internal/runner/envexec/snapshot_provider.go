@@ -2,6 +2,7 @@ package envexec
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 
 	"github.com/mewisme/mew/internal/apperr"
@@ -94,6 +95,12 @@ func (SnapshotProvider) Materialize(ctx context.Context, deps ProviderDeps, plan
 			return PreparedEnvironment{}, err
 		}
 		staging := StagingDir(filepath.Dir(envDir), plan.Identity.IdentityDigest(), txnID)
+		var materialized bool
+		defer func() {
+			if !materialized {
+				_ = os.RemoveAll(staging)
+			}
+		}()
 		spec := FrozenEnvironmentSpec{
 			Identity:        plan.Identity,
 			Graph:           rec.Graph,
@@ -117,6 +124,7 @@ func (SnapshotProvider) Materialize(ctx context.Context, deps ProviderDeps, plan
 		if err := PublishEnvironment(staging, envDir, ready); err != nil {
 			return PreparedEnvironment{}, err
 		}
+		materialized = true
 	}
 	if err := VerifyWarmEnvironment(envDir, plan.Identity); err != nil {
 		return PreparedEnvironment{}, err
