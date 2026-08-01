@@ -181,7 +181,7 @@ func TestActivityProgressRendererASCIINoColor(t *testing.T) {
 	out := buf.String()
 	// \r and \x1b[K are cursor control, not color — they're needed for the
 	// single-line spinner even in no-color mode.
-	if strings.Contains(out, "[38;2;29;78;216m") {
+	if strings.Contains(out, "\x1b[38;2;29;78;216m") {
 		t.Fatalf("no-color output has color ANSI: %q", out)
 	}
 	_ = r.Close()
@@ -201,7 +201,7 @@ func TestActivityProgressRendererColorOutput(t *testing.T) {
 		ID: "x", Kind: "Resolving", Label: "Resolving",
 	})
 	out := buf.String()
-	if !strings.Contains(out, "[38;2;29;78;216m") {
+	if !strings.Contains(out, "\x1b[38;2;29;78;216m") {
 		t.Fatalf("color output missing cyan: %q", out)
 	}
 	_ = r.Close()
