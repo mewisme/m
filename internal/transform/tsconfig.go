@@ -135,16 +135,11 @@ func parseTsconfigFile(path string) (map[string]any, string, error) {
 		return nil, "", fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	// Extract compilerOptions for normalization
-	co, _ := raw["compilerOptions"].(map[string]any)
-	if co == nil {
-		co = map[string]any{}
-	}
-
+	// Extract compilerOptions for normalization; keep extends at top level.
 	h := sha256.New()
 	h.Write(cleaned)
 	digest := hex.EncodeToString(h.Sum(nil))
-	return co, digest, nil
+	return raw, digest, nil
 }
 
 // TsconfigChainDigest returns a stable digest combining all config digests in the chain.
@@ -165,47 +160,65 @@ func NormalizeOptions(chain []TsconfigFile) NormalizedOptions {
 	return opts
 }
 
+// applyCompilerOptions applies compilerOptions from a tsconfig raw document.
+// Options later in the chain (child configs) override earlier ones (parent configs).
+// A child key that is absent does not clear the parent value.
 func applyCompilerOptions(opts *NormalizedOptions, raw map[string]any) {
-	if v, ok := raw["target"].(string); ok && opts.Target == "" {
+	co, _ := raw["compilerOptions"].(map[string]any)
+	if co == nil {
+		return
+	}
+	// String options: child overwrites parent.
+	if v, ok := co["target"].(string); ok {
 		opts.Target = v
 	}
-	if v, ok := raw["module"].(string); ok && opts.Module == "" {
+	if v, ok := co["module"].(string); ok {
 		opts.Module = v
 	}
-	if v, ok := raw["useDefineForClassFields"].(bool); ok && !opts.UseDefineForClassFields {
-		opts.UseDefineForClassFields = v
-	}
-	if v, ok := raw["verbatimModuleSyntax"].(bool); ok && !opts.VerbatimModuleSyntax {
-		opts.VerbatimModuleSyntax = v
-	}
-	if v, ok := raw["importHelpers"].(bool); ok && !opts.ImportHelpers {
-		opts.ImportHelpers = v
-	}
-	if v, ok := raw["noEmit"].(bool); ok && !opts.NoEmit {
-		opts.NoEmit = v
-	}
-	if v, ok := raw["baseUrl"].(string); ok && opts.BaseURL == "" {
+	if v, ok := co["baseUrl"].(string); ok {
 		opts.BaseURL = v
 	}
-	if v, ok := raw["jsx"].(string); ok && opts.JSX == "" {
+	if v, ok := co["jsx"].(string); ok {
 		opts.JSX = v
 	}
-	if v, ok := raw["paths"].(map[string]any); ok {
+	// Boolean options: child overrides parent. Distinguish explicit false from absent.
+	if v, ok := co["useDefineForClassFields"]; ok {
+		if b, isBool := v.(bool); isBool {
+			opts.UseDefineForClassFields = b
+		}
+	}
+	if v, ok := co["verbatimModuleSyntax"]; ok {
+		if b, isBool := v.(bool); isBool {
+			opts.VerbatimModuleSyntax = b
+		}
+	}
+	if v, ok := co["importHelpers"]; ok {
+		if b, isBool := v.(bool); isBool {
+			opts.ImportHelpers = b
+		}
+	}
+	if v, ok := co["noEmit"]; ok {
+		if b, isBool := v.(bool); isBool {
+			opts.NoEmit = b
+		}
+	}
+	// Paths: child paths replace parent paths for the same key.
+	if v, ok := co["paths"].(map[string]any); ok {
 		if opts.Paths == nil {
 			opts.Paths = make(map[string][]string)
 		}
 		for k, pv := range v {
-			if _, exists := opts.Paths[k]; !exists {
-				switch pvs := pv.(type) {
-				case []any:
-					for _, p := range pvs {
-						if ps, ok := p.(string); ok {
-							opts.Paths[k] = append(opts.Paths[k], ps)
-						}
+			switch pvs := pv.(type) {
+			case []any:
+				vals := make([]string, 0, len(pvs))
+				for _, p := range pvs {
+					if ps, ok := p.(string); ok {
+						vals = append(vals, ps)
 					}
-				case []string:
-					opts.Paths[k] = append([]string(nil), pvs...)
 				}
+				opts.Paths[k] = vals
+			case []string:
+				opts.Paths[k] = append([]string(nil), pvs...)
 			}
 		}
 	}

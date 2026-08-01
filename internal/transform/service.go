@@ -18,7 +18,7 @@ import (
 
 // Session encapsulates a per-invocation transform service.
 type Session struct {
-	Token       string // random one-time auth token
+	Token       string // random per-session bearer auth token
 	Endpoint    string // "host:port" for the listener
 	endpointEnv string // MEW_TRANSFORM_ENDPOINT env value
 	tokenEnv    string // MEW_TRANSFORM_TOKEN env value
