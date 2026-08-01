@@ -31,6 +31,10 @@ type Session struct {
 	active   atomic.Int32
 	closed   atomic.Bool
 
+	// activeCancels tracks per-request cancel functions keyed by request ID.
+	activeCancels    map[string]context.CancelFunc
+	activeCancelsMu  sync.Mutex
+
 	idleTimeout    time.Duration
 	requestTimeout time.Duration
 }
@@ -69,6 +73,7 @@ func NewSession(opts ServiceOptions) (*Session, error) {
 		engine:         opts.Engine,
 		cacheDir:       opts.CacheDir,
 		workers:        make(chan struct{}, opts.Workers),
+		activeCancels:  make(map[string]context.CancelFunc),
 		idleTimeout:    opts.IdleTimeout,
 		requestTimeout: opts.RequestTimeout,
 	}
@@ -210,7 +215,13 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 			s.handleTransform(ctx, conn, &req)
 
 		case OpCancel:
-			// Cancel is best-effort; the context cancellation chain handles it.
+			// Cancel the matching active request by its cancel token.
+			s.activeCancelsMu.Lock()
+			if cancel, ok := s.activeCancels[req.CancelToken]; ok {
+				cancel()
+				delete(s.activeCancels, req.CancelToken)
+			}
+			s.activeCancelsMu.Unlock()
 			_ = EncodeFrame(conn, TransformResponseV2{V: ProtocolVersion, ID: req.ID, OK: true})
 
 		case OpShutdown:
@@ -232,6 +243,18 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 	// Apply request deadline.
 	reqCtx, cancel := context.WithTimeout(ctx, s.requestTimeout)
 	defer cancel()
+
+	// Register cancel for OpCancel tracking.
+	if req.CancelToken != "" {
+		s.activeCancelsMu.Lock()
+		s.activeCancels[req.CancelToken] = cancel
+		s.activeCancelsMu.Unlock()
+		defer func() {
+			s.activeCancelsMu.Lock()
+			delete(s.activeCancels, req.CancelToken)
+			s.activeCancelsMu.Unlock()
+		}()
+	}
 
 	// Acquire worker slot.
 	select {

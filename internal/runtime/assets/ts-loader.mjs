@@ -132,26 +132,46 @@ function sendFrame(c, obj, timeoutMs) {
 }
 
 async function sendTransform(path, source) {
-  const c = await getConn();
-  const id = String(++seq);
-  const resp = await sendFrame(c, {
-    v: 2,
-    id,
-    op: 'transform',
-    path,
-    source: String(source),
-    source_digest: '',
-    loader: loaderFromPath(path),
-    format: formatFromPath(path),
-    options: process.env.MEW_TRANSFORM_OPTIONS || '{}',
-    opts_digest: process.env.MEW_TRANSFORM_OPTS_DIGEST || '',
-    node_major: process.versions.node ? parseInt(process.versions.node.split('.')[0], 10) : 20,
-    source_map: 'inline',
-  });
-  if (!resp || !resp.ok) {
-    throw new Error(resp?.error || 'transform failed');
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const c = await getConn();
+      const id = String(++seq);
+      const resp = await sendFrame(c, {
+        v: 2,
+        id,
+        op: 'transform',
+        path,
+        source: String(source),
+        source_digest: '',
+        loader: loaderFromPath(path),
+        format: formatFromPath(path),
+        options: process.env.MEW_TRANSFORM_OPTIONS || '{}',
+        opts_digest: process.env.MEW_TRANSFORM_OPTS_DIGEST || '',
+        node_major: process.versions.node ? parseInt(process.versions.node.split('.')[0], 10) : 20,
+        source_map: 'inline',
+        cancel_token: id,
+      });
+      if (!resp || !resp.ok) {
+        const errCode = resp?.err_code || '';
+        // No retry for syntax errors or policy failures.
+        if (errCode.startsWith('ERR_M_TRANSFORM_SYNTAX') ||
+            errCode.startsWith('ERR_M_TRANSFORM_CONFIG') ||
+            errCode.startsWith('ERR_M_TRANSFORM_PROTOCOL')) {
+          throw new Error(resp?.error || 'transform failed');
+        }
+        throw new Error(resp?.error || 'transform failed');
+      }
+      return resp.code;
+    } catch (e) {
+      lastErr = e;
+      if (attempt === 0) {
+        // Reset connection on error so next attempt reconnects.
+        conn = null;
+      }
+    }
   }
-  return resp.code;
+  throw lastErr;
 }
 
 function loaderFromPath(p) {
