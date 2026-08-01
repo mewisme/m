@@ -143,8 +143,8 @@ async function sendTransform(path, source) {
     source_digest: '',
     loader: loaderFromPath(path),
     format: formatFromPath(path),
-    options: '{}',
-    opts_digest: '',
+    options: process.env.MEW_TRANSFORM_OPTIONS || '{}',
+    opts_digest: process.env.MEW_TRANSFORM_OPTS_DIGEST || '',
     node_major: process.versions.node ? parseInt(process.versions.node.split('.')[0], 10) : 20,
     source_map: 'inline',
   });
