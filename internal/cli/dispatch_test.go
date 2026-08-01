@@ -415,69 +415,69 @@ func TestDispatchJSONFileRun(t *testing.T) {
 func TestParsePhaseABooleanFalseValues(t *testing.T) {
 	// Phase A parser must match Cobra semantics: --flag=false must set flag to false.
 	tests := []struct {
-		args     []string
-		check    func(leadingDispatchFlags) bool
-		name     string
+		args  []string
+		check func(leadingDispatchFlags) bool
+		name  string
 	}{
 		{
-			args: []string{"--debug=false", "build"},
+			args:  []string{"--debug=false", "build"},
 			check: func(l leadingDispatchFlags) bool { return !l.debug },
-			name: "debug=false",
+			name:  "debug=false",
 		},
 		{
-			args: []string{"--debug=true", "build"},
+			args:  []string{"--debug=true", "build"},
 			check: func(l leadingDispatchFlags) bool { return l.debug },
-			name: "debug=true",
+			name:  "debug=true",
 		},
 		{
-			args: []string{"--debug", "build"},
+			args:  []string{"--debug", "build"},
 			check: func(l leadingDispatchFlags) bool { return l.debug },
-			name: "debug bare (true)",
+			name:  "debug bare (true)",
 		},
 		{
-			args: []string{"--offline=false", "build"},
+			args:  []string{"--offline=false", "build"},
 			check: func(l leadingDispatchFlags) bool { return !l.offline },
-			name: "offline=false",
+			name:  "offline=false",
 		},
 		{
-			args: []string{"--offline=0", "build"},
+			args:  []string{"--offline=0", "build"},
 			check: func(l leadingDispatchFlags) bool { return !l.offline },
-			name: "offline=0",
+			name:  "offline=0",
 		},
 		{
-			args: []string{"--offline=no", "build"},
+			args:  []string{"--offline=no", "build"},
 			check: func(l leadingDispatchFlags) bool { return !l.offline },
-			name: "offline=no",
+			name:  "offline=no",
 		},
 		{
-			args: []string{"--recursive=false", "build"},
+			args:  []string{"--recursive=false", "build"},
 			check: func(l leadingDispatchFlags) bool { return !l.recursive },
-			name: "recursive=false",
+			name:  "recursive=false",
 		},
 		{
-			args: []string{"--if-present=false", "build"},
+			args:  []string{"--if-present=false", "build"},
 			check: func(l leadingDispatchFlags) bool { return !l.ifPresent },
-			name: "if-present=false",
+			name:  "if-present=false",
 		},
 		{
-			args: []string{"--node=false", "build"},
+			args:  []string{"--node=false", "build"},
 			check: func(l leadingDispatchFlags) bool { return !l.node },
-			name: "node=false",
+			name:  "node=false",
 		},
 		{
-			args: []string{"--workspace-bail=false", "build"},
+			args:  []string{"--workspace-bail=false", "build"},
 			check: func(l leadingDispatchFlags) bool { return !l.wsBail },
-			name: "workspace-bail=false",
+			name:  "workspace-bail=false",
 		},
 		{
-			args: []string{"--prefer-offline=false", "build"},
+			args:  []string{"--prefer-offline=false", "build"},
 			check: func(l leadingDispatchFlags) bool { return !l.preferOffline },
-			name: "prefer-offline=false",
+			name:  "prefer-offline=false",
 		},
 		{
-			args: []string{"--no-color=false", "build"},
+			args:  []string{"--no-color=false", "build"},
 			check: func(l leadingDispatchFlags) bool { return !l.noColor },
-			name: "no-color=false",
+			name:  "no-color=false",
 		},
 	}
 	for _, tc := range tests {

@@ -54,7 +54,7 @@ type WorkspaceRunOptions struct {
 	Output        WorkspaceOutputMode
 	Bail          bool
 	HostEnv       []string
-	TempDir       string // workspace-run spill dir; empty = derive from project
+	TempDir       string                // workspace-run spill dir; empty = derive from project
 	Executor      WorkspaceTaskExecutor // optional; nil uses RealWorkspaceExecutor
 	Stdin         io.Reader
 	Stdout        io.Writer

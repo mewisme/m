@@ -25,7 +25,11 @@ func TestPatchDeterministicAcrossInstalls(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("patch extract exit=%d out=%s", code, out)
 	}
+	// Status rendering prepends a symbol (e.g. "• ") — strip it.
 	editDir := strings.TrimSpace(out)
+	if idx := strings.Index(editDir, " "); idx >= 0 {
+		editDir = strings.TrimSpace(editDir[idx+1:])
+	}
 	indexPath := filepath.Join(editDir, "index.js")
 	data, err := os.ReadFile(indexPath)
 	if err != nil {

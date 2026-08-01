@@ -36,7 +36,7 @@ type ActivityProgressRenderer struct {
 	started   bool
 	suspended bool
 	closed    bool
-	onScreen  bool // true when a transient line is currently displayed
+	onScreen  bool  // true when a transient line is currently displayed
 	writeErr  error // first write failure latches permanently
 
 	stop chan struct{}

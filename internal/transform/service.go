@@ -31,8 +31,8 @@ type Session struct {
 	closed   atomic.Bool
 
 	// activeCancels tracks per-request cancel functions keyed by request ID.
-	activeCancels    map[string]context.CancelFunc
-	activeCancelsMu  sync.Mutex
+	activeCancels   map[string]context.CancelFunc
+	activeCancelsMu sync.Mutex
 
 	idleTimeout    time.Duration
 	requestTimeout time.Duration

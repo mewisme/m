@@ -10,42 +10,42 @@ import (
 type Code string
 
 const (
-	OK                  Code = "ERR_M_OK"
-	Usage               Code = "ERR_M_USAGE"
-	Cancelled           Code = "ERR_M_CANCELLED"
-	Internal            Code = "ERR_M_INTERNAL"
-	InternalPanic       Code = "ERR_M_INTERNAL_PANIC"
-	IO                  Code = "ERR_M_IO"
-	Config              Code = "ERR_M_CONFIG"
-	Network             Code = "ERR_M_NETWORK"
-	Integrity           Code = "ERR_M_INTEGRITY"
-	Lockfile            Code = "ERR_M_LOCKFILE"
-	LockUnsupported     Code = "ERR_M_LOCK_UNSUPPORTED"
-	LockAmbiguous       Code = "ERR_M_LOCK_AMBIGUOUS"
-	LockUnrepresentable Code = "ERR_M_LOCK_UNREPRESENTABLE"
-	Unimplemented       Code = "ERR_M_UNIMPLEMENTED"
-	Unsupported         Code = "ERR_M_UNSUPPORTED"
-	Manifest            Code = "ERR_M_MANIFEST"
-	NotFound            Code = "ERR_M_NOT_FOUND"
-	Resolve             Code = "ERR_M_RESOLVE"
-	Install             Code = "ERR_M_INSTALL"
-	Transaction         Code = "ERR_M_TRANSACTION"
-	Store               Code = "ERR_M_STORE"
-	Policy              Code = "ERR_M_POLICY"
-	PNPUnsupported      Code = "ERR_M_PNP_UNSUPPORTED"
-	Exec                Code = "ERR_M_EXEC"
-	Timeout             Code = "ERR_M_TIMEOUT"
-	RuntimeNodeNotFound Code = "ERR_M_RUNTIME_NODE_NOT_FOUND"
-	RuntimeNodeVersion  Code = "ERR_M_RUNTIME_NODE_VERSION"
+	OK                     Code = "ERR_M_OK"
+	Usage                  Code = "ERR_M_USAGE"
+	Cancelled              Code = "ERR_M_CANCELLED"
+	Internal               Code = "ERR_M_INTERNAL"
+	InternalPanic          Code = "ERR_M_INTERNAL_PANIC"
+	IO                     Code = "ERR_M_IO"
+	Config                 Code = "ERR_M_CONFIG"
+	Network                Code = "ERR_M_NETWORK"
+	Integrity              Code = "ERR_M_INTEGRITY"
+	Lockfile               Code = "ERR_M_LOCKFILE"
+	LockUnsupported        Code = "ERR_M_LOCK_UNSUPPORTED"
+	LockAmbiguous          Code = "ERR_M_LOCK_AMBIGUOUS"
+	LockUnrepresentable    Code = "ERR_M_LOCK_UNREPRESENTABLE"
+	Unimplemented          Code = "ERR_M_UNIMPLEMENTED"
+	Unsupported            Code = "ERR_M_UNSUPPORTED"
+	Manifest               Code = "ERR_M_MANIFEST"
+	NotFound               Code = "ERR_M_NOT_FOUND"
+	Resolve                Code = "ERR_M_RESOLVE"
+	Install                Code = "ERR_M_INSTALL"
+	Transaction            Code = "ERR_M_TRANSACTION"
+	Store                  Code = "ERR_M_STORE"
+	Policy                 Code = "ERR_M_POLICY"
+	PNPUnsupported         Code = "ERR_M_PNP_UNSUPPORTED"
+	Exec                   Code = "ERR_M_EXEC"
+	Timeout                Code = "ERR_M_TIMEOUT"
+	RuntimeNodeNotFound    Code = "ERR_M_RUNTIME_NODE_NOT_FOUND"
+	RuntimeNodeVersion     Code = "ERR_M_RUNTIME_NODE_VERSION"
 	RuntimeNodeUnsupported Code = "ERR_M_RUNTIME_NODE_UNSUPPORTED"
-	RuntimeEntrypoint   Code = "ERR_M_RUNTIME_ENTRYPOINT"
-	RuntimeInvocation   Code = "ERR_M_RUNTIME_INVOCATION"
-	RuntimeAssetManifest Code = "ERR_M_RUNTIME_ASSET_MANIFEST"
-	RuntimeAssetDigest  Code = "ERR_M_RUNTIME_ASSET_DIGEST"
-	RuntimeAssetExtract Code = "ERR_M_RUNTIME_ASSET_EXTRACTION"
-	RuntimeAssetCache   Code = "ERR_M_RUNTIME_ASSET_CACHE"
-	RuntimeNodeStart    Code = "ERR_M_RUNTIME_NODE_START"
-	ChildExit           Code = "ERR_M_CHILD_EXIT"
+	RuntimeEntrypoint      Code = "ERR_M_RUNTIME_ENTRYPOINT"
+	RuntimeInvocation      Code = "ERR_M_RUNTIME_INVOCATION"
+	RuntimeAssetManifest   Code = "ERR_M_RUNTIME_ASSET_MANIFEST"
+	RuntimeAssetDigest     Code = "ERR_M_RUNTIME_ASSET_DIGEST"
+	RuntimeAssetExtract    Code = "ERR_M_RUNTIME_ASSET_EXTRACTION"
+	RuntimeAssetCache      Code = "ERR_M_RUNTIME_ASSET_CACHE"
+	RuntimeNodeStart       Code = "ERR_M_RUNTIME_NODE_START"
+	ChildExit              Code = "ERR_M_CHILD_EXIT"
 	// Transform error codes (0051).
 	TransformSyntax          Code = "ERR_M_TRANSFORM_SYNTAX"
 	TransformUnsupported     Code = "ERR_M_TRANSFORM_UNSUPPORTED"
@@ -64,42 +64,42 @@ const (
 
 // registry maps every published code to a process exit status.
 var registry = map[Code]int{
-	OK:                  0,
-	Usage:               2,
-	Cancelled:           130,
-	Internal:            1,
-	InternalPanic:       1,
-	IO:                  1,
-	Config:              1,
-	Network:             1,
-	Integrity:           1,
-	Lockfile:            1,
-	LockUnsupported:     1,
-	LockAmbiguous:       1,
-	LockUnrepresentable: 1,
-	Unimplemented:       1,
-	Unsupported:         1,
-	Manifest:            1,
-	NotFound:            1,
-	Resolve:             1,
-	Install:             1,
-	Transaction:         1,
-	Store:               1,
-	Policy:              1,
-	PNPUnsupported:      1,
-	Exec:                1,
-	Timeout:             1,
-	RuntimeNodeNotFound: 1,
-	RuntimeNodeVersion:  1,
-	RuntimeNodeUnsupported: 1,
-	RuntimeEntrypoint:   1,
-	RuntimeInvocation:   1,
-	RuntimeAssetManifest: 1,
-	RuntimeAssetDigest:  1,
-	RuntimeAssetExtract: 1,
-	RuntimeAssetCache:   1,
-	RuntimeNodeStart:    1,
-	ChildExit:           1, // exit code taken from ExitStatus.ExitCode(), not registry
+	OK:                       0,
+	Usage:                    2,
+	Cancelled:                130,
+	Internal:                 1,
+	InternalPanic:            1,
+	IO:                       1,
+	Config:                   1,
+	Network:                  1,
+	Integrity:                1,
+	Lockfile:                 1,
+	LockUnsupported:          1,
+	LockAmbiguous:            1,
+	LockUnrepresentable:      1,
+	Unimplemented:            1,
+	Unsupported:              1,
+	Manifest:                 1,
+	NotFound:                 1,
+	Resolve:                  1,
+	Install:                  1,
+	Transaction:              1,
+	Store:                    1,
+	Policy:                   1,
+	PNPUnsupported:           1,
+	Exec:                     1,
+	Timeout:                  1,
+	RuntimeNodeNotFound:      1,
+	RuntimeNodeVersion:       1,
+	RuntimeNodeUnsupported:   1,
+	RuntimeEntrypoint:        1,
+	RuntimeInvocation:        1,
+	RuntimeAssetManifest:     1,
+	RuntimeAssetDigest:       1,
+	RuntimeAssetExtract:      1,
+	RuntimeAssetCache:        1,
+	RuntimeNodeStart:         1,
+	ChildExit:                1, // exit code taken from ExitStatus.ExitCode(), not registry
 	TransformSyntax:          1,
 	TransformUnsupported:     1,
 	TransformConfigParse:     1,

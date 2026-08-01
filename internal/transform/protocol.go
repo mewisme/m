@@ -57,7 +57,7 @@ type TransformRequestV2 struct {
 	Options      string `json:"options"` // JSON-encoded NormalizedOptions
 	OptsDigest   string `json:"opts_digest"`
 	NodeMajor    int    `json:"node_major"`
-	SourceMap    string `json:"source_map"` // "none", "inline", "external"
+	SourceMap    string `json:"source_map"`             // "none", "inline", "external"
 	CancelToken  string `json:"cancel_token,omitempty"` // ID used by OpCancel to cancel this request
 }
 

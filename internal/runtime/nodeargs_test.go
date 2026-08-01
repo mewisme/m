@@ -179,7 +179,6 @@ func TestParseNodeArgsWithDoubleDashBeforeEntrypoint(t *testing.T) {
 	}
 }
 
-
 func TestParseNodeArgsEdgeCases(t *testing.T) {
 	tests := []struct {
 		name           string

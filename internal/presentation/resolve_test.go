@@ -10,7 +10,6 @@ import (
 	"github.com/mewisme/mew/internal/presentation"
 )
 
-
 func pipeCaps() presentation.Capabilities {
 	return presentation.Capabilities{}
 }

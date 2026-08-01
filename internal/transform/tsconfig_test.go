@@ -2,9 +2,9 @@ package transform
 
 import (
 	"encoding/json"
-	"strings"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -213,5 +213,3 @@ func TestDiscoverTsconfigNotFound(t *testing.T) {
 		t.Fatalf("found tsconfig at %s, want empty", path)
 	}
 }
-
-

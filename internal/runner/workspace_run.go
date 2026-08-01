@@ -56,7 +56,7 @@ func RunWorkspace(
 		stderr = os.Stderr
 	}
 
-		newTaskIO := func(t ScheduledTask) (TaskIO, func(), error) {
+	newTaskIO := func(t ScheduledTask) (TaskIO, func(), error) {
 		if aggregate {
 			key := fmt.Sprintf("%d-%s", t.Index, t.Path)
 			so := NewAggregateBuffer(tempDir, key, "stdout")
