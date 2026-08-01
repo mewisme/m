@@ -77,7 +77,11 @@ func (SnapshotProvider) Materialize(ctx context.Context, deps ProviderDeps, plan
 	if envDir == "" {
 		return PreparedEnvironment{}, apperr.New(apperr.Internal, "envexec.snapshot", "", "missing cache directory")
 	}
-	if !IsWarm(envDir) {
+	if plan.Materialization == MaterializationRequired {
+		// Quarantine corrupt warm env before rebuilding.
+		if IsWarm(envDir) {
+			_ = QuarantineCorrupt(envDir)
+		}
 		if deps.Materializer == nil || deps.SnapshotLoad == nil || plan.SnapshotProjectRoot == "" {
 			return PreparedEnvironment{}, apperr.New(apperr.Internal, "envexec.snapshot", "", "missing snapshot materialize deps")
 		}
