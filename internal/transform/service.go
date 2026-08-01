@@ -271,19 +271,23 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 	// Cache miss or cache disabled: run engine.
 	if result == nil {
 		engineResult, engineErr := s.engine.Transform(reqCtx, tReq)
-		if engineErr == nil {
+		// Discard late results: if the context expired during transform,
+		// the engine result must not be cached or returned to the client.
+		if reqCtx.Err() != nil {
+			resultErr = reqCtx.Err()
+		} else if engineErr == nil {
 			result = &engineResult
 			// Cache the result on success.
 			if s.cacheDir != "" {
 				identity := s.engine.Identity()
 				key := CacheKey(tReq, identity)
 				if werr := WriteCache(s.cacheDir, key, &engineResult); werr != nil {
-					// Log but don't fail the request for cache write errors.
 					_ = werr
 				}
 			}
+		} else {
+			resultErr = engineErr
 		}
-		resultErr = engineErr
 	}
 
 	if resultErr != nil {
