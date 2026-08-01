@@ -28,6 +28,20 @@ def git_diff_quiet(path: str = "plans/") -> bool:
     return proc.returncode == 0
 
 
+def _git_diff(path: str = "plans/") -> None:
+    """Print git diff for diagnostics."""
+    proc = subprocess.run(
+        ["git", "diff", "--stat", path],
+        cwd=ROOT,
+        check=False,
+    )
+    proc = subprocess.run(
+        ["git", "diff", path],
+        cwd=ROOT,
+        check=False,
+    )
+
+
 def invoke_plan_generation() -> None:
     if not GEN_SCRIPT.is_file():
         raise SystemExit(f"missing plan generator: {GEN_SCRIPT}")
@@ -36,6 +50,7 @@ def invoke_plan_generation() -> None:
 
 def verify_idempotency() -> None:
     if not git_diff_quiet():
+        _git_diff("plans/")
         raise SystemExit(
             "plans/ has uncommitted changes; commit or discard before idempotency check"
         )
@@ -43,11 +58,13 @@ def verify_idempotency() -> None:
     print("plan-generation idempotency: first run")
     invoke_plan_generation()
     if not git_diff_quiet():
+        _git_diff("plans/")
         raise SystemExit("plans/ changed after first generation run")
 
     print("plan-generation idempotency: second run")
     invoke_plan_generation()
     if not git_diff_quiet():
+        _git_diff("plans/")
         raise SystemExit(
             "plans/ changed after second generation run (not idempotent)"
         )
