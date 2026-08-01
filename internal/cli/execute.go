@@ -42,10 +42,10 @@ type globalFlags struct {
 	preferOffline bool
 	filter        []string
 	recursive     bool
-	markdownTheme    string
-	invokedBinary    string
-	headerEmitted    bool
-	ctrl             presentation.Controller
+	markdownTheme string
+	invokedBinary string
+	headerEmitted bool
+	ctrl          presentation.Controller
 }
 
 var flagOwners sync.Map     // *cobra.Command -> *globalFlags
