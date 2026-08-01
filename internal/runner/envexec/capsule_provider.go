@@ -70,7 +70,10 @@ func (CapsuleProvider) Materialize(ctx context.Context, deps ProviderDeps, plan 
 	if envDir == "" {
 		return PreparedEnvironment{}, apperr.New(apperr.Internal, "envexec.capsule", "", "missing cache directory")
 	}
-	if !IsWarm(envDir) {
+	if plan.Materialization == MaterializationRequired {
+		if IsWarm(envDir) {
+			_ = QuarantineCorrupt(envDir)
+		}
 		if deps.Materializer == nil || deps.CapsuleOpen == nil {
 			return PreparedEnvironment{}, apperr.New(apperr.Internal, "envexec.capsule", "", "missing materializer")
 		}

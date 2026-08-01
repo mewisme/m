@@ -75,6 +75,15 @@ func VerifyWarmEnvironment(envDir string, id EnvironmentIdentity) error {
 	return nil
 }
 
+// QuarantineCorrupt moves a corrupt warm environment out of the way so it can be rebuilt.
+// The corrupt directory is renamed with a .corrupt suffix; the error is logged but not returned.
+func QuarantineCorrupt(envDir string) error {
+	corrupt := envDir + ".corrupt"
+	// Remove any prior corrupt dir.
+	_ = os.RemoveAll(corrupt)
+	return os.Rename(envDir, corrupt)
+}
+
 // PublishEnvironment atomically publishes staging to finalDir with ready marker.
 func PublishEnvironment(stagingDir, finalDir string, ready ReadyMarker) error {
 	if ready.SchemaVersion == 0 {
