@@ -1,10 +1,19 @@
 {
-  "schemaVersion": 1,
-  "bundleVersion": "1",
+  "schemaVersion": 2,
+  "bundleVersion": "3",
   "assets": [
+    {
+      "name": "loader-register.mjs",
+      "path": "loader-register.mjs",
+      "role": "loader-registration",
+      "moduleType": "esm",
+      "size": 618,
+      "sha256": "3f98b1a67f4cbcb663f68503a73afeb686ba35f9d0490b28dc94d39511e7d50c"
+    },
     {
       "name": "preload.cjs",
       "path": "preload.cjs",
+      "role": "preload-cjs",
       "moduleType": "cjs",
       "size": 183,
       "sha256": "5586aaabda61d32a072fae18845b1b11a586592d0232cb48e0809be692e1a734"
@@ -12,9 +21,18 @@
     {
       "name": "preload.mjs",
       "path": "preload.mjs",
+      "role": "preload-esm",
       "moduleType": "esm",
       "size": 164,
       "sha256": "2d5e3cc87e2d67aa952e705d7fed7c0c9c18e2eea0fa3816dbca3b09282a5e77"
+    },
+    {
+      "name": "ts-loader.mjs",
+      "path": "ts-loader.mjs",
+      "role": "loader-support",
+      "moduleType": "esm",
+      "size": 5397,
+      "sha256": "6322562e7588031d9b2fe8f94f5c4af92eebf07ee916ca32c366a6da2278c9d8"
     }
   ]
 }

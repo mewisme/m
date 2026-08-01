@@ -102,11 +102,34 @@ func detectCapabilities(version string) []string {
 	if err != nil {
 		return caps
 	}
+
 	if major >= 16 {
 		caps = append(caps, "import-preload")
 	}
 	if major >= 12 {
 		caps = append(caps, "require-preload")
 	}
+
+	// module.register() is stable from Node 20.6, experimental from 18.19.
+	if major > 20 || (major == 20 && parseMinor(parts) >= 6) ||
+		(major == 18 && parseMinor(parts) >= 19) {
+		caps = append(caps, "module-register")
+	}
+
+	// Node >= 20.6 has stable source-map support via --enable-source-maps.
+	if major >= 20 && parseMinor(parts) >= 6 {
+		caps = append(caps, "source-maps")
+	}
+
 	return caps
+}
+
+// parseMinor extracts the minor version from a "M.m" or "M.m.p" version split.
+func parseMinor(parts []string) int {
+	if len(parts) < 2 {
+		return 0
+	}
+	minorParts := strings.SplitN(parts[1], ".", 2)
+	n, _ := strconv.Atoi(minorParts[0])
+	return n
 }

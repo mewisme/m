@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	goruntime "runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -296,7 +297,7 @@ func isMXRoot(root *cobra.Command) bool {
 
 func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags, info BuildInfo, argv []string) (int, bool) {
 	if len(argv) == 0 {
-		return handleBareM(ctx, root, g, info, PhaseAResult{})
+		return 0, false
 	}
 	if isRootMetaInvocation(argv) {
 		return 0, false
@@ -369,8 +370,14 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 		if phase.Leading.node {
 			augMode = runtime.AugmentNone
 		}
+		// On Windows with augmentation, use original selector as entrypoint
+		// so Node resolves it relative to WorkingDir.
+		entrypoint := res.FileRunPath
+		if augMode != runtime.AugmentNone && goruntime.GOOS == "windows" {
+			entrypoint = res.Canonical
+		}
 		req := runtime.LaunchRequest{
-			Entrypoint:       res.FileRunPath,
+			Entrypoint:       entrypoint,
 			AppArgs:          phase.ForwardedArgs,
 			WorkingDir:       ac.CWD,
 			AugmentationMode: augMode,
@@ -380,6 +387,17 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 				Stderr: os.Stderr,
 			},
 		}
+		// Attach transform session for TypeScript entrypoints.
+		if augMode != runtime.AugmentNone && isTypeScriptFile(res.FileRunPath) {
+			contrib, contribErr := buildTransformContribution(ac.CWD, res.FileRunPath)
+			if contribErr != nil {
+				rep := g.newReporter(root)
+				rep.Error(classifyCLIError(contribErr))
+				return apperr.ExitCode(contribErr), true
+			}
+			req.Contribution = contrib
+		}
+
 		plan, planErr := runtime.Plan(ctx, req, ac.Config)
 		if planErr != nil {
 			rep := g.newReporter(root)
@@ -387,6 +405,13 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 			return apperr.ExitCode(planErr), true
 		}
 		launchErr := runtime.Launch(ctx, plan, req)
+		// Always run cleanup hook after Node exit, on any outcome.
+		if plan != nil && plan.CleanupHook != nil {
+			if cerr := plan.CleanupHook(); cerr != nil {
+				rep := g.newReporter(root)
+				rep.Debug("cleanup", diagnostics.Attr{Key: "error", Value: cerr.Error()})
+			}
+		}
 		if launchErr == nil {
 			return 0, true
 		}

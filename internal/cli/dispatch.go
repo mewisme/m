@@ -457,15 +457,6 @@ func ResolveDispatch(root *cobra.Command, phase PhaseAResult, cwd string, eff *c
 		return DispatchResult{Kind: kind, Canonical: canonical, DirectGateOn: directOn}
 	}
 
-	// Detect JS file selectors for m <file.js> direct execution.
-	if RuntimeEnabled() && runtime.IsJSFile(selector) {
-		resolved, err := runtime.ResolveEntrypoint(cwd, selector)
-		if err != nil {
-			return DispatchResult{Kind: OutcomeUnknown, Canonical: selector, Err: err, DirectGateOn: directOn}
-		}
-		return DispatchResult{Kind: OutcomeFileRun, Canonical: selector, FileRunPath: resolved, DirectGateOn: directOn}
-	}
-
 	builtinNames, aliasNames := builtinAndAliasNames(root)
 	builtinSug := suggestFromNames(selector, builtinNames, DispatchBuiltin, formatBuiltinInvocation)
 	aliasSug := suggestFromNames(selector, aliasNames, DispatchAlias, formatBuiltinInvocation)
@@ -499,6 +490,26 @@ func ResolveDispatch(root *cobra.Command, phase PhaseAResult, cwd string, eff *c
 			}
 			return DispatchResult{Kind: OutcomeScript, Canonical: selector, Invocation: &inv, DirectGateOn: directOn}
 		}
+	}
+
+	// Detect runtime file selectors for direct execution (after scripts, before bins).
+	// Exact package scripts win over bare file names per documented dispatch precedence.
+	if RuntimeEnabled() && runtime.IsRuntimeFile(selector) {
+		// Deferred extensions (.tsx/.jsx) → actionable plan-0052 deferral message.
+		if plan, ok := runtime.IsNextPlanExt(selector); ok {
+			return DispatchResult{
+				Kind:      OutcomeUnknown,
+				Canonical: selector,
+				Err: apperr.New(apperr.RuntimeEntrypoint, "dispatch", selector,
+					fmt.Sprintf("%s: TypeScript JSX/TSX execution is planned for Mew plan %s; not yet available", selector, plan)),
+				DirectGateOn: directOn,
+			}
+		}
+		resolved, err := runtime.ResolveEntrypoint(cwd, selector)
+		if err != nil {
+			return DispatchResult{Kind: OutcomeUnknown, Canonical: selector, Err: err, DirectGateOn: directOn}
+		}
+		return DispatchResult{Kind: OutcomeFileRun, Canonical: selector, FileRunPath: resolved, DirectGateOn: directOn}
 	}
 
 	binDirectOn := DirectDispatchBinsEnabled(eff)

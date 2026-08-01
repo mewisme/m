@@ -15,14 +15,14 @@ func TestIsJSFile(t *testing.T) {
 		{"App.JS", true}, // case insensitive
 		{"server.mjs", true},
 		{"loader.cjs", true},
-		{"src/app.js", true},       // dir separator
-		{"src\\app.js", true},      // backslash
-		{"readme.md", false},       // unsupported ext
-		{"Makefile", false},        // no ext
-		{"", false},                // empty
-		{"build", false},           // bare name
-		{"./script.ts", true},      // dir separator even with .ts
-		{"/abs/path/file", true},   // absolute path
+		{"src/app.js", true},     // dir separator
+		{"src\\app.js", true},    // backslash
+		{"readme.md", false},     // unsupported ext
+		{"Makefile", false},      // no ext
+		{"", false},              // empty
+		{"build", false},         // bare name
+		{"./script.ts", true},    // dir separator even with .ts
+		{"/abs/path/file", true}, // absolute path
 	}
 	for _, tt := range tests {
 		got := IsJSFile(tt.selector)

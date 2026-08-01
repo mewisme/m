@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -28,7 +29,13 @@ func (c *extractCache) cacheEnsure(cacheDir string, entry assets.ManifestEntry) 
 
 	dest := filepath.Join(cacheDir, entry.Path)
 	if _, err := os.Stat(dest); err == nil {
-		return dest, nil
+		// Reject symlinks; let re-extraction handle it.
+		if isSymlink(dest) {
+			_ = os.Remove(dest)
+			// Fall through to extraction.
+		} else {
+			return dest, nil
+		}
 	}
 
 	data, err := assets.ReadAsset(entry.Path)
@@ -43,11 +50,11 @@ func (c *extractCache) cacheEnsure(cacheDir string, entry assets.ManifestEntry) 
 			fmt.Sprintf("embedded digest mismatch: expected %s", entry.SHA256))
 	}
 
-	// atomic write: temp file then rename
+	// atomic write: unique temp file then rename
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return "", apperr.Wrap(apperr.RuntimeAssetExtract, "runtime.cache", entry.Path, err)
 	}
-	tmp := dest + ".tmp"
+	tmp := dest + ".tmp-" + randomSuffix()
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return "", apperr.Wrap(apperr.RuntimeAssetExtract, "runtime.cache", entry.Path, err)
 	}
@@ -105,6 +112,7 @@ func EnsureAssets(eff *config.Effective) (map[string]string, error) {
 }
 
 // VerifyCache re-checks every extracted asset digest against the manifest.
+// Symlinks are rejected; corrupted files are deleted.
 func VerifyCache(eff *config.Effective) error {
 	cacheDir, err := CacheDir(eff)
 	if err != nil {
@@ -116,6 +124,11 @@ func VerifyCache(eff *config.Effective) error {
 	}
 	for _, entry := range m.AssetsSorted() {
 		dest := filepath.Join(cacheDir, entry.Path)
+		if isSymlink(dest) {
+			_ = os.Remove(dest)
+			return apperr.New(apperr.RuntimeAssetCache, "runtime.verify", entry.Path,
+				"cached asset is a symlink; rejected for safety")
+		}
 		f, err := os.Open(dest)
 		if err != nil {
 			return apperr.Wrap(apperr.RuntimeAssetCache, "runtime.verify", entry.Path, err)
@@ -123,10 +136,27 @@ func VerifyCache(eff *config.Effective) error {
 		verifyErr := assets.VerifyAsset(f, entry.SHA256)
 		f.Close()
 		if verifyErr != nil {
+			_ = os.Remove(dest) // Delete corrupted file for re-extraction.
 			return verifyErr
 		}
 	}
 	return nil
+}
+
+// randomSuffix returns a short random hex string for temp file names.
+func randomSuffix() string {
+	var b [4]byte
+	_, _ = rand.Read(b[:])
+	return hex.EncodeToString(b[:])
+}
+
+// isSymlink reports whether path is a symlink or reparse point.
+func isSymlink(path string) bool {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeSymlink != 0
 }
 
 // CleanCache removes stale runtime cache directories (not the current bundle).

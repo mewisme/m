@@ -24,16 +24,37 @@ var PreloadMJS []byte
 //go:embed manifest.json
 var manifestRaw []byte
 
-//go:embed preload.cjs preload.mjs manifest.json
+//go:embed preload.cjs preload.mjs loader-register.mjs ts-loader.mjs manifest.json
 var runtimeFS embed.FS
+
+// AssetRole classifies how an asset is injected into Node.
+type AssetRole string
+
+const (
+	RolePreloadCJS         AssetRole = "preload-cjs"
+	RolePreloadESM         AssetRole = "preload-esm"
+	RoleLoaderRegistration AssetRole = "loader-registration"
+	RoleLoaderSupport      AssetRole = "loader-support"
+)
+
+// Injected reports whether the asset is injected into Node argv.
+func (r AssetRole) Injected() bool {
+	switch r {
+	case RolePreloadCJS, RolePreloadESM, RoleLoaderRegistration:
+		return true
+	default:
+		return false
+	}
+}
 
 // ManifestEntry is a single asset entry in the runtime manifest.
 type ManifestEntry struct {
-	Name       string `json:"name"`
-	Path       string `json:"path"`
-	ModuleType string `json:"moduleType"`
-	Size       int64  `json:"size"`
-	SHA256     string `json:"sha256"`
+	Name       string    `json:"name"`
+	Path       string    `json:"path"`
+	Role       AssetRole `json:"role,omitempty"`
+	ModuleType string    `json:"moduleType"`
+	Size       int64     `json:"size"`
+	SHA256     string    `json:"sha256"`
 }
 
 // AssetManifest lists all embedded runtime assets.
@@ -43,20 +64,43 @@ type AssetManifest struct {
 	Assets        []ManifestEntry `json:"assets"`
 }
 
-// LoadManifest reads and validates the embedded manifest.
+// LoadManifest reads, validates, and normalizes the embedded manifest.
 func LoadManifest() (*AssetManifest, error) {
 	var m AssetManifest
 	if err := json.Unmarshal(manifestRaw, &m); err != nil {
 		return nil, apperr.Wrap(apperr.RuntimeAssetManifest, "assets.manifest", "", err)
 	}
-	if m.SchemaVersion != 1 {
+	switch m.SchemaVersion {
+	case 1, 2:
+		// Accepted.
+	default:
 		return nil, apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", "",
 			fmt.Sprintf("unsupported manifest schema version %d", m.SchemaVersion))
 	}
 	if m.BundleVersion == "" {
 		return nil, apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", "", "missing bundle version")
 	}
+	normalizeManifestRoles(&m)
 	return &m, nil
+}
+
+// normalizeManifestRoles backfills Role from ModuleType for schema v1 manifests
+// and validates v2 roles.
+func normalizeManifestRoles(m *AssetManifest) {
+	for i := range m.Assets {
+		e := &m.Assets[i]
+		if e.Role == "" {
+			// Schema v1: derive Role from ModuleType.
+			switch e.ModuleType {
+			case "cjs":
+				e.Role = RolePreloadCJS
+			case "esm":
+				e.Role = RolePreloadESM
+			default:
+				e.Role = RoleLoaderSupport
+			}
+		}
+	}
 }
 
 // AssetsSorted returns the sorted list of manifest entries.

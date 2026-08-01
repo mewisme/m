@@ -9,21 +9,36 @@ import (
 	"github.com/mewisme/mew/internal/apperr"
 )
 
-// supportedExts is the set of extensions we recognize as JS entrypoints.
-var supportedExts = map[string]bool{
+// runtimeExts is the set of extensions recognized as runtime entrypoints.
+var runtimeExts = map[string]bool{
 	".js":  true,
 	".mjs": true,
 	".cjs": true,
+	".ts":  true,
+	".mts": true,
+	".cts": true,
 }
 
-// IsJSFile reports whether the selector looks like a JS file (has a supported extension
-// or contains a directory separator).
+// nextPlanExts are extensions deferred to a future plan (0052).
+var nextPlanExts = map[string]string{
+	".tsx": "0052",
+	".jsx": "0052",
+}
+
+// IsJSFile reports whether the selector looks like a runtime file (has a supported
+// extension or contains a directory separator).
+// Deprecated: use IsRuntimeFile for new code.
 func IsJSFile(selector string) bool {
+	return IsRuntimeFile(selector)
+}
+
+// IsRuntimeFile reports whether the selector looks like a runtime file.
+func IsRuntimeFile(selector string) bool {
 	if selector == "" {
 		return false
 	}
 	ext := strings.ToLower(filepath.Ext(selector))
-	if supportedExts[ext] {
+	if runtimeExts[ext] {
 		return true
 	}
 	// A path with a directory separator is likely a file reference.
@@ -31,6 +46,14 @@ func IsJSFile(selector string) bool {
 		return true
 	}
 	return false
+}
+
+// IsNextPlanExt reports whether the extension is deferred to a future plan and
+// returns the plan ID.
+func IsNextPlanExt(selector string) (string, bool) {
+	ext := strings.ToLower(filepath.Ext(selector))
+	plan, ok := nextPlanExts[ext]
+	return plan, ok
 }
 
 // ResolveEntrypoint resolves a selector to an absolute filesystem path.
@@ -62,9 +85,9 @@ func ResolveEntrypoint(cwd, selector string) (string, error) {
 	}
 
 	ext := strings.ToLower(filepath.Ext(abs))
-	if !supportedExts[ext] {
+	if !runtimeExts[ext] {
 		return "", apperr.New(apperr.RuntimeEntrypoint, "runtime.entrypoint", abs,
-			fmt.Sprintf("unsupported file extension %q; expected .js, .mjs, or .cjs", ext))
+			fmt.Sprintf("unsupported file extension %q; expected .js, .mjs, .cjs, .ts, .mts, or .cts", ext))
 	}
 
 	return abs, nil

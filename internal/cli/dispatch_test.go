@@ -259,6 +259,41 @@ func containsString(list []string, want string) bool {
 	return false
 }
 
+func TestScriptWinsOverFile(t *testing.T) {
+	// exact package scripts beat bare file selectors per documented dispatch precedence.
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	t.Setenv("MEW_EXPERIMENTAL_DIRECT_SCRIPTS", "1")
+
+	projDir := t.TempDir()
+
+	pkg := map[string]any{
+		"name":    "demo",
+		"version": "1.0.0",
+		"scripts": map[string]string{"app.js": "echo script"},
+	}
+	raw, err := jsonfile.Marshal(pkg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projDir, "package.json"), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// create a conflicting JS file on disk
+	if err := os.WriteFile(filepath.Join(projDir, "app.js"), []byte("console.log(1);"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	root := NewMRoot(testBuildInfo())
+	eff := &config.Effective{Values: map[string]config.Value{
+		"runner.direct_scripts.enabled": {Raw: true},
+	}}
+	phase := PhaseAResult{Selector: "app.js"}
+	res := ResolveDispatch(root, phase, projDir, eff)
+	if res.Kind != OutcomeScript {
+		t.Fatalf("kind=%s, want script (exact script must beat file-run)", res.Kind)
+	}
+}
+
 func TestParsePhaseANodeFlag(t *testing.T) {
 	phase, err := ParsePhaseA([]string{"--node", "app.js"})
 	if err != nil {

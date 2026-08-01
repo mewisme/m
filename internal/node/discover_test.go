@@ -43,7 +43,10 @@ func TestDetectCapabilities(t *testing.T) {
 		version string
 		want    []string
 	}{
-		{"22.11.0", []string{"import-preload", "require-preload"}},
+		{"22.11.0", []string{"import-preload", "require-preload", "module-register", "source-maps"}},
+		{"20.18.0", []string{"import-preload", "require-preload", "module-register", "source-maps"}},
+		{"18.19.0", []string{"import-preload", "require-preload", "module-register"}},
+		{"18.0.0", []string{"import-preload", "require-preload"}},
 		{"16.0.0", []string{"import-preload", "require-preload"}},
 		{"14.0.0", []string{"require-preload"}},
 		{"12.0.0", []string{"require-preload"}},

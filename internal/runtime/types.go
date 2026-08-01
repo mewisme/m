@@ -14,6 +14,14 @@ const (
 	AugmentFull AugmentationMode = "full"
 )
 
+// LaunchContribution adds runtime inputs from an app-level orchestrator
+// without importing transform types into the runtime package.
+type LaunchContribution struct {
+	ExtraEnv      []string
+	ExtraPreloads []PreloadAsset
+	CleanupHook   func() error // called after Node exits (on any path)
+}
+
 // LaunchRequest describes a Node launch from the CLI.
 type LaunchRequest struct {
 	Entrypoint        string
@@ -24,6 +32,7 @@ type LaunchRequest struct {
 	AugmentationMode  AugmentationMode
 	Stdio             LaunchStdio
 	ExperimentalState map[string]string
+	Contribution      *LaunchContribution
 }
 
 // LaunchStdio configures child process I/O.
@@ -35,15 +44,16 @@ type LaunchStdio struct {
 
 // LaunchPlan is a fully resolved Node launch.
 type LaunchPlan struct {
-	NodeExe         string
-	NodeVersion     string
+	NodeExe          string
+	NodeVersion      string
 	NodeCapabilities []string
-	NodeArgv        []string
-	PreloadAssets   []PreloadAsset
-	Entrypoint      string
-	AppArgs         []string
-	EnvChanges      []string
+	NodeArgv         []string
+	PreloadAssets    []PreloadAsset
+	Entrypoint       string
+	AppArgs          []string
+	EnvChanges       []string
 	ZeroAugmentation bool
+	CleanupHook      func() error
 }
 
 // PreloadAsset describes a resolved preload path for Node argv.

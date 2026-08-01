@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
@@ -36,6 +39,15 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 		ZeroAugmentation: req.AugmentationMode == AugmentNone,
 	}
 
+	// Apply launch contribution from app-level orchestrator.
+	if req.Contribution != nil {
+		plan.CleanupHook = req.Contribution.CleanupHook
+		for _, pa := range req.Contribution.ExtraPreloads {
+			plan.PreloadAssets = append(plan.PreloadAssets, pa)
+		}
+		plan.EnvChanges = append(plan.EnvChanges, req.Contribution.ExtraEnv...)
+	}
+
 	if req.AugmentationMode != AugmentNone {
 		assetPaths, err := EnsureAssets(eff)
 		if err != nil {
@@ -46,6 +58,9 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 			return nil, err
 		}
 		for _, entry := range m.AssetsSorted() {
+			if !entry.Role.Injected() {
+				continue
+			}
 			p, ok := assetPaths[entry.Name]
 			if !ok {
 				continue
@@ -73,11 +88,17 @@ func BuildArgv(plan *LaunchPlan, v8Args []string) []string {
 
 	if !plan.ZeroAugmentation {
 		for _, pa := range plan.PreloadAssets {
+			assetPath := pa.Path
 			switch pa.ModuleType {
 			case "cjs":
-				argv = append(argv, "--require", pa.Path)
+				// --require works with native Windows paths; no URL conversion.
+				argv = append(argv, "--require", assetPath)
 			case "esm":
-				argv = append(argv, "--import", pa.Path)
+				// --import needs file:// URLs on Windows for ESM loader.
+				if runtime.GOOS == "windows" && filepath.IsAbs(assetPath) {
+					assetPath = fileURL(assetPath)
+				}
+				argv = append(argv, "--import", assetPath)
 			}
 		}
 	}
@@ -85,6 +106,17 @@ func BuildArgv(plan *LaunchPlan, v8Args []string) []string {
 	argv = append(argv, plan.Entrypoint)
 	argv = append(argv, plan.AppArgs...)
 	return argv
+}
+
+// fileURL converts an absolute Windows path to a file:// URL.
+func fileURL(p string) string {
+	// Convert backslashes to forward slashes.
+	p = strings.ReplaceAll(p, "\\", "/")
+	// Remove leading slash for the drive letter format.
+	p = strings.TrimPrefix(p, "/")
+	// Encode spaces and other special chars in path segments (ponytail: minimal).
+	p = strings.ReplaceAll(p, " ", "%20")
+	return "file:///" + p
 }
 
 // Launch starts a Node process from a fully resolved plan.
@@ -98,7 +130,7 @@ func Launch(ctx context.Context, plan *LaunchPlan, req LaunchRequest) error {
 		Path:   plan.NodeArgv[0],
 		Args:   plan.NodeArgv[1:],
 		Dir:    req.WorkingDir,
-		Env:    buildEnv(req),
+		Env:    buildEnv(req.EnvOverlay, plan.EnvChanges),
 		Stdin:  req.Stdio.Stdin,
 		Stdout: req.Stdio.Stdout,
 		Stderr: req.Stdio.Stderr,
@@ -126,13 +158,15 @@ func Launch(ctx context.Context, plan *LaunchPlan, req LaunchRequest) error {
 	return nil
 }
 
-func buildEnv(req LaunchRequest) []string {
+func buildEnv(envOverlay []string, planEnvChanges []string) []string {
 	base := os.Environ()
-	if len(req.EnvOverlay) == 0 {
+	allOverlay := append([]string(nil), envOverlay...)
+	allOverlay = append(allOverlay, planEnvChanges...)
+	if len(allOverlay) == 0 {
 		return base
 	}
-	overlay := make(map[string]string, len(req.EnvOverlay))
-	for _, kv := range req.EnvOverlay {
+	overlay := make(map[string]string, len(allOverlay))
+	for _, kv := range allOverlay {
 		for i := 0; i < len(kv); i++ {
 			if kv[i] == '=' {
 				overlay[kv[:i]] = kv[i+1:]
