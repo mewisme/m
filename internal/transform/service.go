@@ -120,21 +120,45 @@ func (s *Session) Start(ctx context.Context) error {
 	return nil
 }
 
-// serve accepts connections on the listener.
+// serve accepts connections on the listener. Exits when ctx is done,
+// the listener is closed, or idle timeout expires with no active requests.
 func (s *Session) serve(ctx context.Context) {
 	defer s.listener.Close()
 
 	for {
+		if s.idleTimeout > 0 && s.active.Load() == 0 {
+			// Set accept deadline so we can check idle expiry periodically.
+			_ = s.listener.(*net.TCPListener).SetDeadline(time.Now().Add(s.idleTimeout))
+		}
+
 		conn, err := s.listener.Accept()
 		if err != nil {
 			if s.closed.Load() {
 				return
 			}
-			// ponytail: transient accept error → log and continue.
+			// Idle timeout with no active requests: shut down.
+			if s.active.Load() == 0 && isTimeoutErr(err) {
+				return
+			}
+			// ponytail: transient accept error → continue.
 			continue
 		}
+		// Clear deadline so active connections aren't affected.
+		_ = s.listener.(*net.TCPListener).SetDeadline(time.Time{})
 		go s.handleConn(ctx, conn)
 	}
+}
+
+// isTimeoutErr reports whether err is a network timeout.
+func isTimeoutErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	type timeout interface{ Timeout() bool }
+	if t, ok := err.(timeout); ok {
+		return t.Timeout()
+	}
+	return false
 }
 
 // handleConn handles a single TCP connection.

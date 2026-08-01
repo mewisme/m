@@ -133,8 +133,7 @@ func RunScript(ctx context.Context, sup process.ProcessSupervisor, spec RunSpec)
 		code = 1
 	}
 	if code != 0 {
-		return code, apperr.New(apperr.Install, "lifecycle.run", spec.Script.PackageName,
-			fmt.Sprintf("%s script %s failed with exit %d", spec.Script.PackageName, spec.Script.Name, code))
+		return code, &apperr.ExitStatus{Code: code, Err: waitErr}
 	}
 	return 0, nil
 }

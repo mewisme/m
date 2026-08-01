@@ -235,6 +235,11 @@ func (p DLXProvider) Materialize(ctx context.Context, deps ProviderDeps, plan En
 	d := plan.DLXResolved
 	envDir := d.EnvDir
 	if !d.Warm {
+		// Offline mode: refuse to build when network is forbidden.
+		if d.Offline || plan.NetworkRequirement == NetworkRequirementNone {
+			return PreparedEnvironment{}, apperr.New(apperr.Network, "envexec.dlx", d.Resolved.Identity.Digest(),
+				"offline: environment not cached and network is forbidden")
+		}
 		envRelease, err := dlx.AcquireLock(ctx, d.MXCacheRoot, dlx.LockEnvironment, d.Resolved.Identity.Digest())
 		if err != nil {
 			return PreparedEnvironment{}, err
