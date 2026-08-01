@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -47,13 +48,30 @@ func buildTransformContribution(ctx context.Context, cwd, entrypoint string, eff
 			fmt.Errorf("transform service health check: %w", err))
 	}
 
-	// The loader-register.mjs asset is extracted to the runtime cache by
-	// Plan() -> EnsureAssets(). Since its role is "loader-registration"
-	// (Injected()=true), it is automatically added to Node argv via --import.
-	// We only need to pass env overlay (endpoint + token) and cleanup hook.
+	// Discover tsconfig chain for the entrypoint directory.
+	entryDir := filepath.Dir(entrypoint)
+	configPath, tsconfigErr := transform.DiscoverTsconfig(entryDir)
+	var opts transform.NormalizedOptions
+	var optsDigest string
+	if tsconfigErr == nil && configPath != "" {
+		chain, loadErr := transform.LoadTsconfigChain(configPath)
+		if loadErr == nil && len(chain) > 0 {
+			opts = transform.NormalizeOptions(chain)
+			optsDigest = transform.TsconfigChainDigest(chain)
+		}
+	}
+	// tsconfig errors are non-fatal; transforms proceed with default options.
+	optsJSON, _ := json.Marshal(opts)
+
+	// Pass tsconfig options through environment for the Node loader.
+	extraEnv := sess.EnvOverlay()
+	extraEnv = append(extraEnv,
+		"MEW_TRANSFORM_OPTIONS="+string(optsJSON),
+		"MEW_TRANSFORM_OPTS_DIGEST="+optsDigest,
+	)
 
 	return &runtime.LaunchContribution{
-		ExtraEnv:    sess.EnvOverlay(),
+		ExtraEnv:    extraEnv,
 		CleanupHook: func() error { return sess.Close() },
 	}, nil
 }
