@@ -3,20 +3,112 @@
   "fixtureDigest": "runner-basic-scripts-v1",
   "commandVersion": "runner-bench-v1",
   "environment": {
-    "os": "linux",
+    "os": "windows",
     "arch": "amd64",
-    "machineClass": "ci",
+    "machineClass": "dev",
     "goVersion": "go1.24.0",
     "nodeVersion": "v22.0.0"
   },
-  "recordedAt": "2026-07-31T00:00:00Z",
+  "recordedAt": "2026-08-02T00:00:00Z",
   "cases": [
     {
-      "id": "project-script",
+      "id": "project-script-cold",
+      "cacheState": "cold",
+      "description": "m run build on clean project, no cache",
+      "samples": 10,
+      "medianNs": 50000000,
+      "p95Ns": 75000000,
+      "status": "pending-verification"
+    },
+    {
+      "id": "project-script-warm",
+      "cacheState": "warm",
+      "description": "m run build on cached project",
+      "samples": 10,
+      "medianNs": 5000000,
+      "p95Ns": 7500000,
+      "status": "pending-verification"
+    },
+    {
+      "id": "local-exec",
       "cacheState": "project",
+      "description": "m exec eslint on project with local install",
+      "samples": 10,
+      "medianNs": 15000000,
+      "p95Ns": 25000000,
+      "status": "pending-verification"
+    },
+    {
+      "id": "verified-direct-bin",
+      "cacheState": "project",
+      "description": "m exec verified local binary",
+      "samples": 10,
+      "medianNs": 15000000,
+      "p95Ns": 20000000,
+      "status": "pending-verification"
+    },
+    {
+      "id": "workspace-sequential",
+      "cacheState": "cold",
+      "description": "m -r run build --workspace-order sequential on 5-package monorepo",
       "samples": 5,
-      "medianNs": 1000000,
-      "p95Ns": 1500000
+      "medianNs": 200000000,
+      "p95Ns": 300000000,
+      "status": "pending-verification"
+    },
+    {
+      "id": "workspace-parallel",
+      "cacheState": "cold",
+      "description": "m -r run build --workspace-order parallel on 5-package monorepo",
+      "samples": 5,
+      "medianNs": 60000000,
+      "p95Ns": 90000000,
+      "status": "pending-verification"
+    },
+    {
+      "id": "workspace-aggregate",
+      "cacheState": "cold",
+      "description": "m -r run build --workspace-output aggregate on 5-package monorepo",
+      "samples": 5,
+      "medianNs": 70000000,
+      "p95Ns": 100000000,
+      "status": "pending-verification"
+    },
+    {
+      "id": "mx-warm-cache",
+      "cacheState": "warm",
+      "description": "mx prettier . with warm DLX cache",
+      "samples": 10,
+      "medianNs": 3000000,
+      "p95Ns": 5000000,
+      "status": "pending-verification"
+    },
+    {
+      "id": "snapshot-warm",
+      "cacheState": "warm",
+      "description": "m exec --snapshot with warm cached env",
+      "samples": 10,
+      "medianNs": 5000000,
+      "p95Ns": 8000000,
+      "status": "pending-verification"
+    },
+    {
+      "id": "capsule-warm",
+      "cacheState": "warm",
+      "description": "m exec --capsule with warm cached env",
+      "samples": 10,
+      "medianNs": 5000000,
+      "p95Ns": 8000000,
+      "status": "pending-verification"
+    },
+    {
+      "id": "process-supervisor-launch",
+      "cacheState": "cold",
+      "description": "ProcessSupervisor Start+Wait overhead for echo process",
+      "samples": 20,
+      "medianNs": 2000000,
+      "p95Ns": 3500000,
+      "status": "pending-verification"
     }
   ]
 }
