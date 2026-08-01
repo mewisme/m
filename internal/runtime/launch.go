@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -144,14 +143,10 @@ func Launch(ctx context.Context, plan *LaunchPlan, req LaunchRequest) error {
 	if err := supervisor.Wait(ctx, h); err != nil {
 		var exitErr *process.ExitError
 		if errors.As(err, &exitErr) && exitErr != nil {
-			return &apperr.Error{
-				Code:     apperr.RuntimeInvocation,
-				Op:       "runtime.launch",
-				Subject:  plan.Entrypoint,
-				Message:  fmt.Sprintf("node exited with code %d", exitErr.Code),
-				Cause:    err,
-				ExitHint: exitErr.Code,
-			}
+			return &apperr.ExitStatus{Code: exitErr.Code, Err: err}
+		}
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return apperr.Wrap(apperr.Cancelled, "runtime.launch", plan.Entrypoint, context.Canceled)
 		}
 		return apperr.Wrap(apperr.RuntimeInvocation, "runtime.launch", plan.Entrypoint, err)
 	}

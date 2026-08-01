@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -126,10 +125,7 @@ func Exec(ctx context.Context, opts ExecOptions, sup process.ProcessSupervisor) 
 	code := process.ExitCode(waitErr)
 	result := ExecResult{Candidate: found, ExitCode: code}
 	if code != 0 {
-		ae := apperr.New(apperr.Internal, "runner.exec", opts.Command,
-			fmt.Sprintf("binary %s exited with code %d", opts.Command, code))
-		ae.ExitHint = code
-		return result, ae
+		return result, &apperr.ExitStatus{Code: code, Err: waitErr}
 	}
 	if waitErr != nil {
 		return result, apperr.Wrap(apperr.IO, "runner.exec", opts.Command, waitErr)

@@ -193,7 +193,14 @@ drained:
 	close(readyCh)
 	wg.Wait()
 
+	// Determine why we drained: external cancellation vs bail-triggered.
+	externalCancel := ctx.Err() != nil && !bailed
+
 	mu.Lock()
+	notRunStatus := StatusNotRun
+	if externalCancel {
+		notRunStatus = StatusCancelled
+	}
 	for i, r := range results {
 		if r.Status == "" || r.Status == StatusPending {
 			t := sched.Tasks[i]
@@ -202,15 +209,19 @@ drained:
 					Index: t.Index, Path: t.Path, Name: t.Name,
 					Selector: opts.Selector, ProjectRoot: opts.ProjectRoot,
 				},
-				Status: StatusNotRun,
+				Status: notRunStatus,
 			}
-			emitWorkspaceTask(rep, t.Name, opts.Selector, string(StatusNotRun), t.Index, 0)
+			emitWorkspaceTask(rep, t.Name, opts.Selector, string(notRunStatus), t.Index, 0)
 		}
 	}
 	mu.Unlock()
 
 	wsRes := summarizeResults(results, sched.EffectiveConcurrent)
 
+	if externalCancel {
+		wsRes.ExitCode = apperr.ExitForCode(apperr.Cancelled)
+		return wsRes, ctx.Err()
+	}
 	if opts.Bail && triggerErr != nil {
 		wsRes.ExitCode = triggerExit
 		return wsRes, triggerErr

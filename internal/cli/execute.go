@@ -467,6 +467,11 @@ func classifyCLIError(err error) error {
 	if errors.Is(err, context.Canceled) {
 		return apperr.Wrap(apperr.Cancelled, "cli", "", err)
 	}
+	// Child exit errors: preserve exit code, do not wrap as internal failure.
+	var es *apperr.ExitStatus
+	if errors.As(err, &es) {
+		return err
+	}
 	var ae *apperr.Error
 	if errors.As(err, &ae) {
 		return err
