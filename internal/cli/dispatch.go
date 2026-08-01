@@ -226,25 +226,25 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 	case "output":
 		leading.output = value
 	case "debug":
-		leading.debug = true
+		leading.debug = parseBoolValue(value, true)
 	case "no-color":
-		leading.noColor = true
+		leading.noColor = parseBoolValue(value, true)
 	case "unsafe-diagnostics":
-		leading.unsafe = true
+		leading.unsafe = parseBoolValue(value, true)
 	case "cwd":
 		leading.cwd = value
 	case "config":
 		leading.configPath = value
 	case "offline":
-		leading.offline = true
+		leading.offline = parseBoolValue(value, true)
 	case "prefer-offline":
-		leading.preferOffline = true
+		leading.preferOffline = parseBoolValue(value, true)
 	case "filter":
 		leading.filter = append(leading.filter, value)
 	case "recursive":
-		leading.recursive = true
+		leading.recursive = parseBoolValue(value, true)
 	case "if-present":
-		leading.ifPresent = true
+		leading.ifPresent = parseBoolValue(value, true)
 	case "workspace-concurrency":
 		n, err := strconv.Atoi(value)
 		if err != nil {
@@ -259,14 +259,14 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 		leading.wsOutput = value
 		leading.wsOnlyTouched = true
 	case "workspace-bail":
-		leading.wsBail = true
+		leading.wsBail = parseBoolValue(value, true)
 		leading.wsBailSet = true
 		leading.wsOnlyTouched = true
 	case "no-workspace-bail":
 		leading.noWsBail = true
 		leading.wsOnlyTouched = true
 	case "node":
-		leading.node = true
+		leading.node = parseBoolValue(value, true)
 	default:
 		return 0, apperr.New(apperr.Usage, "dispatch", name, fmt.Sprintf("unknown flag %q", name))
 	}
@@ -283,6 +283,20 @@ func needsValue(name string) bool {
 	default:
 		return false
 	}
+}
+
+// parseBoolValue returns the boolean interpretation of a flag value.
+// If no value is given (bare flag), defaultVal is returned.
+// Otherwise "false", "0", "no", "off" map to false; everything else to true.
+func parseBoolValue(value string, defaultVal bool) bool {
+	if value == "" {
+		return defaultVal
+	}
+	switch strings.ToLower(value) {
+	case "false", "0", "no", "off":
+		return false
+	}
+	return true
 }
 
 func splitFlag(arg string) (name, value string, hasValue, inline bool) {

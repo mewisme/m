@@ -411,3 +411,84 @@ func TestDispatchJSONFileRun(t *testing.T) {
 		t.Fatalf("kind=%s, want fileRun", doc.Kind)
 	}
 }
+
+func TestParsePhaseABooleanFalseValues(t *testing.T) {
+	// Phase A parser must match Cobra semantics: --flag=false must set flag to false.
+	tests := []struct {
+		args     []string
+		check    func(leadingDispatchFlags) bool
+		name     string
+	}{
+		{
+			args: []string{"--debug=false", "build"},
+			check: func(l leadingDispatchFlags) bool { return !l.debug },
+			name: "debug=false",
+		},
+		{
+			args: []string{"--debug=true", "build"},
+			check: func(l leadingDispatchFlags) bool { return l.debug },
+			name: "debug=true",
+		},
+		{
+			args: []string{"--debug", "build"},
+			check: func(l leadingDispatchFlags) bool { return l.debug },
+			name: "debug bare (true)",
+		},
+		{
+			args: []string{"--offline=false", "build"},
+			check: func(l leadingDispatchFlags) bool { return !l.offline },
+			name: "offline=false",
+		},
+		{
+			args: []string{"--offline=0", "build"},
+			check: func(l leadingDispatchFlags) bool { return !l.offline },
+			name: "offline=0",
+		},
+		{
+			args: []string{"--offline=no", "build"},
+			check: func(l leadingDispatchFlags) bool { return !l.offline },
+			name: "offline=no",
+		},
+		{
+			args: []string{"--recursive=false", "build"},
+			check: func(l leadingDispatchFlags) bool { return !l.recursive },
+			name: "recursive=false",
+		},
+		{
+			args: []string{"--if-present=false", "build"},
+			check: func(l leadingDispatchFlags) bool { return !l.ifPresent },
+			name: "if-present=false",
+		},
+		{
+			args: []string{"--node=false", "build"},
+			check: func(l leadingDispatchFlags) bool { return !l.node },
+			name: "node=false",
+		},
+		{
+			args: []string{"--workspace-bail=false", "build"},
+			check: func(l leadingDispatchFlags) bool { return !l.wsBail },
+			name: "workspace-bail=false",
+		},
+		{
+			args: []string{"--prefer-offline=false", "build"},
+			check: func(l leadingDispatchFlags) bool { return !l.preferOffline },
+			name: "prefer-offline=false",
+		},
+		{
+			args: []string{"--no-color=false", "build"},
+			check: func(l leadingDispatchFlags) bool { return !l.noColor },
+			name: "no-color=false",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			phase, err := ParsePhaseA(tc.args)
+			if err != nil {
+				t.Fatalf("ParsePhaseA(%v): %v", tc.args, err)
+			}
+			if !tc.check(phase.Leading) {
+				t.Fatalf("unexpected leading flags for %s: %+v", tc.name, phase.Leading)
+			}
+		})
+	}
+}
