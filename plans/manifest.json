@@ -420,8 +420,8 @@
     },
     {
       "path": "status.json",
-      "bytes": 1056,
-      "sha256": "86f4fbf9dbcf75b690440482d84679537fe634b64ce434fe45a3965baab646d4"
+      "bytes": 981,
+      "sha256": "86542d397079ea736d12a6821e04a4d1605df23c03f4f0bf8387cc53621ebaf9"
     },
     {
       "path": "ux/accessibility-evidence.md",
