@@ -46,6 +46,20 @@ const (
 	RuntimeAssetCache   Code = "ERR_M_RUNTIME_ASSET_CACHE"
 	RuntimeNodeStart    Code = "ERR_M_RUNTIME_NODE_START"
 	ChildExit           Code = "ERR_M_CHILD_EXIT"
+	// Transform error codes (0051).
+	TransformSyntax          Code = "ERR_M_TRANSFORM_SYNTAX"
+	TransformUnsupported     Code = "ERR_M_TRANSFORM_UNSUPPORTED"
+	TransformConfigParse     Code = "ERR_M_TRANSFORM_CONFIG_PARSE"
+	TransformConfigExtends   Code = "ERR_M_TRANSFORM_CONFIG_EXTENDS"
+	TransformConfigOption    Code = "ERR_M_TRANSFORM_CONFIG_OPTION"
+	TransformProtocolVersion Code = "ERR_M_TRANSFORM_PROTOCOL_VERSION"
+	TransformAuth            Code = "ERR_M_TRANSFORM_AUTH"
+	TransformFrameSize       Code = "ERR_M_TRANSFORM_FRAME_SIZE"
+	TransformTimeout         Code = "ERR_M_TRANSFORM_TIMEOUT"
+	TransformCancelled       Code = "ERR_M_TRANSFORM_CANCELLED"
+	TransformUnavailable     Code = "ERR_M_TRANSFORM_UNAVAILABLE"
+	TransformCacheCorrupt    Code = "ERR_M_TRANSFORM_CACHE_CORRUPT"
+	TransformEngine          Code = "ERR_M_TRANSFORM_ENGINE"
 )
 
 // registry maps every published code to a process exit status.
@@ -86,6 +100,19 @@ var registry = map[Code]int{
 	RuntimeAssetCache:   1,
 	RuntimeNodeStart:    1,
 	ChildExit:           1, // exit code taken from ExitStatus.ExitCode(), not registry
+	TransformSyntax:          1,
+	TransformUnsupported:     1,
+	TransformConfigParse:     1,
+	TransformConfigExtends:   1,
+	TransformConfigOption:    1,
+	TransformProtocolVersion: 1,
+	TransformAuth:            1,
+	TransformFrameSize:       1,
+	TransformTimeout:         1,
+	TransformCancelled:       130,
+	TransformUnavailable:     1,
+	TransformCacheCorrupt:    1,
+	TransformEngine:          1,
 }
 
 // AllCodes returns registered codes in a stable order for docs and tests.
@@ -99,6 +126,11 @@ func AllCodes() []Code {
 		RuntimeAssetManifest, RuntimeAssetDigest, RuntimeAssetExtract, RuntimeAssetCache,
 		RuntimeNodeStart,
 		ChildExit,
+		TransformSyntax, TransformUnsupported,
+		TransformConfigParse, TransformConfigExtends, TransformConfigOption,
+		TransformProtocolVersion, TransformAuth, TransformFrameSize,
+		TransformTimeout, TransformCancelled, TransformUnavailable,
+		TransformCacheCorrupt, TransformEngine,
 	}
 }
 
