@@ -11,12 +11,18 @@ import (
 )
 
 // Resolve finds the nearest-wins local binary for one importer context.
-func Resolve(opts Options) (binmeta.BinCandidate, error) {
+// ResolveResult is the public return type carrying the candidate and metadata.
+type ResolveResult struct {
+	Candidate    binmeta.BinCandidate
+	UsedFallback bool
+}
+
+func Resolve(opts Options) (ResolveResult, error) {
 	res, err := resolveResult(opts)
 	if err != nil {
-		return binmeta.BinCandidate{}, err
+		return ResolveResult{}, err
 	}
-	return res.Candidate, nil
+	return ResolveResult{Candidate: res.Candidate, UsedFallback: res.UsedFallback}, nil
 }
 
 func resolveResult(opts Options) (Result, error) {

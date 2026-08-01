@@ -52,7 +52,7 @@ func TestResolveVerifiedHit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Command != "hello" || !res.OwnershipVerified {
+	if res.Candidate.Command != "hello" || !res.Candidate.OwnershipVerified {
 		t.Fatalf("%+v", res)
 	}
 }

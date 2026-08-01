@@ -67,7 +67,7 @@ func Exec(ctx context.Context, opts ExecOptions, sup process.ProcessSupervisor) 
 	if nm == "" {
 		nm = filepath.Join(opts.PackageDir, "node_modules")
 	}
-	if err := binresolve.ValidateCandidate(found, nm); err != nil {
+	if err := binresolve.ValidateCandidate(found.Candidate, nm); err != nil {
 		return empty, err
 	}
 	hostEnv := opts.HostEnv
@@ -83,7 +83,7 @@ func Exec(ctx context.Context, opts ExecOptions, sup process.ProcessSupervisor) 
 		Event:       "exec",
 		Script:      opts.Command,
 	})
-	launch, err := binresolve.BuildLaunchSpec(found, opts.ForwardedArgs, hostEnv, env.Dir)
+	launch, err := binresolve.BuildLaunchSpec(found.Candidate, opts.ForwardedArgs, hostEnv, env.Dir)
 	if err != nil {
 		return empty, err
 	}
@@ -119,11 +119,11 @@ func Exec(ctx context.Context, opts ExecOptions, sup process.ProcessSupervisor) 
 	}
 	waitErr := sup.Wait(ctx, h)
 	if errors.Is(ctx.Err(), context.Canceled) {
-		return ExecResult{Candidate: found, ExitCode: process.ExitCode(waitErr)},
+		return ExecResult{Candidate: found.Candidate, UsedFallback: found.UsedFallback, ExitCode: process.ExitCode(waitErr)},
 			apperr.Wrap(apperr.Cancelled, "runner.exec", opts.Command, context.Canceled)
 	}
 	code := process.ExitCode(waitErr)
-	result := ExecResult{Candidate: found, ExitCode: code}
+	result := ExecResult{Candidate: found.Candidate, UsedFallback: found.UsedFallback, ExitCode: code}
 	if code != 0 {
 		return result, &apperr.ExitStatus{Code: code, Err: waitErr}
 	}
