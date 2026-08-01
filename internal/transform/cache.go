@@ -93,8 +93,8 @@ func TryReadCache(cacheDir, key string) (*TransformResult, error) {
 		return nil, fmt.Errorf("reading cache code: %w", codeErr)
 	}
 	if digestBytes(code) != entry.CodeDigest {
-		_ = os.RemoveAll(entryPath + ".*") // ponytail: wildcard cleanup not exact; map+meta may survive.
 		_ = os.Remove(codePath)
+		_ = os.Remove(mapPath)
 		_ = os.Remove(metaPath)
 		return nil, fmt.Errorf("cache code digest mismatch at %s", key)
 	}

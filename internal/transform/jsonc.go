@@ -1,9 +1,15 @@
 package transform
 
-// stripJSONC removes line comments (//) and block comments (/* */) from JSONC,
-// handling strings and escapes. Based on the existing internal/config/stripJSONC
-// pattern but owned by transform to avoid import of config.
+// stripJSONC removes line comments (//), block comments (/* */), and trailing
+// commas from JSONC, handling strings and escapes.
 func stripJSONC(b []byte) []byte {
+	b = stripComments(b)
+	b = stripTrailingCommas(b)
+	return b
+}
+
+// stripComments removes // and /* */ comments from b.
+func stripComments(b []byte) []byte {
 	out := make([]byte, 0, len(b))
 	i := 0
 	n := len(b)
@@ -64,6 +70,50 @@ func stripJSONC(b []byte) []byte {
 			out = append(out, c)
 			i++
 		}
+	}
+	return out
+}
+
+// stripTrailingCommas removes commas immediately before } or ] (with optional whitespace).
+func stripTrailingCommas(b []byte) []byte {
+	out := make([]byte, 0, len(b))
+	i := 0
+	n := len(b)
+	for i < n {
+		c := b[i]
+
+		// Track strings to avoid stripping commas inside string literals.
+		if c == '"' {
+			out = append(out, c)
+			i++
+			for i < n {
+				ch := b[i]
+				out = append(out, ch)
+				i++
+				if ch == '\\' && i < n {
+					out = append(out, b[i])
+					i++
+				} else if ch == '"' {
+					break
+				}
+			}
+			continue
+		}
+
+		if c == ',' {
+			// Check if next non-whitespace char is } or ].
+			j := i + 1
+			for j < n && (b[j] == ' ' || b[j] == '\t' || b[j] == '\n' || b[j] == '\r') {
+				j++
+			}
+			if j < n && (b[j] == '}' || b[j] == ']') {
+				// Skip the trailing comma.
+				i = j
+				continue
+			}
+		}
+		out = append(out, c)
+		i++
 	}
 	return out
 }
