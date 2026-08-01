@@ -58,6 +58,7 @@ type TransformRequestV2 struct {
 	OptsDigest   string `json:"opts_digest"`
 	NodeMajor    int    `json:"node_major"`
 	SourceMap    string `json:"source_map"` // "none", "inline", "external"
+	CancelToken  string `json:"cancel_token,omitempty"` // ID used by OpCancel to cancel this request
 }
 
 // Validate checks required fields and limits.
