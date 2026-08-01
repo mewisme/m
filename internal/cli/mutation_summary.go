@@ -61,20 +61,9 @@ func formatInstalledTitle(result app.InstallResult) string {
 		n = result.Added + result.Changed
 	}
 	if result.DurationMs > 0 {
-		return fmt.Sprintf("Installed %d packages in %s", n, formatSummaryDuration(result.DurationMs))
+		return fmt.Sprintf("Installed %d packages in %s", n, presentation.FormatDuration(result.DurationMs))
 	}
 	return fmt.Sprintf("Installed %d packages", n)
-}
-
-func formatSummaryDuration(ms int64) string {
-	if ms < 1000 {
-		return fmt.Sprintf("%dms", ms)
-	}
-	sec := float64(ms) / 1000
-	if sec < 10 {
-		return fmt.Sprintf("%.1fs", sec)
-	}
-	return fmt.Sprintf("%.0fs", sec)
 }
 
 func installMetrics(result app.InstallResult) []presentation.KeyValue {
@@ -93,7 +82,7 @@ func installMetrics(result app.InstallResult) []presentation.KeyValue {
 		rows = append(rows, presentation.KeyValue{Key: "Scripts", Value: strconv.Itoa(result.ScriptsRun), Style: presentation.ValueNumber})
 	}
 	if result.DurationMs > 0 {
-		rows = append(rows, presentation.KeyValue{Key: "Duration", Value: formatSummaryDuration(result.DurationMs), Style: presentation.ValueMuted})
+		rows = append(rows, presentation.KeyValue{Key: "Duration", Value: presentation.FormatDuration(result.DurationMs), Style: presentation.ValueMuted})
 	}
 	return rows
 }

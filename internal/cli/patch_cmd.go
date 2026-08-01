@@ -7,6 +7,7 @@ import (
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/presentation"
 )
 
 func newPatchCmd() *cobra.Command {
@@ -33,12 +34,18 @@ func newPatchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			g := ownerFlags(cmd.Root())
+			r := g.mustStaticRenderer(cmd)
 			if commit {
-				_, err = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s\n", result.PatchPath)
-				return err
+				return writeStaticOut(cmd, r.Status(presentation.StatusLine{
+					Status: presentation.StatusSuccess,
+					Text:   fmt.Sprintf("wrote %s", result.PatchPath),
+				}))
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", result.EditDir)
-			return err
+			return writeStaticOut(cmd, r.Status(presentation.StatusLine{
+				Status: presentation.StatusInfo,
+				Text:   result.EditDir,
+			}))
 		},
 	}
 	cmd.Flags().StringVar(&editDir, "edit-dir", "", "directory to extract the package for editing")

@@ -62,7 +62,7 @@ func RenderCompletionSummary(s CompletionSummary, settings EffectiveSettings) st
 	b.WriteString(verb)
 	if s.Duration > 0 {
 		b.WriteString(" in ")
-		b.WriteString(formatDuration(s.Duration))
+		b.WriteString(FormatDuration(s.Duration.Milliseconds()))
 	}
 	return b.String()
 }
@@ -81,21 +81,6 @@ func WriteCompletionSummary(w io.Writer, ensureNL bool, s CompletionSummary, set
 		_, _ = io.WriteString(w, "\n")
 	}
 	_, _ = fmt.Fprintln(w, line)
-}
-
-func formatDuration(d time.Duration) string {
-	if d < time.Second {
-		ms := d.Milliseconds()
-		if ms < 1 {
-			ms = 1
-		}
-		return fmt.Sprintf("%dms", ms)
-	}
-	sec := d.Seconds()
-	if sec < 10 {
-		return fmt.Sprintf("%.1fs", sec)
-	}
-	return fmt.Sprintf("%.0fs", sec)
 }
 
 // AttrRowsToKeyValues maps diagnostics attrs to presentation rows.

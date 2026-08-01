@@ -104,14 +104,10 @@ func selectProgressSink(resolved ResolvedOptions, caps Capabilities, settings Ef
 		return nil, nil
 	}
 
-	// Rich output: use live renderer on TTY, static-rich otherwise.
+	// Rich output: use activity renderer on TTY, static-rich otherwise.
 	if resolved.Output == OutputRich {
 		if caps.StderrTTY {
-			live, err := NewLiveInstallRenderer(errW, settings)
-			if err != nil {
-				return NewStaticRichProgressRenderer(errW, settings), nil
-			}
-			return live, nil
+			return NewActivityProgressRenderer(errW, settings), nil
 		}
 		return NewStaticRichProgressRenderer(errW, settings), nil
 	}

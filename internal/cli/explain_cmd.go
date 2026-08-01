@@ -9,6 +9,7 @@ import (
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
+	"github.com/mewisme/mew/internal/presentation"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/resolver"
 )
@@ -16,10 +17,11 @@ import (
 func newExplainCmd() *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
-		Use:   "explain [name]",
-		Short: "Explain resolution decisions",
-		Long:  "Explain version selection for a package, or use `explain peer` for unsatisfied peer dependencies.",
-		Args:  cobra.MaximumNArgs(1),
+		Use:     "explain [name]",
+		Short:   "Explain resolution decisions",
+		Aliases: []string{"why"},
+		Long:    "Explain version selection for a package, or use `explain peer` for unsatisfied peer dependencies.",
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return cmd.Help()
@@ -80,8 +82,11 @@ func newExplainPeerCmd() *cobra.Command {
 				return err
 			}
 			if tree == nil {
-				_, err = fmt.Fprintf(cmd.OutOrStdout(), "no peer conflict for %q\n", args[0])
-				return err
+				g := ownerFlags(cmd.Root())
+				return writeStaticOut(cmd, g.mustStaticRenderer(cmd).Status(presentation.StatusLine{
+					Status: presentation.StatusInfo,
+					Text:   fmt.Sprintf("no peer conflict for %q", args[0]),
+				}))
 			}
 			if asJSON {
 				enc := json.NewEncoder(cmd.OutOrStdout())

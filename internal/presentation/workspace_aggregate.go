@@ -225,7 +225,7 @@ func formatTaskRow(row *WorkspaceTaskRow, settings EffectiveSettings) string {
 	}
 	if row.Duration > 0 && (row.Status == "done" || row.Status == "fail") {
 		b.WriteByte(' ')
-		b.WriteString(formatDuration(row.Duration))
+		b.WriteString(FormatDuration(row.Duration.Milliseconds()))
 	}
 	return b.String()
 }

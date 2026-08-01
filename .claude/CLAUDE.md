@@ -154,75 +154,92 @@ Then verify: if the reader reads only the first line and the last line, do they 
 If yes, send.
 <!-- I-HAVE-ADHD_END -->
 
-
-<!-- PONYTAIL_START -->
-# Ponytail, lazy senior dev mode
-
-You are a lazy senior developer. Lazy means efficient, not careless. The best code is the code never written.
-
-Before writing any code, stop at the first rung that holds:
-
-1. Does this need to be built at all? (YAGNI)
-2. Does it already exist in this codebase? Reuse the helper, util, or pattern that's already here, don't re-write it.
-3. Does the standard library already do this? Use it.
-4. Does a native platform feature cover it? Use it.
-5. Does an already-installed dependency solve it? Use it.
-6. Can this be one line? Make it one line.
-7. Only then: write the minimum code that works.
-
-The ladder runs after you understand the problem, not instead of it: read the task and the code it touches, trace the real flow end to end, then climb.
-
-Bug fix = root cause, not symptom: a report names a symptom. Grep every caller of the function you touch and fix the shared function once — one guard there is a smaller diff than one per caller, and patching only the path the ticket names leaves a sibling caller still broken.
-
-Rules:
-
-- No abstractions that weren't explicitly requested.
-- No new dependency if it can be avoided.
-- No boilerplate nobody asked for.
-- Deletion over addition. Boring over clever. Fewest files possible.
-- Shortest working diff wins, but only once you understand the problem. The smallest change in the wrong place isn't lazy, it's a second bug.
-- Question complex requests: "Do you actually need X, or does Y cover it?"
-- Pick the edge-case-correct option when two stdlib approaches are the same size, lazy means less code, not the flimsier algorithm.
-- Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) with a `ponytail:` comment naming the ceiling and upgrade path.
-
-Not lazy about: understanding the problem (read it fully and trace the real flow before picking a rung, a small diff you don't understand is just laziness dressed up as efficiency), input validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs (the platform is never the spec ideal, a clock drifts, a sensor reads off), anything explicitly requested. Lazy code without its check is unfinished: non-trivial logic leaves ONE runnable check behind, the smallest thing that fails if the logic breaks (an assert-based demo/self-check or one small test file; no frameworks, no fixtures). Trivial one-liners need no test.
-<!-- PONYTAIL_END -->
-<!-- POWERSHELL_START -->
-# PowerShell shell commands
-
-The default shell is PowerShell. Every shell command you run must be valid PowerShell — never bash, sh, or zsh.
-
-## Hard rules
-
-1. Chain with `;`, `if` / `-and` / `-or`, or pipelines. Never `&&` or `||`.
-2. Environment variables: `$env:NAME`. Never `$NAME` alone or `export NAME=...`.
-3. Paths: use `Join-Path`, quoted paths, or backslash-safe strings. Do not assume `/` Unix layout.
-4. Existence / conditionals: `Test-Path`, `if (...) { }`. Never `[ -f ]`, `[[ ]]`, or `test`.
-5. Multiline strings (commit messages, scripts): PowerShell here-strings `@" ... "@`.
-6. Prefer cmdlets when clarity matters: `Get-ChildItem`, `Remove-Item`, `Copy-Item`, `Select-Object`, `Get-Content`, `Set-Content`.
-
-## Bad → good
-
-```text
-# BAD                          # GOOD
-cmd1 && cmd2                   cmd1; if ($LASTEXITCODE -eq 0) { cmd2 }
-export FOO=bar                 $env:FOO = "bar"
-echo $HOME                     echo $env:USERPROFILE
-[ -f a.txt ] && cat a.txt      if (Test-Path a.txt) { Get-Content a.txt }
-rm -rf build                   Remove-Item -Recurse -Force build
-ls | head -n 5                 Get-ChildItem | Select-Object -First 5
-```
-
-Before sending a shell command, rewrite any bash-isms into PowerShell.
-<!-- POWERSHELL_END -->
-
-
 ## Project essentials
 
-Module: `github.com/mewisme/mew` — Go 1.26.5+
-Product: **MewJS** (short: **Mew**). Binaries: `m` (primary), `mx` (package runner).
-Lockfile: `m.lock` (native), `nub.lock` (compat). Behavioral reference: **Nub**.
+Module: `github.com/mewisme/mew` — Go 1.26.5+. Product: **MewJS** (short: **Mew**). Binaries: `m` (primary), `mx` (package runner). Lockfile: `m.lock` (native), `nub.lock` (compat). Behavioral reference: **Nub** (Go-native architecture, not a Rust port).
 
-Build/test/lint commands: `AGENTS.md` §6, `docs/testing.md`, `Makefile`.
-Architecture: `docs/architecture/package-map.md` (authoritative package listing).
-Key docs: `docs/charter.md`, `docs/engineering.md`, `docs/errors.md`, `docs/testing.md`.
+Authoritative architecture: [`docs/architecture/package-map.md`](docs/architecture/package-map.md). Key docs: `docs/charter.md`, `docs/engineering.md`, `docs/errors.md`, `docs/testing.md`, `docs/architecture/forbidden-imports.md`.
+
+### Build, test, lint
+
+```powershell
+# Build
+CGO_ENABLED=0 go build -o bin/m.exe ./cmd/m
+CGO_ENABLED=0 go build -o bin/mx.exe ./cmd/mx
+
+# Test (hermetic — never hits public npm)
+go test ./... -count=1                    # all hermetic tests
+go test -tags crash ./tests/integration/... -run Crash -count=1 -timeout 30m
+
+# Single package / test
+go test ./internal/resolver/... -count=1
+go test ./internal/resolver/... -run TestIncrementalDiff -count=1
+
+# Vet + lint
+go vet ./...
+golangci-lint run ./...                   # config: .golangci.yml
+
+# Race (requires CGO)
+$env:CGO_ENABLED = "1"
+go test -race ./internal/transaction/... ./internal/store/... ./internal/resolver/... -count=1
+
+# Fuzz smoke
+python3 tools/fuzz_smoke.py
+
+# Conformance
+go test ./tests/conformance/... -count=1
+
+# Vulnerability + dependency allowlist
+govulncheck ./...
+go run ./tools/check-license
+go run ./tools/check-deps
+```
+
+### Architecture
+
+Four-layer dependency direction. Presentation must not own domain logic. Domain resolves a complete immutable graph before any mutation.
+
+| Layer | Packages | Owns |
+|---|---|---|
+| Entry | `cmd/m`, `cmd/mx` | Process exit codes only. May only import `internal/app`, `internal/cli`, stdlib. |
+| Presentation | `internal/cli`, `internal/app` | Parsing, dispatch, orchestration, user output |
+| Domain | `manifest`, `project`, `workspace`, `registry`, `resolver`, `lockfile`, `graph`, `plan`, `snapshot`, `capsule`, `policy` | Read/plan models. Free of network/mutate. |
+| Mutation | `fetch`, `archive`, `store`, `linker`, `transaction` | Staged filesystem changes |
+| Runtime | `runner`, `process`, `runtime`, `transform`, `node` | Execution and Node launch. Free of PM engine. |
+
+Key import rules enforced by `internal/archcheck`:
+- `internal/resolver` must not import `linker`, `transaction`, `fetch`, `store` (resolve-complete-before-mutate)
+- Domain packages must not import `internal/presentation` or Charm (`charm.land/*`, `github.com/charmbracelet/*`)
+- `internal/config`, `internal/project` stay free of mutate path
+- `internal/graph`, `plan`, `snapshot`, `manifest`, `policy`, `capsule` stay free of network/mutate
+
+Full rules: [`docs/architecture/forbidden-imports.md`](docs/architecture/forbidden-imports.md).
+
+### Transaction boundary
+
+Every install-family mutation follows this pipeline. Previous manifest, lockfile, and `node_modules` remain usable until commit. On failure before `committed`, rollback restores pre-mutation state.
+
+```
+inspect → resolve → plan → fetch → verify → stage → validate → plan journal
+  → backup → commit (all live publishes) → post-commit cleanup
+  ↘ rollback on failure (before committed)
+```
+
+Single mutation entrypoint: `BeginMutation` acquires project lock at `.mew/txn/lock`, runs idempotent recovery, refuses to begin when incomplete journals remain. `BeginMutationSession` wraps this for install-family commands — live reads only after lock acquisition.
+
+Full docs: [`docs/architecture/transaction-boundary.md`](docs/architecture/transaction-boundary.md).
+
+### Error codes
+
+Pattern: `ERR_M_<DOMAIN>_<DETAIL>`. Every public failure returns `*apperr.Error` (or wraps into one at CLI boundary). Package: `internal/apperr` (`New`, `Wrap`, `CodeOf`, `ExitCode`). Stable codes: `ERR_M_USAGE` (2), `ERR_M_CANCELLED` (130), `ERR_M_TRANSACTION`, `ERR_M_INTEGRITY`, `ERR_M_RESOLVE`, `ERR_M_LOCKFILE`, `ERR_M_STORE`, `ERR_M_POLICY`, etc. Unknown codes → exit 1. Full registry: [`docs/errors.md`](docs/errors.md).
+
+### Engineering conventions
+
+- **Hermetic tests only.** Never hit public npm. Fixture registry at `fixtures/registry/v1/` with SHA-256 manifest. `testkit.CleanEnv`/`TempHome` isolates home dirs.
+- **errcheck** on all resource cleanup. `defer func() { _ = f.Close() }()`. `fmt.Print*` excluded (broken pipe not recoverable).
+- **Dependency allowlist** at `tools/allowlist/modules.txt` — update in same PR as new deps. Prefer stdlib.
+- **Tool versions** pinned in `tools/versions.env`. No floating `latest` in CI.
+- **Experimental features** behind `MEW_EXPERIMENTAL_<NAME>=1` or `--experimental-<name>` flags.
+- **Crash tests** use `crash` build tag, excluded from default `go test ./...`. Use `-tags crash`.
+- **CGO_ENABLED=0** for production builds. Race tests are the only CGO exception.
+- **Fixtures** are source-of-truth. Never mutate checked-in fixtures from tests — copy via `testkit.CopyFixture`.

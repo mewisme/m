@@ -40,15 +40,12 @@ func TestPlainProgressDiscardWriter(t *testing.T) {
 	_ = p.Close()
 }
 
-func TestLiveInstallRendererBrokenPipeClose(t *testing.T) {
+func TestActivityProgressRendererBrokenPipeClose(t *testing.T) {
 	w := &errWriter{}
 	settings := presentation.EffectiveSettings{Width: 80, Symbols: presentation.ASCIISymbols}
-	r, err := presentation.NewLiveInstallRenderer(w, settings)
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := presentation.NewActivityProgressRenderer(w, settings)
 	r.OperationStarted(diagnostics.OperationStartedEvent{ID: "a", Kind: "resolve", Label: "resolve"})
-	// Close must return even if the program observed write errors.
+	// Close must return even after write errors.
 	_ = r.Close()
 	_ = r.Close()
 }
