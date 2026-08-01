@@ -20,7 +20,10 @@ func TestEveryCodeHasExit(t *testing.T) {
 		if c == apperr.Cancelled && n != 130 {
 			t.Errorf("%s: want exit 130, got %d", c, n)
 		}
-		if c != apperr.OK && c != apperr.Usage && c != apperr.Cancelled && n != 1 {
+		if c == apperr.TransformCancelled && n != 130 {
+			t.Errorf("%s: want exit 130, got %d", c, n)
+		}
+		if c != apperr.OK && c != apperr.Usage && c != apperr.Cancelled && c != apperr.TransformCancelled && n != 1 {
 			t.Errorf("%s: want exit 1, got %d", c, n)
 		}
 	}

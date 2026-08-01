@@ -179,7 +179,7 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 			if err := req.Validate(); err != nil {
 				_ = EncodeFrame(conn, TransformResponseV2{
 					V: ProtocolVersion, ID: req.ID, OK: false,
-					ErrCode: "ERR_M_TRANSFORM_INVALID", Error: err.Error(),
+					ErrCode: string(apperr.Usage), Error: err.Error(),
 				})
 				continue
 			}
@@ -216,7 +216,7 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 	case <-reqCtx.Done():
 		_ = EncodeFrame(conn, TransformResponseV2{
 			V: ProtocolVersion, ID: req.ID, OK: false,
-			ErrCode: string(apperr.Timeout), Error: "service overloaded",
+			ErrCode: string(apperr.TransformTimeout), Error: "service overloaded",
 		})
 		return
 	}
@@ -230,7 +230,7 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 		if err := json.Unmarshal([]byte(req.Options), &opts); err != nil {
 			_ = EncodeFrame(conn, TransformResponseV2{
 				V: ProtocolVersion, ID: req.ID, OK: false,
-				ErrCode: string(apperr.Config), Error: fmt.Sprintf("invalid options: %v", err),
+				ErrCode: string(apperr.TransformConfigOption), Error: fmt.Sprintf("invalid options: %v", err),
 			})
 			return
 		}
@@ -291,7 +291,7 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 		if reqCtx.Err() != nil {
 			_ = EncodeFrame(conn, TransformResponseV2{
 				V: ProtocolVersion, ID: req.ID, OK: false,
-				ErrCode: string(apperr.Timeout), Error: "transform timeout",
+				ErrCode: string(apperr.TransformTimeout), Error: "transform timeout",
 			})
 			return
 		}
