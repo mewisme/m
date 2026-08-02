@@ -20,7 +20,7 @@ import (
 // userScopedKeys are config keys that can only be written to user config,
 // never project config. Attempting --local for these keys is rejected.
 var userScopedKeys = map[string]bool{
-	"ui.markdown_theme": true,
+	"ui.theme": true,
 }
 
 func newConfigCmd(g *globalFlags) *cobra.Command {

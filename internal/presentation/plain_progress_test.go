@@ -96,7 +96,7 @@ func TestControllerAttachesPlainProgress(t *testing.T) {
 	}
 	ctrl, err := presentation.NewController(resolved, testkit.PipeCapabilities(), presentation.StreamWriters{
 		Out: bytes.NewBuffer(nil), Err: &errb,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestControllerProgressNeverSuppressesPhaseLines(t *testing.T) {
 	}
 	ctrl, err := presentation.NewController(resolved, testkit.PipeCapabilities(), presentation.StreamWriters{
 		Out: bytes.NewBuffer(nil), Err: &errb,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

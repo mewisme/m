@@ -69,7 +69,7 @@ func TestCLIUXAccessibleNoANSI(t *testing.T) {
 		t.Fatalf("accessible output=%s want rich", resolved.Output)
 	}
 	caps := testkit.PipeCapabilities()
-	settings := presentation.Effective(resolved, caps)
+	settings := presentation.Effective(resolved, caps, nil)
 	if settings.UseColor {
 		t.Fatal("accessible must not use color")
 	}
@@ -107,7 +107,7 @@ func TestCLIUXProgressNotOnStdout(t *testing.T) {
 	}
 	ctrl, err := presentation.NewController(resolved, testkit.PipeCapabilities(), presentation.StreamWriters{
 		Out: &out, Err: &errb,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestCLIUXControllerCleanup(t *testing.T) {
 	}
 	ctrl, err := presentation.NewController(resolved, testkit.PipeCapabilities(), presentation.StreamWriters{
 		Out: bytes.NewBuffer(nil), Err: &errb,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -94,7 +94,7 @@ var ownedKeys = map[string]string{
 	"runner.mx.cache.dir":            "string",
 	"provenance.trusted_public_key":  "string",
 	"ui.pager":                       "string",
-	"ui.markdown_theme":              "string",
+	"ui.theme":                       "string",
 	"log.level":                      "string",
 }
 
@@ -104,7 +104,7 @@ var allowedValuesByKey = map[string]string{
 	"install.linker":         "auto|hoisted|isolated",
 	"lifecycle.script_trust": "allow|deny|ask",
 	"log.level":              "error|warn|info|debug",
-	"ui.markdown_theme":      "dark|light|dracula|tokyo-night|notty",
+	"ui.theme":               "auto|light|dark",
 }
 
 // AllowedValues returns the pipe-joined settable values for key, or "" when free-form.
@@ -153,9 +153,9 @@ func defaults() map[string]any {
 		"workspaces.enabled":             false,
 		"runner.mx.cache.retention_days": 7,
 		"runner.mx.cache.dir":            "",
-		"ui.pager":                       "",
-		"ui.markdown_theme":              "dark",
-		"log.level":                      "error",
+		"ui.pager":  "",
+		"ui.theme":  "auto",
+		"log.level": "error",
 	}
 }
 
@@ -423,11 +423,11 @@ func validateKeyValue(key string, v any) error {
 				return fmt.Errorf("lifecycle.script_trust: want allow|deny|ask")
 			}
 		}
-		if key == "ui.markdown_theme" {
+		if key == "ui.theme" {
 			switch s {
-			case "dark", "light", "dracula", "tokyo-night", "notty", "":
+			case "auto", "light", "dark", "":
 			default:
-				return fmt.Errorf("ui.markdown_theme: want dark|light|dracula|tokyo-night|notty")
+				return fmt.Errorf("ui.theme: want auto|light|dark")
 			}
 		}
 	case "bool":

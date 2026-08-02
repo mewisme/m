@@ -21,7 +21,7 @@ func TestControllerSuspendStopsWorkspaceStatus(t *testing.T) {
 	ctrl, err := presentation.NewController(resolved, caps, presentation.StreamWriters{
 		Out: bytes.NewBuffer(nil),
 		Err: &errBuf,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
