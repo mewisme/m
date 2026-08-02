@@ -4,18 +4,18 @@ import "github.com/mewisme/mew/internal/diagnostics"
 
 // ResolvedOptions is the immutable presentation configuration for one invocation.
 type ResolvedOptions struct {
-	Output        OutputMode
-	Color         bool
-	Progress      bool
-	Unicode       bool
-	Accessible    bool
-	Summary       bool
+	Output     OutputMode
+	Color      bool
+	Progress   bool
+	Unicode    bool
+	Accessible bool
+	Summary    bool
 	Theme      string // configured ui.theme value: "auto", "light", "dark", or ""
 	LogLevel   LogLevel
-	Debug         bool
-	Unsafe        bool
-	TermWidth     int
-	BinaryName    string // "m", "mew", "mx", "mewx"
+	Debug      bool
+	Unsafe     bool
+	TermWidth  int
+	BinaryName string // "m", "mew", "mx", "mewx"
 }
 
 // ReporterFormat maps effective output to diagnostics reporter format names.

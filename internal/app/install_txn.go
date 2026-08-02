@@ -142,8 +142,8 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	installStart := time.Now()
 	defer func() {
 		d := time.Since(installStart)
-	res.DurationMs = d.Milliseconds()
-	res.DurationNs = d.Nanoseconds()
+		res.DurationMs = d.Milliseconds()
+		res.DurationNs = d.Nanoseconds()
 	}()
 
 	proj, err := sess.ReopenProject(ctx)

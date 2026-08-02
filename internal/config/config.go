@@ -153,9 +153,9 @@ func defaults() map[string]any {
 		"workspaces.enabled":             false,
 		"runner.mx.cache.retention_days": 7,
 		"runner.mx.cache.dir":            "",
-		"ui.pager":  "",
-		"ui.theme":  "auto",
-		"log.level": "error",
+		"ui.pager":                       "",
+		"ui.theme":                       "auto",
+		"log.level":                      "error",
 	}
 }
 
