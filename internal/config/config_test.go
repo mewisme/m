@@ -130,7 +130,7 @@ func TestSetFileDurablePublish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(b), `"prefer-offline": true`) || !strings.Contains(string(b), `"offline": true`) {
+	if !strings.Contains(string(b), `"prefer_offline": true`) || !strings.Contains(string(b), `"offline": true`) {
 		t.Fatalf("contents after second set:\n%s", b)
 	}
 }

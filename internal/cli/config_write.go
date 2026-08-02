@@ -11,61 +11,67 @@ import (
 	"github.com/mewisme/mew/internal/project"
 )
 
-type configWriteScope string
+// configScope is the target scope for config commands.
+type configScope string
 
 const (
-	configWriteUser    configWriteScope = "user"
-	configWriteProject configWriteScope = "project"
-	configWriteFile    configWriteScope = "file"
+	configScopeUser      configScope = "user"
+	configScopeProject   configScope = "project"
+	configScopeEffective configScope = "effective"
 )
 
+// configWriteTarget bundles scope and resolved file path.
 type configWriteTarget struct {
-	Scope configWriteScope
+	Scope configScope
 	Path  string
 }
 
-type configWriteOptions struct {
-	Local, Global bool
-	File, CWD     string
-}
-
+// configWriteFlags holds the --scope flag shared by write commands.
 type configWriteFlags struct {
-	local, global bool
-	file          string
+	scope string
 }
 
 func (f *configWriteFlags) bind(cmd *cobra.Command) {
-	cmd.Flags().BoolVar(&f.local, "local", false, "write project-root m.jsonc")
-	cmd.Flags().StringVar(&f.file, "file", "", "write exact config file path")
-	cmd.Flags().BoolVar(&f.global, "global", false, "write user config (deprecated; default)")
-	_ = cmd.Flags().MarkDeprecated("global", "user scope is the default; omit --global")
+	cmd.Flags().StringVar(&f.scope, "scope", "user",
+		"config scope: user or project (effective is read-only)")
 }
 
-func (f *configWriteFlags) options(g *globalFlags) configWriteOptions {
-	return configWriteOptions{
-		Local:  f.local,
-		Global: f.global,
-		File:   f.file,
-		CWD:    g.cwd,
+func (f *configWriteFlags) resolvedScope() configScope {
+	switch f.scope {
+	case "user", "":
+		return configScopeUser
+	case "project":
+		return configScopeProject
+	default:
+		return configScope(f.scope)
 	}
 }
 
-// resolveConfigWriteTarget picks the user, project, or explicit file write path.
-func resolveConfigWriteTarget(opts configWriteOptions) (configWriteTarget, error) {
-	hasLocal := opts.Local
-	hasFile := opts.File != ""
-	hasGlobal := opts.Global
-
-	if hasGlobal && (hasLocal || hasFile) {
-		return configWriteTarget{}, apperr.New(apperr.Usage, "config.write", "",
-			"--global cannot be combined with --local or --file")
+func (f *configWriteFlags) validateWritable() error {
+	switch f.resolvedScope() {
+	case configScopeUser, configScopeProject:
+		return nil
+	case configScopeEffective:
+		return apperr.New(apperr.Usage, "config.write", f.scope,
+			"effective scope is read-only; use --scope user or --scope project")
+	default:
+		return apperr.New(apperr.Usage, "config.write", f.scope,
+			"invalid scope: must be user, project, or effective")
 	}
-	if hasLocal && hasFile {
-		return configWriteTarget{}, apperr.New(apperr.Usage, "config.write", "",
-			"--local and --file are mutually exclusive")
-	}
+}
 
-	cwd := opts.CWD
+func (f *configWriteFlags) validateScope() error {
+	switch f.resolvedScope() {
+	case configScopeUser, configScopeProject, configScopeEffective:
+		return nil
+	default:
+		return apperr.New(apperr.Usage, "config", f.scope,
+			"invalid scope: must be user, project, or effective")
+	}
+}
+
+// resolveConfigWriteTarget resolves the file path for a writable scope.
+func resolveConfigWriteTarget(scope configScope, cwd string) (configWriteTarget, error) {
 	if cwd == "" {
 		var err error
 		cwd, err = os.Getwd()
@@ -74,33 +80,37 @@ func resolveConfigWriteTarget(opts configWriteOptions) (configWriteTarget, error
 		}
 	}
 
-	if hasFile {
-		path, err := config.ResolveConfigPath(cwd, opts.File)
-		if err != nil {
-			return configWriteTarget{}, apperr.Wrap(apperr.Usage, "config.write", opts.File, err)
-		}
-		if st, err := os.Stat(path); err == nil && st.IsDir() {
-			return configWriteTarget{}, apperr.New(apperr.IO, "config.write", path, "path is a directory")
-		}
-		return configWriteTarget{Scope: configWriteFile, Path: path}, nil
-	}
-
-	if hasLocal {
+	switch scope {
+	case configScopeUser:
+		return configWriteTarget{
+			Scope: configScopeUser,
+			Path:  config.GlobalConfigPath(),
+		}, nil
+	case configScopeProject:
 		root, err := project.FindRoot(cwd)
 		if err != nil {
 			return configWriteTarget{}, err
 		}
 		return configWriteTarget{
-			Scope: configWriteProject,
+			Scope: configScopeProject,
 			Path:  filepath.Join(root, "m.jsonc"),
 		}, nil
+	default:
+		return configWriteTarget{}, apperr.New(apperr.Usage, "config.write", string(scope),
+			"scope is not writable")
 	}
+}
 
-	// Default and deprecated --global: ambient user config path.
-	return configWriteTarget{
-		Scope: configWriteUser,
-		Path:  config.GlobalConfigPath(),
-	}, nil
+// resolveEffectivePaths returns the ordered file paths that participate in effective resolution.
+func resolveEffectivePaths(cwd string) (userPath, projectPath string) {
+	userPath = config.GlobalConfigPath()
+	if cwd == "" {
+		cwd, _ = os.Getwd()
+	}
+	if root, err := project.FindRoot(cwd); err == nil {
+		projectPath = filepath.Join(root, "m.jsonc")
+	}
+	return
 }
 
 func displayConfigSource(src config.Source) string {

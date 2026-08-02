@@ -175,7 +175,7 @@ func newDownloader(ac *Context) (*fetch.Downloader, error) {
 		StagingDir:    staging,
 		Workers:       fetch.DefaultWorkers(),
 		Offline:       config.Bool(ac.Config, "offline", false),
-		PreferOffline: config.Bool(ac.Config, "prefer-offline", false),
+		PreferOffline: config.Bool(ac.Config, "prefer_offline", false),
 	}, nil
 }
 
