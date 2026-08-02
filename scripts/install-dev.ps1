@@ -31,9 +31,9 @@ if ($detect.Emulated) {
 Write-DevInstallStage check 'validating prerequisites'
 Test-DevInstallGo
 Test-DevInstallRepo
-Resolve-DevInstallMetadata -VersionOverride $Version
-$dirtyLabel = if ($script:DevInstallDirty) { '+dirty' } else { '' }
-Write-DevInstallStage check "version=$script:DevInstallVersion$dirtyLabel commit=$script:DevInstallShortCommit target=$script:DevInstallTargetGoOS/$script:DevInstallTargetGoArch"
+$metadata = Resolve-DevInstallMetadata -VersionOverride $Version
+$dirtyLabel = if ($metadata.Dirty) { '+dirty' } else { '' }
+Write-DevInstallStage check "version=$($metadata.Version)$dirtyLabel commit=$($metadata.ShortCommit) target=$($metadata.TargetOS)/$($metadata.TargetArch)"
 
 Invoke-DevInstallBuild
 

@@ -15,6 +15,8 @@ $DevInstallTargetGoOS = ''
 $DevInstallTargetGoArch = ''
 $DevInstallVersion = ''
 $DevInstallCommit = ''
+$DevInstallShortCommit = ''
+$DevInstallDirty = $false
 $DevInstallBuildDate = ''
 $DevInstallInstallDir = ''
 $DevInstallCompletionBase = ''
@@ -153,6 +155,16 @@ function Resolve-DevInstallMetadata {
     finally {
         Pop-Location
     }
+
+    return [pscustomobject]@{
+        Version     = $script:DevInstallVersion
+        Commit      = $script:DevInstallCommit
+        ShortCommit = $script:DevInstallShortCommit
+        Dirty       = [bool]$script:DevInstallDirty
+        BuildDate   = $script:DevInstallBuildDate
+        TargetOS    = $script:DevInstallTargetGoOS
+        TargetArch  = $script:DevInstallTargetGoArch
+    }
 }
 
 function Test-DevInstallRepo {
@@ -223,8 +235,8 @@ function Get-DevInstallWindowsShimContent {
     switch ($Name) {
         'm' { return @('@echo off', '"%~dp0m.exe" %*', 'exit /b %ERRORLEVEL%') }
         'mx' { return @('@echo off', '"%~dp0mx.exe" %*', 'exit /b %ERRORLEVEL%') }
-        'mew' { return @('@echo off', '"%~dp0m.exe" %*', 'exit /b %ERRORLEVEL%') }
-        'mewx' { return @('@echo off', '"%~dp0mx.exe" %*', 'exit /b %ERRORLEVEL%') }
+        'mew' { return @('@echo off', '"%~dp0mew.exe" %*', 'exit /b %ERRORLEVEL%') }
+        'mewx' { return @('@echo off', '"%~dp0mewx.exe" %*', 'exit /b %ERRORLEVEL%') }
         default { throw "unknown shim: $Name" }
     }
 }
@@ -446,13 +458,47 @@ function Test-DevInstallVerifyWindows {
         [string]$InstallDir,
         [string]$Base
     )
-    foreach ($name in @('m', 'mx', 'mew', 'mewx')) {
-        $cmd = Join-Path $InstallDir "$name.cmd"
-        & $cmd version
-        if ($LASTEXITCODE -ne 0) {
-            Write-DevInstallError "verify failed: $cmd version"
+
+    foreach ($name in @('m', 'mew', 'mx', 'mewx')) {
+        foreach ($extension in @('.exe', '.cmd')) {
+            $launcher = Join-Path $InstallDir "$name$extension"
+            if (-not (Test-Path $launcher -PathType Leaf)) {
+                Write-DevInstallError "verify failed: missing $launcher"
+            }
+
+            $raw = @(& $launcher version --json 2>&1)
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -ne 0) {
+                Write-DevInstallError "verify failed: $launcher version --json (exit $exitCode)"
+            }
+
+            try {
+                $info = (($raw | ForEach-Object { [string]$_ }) -join "`n") | ConvertFrom-Json -ErrorAction Stop
+            }
+            catch {
+                Write-DevInstallError "verify failed: invalid JSON from $launcher version --json"
+            }
+
+            if ([string]$info.binary -ne $name) {
+                Write-DevInstallError "identity mismatch for ${launcher}: expected $name, got $($info.binary)"
+            }
+            if ([string]$info.version -ne $script:DevInstallVersion) {
+                Write-DevInstallError "version mismatch for ${launcher}: expected $script:DevInstallVersion, got $($info.version)"
+            }
+            if ($script:DevInstallCommit -and [string]$info.commit -ne $script:DevInstallCommit) {
+                Write-DevInstallError "commit mismatch for ${launcher}: expected $script:DevInstallCommit, got $($info.commit)"
+            }
+
+            $expectedTarget = "$script:DevInstallTargetGoOS/$script:DevInstallTargetGoArch"
+            $actualTarget = "$($info.target_os)/$($info.target_arch)"
+            if ($actualTarget -ne $expectedTarget) {
+                Write-DevInstallError "target mismatch for ${launcher}: expected $expectedTarget, got $actualTarget"
+            }
         }
     }
+
+    Write-DevInstallStage verify 'm, mew, mx, and mewx identities ok (.exe and .cmd)'
+
     if ($Base) {
         $files = @(
             (Join-Path $Base 'powershell/m.ps1'),
@@ -464,6 +510,7 @@ function Test-DevInstallVerifyWindows {
             }
         }
     }
+
     $mCmd = Get-Command m -ErrorAction SilentlyContinue
     if (-not $mCmd) {
         Write-DevInstallStage verify 'warning: m not on current shell PATH (restart terminal)'
@@ -479,6 +526,8 @@ function Remove-DevInstallOwnedWindowsFiles {
     Remove-Item -Force -ErrorAction SilentlyContinue `
         (Join-Path $InstallDir "m$ext"),
         (Join-Path $InstallDir "mx$ext"),
+        (Join-Path $InstallDir "mew$ext"),
+        (Join-Path $InstallDir "mewx$ext"),
         (Join-Path $InstallDir 'm.cmd'),
         (Join-Path $InstallDir 'mx.cmd'),
         (Join-Path $InstallDir 'mew.cmd'),
