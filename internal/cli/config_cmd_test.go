@@ -246,7 +246,8 @@ func TestConfigGetMarkdownThemeDefault(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.TrimSpace(buf.String()); got != "dark" {
+
+	if got := strings.TrimSpace(buf.String()); got != "auto" {
 		t.Fatalf("default ui.theme: got %q, want auto", got)
 	}
 }
