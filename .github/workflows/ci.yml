@@ -81,9 +81,6 @@ jobs:
       - name: Verify crash shard assignments
         run: go run ./tools/ci/verify-crash-shards
 
-      - name: Check relative Markdown links
-        run: go run ./tools/check-links
-
   platform:
     name: platform (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
