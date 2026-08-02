@@ -90,7 +90,7 @@ func (p *PlainProgressRenderer) OperationCompleted(ev diagnostics.OperationCompl
 	}
 	if ev.DurationMs > 0 {
 		b.WriteString(" duration=")
-		b.WriteString(FormatDuration(ev.DurationMs))
+		b.WriteString(FormatDurationMs(ev.DurationMs))
 	}
 	metrics := append([]diagnostics.Metric(nil), ev.Metrics...)
 	sort.Slice(metrics, func(i, j int) bool { return metrics[i].Name < metrics[j].Name })
@@ -186,6 +186,9 @@ func WritePlainInstallSummary(w io.Writer, added, updated, removed int, duration
 	if w == nil {
 		return
 	}
-	line := FormatMutationCompletion(added, updated, removed, durationMs)
+	line := FormatMutationCompletion(added, updated, removed)
+	if durationMs > 0 {
+		line += " [" + FormatDurationMs(durationMs) + "]"
+	}
 	_, _ = fmt.Fprintln(w, line)
 }

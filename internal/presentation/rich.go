@@ -80,12 +80,27 @@ func (r *richRenderer) Summary(s Summary) string {
 	for _, h := range s.Hints {
 		noticesAndHints = append(noticesAndHints, r.Hint(h))
 	}
+	footer := r.renderCompletionFooter(s.CompletionFooter)
 	return joinSummarySections(
 		r.Status(StatusLine{Status: s.Status, Text: s.Title}),
 		r.PackageDeltas(s.Deltas),
 		r.KeyValues(s.Metrics),
 		strings.Join(noticesAndHints, "\n"),
+		footer,
 	)
+}
+
+func (r *richRenderer) renderCompletionFooter(f *CompletionFooter) string {
+	if f == nil {
+		return ""
+	}
+	sym := applyStyle(r.theme.Success, r.settings.Symbols.Success, true)
+	msg := applyStyle(r.theme.Success, f.Message, true)
+	out := sym + " " + msg
+	if f.Duration != "" {
+		out += " " + applyStyle(r.theme.Muted, f.Duration, true)
+	}
+	return out
 }
 
 func (r *richRenderer) PackageDeltas(deltas []PackageDelta) string {

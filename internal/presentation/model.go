@@ -51,12 +51,20 @@ type Hint struct {
 
 // Summary is a command outcome block.
 type Summary struct {
-	Status  Status
-	Title   string
-	Deltas  []PackageDelta
-	Metrics []KeyValue
-	Notices []Notice
-	Hints   []Hint
+	Status           Status
+	Title            string
+	CompletionFooter *CompletionFooter // rendered at bottom when non-nil
+	Deltas           []PackageDelta
+	Metrics          []KeyValue
+	Notices          []Notice
+	Hints            []Hint
+}
+
+// CompletionFooter is the final line of an install-family command.
+// Rendered after all other sections. Message gets success styling; Duration gets muted.
+type CompletionFooter struct {
+	Message  string // "54 packages installed" or "Already up to date"
+	Duration string // pre-formatted duration "[4.36s]" or ""
 }
 
 // DeltaKind classifies a package change row.

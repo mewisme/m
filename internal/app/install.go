@@ -93,6 +93,7 @@ type InstallResult struct {
 	ScriptsRun                   int             `json:"scriptsRun,omitempty"`
 	ScriptsBlocked               int             `json:"scriptsBlocked,omitempty"`
 	DurationMs                   int64           `json:"durationMs,omitempty"`
+	DurationNs                   int64           `json:"durationNs,omitempty"`
 	Plan                         *plan.Plan      `json:"plan,omitempty"`
 	Committed                    bool            `json:"committed,omitempty"`
 	RolledBack                   bool            `json:"rolledBack,omitempty"`

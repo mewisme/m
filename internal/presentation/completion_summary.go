@@ -62,7 +62,7 @@ func RenderCompletionSummary(s CompletionSummary, settings EffectiveSettings) st
 	b.WriteString(verb)
 	if s.Duration > 0 {
 		b.WriteString(" in ")
-		b.WriteString(FormatDuration(s.Duration.Milliseconds()))
+		b.WriteString(FormatDuration(s.Duration))
 	}
 	return b.String()
 }

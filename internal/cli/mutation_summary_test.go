@@ -25,8 +25,8 @@ func TestMutationSummaryInstallWithAdditions(t *testing.T) {
 	if s.Status != presentation.StatusSuccess {
 		t.Fatalf("status=%v", s.Status)
 	}
-	if !strings.Contains(s.Title, "installed") {
-		t.Fatalf("title=%q", s.Title)
+	if s.CompletionFooter == nil || !strings.Contains(s.CompletionFooter.Message, "installed") {
+		t.Fatalf("title=%q footer=%v", s.Title, s.CompletionFooter)
 	}
 	if len(s.Deltas) != 2 {
 		t.Fatalf("deltas=%d want 2", len(s.Deltas))
@@ -132,8 +132,13 @@ func TestMutationSummaryDryRun(t *testing.T) {
 func TestMutationSummaryAlreadyUpToDate(t *testing.T) {
 	result := app.InstallResult{Added: 0, Removed: 0, Changed: 0, Packages: 126}
 	s := mutationSummary(result, false, "")
-	if s.Title != "Already up to date" {
-		t.Fatalf("title=%q", s.Title)
+	if s.CompletionFooter == nil || s.CompletionFooter.Message != "Already up to date" {
+		t.Fatalf("footer message=%q", func() string {
+			if s.CompletionFooter != nil {
+				return s.CompletionFooter.Message
+			}
+			return "nil"
+		}())
 	}
 	if len(s.Deltas) != 0 {
 		t.Fatalf("deltas=%d want 0", len(s.Deltas))

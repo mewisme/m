@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/presentation"
@@ -40,26 +41,34 @@ func mutationSummary(result app.InstallResult, dryRun bool, binName string) pres
 	if result.Added == 0 && result.Removed == 0 && result.Changed == 0 {
 		s := presentation.Summary{
 			Status: presentation.StatusSuccess,
-			Title:  "Already up to date",
 		}
-		if result.DurationMs > 0 {
-			s.Title += " [" + presentation.FormatDuration(result.DurationMs) + "]"
+		dur := ""
+		if result.DurationNs > 0 {
+			dur = "[" + presentation.FormatDuration(time.Duration(result.DurationNs)) + "]"
+		}
+		s.CompletionFooter = &presentation.CompletionFooter{
+			Message:  "Already up to date",
+			Duration: dur,
 		}
 		appendCleanupNotices(&s, result, binName)
 		return s
 	}
 
-	title := presentation.FormatMutationCompletion(result.Added, result.Changed, result.Removed, result.DurationMs)
+	msg := presentation.FormatMutationCompletion(result.Added, result.Changed, result.Removed)
+	dur := ""
+	if result.DurationNs > 0 {
+		dur = "[" + presentation.FormatDuration(time.Duration(result.DurationNs)) + "]"
+	}
 	st := presentation.StatusSuccess
 	if result.RecoveryRequired || result.TransactionCleanupIncomplete || result.StoreMaintenanceRequired {
 		st = presentation.StatusWarning
 	}
 	deltas := result.DirectPackageChanges
 	s := presentation.Summary{
-		Status:  st,
-		Title:   title,
-		Deltas:  mutationPackageDeltas(deltas),
-		Metrics: mutationCompletionMetrics(result),
+		Status:           st,
+		CompletionFooter: &presentation.CompletionFooter{Message: msg, Duration: dur},
+		Deltas:           mutationPackageDeltas(deltas),
+		Metrics:          mutationCompletionMetrics(result),
 	}
 	appendCleanupNotices(&s, result, binName)
 	if result.ScriptsBlocked > 0 {

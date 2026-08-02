@@ -201,8 +201,8 @@ func TestActivityProgressRendererColorOutput(t *testing.T) {
 		ID: "x", Kind: "Resolving", Label: "Resolving",
 	})
 	out := buf.String()
-	if !strings.Contains(out, "\x1b[38;2;29;78;216m") {
-		t.Fatalf("color output missing cyan: %q", out)
+	if !strings.Contains(out, "\x1b[96m") {
+		t.Fatalf("color output missing bright cyan: %q", out)
 	}
 	_ = r.Close()
 }

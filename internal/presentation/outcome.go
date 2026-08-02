@@ -4,47 +4,64 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
-// FormatDuration renders milliseconds as a human-readable duration string.
-// Examples: "842ms", "1.24s", "12.4s", "2m 14s".
-func FormatDuration(ms int64) string {
-	if ms < 1 {
-		ms = 1
+// FormatDuration renders a time.Duration as a human-readable string.
+// Rules:
+//   - <1ms: integer nanoseconds, e.g. "820ns"
+//   - <1s: integer milliseconds, e.g. "317ms"
+//   - <1m: seconds with ≤2 decimal places, e.g. "4.36s"
+//   - ≥1m: minutes and seconds, e.g. "1m4.36s"
+//
+// Never outputs microseconds. Never outputs 0ms for a non-zero duration.
+// Trailing zeros are trimmed.
+func FormatDuration(d time.Duration) string {
+	if d <= 0 {
+		return "0ms"
 	}
+	ns := d.Nanoseconds()
+	// Sub-millisecond: integer nanoseconds.
+	if ns < 1_000_000 {
+		return fmt.Sprintf("%dns", ns)
+	}
+	ms := ns / 1_000_000
 	if ms < 1000 {
 		return fmt.Sprintf("%dms", ms)
 	}
-	sec := float64(ms) / 1000
-	if sec < 10 {
-		// Up to 2 fractional digits, trim trailing zeros.
+	sec := float64(ns) / 1_000_000_000.0
+	if sec < 60 {
 		s := fmt.Sprintf("%.2f", sec)
 		s = strings.TrimRight(s, "0")
 		s = strings.TrimRight(s, ".")
 		return s + "s"
 	}
-	if sec < 60 {
-		// 1 fractional digit.
-		s := fmt.Sprintf("%.1f", sec)
-		s = strings.TrimRight(s, "0")
-		s = strings.TrimRight(s, ".")
-		return s + "s"
-	}
-	// >= 60 seconds: "2m 14s".
+	// ≥ 60 seconds: "1m4.36s", "12m8s".
 	m := int64(sec) / 60
-	s := int64(sec) % 60
-	return fmt.Sprintf("%dm %ds", m, s)
+	rem := sec - float64(m*60)
+	if rem < 0.005 {
+		return fmt.Sprintf("%dm", m)
+	}
+	s := fmt.Sprintf("%.2f", rem)
+	s = strings.TrimRight(s, "0")
+	s = strings.TrimRight(s, ".")
+	return fmt.Sprintf("%dm%ss", m, s)
 }
 
-// FormatMutationCompletion builds the compact install-family completion line.
-// Examples:
+// FormatDurationMs is a convenience wrapper for millisecond int64 values.
+func FormatDurationMs(ms int64) string {
+	return FormatDuration(time.Duration(ms) * time.Millisecond)
+}
+
+// FormatMutationCompletion builds the compact install-family completion message
+// (without duration). Examples:
 //
-//	54 packages installed [4.36s]
-//	54 packages installed, 3 removed [4.36s]
-//	3 packages removed [842ms]
-//	1 package installed [842ms]
-//	Already up to date [1.24s]
-func FormatMutationCompletion(added, updated, removed int, durationMs int64) string {
+//	54 packages installed
+//	54 packages installed, 3 removed
+//	3 packages removed
+//	1 package installed
+//	Already up to date
+func FormatMutationCompletion(added, updated, removed int) string {
 	installed := added + updated
 	var b strings.Builder
 	if installed > 0 {
@@ -66,9 +83,6 @@ func FormatMutationCompletion(added, updated, removed int, durationMs int64) str
 	}
 	if b.Len() == 0 {
 		b.WriteString("Already up to date")
-	}
-	if durationMs > 0 {
-		fmt.Fprintf(&b, " [%s]", FormatDuration(durationMs))
 	}
 	return b.String()
 }

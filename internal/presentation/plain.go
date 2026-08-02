@@ -3,6 +3,8 @@ package presentation
 import (
 	"fmt"
 	"strings"
+
+	lipgloss "charm.land/lipgloss/v2"
 )
 
 type plainRenderer struct {
@@ -61,12 +63,26 @@ func (r *plainRenderer) Summary(s Summary) string {
 	for _, h := range s.Hints {
 		noticesAndHints = append(noticesAndHints, r.Hint(h))
 	}
+	footer := renderCompletionFooterPlain(s.CompletionFooter, r.settings)
 	return joinSummarySections(
 		r.Status(StatusLine{Status: s.Status, Text: s.Title}),
 		r.PackageDeltas(s.Deltas),
 		r.KeyValues(s.Metrics),
 		strings.Join(noticesAndHints, "\n"),
+		footer,
 	)
+}
+
+func renderCompletionFooterPlain(f *CompletionFooter, settings EffectiveSettings) string {
+	if f == nil {
+		return ""
+	}
+	sym := settings.Symbols.Success
+	out := sym + " " + f.Message
+	if f.Duration != "" {
+		out += " " + f.Duration
+	}
+	return out
 }
 
 func (r *plainRenderer) PackageDeltas(deltas []PackageDelta) string {
@@ -206,6 +222,7 @@ func formatPackageDeltasWithOptions(deltas []PackageDelta, settings EffectiveSet
 	}
 
 	kindNames := []string{"Added", "Updated", "Removed"}
+	kindThemes := []lipgloss.Style{theme.Added, theme.Updated, theme.Removed}
 	var parts []string
 	for i, group := range groups {
 		if len(group) == 0 {
@@ -213,7 +230,8 @@ func formatPackageDeltasWithOptions(deltas []PackageDelta, settings EffectiveSet
 		}
 		heading := kindNames[i]
 		if color {
-			heading = applyStyle(theme.Strong, heading, true)
+			heading = applyStyle(kindThemes[i], heading, true)
+			heading = lipgloss.NewStyle().Inherit(kindThemes[i]).Bold(true).Render(heading)
 		}
 		body := formatFlatPackageDeltas(group, settings, color, theme)
 		parts = append(parts, heading+"\n"+body)
@@ -244,6 +262,17 @@ func formatFlatPackageDeltas(deltas []PackageDelta, settings EffectiveSettings, 
 		return ""
 	}
 	sym := settings.Symbols
+
+	// Compute max package name width for version alignment.
+	maxName := 0
+	for _, d := range deltas {
+		if w := CellWidth(d.Name); w > maxName {
+			maxName = w
+		}
+	}
+	// Minimum 2-space gap between name and version.
+	const nameVersionGap = 2
+
 	var b strings.Builder
 	for i, d := range deltas {
 		if i > 0 {
@@ -269,8 +298,21 @@ func formatFlatPackageDeltas(deltas []PackageDelta, settings EffectiveSettings, 
 		}
 		b.WriteString(mark)
 		b.WriteByte(' ')
-		b.WriteString(d.Name)
-		b.WriteString("  ")
+
+		// Package name: bright cyan when colored.
+		pkgName := d.Name
+		if color {
+			pkgName = applyStyle(theme.Package, pkgName, true)
+		}
+		b.WriteString(pkgName)
+
+		// Pad to align versions.
+		pad := maxName - CellWidth(d.Name) + nameVersionGap
+		if pad > 0 {
+			b.WriteString(strings.Repeat(" ", pad))
+		}
+
+		// Version: bright white when colored.
 		switch d.Kind {
 		case DeltaUpdated:
 			from, to := d.From, d.To
@@ -280,13 +322,25 @@ func formatFlatPackageDeltas(deltas []PackageDelta, settings EffectiveSettings, 
 			if to == "" {
 				to = d.Version
 			}
+			if color {
+				from = applyStyle(theme.Version, from, true)
+				to = applyStyle(theme.Version, to, true)
+			}
 			b.WriteString(from)
 			b.WriteByte(' ')
-			b.WriteString(sym.Arrow)
+			arrow := sym.Arrow
+			if color {
+				arrow = applyStyle(theme.Muted, arrow, true)
+			}
+			b.WriteString(arrow)
 			b.WriteByte(' ')
 			b.WriteString(to)
 		default:
-			b.WriteString(d.Version)
+			ver := d.Version
+			if color {
+				ver = applyStyle(theme.Version, ver, true)
+			}
+			b.WriteString(ver)
 		}
 	}
 	return b.String()

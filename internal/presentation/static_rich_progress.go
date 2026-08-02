@@ -114,7 +114,7 @@ func (p *StaticRichProgressRenderer) OperationCompleted(ev diagnostics.Operation
 
 	if ev.DurationMs > 0 {
 		b.WriteString(" ")
-		b.WriteString(FormatDuration(ev.DurationMs))
+		b.WriteString(FormatDurationMs(ev.DurationMs))
 	}
 	p.writeln(b.String())
 
@@ -189,7 +189,7 @@ func (p *StaticRichProgressRenderer) Close() error {
 		fmt.Fprintf(&b, "installed added=%d updated=%d removed=%d", added, updated, removed)
 		if totalDuration > 0 {
 			b.WriteString(" duration=")
-			b.WriteString(FormatDuration(totalDuration))
+			b.WriteString(FormatDurationMs(totalDuration))
 		}
 		p.writeln(b.String())
 	}
@@ -245,7 +245,7 @@ func WriteStaticRichInstallSummary(w io.Writer, settings EffectiveSettings, adde
 	fmt.Fprintf(&b, "installed added=%d updated=%d removed=%d", added, updated, removed)
 	if durationMs > 0 {
 		b.WriteString(" duration=")
-		b.WriteString(FormatDuration(durationMs))
+		b.WriteString(FormatDurationMs(durationMs))
 	}
 	_, _ = fmt.Fprintln(w, b.String())
 }
