@@ -41,7 +41,7 @@ core-cert-performance:
 vuln:
 	govulncheck ./...
 
-VERSION ?= 0.0.0-dev
+VERSION ?= dev
 COMMIT ?=
 BUILD_DATE ?=
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)

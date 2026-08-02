@@ -8,7 +8,7 @@ import (
 
 // Overridden via -ldflags "-X main.version=… -X main.commit=… -X main.shortCommit=… -X main.dirty=… -X main.buildDate=… -X main.targetOS=… -X main.targetArch=…".
 var (
-	version     = "0.0.0-dev"
+	version     = "dev"
 	commit      = ""
 	shortCommit = ""
 	dirty       = "false"

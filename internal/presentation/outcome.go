@@ -143,7 +143,7 @@ type BuildInfo struct {
 }
 
 // FormatInvocationHeader builds the command invocation header line.
-// Example: "mew install v1.2.3 (a1b2c3d)" or "m install 0.0.0-dev+dirty (a1b2c3d)".
+// Example: "mew install v1.2.3 (a1b2c3d)" or "m install dev+dirty (a1b2c3d)".
 // binary is the invoked binary name (m, mew, mx, mewx).
 // commandPath is the relative command path after the binary (e.g., "install", "add lodash").
 func FormatInvocationHeader(binary, commandPath string, info BuildInfo) string {

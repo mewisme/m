@@ -52,7 +52,7 @@ version, plus optional key-value rows for `commit` and `buildDate` when ldflags
 set them. JSON object fields: `binary`, `version`, `commit`, `buildDate`.
 
 Build metadata is injected at link time (`-X main.version=…` etc.). Dev default:
-`0.0.0-dev`.
+`dev`.
 
 ## Help
 

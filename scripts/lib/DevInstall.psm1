@@ -128,7 +128,7 @@ function Resolve-DevInstallMetadata {
         $script:DevInstallVersion = $env:MEW_VERSION
     }
     else {
-        $script:DevInstallVersion = '0.0.0-dev'
+        $script:DevInstallVersion = 'dev'
     }
 
     # Resolve git commit from the working tree.

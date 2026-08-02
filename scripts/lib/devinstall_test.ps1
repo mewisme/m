@@ -112,7 +112,7 @@ Assert-True ($customBase -eq 'C:\Custom\MewJS\completions') 'custom install dir 
 $savedMewVersion = $env:MEW_VERSION
 Remove-Item Env:MEW_VERSION -ErrorAction SilentlyContinue
 Resolve-DevInstallMetadata
-Assert-True ($DevInstallVersion -eq '0.0.0-dev') 'source build dev version'
+Assert-True ($DevInstallVersion -eq 'dev') 'source build dev version'
 Assert-True ($DevInstallCommit -eq '') 'source build commit unset'
 Resolve-DevInstallMetadata -VersionOverride '1.2.3-local'
 Assert-True ($DevInstallVersion -eq '1.2.3-local') 'source build version override'
