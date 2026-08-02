@@ -181,7 +181,7 @@ func TestOutputModeGatesStaticColor(t *testing.T) {
 		if opts.Output != presentation.OutputRich {
 			t.Fatalf("output=%s", opts.Output)
 		}
-		eff := presentation.Effective(opts, richCaps)
+		eff := presentation.Effective(opts, richCaps, nil)
 		if !eff.UseColor {
 			t.Fatal("expected UseColor")
 		}
@@ -199,7 +199,7 @@ func TestOutputModeGatesStaticColor(t *testing.T) {
 		if opts.Output != presentation.OutputPlain {
 			t.Fatalf("output=%s", opts.Output)
 		}
-		eff := presentation.Effective(opts, richCaps)
+		eff := presentation.Effective(opts, richCaps, nil)
 		if eff.UseColor {
 			t.Fatal("expected no UseColor for --output=plain")
 		}
@@ -214,7 +214,7 @@ func TestOutputModeGatesStaticColor(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		eff := presentation.Effective(opts, richCaps)
+		eff := presentation.Effective(opts, richCaps, nil)
 		if eff.UseColor {
 			t.Fatal("expected no UseColor")
 		}
@@ -232,7 +232,7 @@ func TestOutputModeGatesStaticColor(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		eff := presentation.Effective(opts, richCaps)
+		eff := presentation.Effective(opts, richCaps, nil)
 		if eff.UseColor {
 			t.Fatal("--output=plain must suppress ANSI")
 		}

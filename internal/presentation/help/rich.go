@@ -1,59 +1,141 @@
 package helpmd
 
 import (
+	"fmt"
 	"strings"
 
-	"charm.land/glamour/v2"
 	lipgloss "charm.land/lipgloss/v2"
 
 	"github.com/mewisme/mew/internal/presentation"
 )
 
-// GlamourStyle maps effective ThemeMode to a Glamour WithStandardStyle name.
-// light→light, dark→dark, accessible/none→notty; empty/auto fall through to dark.
-func GlamourStyle(mode presentation.ThemeMode) string {
-	switch mode {
-	case presentation.ThemeLight:
-		return "light"
-	case presentation.ThemeAccessible, presentation.ThemeNone:
-		return "notty"
-	default:
-		return "dark"
-	}
-}
-
-// RenderRich renders Markdown with Glamour for rich human TTYs.
+// RenderRich renders Markdown as ASCII-only text with semantic ANSI colors.
+// No Glamour — all glyphs are ASCII; styling uses the shared theme palette.
 func RenderRich(md string, opts RenderOptions) (string, error) {
 	md = reHTMLComment.ReplaceAllString(md, "")
 	md = reImage.ReplaceAllString(md, "")
-	// Strip raw HTML before render; Glamour has no DisableHTML option and
-	// would otherwise sanitize then echo remaining markup text.
 	md = reHTML.ReplaceAllString(md, "")
 
-	style := opts.Style
-	if style == "" {
-		if opts.MarkdownTheme != "" {
-			style = opts.MarkdownTheme.GlamourStyle()
+	theme := presentation.NewTheme(opts.ThemeMode)
+	width := presentation.ClampWidth(opts.Width)
+
+	lines := strings.Split(strings.ReplaceAll(md, "\r\n", "\n"), "\n")
+	var out []string
+	inFence := false
+	var fence []string
+
+	flushFence := func() {
+		if len(fence) == 0 {
+			return
+		}
+		for _, fl := range fence {
+			out = append(out, theme.Muted.Render("  "+fl))
+		}
+		fence = nil
+	}
+
+	for _, line := range lines {
+		if reFence.MatchString(strings.TrimSpace(line)) {
+			if inFence {
+				flushFence()
+				inFence = false
+			} else {
+				inFence = true
+			}
+			continue
+		}
+		if inFence {
+			fence = append(fence, line)
+			continue
+		}
+
+		trim := strings.TrimSpace(line)
+		if trim == "" {
+			if len(out) > 0 && out[len(out)-1] != "" {
+				out = append(out, "")
+			}
+			continue
+		}
+		// Horizontal rule.
+		if trim == "---" || trim == "***" || trim == "___" || trim == "- - -" || trim == "* * *" {
+			out = append(out, theme.Muted.Render("----"))
+			continue
+		}
+		if strings.HasPrefix(trim, "|") && strings.Contains(trim, "|") {
+			for _, r := range renderTableRow(trim, width) {
+				out = append(out, theme.Muted.Render(r))
+			}
+			continue
+		}
+		if m := reHeading.FindStringSubmatch(line); m != nil {
+			text := formatInline(m[2], opts)
+			level := len(m[1])
+			prefix := strings.Repeat("#", level) + " "
+			out = append(out, wrapPrefixedStyled(prefix, text, width, theme.Header, theme.Strong)...)
+			continue
+		}
+		if m := reUL.FindStringSubmatch(line); m != nil {
+			text := formatInline(m[2], opts)
+			out = append(out, wrapPrefixedStyled("  - ", text, width, theme.Primary, lipgloss.NewStyle())...)
+			continue
+		}
+		if m := reOL.FindStringSubmatch(line); m != nil {
+			text := formatInline(m[2], opts)
+			out = append(out, wrapPrefixedStyled("  "+m[1]+". ", text, width, theme.Primary, lipgloss.NewStyle())...)
+			continue
+		}
+		text := formatInlineRich(line, opts, theme)
+		out = append(out, presentation.WrapWords(text, width)...)
+	}
+	flushFence()
+	return strings.TrimRight(strings.Join(out, "\n"), "\n") + "\n", nil
+}
+
+// wrapPrefixedStyled wraps text with a styled prefix.
+func wrapPrefixedStyled(prefix, text string, width int, prefixStyle, bodyStyle lipgloss.Style) []string {
+	rawOut := wrapPrefixed(prefix, text, width)
+	if len(rawOut) == 0 {
+		return []string{prefixStyle.Render(prefix)}
+	}
+	out := make([]string, len(rawOut))
+	padLen := presentation.CellWidth(prefix)
+	for i, line := range rawOut {
+		if i == 0 {
+			if padLen < len(line) {
+				out[i] = prefixStyle.Render(line[:padLen]) + bodyStyle.Render(line[padLen:])
+			} else {
+				out[i] = prefixStyle.Render(line)
+			}
 		} else {
-			style = GlamourStyle(opts.Theme)
+			out[i] = bodyStyle.Render(line)
 		}
 	}
-	r, err := glamour.NewTermRenderer(
-		glamour.WithStandardStyle(style),
-		glamour.WithWordWrap(opts.Width),
-	)
-	if err != nil {
-		return "", err
-	}
-	out, err := r.Render(md)
-	if err != nil {
-		return "", err
-	}
-	// Glamour is pure and does not downsample. Lip Gloss maps colors to the
-	// detected stdout profile — which strips SGR when stdout is non-TTY.
-	// Skip that when the caller forced color (--color=always / --output=rich).
-	if !opts.ForceColor {
-		out = lipgloss.Sprint(out)
-	}
-	return strings.TrimRight(out, "\n") + "\n", nil
+	return out
+}
+
+func formatInlineRich(s string, opts RenderOptions, theme presentation.Theme) string {
+	s = reBold.ReplaceAllString(s, "$1")
+	s = reItalic.ReplaceAllString(s, "$1$2$3")
+	s = reInlineCode.ReplaceAllStringFunc(s, func(m string) string {
+		parts := reInlineCode.FindStringSubmatch(m)
+		if len(parts) != 2 {
+			return m
+		}
+		return theme.Code.Render(parts[1])
+	})
+	s = reLink.ReplaceAllStringFunc(s, func(m string) string {
+		parts := reLink.FindStringSubmatch(m)
+		if len(parts) != 3 {
+			return m
+		}
+		text, dest := parts[1], parts[2]
+		if opts.Hyperlinks {
+			return osc8(theme.Primary.Render(text), dest)
+		}
+		if text == dest {
+			return theme.Primary.Render(dest)
+		}
+		return fmt.Sprintf("%s: %s", theme.Primary.Render(text), theme.Muted.Render(dest))
+	})
+	return strings.TrimSpace(s)
 }

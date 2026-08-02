@@ -42,7 +42,6 @@ type globalFlags struct {
 	preferOffline bool
 	filter        []string
 	recursive     bool
-	markdownTheme string
 	invokedBinary string
 	headerEmitted bool
 	ctrl          presentation.Controller
@@ -244,7 +243,7 @@ func attachPrompter(ac *app.Context, cmd *cobra.Command, ctrl presentation.Contr
 	}
 	resolved := ctrl.Options()
 	caps := ctrl.Capabilities()
-	settings := presentation.Effective(resolved, caps)
+	settings := ctrl.Settings()
 
 	human := !resolved.Structured() && resolved.Output != presentation.OutputSilent
 	decision := prompt.ResolveInteractive(prompt.InteractiveAuto, prompt.Caps{

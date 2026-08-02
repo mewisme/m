@@ -46,7 +46,7 @@ Config is never written beside the `m` executable.
 | `runner.mx.cache.retention_days` | int | `7` — default prune retention for mx execution environments |
 | `runner.mx.cache.dir` | string | empty — mx cache root (default `<cache>/mx`) |
 | `ui.pager` | string | empty — optional pager command for `m help` topics (`MEW_PAGER` / `PAGER`) |
-| `ui.markdown_theme` | string | `dark` — Glamour Markdown theme for `m help` and topics: `dark|light|dracula|tokyo-night|notty` (user-scoped; `--markdown-theme` flag) |
+| `ui.theme` | string | `auto` — terminal color palette: `auto|light|dark`. `auto` follows OS appearance; `light`/`dark` force the palette. Accessibility and no-color policies override. |
 | `log.level` | string | `error` |
 
 Presentation modes, streams, and rollout stages:

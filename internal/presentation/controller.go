@@ -21,6 +21,7 @@ type Controller interface {
 	Mode() OutputMode
 	Options() ResolvedOptions
 	Capabilities() Capabilities
+	Settings() EffectiveSettings
 	Suspend(ctx context.Context) error
 	Resume(ctx context.Context) error
 	Close(ctx context.Context, outcome Outcome) error
@@ -35,6 +36,7 @@ type controller struct {
 	mu        sync.Mutex
 	resolved  ResolvedOptions
 	caps      Capabilities
+	settings  EffectiveSettings
 	reporter  diagnostics.Reporter
 	streams   StreamWriters
 	sink      ProgressSink
@@ -46,7 +48,8 @@ type controller struct {
 }
 
 // NewController builds a presentation controller and diagnostics reporter bridge.
-func NewController(resolved ResolvedOptions, caps Capabilities, streams StreamWriters) (Controller, error) {
+// dark is the OS dark-mode detector; nil means detection is unavailable (auto falls back to light).
+func NewController(resolved ResolvedOptions, caps Capabilities, streams StreamWriters, dark DarkModeDetector) (Controller, error) {
 	if streams.Out == nil {
 		streams.Out = io.Discard
 	}
@@ -63,7 +66,7 @@ func NewController(resolved ResolvedOptions, caps Capabilities, streams StreamWr
 		TermWidth: resolved.TermWidth,
 	}
 
-	settings := Effective(resolved, caps)
+	settings := Effective(resolved, caps, dark)
 	settings.BinaryName = resolved.BinaryName
 	if !resolved.Structured() {
 		mapOpts := MapOptions{Debug: resolved.Debug, Redact: diagnostics.Redact, BinaryName: resolved.BinaryName}
@@ -87,6 +90,7 @@ func NewController(resolved ResolvedOptions, caps Capabilities, streams StreamWr
 	c := &controller{
 		resolved: resolved,
 		caps:     caps,
+		settings: settings,
 		reporter: diagnostics.NewReporter(opts),
 		streams:  streams,
 		sink:     sink,
@@ -124,6 +128,8 @@ func (c *controller) Mode() OutputMode { return c.resolved.Output }
 func (c *controller) Options() ResolvedOptions { return c.resolved }
 
 func (c *controller) Capabilities() Capabilities { return c.caps }
+
+func (c *controller) Settings() EffectiveSettings { return c.settings }
 
 func (c *controller) SetRunnerCommand(cmd string) {
 	c.mu.Lock()
