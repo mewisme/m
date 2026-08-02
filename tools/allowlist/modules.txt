@@ -2,17 +2,16 @@
 # Update this file in the same PR when adding a dependency.
 charm.land/bubbles/v2
 charm.land/bubbletea/v2
-charm.land/glamour/v2
+charm.land/bubbles/v2
+charm.land/bubbletea/v2
 charm.land/huh/v2
 charm.land/lipgloss/v2
 github.com/MakeNowJust/heredoc
 github.com/Masterminds/semver/v3
 github.com/alecthomas/assert/v2
-github.com/alecthomas/chroma/v2
 github.com/alecthomas/repr
 github.com/atotto/clipboard
 github.com/aymanbagabas/go-udiff
-github.com/aymerick/douceur
 github.com/bits-and-blooms/bitset
 github.com/bluekeyes/go-gitdiff
 github.com/catppuccin/go
@@ -24,7 +23,6 @@ github.com/charmbracelet/x/conpty
 github.com/charmbracelet/x/errors
 github.com/charmbracelet/x/exp/golden
 github.com/charmbracelet/x/exp/ordered
-github.com/charmbracelet/x/exp/slice
 github.com/charmbracelet/x/exp/strings
 github.com/charmbracelet/x/term
 github.com/charmbracelet/x/termios
@@ -35,14 +33,11 @@ github.com/clipperhouse/stringish
 github.com/clipperhouse/uax29/v2
 github.com/cpuguy83/go-md2man/v2
 github.com/creack/pty
-github.com/dlclark/regexp2
 github.com/dustin/go-humanize
-github.com/gorilla/css
 github.com/hexops/gotextdiff
 github.com/inconshreveable/mousetrap
 github.com/lucasb-eyer/go-colorful
 github.com/mattn/go-runewidth
-github.com/microcosm-cc/bluemonday
 github.com/mitchellh/hashstructure/v2
 github.com/muesli/cancelreader
 github.com/rivo/uniseg
@@ -51,14 +46,11 @@ github.com/sahilm/fuzzy
 github.com/spf13/cobra
 github.com/spf13/pflag
 github.com/xo/terminfo
-github.com/yuin/goldmark
-github.com/yuin/goldmark-emoji
 go.yaml.in/yaml/v3
 gopkg.in/check.v1
 golang.org/x/crypto
 golang.org/x/exp
 golang.org/x/mod
-golang.org/x/net
 golang.org/x/sync
 golang.org/x/sys
 golang.org/x/term

@@ -186,7 +186,7 @@ func TestControllerCloseIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctrl, err := presentation.NewController(resolved, pipeCaps(), presentation.StreamWriters{Out: &out, Err: &errb})
+	ctrl, err := presentation.NewController(resolved, pipeCaps(), presentation.StreamWriters{Out: &out, Err: &errb}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestControllerSuspendResume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctrl, err := presentation.NewController(resolved, pipeCaps(), presentation.StreamWriters{Out: io.Discard, Err: io.Discard})
+	ctrl, err := presentation.NewController(resolved, pipeCaps(), presentation.StreamWriters{Out: io.Discard, Err: io.Discard}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -246,7 +246,7 @@ func writePlainProgressFooter(cmd *cobra.Command, g *globalFlags, result app.Ins
 	if opts.Structured() || !opts.Progress {
 		return
 	}
-	settings := presentation.Effective(opts, g.ctrl.Capabilities())
+	settings := g.ctrl.Settings()
 	if settings.UseProgress {
 		return // live renderer owns stderr frames
 	}

@@ -5,19 +5,19 @@ import (
 )
 
 // Input collects raw CLI flag values before resolution.
-// Presentation env vars and config keys are no longer read.
+// Config-derived values (ui.theme) are set by the CLI layer before calling Resolve.
 type Input struct {
-	OutputFlag    string
-	NoColor       bool
-	ASCII         bool
-	NoProgress    bool
-	Accessible    bool
-	NoSummary     bool
-	LogLevelFlag  string
-	Debug         bool
-	Unsafe        bool
-	MarkdownTheme string
-	BinaryName    string // invoked binary: "m", "mew", "mx", "mewx"
+	OutputFlag   string
+	NoColor      bool
+	ASCII        bool
+	NoProgress   bool
+	Accessible   bool
+	NoSummary    bool
+	LogLevelFlag string
+	Debug        bool
+	Unsafe       bool
+	Theme        string // configured ui.theme value: "auto", "light", "dark", or ""
+	BinaryName   string // invoked binary: "m", "mew", "mx", "mewx"
 }
 
 // Resolve computes immutable presentation options from explicit CLI flags.
@@ -39,18 +39,17 @@ func Resolve(input Input) (ResolvedOptions, error) {
 	summary := !input.NoSummary
 
 	return ResolvedOptions{
-		Output:        output,
-		Color:         color,
-		Progress:      progress,
-		Unicode:       unicode,
-		Accessible:    input.Accessible,
-		Summary:       summary,
-		Theme:         "",
-		MarkdownTheme: input.MarkdownTheme,
-		LogLevel:      logLevel,
-		Debug:         logLevel == LogDebug,
-		Unsafe:        input.Unsafe,
-		BinaryName:    input.BinaryName,
+		Output:     output,
+		Color:      color,
+		Progress:   progress,
+		Unicode:    unicode,
+		Accessible: input.Accessible,
+		Summary:    summary,
+		Theme:      input.Theme,
+		LogLevel:   logLevel,
+		Debug:      logLevel == LogDebug,
+		Unsafe:     input.Unsafe,
+		BinaryName: input.BinaryName,
 	}, nil
 }
 

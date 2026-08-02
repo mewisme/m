@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/mewisme/mew/internal/presentation"
-	helpmd "github.com/mewisme/mew/internal/presentation/help"
 )
 
 func TestHelpViaExecutePath(t *testing.T) {
@@ -58,7 +57,7 @@ func TestHelpTopicRunner(t *testing.T) {
 	}
 }
 
-func TestTopicHelpUsePlainRichColorForcesGlamour(t *testing.T) {
+func TestTopicHelpUsePlainRichColorForcesRich(t *testing.T) {
 	caps := presentation.Capabilities{
 		StdoutTTY:    true,
 		StderrTTY:    true,
@@ -69,9 +68,9 @@ func TestTopicHelpUsePlainRichColorForcesGlamour(t *testing.T) {
 		Output: presentation.OutputRich,
 		Color:  true,
 	}
-	eff := presentation.Effective(opts, caps)
-	if topicHelpUsePlain(opts, caps, eff) {
-		t.Fatal("expected Glamour path for color-enabled rich on TTY")
+	eff := presentation.Effective(opts, caps, nil)
+	if topicHelpUsePlain(opts, eff) {
+		t.Fatal("expected rich path for color-enabled rich on TTY")
 	}
 }
 
@@ -85,8 +84,8 @@ func TestTopicHelpUsePlainNoColorStaysPlain(t *testing.T) {
 		Output: presentation.OutputRich,
 		Color:  false,
 	}
-	eff := presentation.Effective(opts, caps)
-	if !topicHelpUsePlain(opts, caps, eff) {
+	eff := presentation.Effective(opts, caps, nil)
+	if !topicHelpUsePlain(opts, eff) {
 		t.Fatal("expected plain path for no-color")
 	}
 }
@@ -119,45 +118,41 @@ func clearHelpEnv(t *testing.T) {
 	}
 }
 
-func TestTopicHelpGlamourStyleFollowsThemePreference(t *testing.T) {
+func TestThemeModeResolvesCorrectly(t *testing.T) {
 	caps := presentation.Capabilities{
 		StdoutTTY:    true,
 		ColorProfile: presentation.ColorProfileANSI,
-		Background:   presentation.BackgroundDark,
 		Width:        80,
 	}
+	// Explicit light with color → ThemeLight.
 	opts := presentation.ResolvedOptions{
 		Color:  true,
 		Theme:  "light",
 		Output: presentation.OutputRich,
 	}
-	eff := presentation.Effective(opts, caps)
+	eff := presentation.Effective(opts, caps, nil)
 	if eff.ThemeMode != presentation.ThemeLight {
 		t.Fatalf("ThemeMode=%q want light with color", eff.ThemeMode)
 	}
-	pref := presentation.ThemePreference(opts, caps)
-	if pref != presentation.ThemeLight {
-		t.Fatalf("ThemePreference=%q want light", pref)
-	}
-	if helpmd.GlamourStyle(pref) != "light" {
-		t.Fatalf("GlamourStyle=%q", helpmd.GlamourStyle(pref))
-	}
 
+	// No color → ThemeNone regardless of ui.theme.
 	opts = presentation.ResolvedOptions{
 		Color:  false,
 		Theme:  "dark",
 		Output: presentation.OutputRich,
 	}
-	eff = presentation.Effective(opts, caps)
+	eff = presentation.Effective(opts, caps, nil)
 	if eff.ThemeMode != presentation.ThemeNone {
 		t.Fatalf("ThemeMode=%q want none without color", eff.ThemeMode)
 	}
-	pref = presentation.ThemePreference(opts, caps)
-	if pref != presentation.ThemeDark {
-		t.Fatalf("ThemePreference=%q want dark", pref)
+
+	// ResolveTheme with explicit dark → ThemeDark.
+	if got := presentation.ResolveTheme("dark", nil); got != presentation.ThemeDark {
+		t.Fatalf("ResolveTheme(dark)=%q want dark", got)
 	}
-	if helpmd.GlamourStyle(pref) != "dark" {
-		t.Fatalf("GlamourStyle=%q", helpmd.GlamourStyle(pref))
+	// ResolveTheme with auto + nil detector → ThemeLight (fallback).
+	if got := presentation.ResolveTheme("auto", nil); got != presentation.ThemeLight {
+		t.Fatalf("ResolveTheme(auto, nil)=%q want light (fallback)", got)
 	}
 }
 

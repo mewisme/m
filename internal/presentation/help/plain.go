@@ -15,22 +15,16 @@ type RenderOptions struct {
 	Plain      bool
 	Accessible bool
 	Hyperlinks bool
-	// Style is a Glamour WithStandardStyle name (dark|light|notty|dracula|tokyo-night). Empty uses Theme.
-	Style string
-	// Theme selects GlamourStyle when Style is empty (from ui.theme / ThemePreference).
-	Theme presentation.ThemeMode
-	// MarkdownTheme overrides the Theme-based GlamourStyle selection when Style is empty.
-	MarkdownTheme presentation.MarkdownTheme
-	// ForceColor keeps Glamour ANSI even when the process stdout is non-TTY
-	// (skips lipgloss profile downsampling that would strip SGR).
-	ForceColor bool
+	// ThemeMode is the resolved palette (ThemeLight, ThemeDark, ThemeAccessible, ThemeNone).
+	ThemeMode presentation.ThemeMode
+	// UseColor enables semantic ANSI colors for rich TTY output.
+	UseColor bool
 }
 
 // Render selects plain or rich Markdown rendering.
 func Render(md string, opts RenderOptions) (string, error) {
-	width := presentation.ClampWidth(opts.Width)
-	opts.Width = width
-	if opts.Plain || opts.Accessible {
+	opts.Width = presentation.ClampWidth(opts.Width)
+	if opts.Plain || opts.Accessible || !opts.UseColor {
 		return RenderPlain(md, opts), nil
 	}
 	return RenderRich(md, opts)
@@ -51,6 +45,7 @@ var (
 )
 
 // RenderPlain converts Markdown to width-aware plain text (no ANSI).
+// All visible characters are ASCII.
 func RenderPlain(md string, opts RenderOptions) string {
 	width := presentation.ClampWidth(opts.Width)
 	md = reHTMLComment.ReplaceAllString(md, "")
@@ -94,6 +89,11 @@ func RenderPlain(md string, opts RenderOptions) string {
 			}
 			continue
 		}
+		// Horizontal rule.
+		if trim == "---" || trim == "***" || trim == "___" || trim == "- - -" || trim == "* * *" {
+			out = append(out, "----")
+			continue
+		}
 		if strings.HasPrefix(trim, "|") && strings.Contains(trim, "|") {
 			out = append(out, renderTableRow(trim, width)...)
 			continue
@@ -132,13 +132,13 @@ func formatInline(s string, opts RenderOptions) string {
 			return m
 		}
 		text, dest := parts[1], parts[2]
-		if opts.Hyperlinks && !opts.Plain && !opts.Accessible {
+		if opts.Hyperlinks && !opts.Plain && !opts.Accessible && opts.UseColor {
 			return osc8(text, dest)
 		}
 		if text == dest {
 			return dest
 		}
-		return fmt.Sprintf("%s (%s)", text, dest)
+		return fmt.Sprintf("%s: %s", text, dest)
 	})
 	return strings.TrimSpace(s)
 }
