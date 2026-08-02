@@ -65,53 +65,53 @@ func brightANSI(code string) lipgloss.Style {
 
 func lightTheme() Theme {
 	return Theme{
-		Primary:   brightANSI("14"), // bright cyan
-		Secondary: brightANSI("8"),  // bright black (gray)
-		Muted:     brightANSI("8"),  // bright black (gray)
+		Primary:   brightANSI("14"),            // bright cyan
+		Secondary: brightANSI("8"),             // bright black (gray)
+		Muted:     brightANSI("8"),             // bright black (gray)
 		Strong:    brightANSI("15").Bold(true), // bright white bold
-		Success:   brightANSI("10"), // bright green
-		Warning:   brightANSI("11"), // bright yellow
-		Error:     brightANSI("9"),  // bright red
-		Info:      brightANSI("14"), // bright cyan
-		Command:   brightANSI("14"), // bright cyan
-		Package:   brightANSI("14"), // bright cyan
-		Version:   brightANSI("15"), // bright white
-		Path:      brightANSI("8"),  // gray
-		Code:      brightANSI("13"), // bright magenta
-		Number:    brightANSI("15"), // bright white
-		Added:     brightANSI("10"), // bright green
-		Updated:   brightANSI("11"), // bright yellow
-		Removed:   brightANSI("9"),  // bright red
-		Reused:    brightANSI("8"),  // gray
+		Success:   brightANSI("10"),            // bright green
+		Warning:   brightANSI("11"),            // bright yellow
+		Error:     brightANSI("9"),             // bright red
+		Info:      brightANSI("14"),            // bright cyan
+		Command:   brightANSI("14"),            // bright cyan
+		Package:   brightANSI("14"),            // bright cyan
+		Version:   brightANSI("15"),            // bright white
+		Path:      brightANSI("8"),             // gray
+		Code:      brightANSI("13"),            // bright magenta
+		Number:    brightANSI("15"),            // bright white
+		Added:     brightANSI("10"),            // bright green
+		Updated:   brightANSI("11"),            // bright yellow
+		Removed:   brightANSI("9"),             // bright red
+		Reused:    brightANSI("8"),             // gray
 		Header:    brightANSI("15").Bold(true), // bright white bold
 		Label:     brightANSI("15").Bold(true), // bright white bold
-		Value:     brightANSI("15"), // bright white
+		Value:     brightANSI("15"),            // bright white
 	}
 }
 
 func darkTheme() Theme {
 	return Theme{
-		Primary:   brightANSI("14"), // bright cyan
-		Secondary: brightANSI("8"),  // bright black (gray)
-		Muted:     brightANSI("8"),  // bright black (gray)
+		Primary:   brightANSI("14"),            // bright cyan
+		Secondary: brightANSI("8"),             // bright black (gray)
+		Muted:     brightANSI("8"),             // bright black (gray)
 		Strong:    brightANSI("15").Bold(true), // bright white bold
-		Success:   brightANSI("10"), // bright green
-		Warning:   brightANSI("11"), // bright yellow
-		Error:     brightANSI("9"),  // bright red
-		Info:      brightANSI("14"), // bright cyan
-		Command:   brightANSI("14"), // bright cyan
-		Package:   brightANSI("14"), // bright cyan
-		Version:   brightANSI("15"), // bright white
-		Path:      brightANSI("8"),  // gray
-		Code:      brightANSI("13"), // bright magenta
-		Number:    brightANSI("15"), // bright white
-		Added:     brightANSI("10"), // bright green
-		Updated:   brightANSI("11"), // bright yellow
-		Removed:   brightANSI("9"),  // bright red
-		Reused:    brightANSI("8"),  // gray
+		Success:   brightANSI("10"),            // bright green
+		Warning:   brightANSI("11"),            // bright yellow
+		Error:     brightANSI("9"),             // bright red
+		Info:      brightANSI("14"),            // bright cyan
+		Command:   brightANSI("14"),            // bright cyan
+		Package:   brightANSI("14"),            // bright cyan
+		Version:   brightANSI("15"),            // bright white
+		Path:      brightANSI("8"),             // gray
+		Code:      brightANSI("13"),            // bright magenta
+		Number:    brightANSI("15"),            // bright white
+		Added:     brightANSI("10"),            // bright green
+		Updated:   brightANSI("11"),            // bright yellow
+		Removed:   brightANSI("9"),             // bright red
+		Reused:    brightANSI("8"),             // gray
 		Header:    brightANSI("15").Bold(true), // bright white bold
 		Label:     brightANSI("15").Bold(true), // bright white bold
-		Value:     brightANSI("15"), // bright white
+		Value:     brightANSI("15"),            // bright white
 	}
 }
 
