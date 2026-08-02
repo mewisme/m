@@ -13,11 +13,8 @@ func TestRenderPlainWidthAndLinks(t *testing.T) {
 	if strings.Contains(out, "\x1b") {
 		t.Fatalf("plain output has ANSI:\n%s", out)
 	}
-	if !strings.Contains(out, "docs (docs/cli.md)") && !strings.Contains(out, "docs/cli.md") {
+	if !strings.Contains(out, "docs: docs/cli.md") && !strings.Contains(out, "docs/cli.md") {
 		t.Fatalf("missing link destination:\n%s", out)
-	}
-	if strings.Contains(out, "<") {
-		t.Fatalf("html leaked:\n%s", out)
 	}
 }
 

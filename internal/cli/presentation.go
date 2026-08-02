@@ -4,6 +4,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/config"
+	"github.com/mewisme/mew/internal/darkmode"
 	"github.com/mewisme/mew/internal/diagnostics"
 	"github.com/mewisme/mew/internal/presentation"
 )
@@ -16,23 +18,36 @@ func (g *globalFlags) bindPresentation(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&g.ascii, "ascii", false, "use ASCII instead of Unicode symbols")
 	cmd.PersistentFlags().BoolVar(&g.noSummary, "no-summary", false, "suppress command summary output")
 	cmd.PersistentFlags().BoolVar(&g.accessible, "accessible", false, "accessible append-only output")
-	cmd.PersistentFlags().StringVar(&g.markdownTheme, "markdown-theme", "", "Markdown help theme: dark|light|dracula|tokyo-night|notty")
 }
 
 func (g *globalFlags) presentationInput() presentation.Input {
+	theme := g.loadUITheme()
 	return presentation.Input{
-		OutputFlag:    g.output,
-		NoColor:       g.noColor,
-		ASCII:         g.ascii,
-		NoProgress:    g.noProgress,
-		Accessible:    g.accessible,
-		NoSummary:     g.noSummary,
-		LogLevelFlag:  g.logLevel,
-		Debug:         g.resolveDebug(),
-		Unsafe:        g.unsafe,
-		MarkdownTheme: g.markdownTheme,
-		BinaryName:    g.invokedBinary,
+		OutputFlag:   g.output,
+		NoColor:      g.noColor,
+		ASCII:        g.ascii,
+		NoProgress:   g.noProgress,
+		Accessible:   g.accessible,
+		NoSummary:    g.noSummary,
+		LogLevelFlag: g.logLevel,
+		Debug:        g.resolveDebug(),
+		Unsafe:       g.unsafe,
+		Theme:        theme,
+		BinaryName:   g.invokedBinary,
 	}
+}
+
+// loadUITheme reads ui.theme from config (lightweight, skips project config if missing).
+func (g *globalFlags) loadUITheme() string {
+	eff, err := config.Load(nil, config.LoadOptions{
+		CWD:         g.cwd,
+		GlobalPath:  g.configPath,
+		ProjectRoot: g.cwd,
+	})
+	if err != nil {
+		return ""
+	}
+	return config.String(eff, "ui.theme", "")
 }
 
 func (g *globalFlags) controller(cmd *cobra.Command) (presentation.Controller, error) {
@@ -45,12 +60,19 @@ func (g *globalFlags) controller(cmd *cobra.Command) (presentation.Controller, e
 	if err != nil {
 		return nil, err
 	}
-	ctrl, err := presentation.NewController(resolved, caps, streams)
+	ctrl, err := presentation.NewController(resolved, caps, streams, darkmodeDetector{})
 	if err != nil {
 		return nil, err
 	}
 	g.ctrl = ctrl
 	return ctrl, nil
+}
+
+// darkmodeDetector adapts the internal darkmode package to presentation.DarkModeDetector.
+type darkmodeDetector struct{}
+
+func (darkmodeDetector) IsDarkMode() (bool, error) {
+	return darkmode.IsDarkMode()
 }
 
 // staticRenderer returns the design-system renderer for this invocation.
@@ -59,7 +81,7 @@ func (g *globalFlags) staticRenderer(cmd *cobra.Command) (presentation.StaticRen
 	if err != nil {
 		return nil, err
 	}
-	settings := presentation.Effective(ctrl.Options(), ctrl.Capabilities())
+	settings := ctrl.Settings()
 	settings.BinaryName = g.invokedBinary
 	return presentation.NewStaticRenderer(settings), nil
 }

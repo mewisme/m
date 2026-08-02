@@ -10,9 +10,8 @@ type ResolvedOptions struct {
 	Unicode       bool
 	Accessible    bool
 	Summary       bool
-	Theme         string
-	MarkdownTheme string
-	LogLevel      LogLevel
+	Theme      string // configured ui.theme value: "auto", "light", "dark", or ""
+	LogLevel   LogLevel
 	Debug         bool
 	Unsafe        bool
 	TermWidth     int

@@ -21,6 +21,7 @@ func TestLoadSpecClonePreservesPaths(t *testing.T) {
 		CWD:                  root,
 		ProjectRoot:          root,
 		ProjectPath:          custom,
+		GlobalPath:           filepath.Join(root, "no-global.jsonc"),
 		RequireProjectConfig: true,
 		Env:                  []string{"MEW_OFFLINE=false"},
 		CLI:                  map[string]any{"offline": true},
