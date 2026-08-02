@@ -59,7 +59,7 @@ Cache, store, and artifacts
   capsule        Create and restore portable dependency capsules
 
 Configuration and development
-  config         Get and set configuration
+  config         Manage configuration
   development    Developer tooling
   benchmark      Performance benchmarks (m bench)
   conformance    Run certification conformance suites

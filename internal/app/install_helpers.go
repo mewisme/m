@@ -258,7 +258,7 @@ func enrichRegistryTarballs(ctx context.Context, ac *Context, proj *project.Proj
 	if eng.Client == nil {
 		return nil
 	}
-	preferOffline := config.Bool(ac.Config, "prefer-offline", false)
+	preferOffline := config.Bool(ac.Config, "prefer_offline", false)
 	offline := config.Bool(ac.Config, "offline", false)
 
 	byBase := map[string][]enrichTarget{}

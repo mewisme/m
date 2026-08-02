@@ -80,7 +80,7 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 		cliOverlay["offline"] = true
 	}
 	if opts.PreferOffline {
-		cliOverlay["prefer-offline"] = true
+		cliOverlay["prefer_offline"] = true
 	}
 
 	env := opts.Env

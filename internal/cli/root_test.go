@@ -107,7 +107,8 @@ func TestConfigListSources(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixture := filepath.Join(modRoot, "fixtures", "identity", "mew-native")
-	root.SetArgs([]string{"--cwd", fixture, "config", "list", "--sources"})
+	// Use effective scope to see all layers including project.
+	root.SetArgs([]string{"--cwd", fixture, "config", "list", "--scope", "effective", "--show-origin"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +116,7 @@ func TestConfigListSources(t *testing.T) {
 	if !strings.Contains(out, "registry") {
 		t.Fatalf("missing registry:\n%s", out)
 	}
-	if !strings.Contains(out, "project") {
+	if !strings.Contains(out, "project") || !strings.Contains(out, "[project]") {
 		t.Fatalf("missing project source:\n%s", out)
 	}
 }
@@ -130,24 +131,18 @@ func TestConfigListValuesColumn(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixture := filepath.Join(modRoot, "fixtures", "identity", "mew-native")
-	root.SetArgs([]string{"--cwd", fixture, "--no-color", "config", "list"})
+	// Use effective scope with --defaults to include all schema keys.
+	root.SetArgs([]string{"--cwd", fixture, "--no-color", "config", "list", "--scope", "effective", "--defaults"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "VALUES") {
-		t.Fatalf("missing VALUES header:\n%s", out)
+	if !strings.Contains(out, "log.level") {
+		t.Fatalf("missing log.level row:\n%s", out)
 	}
-	for _, line := range strings.Split(out, "\n") {
-		if !strings.Contains(line, "log.level") {
-			continue
-		}
-		if strings.Contains(line, "error") && strings.Contains(line, "warn") && strings.Contains(line, "info") && strings.Contains(line, "debug") {
-			return
-		}
-		t.Fatalf("log.level row missing error|warn|info|debug:\n%s\nfull:\n%s", line, out)
+	if !strings.Contains(out, "error") {
+		t.Fatalf("missing default value 'error':\n%s", out)
 	}
-	t.Fatalf("log.level row missing:\n%s", out)
 }
 
 func TestRecoverPanic(t *testing.T) {

@@ -67,44 +67,30 @@ type LoadOptions struct {
 	IdentityMew bool
 }
 
-var ownedKeys = map[string]string{
-	"registry":                       "string",
-	"install.linker":                 "string",
-	"offline":                        "bool",
-	"prefer-offline":                 "bool",
-	"cache.dir":                      "string",
-	"store.dir":                      "string",
-	"link.use_global_store":          "bool",
-	"resolve.autoInstallPeers":       "bool",
-	"resolve.strictPeerDependencies": "bool",
-	"resolve.rejectDeprecated":       "bool",
-	"resolve.minimumReleaseAge":      "int",
-	"network.timeout_ms":             "int",
-	"network.proxy":                  "string",
-	"network.ca_file":                "string",
-	"registry.auth_token_env":        "string",
-	"transaction.snapshot_retention": "int",
-	"lifecycle.enabled":              "bool",
-	"lifecycle.ignore_scripts":       "bool",
-	"lifecycle.script_trust":         "string",
-	"lifecycle.script_timeout":       "string",
-	"workspaces.enabled":             "bool",
-	"runner.direct_scripts.enabled":  "bool",
-	"runner.mx.cache.retention_days": "int",
-	"runner.mx.cache.dir":            "string",
-	"provenance.trusted_public_key":  "string",
-	"ui.pager":                       "string",
-	"ui.theme":                       "string",
-	"log.level":                      "string",
+// ownedKeys maps canonical keys to their type strings.
+// Built from the registry at init time for lookup speed.
+var ownedKeys = buildOwnedKeys()
+
+func buildOwnedKeys() map[string]string {
+	m := make(map[string]string, len(keyRegistry))
+	for k, s := range keyRegistry {
+		m[k] = string(s.Type)
+	}
+	return m
 }
 
 // allowedValuesByKey lists fixed enums for `m config list` VALUES.
-// Bool keys omit entries and resolve via ownedKeys to true|false.
-var allowedValuesByKey = map[string]string{
-	"install.linker":         "auto|hoisted|isolated",
-	"lifecycle.script_trust": "allow|deny|ask",
-	"log.level":              "error|warn|info|debug",
-	"ui.theme":               "auto|light|dark",
+// Built from the registry at init time.
+var allowedValuesByKey = buildAllowedValues()
+
+func buildAllowedValues() map[string]string {
+	m := make(map[string]string, len(keyRegistry))
+	for k, s := range keyRegistry {
+		if s.Type == TypeEnum && len(s.Enum) > 0 {
+			m[k] = strings.Join(s.Enum, "|")
+		}
+	}
+	return m
 }
 
 // AllowedValues returns the pipe-joined settable values for key, or "" when free-form.
@@ -118,7 +104,7 @@ func AllowedValues(key string) string {
 	return ""
 }
 
-// OwnedKeys returns the sorted list of owned config keys.
+// OwnedKeys returns the sorted list of owned config keys (canonical only).
 func OwnedKeys() []string {
 	keys := make([]string, 0, len(ownedKeys))
 	for k := range ownedKeys {
@@ -128,35 +114,9 @@ func OwnedKeys() []string {
 	return keys
 }
 
+// defaults returns the canonical default map.
 func defaults() map[string]any {
-	return map[string]any{
-		"registry":                       "https://registry.npmjs.org",
-		"install.linker":                 "auto",
-		"offline":                        false,
-		"prefer-offline":                 false,
-		"cache.dir":                      "",
-		"store.dir":                      "",
-		"link.use_global_store":          false,
-		"resolve.autoInstallPeers":       false,
-		"resolve.strictPeerDependencies": true,
-		"resolve.rejectDeprecated":       false,
-		"resolve.minimumReleaseAge":      0,
-		"network.timeout_ms":             60000,
-		"network.proxy":                  "",
-		"network.ca_file":                "",
-		"registry.auth_token_env":        "",
-		"transaction.snapshot_retention": 10,
-		"lifecycle.enabled":              false,
-		"lifecycle.ignore_scripts":       false,
-		"lifecycle.script_trust":         "deny",
-		"lifecycle.script_timeout":       "10m",
-		"workspaces.enabled":             false,
-		"runner.mx.cache.retention_days": 7,
-		"runner.mx.cache.dir":            "",
-		"ui.pager":                       "",
-		"ui.theme":                       "auto",
-		"log.level":                      "error",
-	}
+	return CanonicalDefaults()
 }
 
 // GlobalConfigPath resolves the user config.jsonc path.
@@ -207,7 +167,6 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 	if !snap.Initialized() {
 		env := opts.Env
 		if env == nil {
-			// intentional: unit-test compat when Load is called without a snapshot.
 			env = os.Environ()
 		}
 		snap = NewEnvSnapshot(env, runtime.GOOS)
@@ -232,16 +191,19 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 		return nil, err
 	}
 
-	// Mew identity: do not read branded PM config as authority.
 	_ = opts.IdentityMew
 
 	mergeEnv(eff, snap)
 
 	for k, v := range opts.CLI {
-		if err := validateKeyValue(k, v); err != nil {
+		canon := k
+		if c := CanonicalKey(k); c != "" {
+			canon = c
+		}
+		if err := validateKeyValue(canon, v); err != nil {
 			return nil, err
 		}
-		eff.Values[k] = Value{Raw: v, Source: SourceCLI, Path: "cli"}
+		eff.Values[canon] = Value{Raw: v, Source: SourceCLI, Path: "cli"}
 	}
 	return eff, nil
 }
@@ -266,35 +228,66 @@ func mergeFile(eff *Effective, path string, src Source, required bool) error {
 		return apperr.Wrap(apperr.Config, "config.load", path, err)
 	}
 	for k, v := range flat {
-		if err := validateKeyValue(k, v); err != nil {
+		canon, isLegacy, known := resolveKey(k)
+		if !known {
+			if err := validateUnknownKey(k, v); err != nil {
+				return apperr.Wrap(apperr.Config, "config.load", path+":"+k, err)
+			}
+			eff.Values[k] = Value{Raw: v, Source: src, Path: path}
+			continue
+		}
+		if isLegacy {
+			if existing, ok := eff.Values[canon]; ok && existing.Source == src {
+				return apperr.New(apperr.Config, "config.load", path,
+					fmt.Sprintf("conflicting keys %q and %q; remove one", k, canon))
+			}
+		}
+		if err := validateKeyValue(canon, v); err != nil {
 			return apperr.Wrap(apperr.Config, "config.load", path+":"+k, err)
 		}
-		eff.Values[k] = Value{Raw: v, Source: src, Path: path}
+		eff.Values[canon] = Value{Raw: v, Source: src, Path: path}
 	}
 	return nil
 }
 
-// envVarByKey is the authoritative config-key → env-var map for mergeEnv.
-// Only names that real resolution reads belong here.
+func validateUnknownKey(key string, v any) error {
+	_ = v
+	if strings.HasPrefix(key, "registries.") {
+		return nil
+	}
+	if strings.HasPrefix(key, "install.") || strings.HasPrefix(key, "registry.") ||
+		strings.HasPrefix(key, "cache.") || strings.HasPrefix(key, "store.") ||
+		strings.HasPrefix(key, "network.") || strings.HasPrefix(key, "resolve.") ||
+		strings.HasPrefix(key, "runner.") || strings.HasPrefix(key, "lifecycle.") ||
+		strings.HasPrefix(key, "link.") || strings.HasPrefix(key, "transaction.") ||
+		strings.HasPrefix(key, "workspaces.") || strings.HasPrefix(key, "provenance.") ||
+		strings.HasPrefix(key, "ui.") || strings.HasPrefix(key, "log.") ||
+		strings.HasPrefix(key, "mx.") {
+		return fmt.Errorf("unknown config key %q", key)
+	}
+	return nil
+}
+
+// envVarByKey maps canonical config keys to env var names.
 var envVarByKey = map[string]string{
-	"cache.dir":                      "MEW_CACHE_DIR",
-	"store.dir":                      "MEW_STORE_DIR",
-	"offline":                        "MEW_OFFLINE",
-	"prefer-offline":                 "MEW_PREFER_OFFLINE",
-	"resolve.autoInstallPeers":       "MEW_RESOLVE_AUTO_INSTALL_PEERS",
-	"resolve.strictPeerDependencies": "MEW_RESOLVE_STRICT_PEER_DEPS",
-	"resolve.rejectDeprecated":       "MEW_RESOLVE_REJECT_DEPRECATED",
-	"registry":                       "MEW_REGISTRY",
-	"registry.auth_token_env":        "MEW_REGISTRY_AUTH_TOKEN_ENV",
-	"lifecycle.enabled":              "MEW_EXPERIMENTAL_LIFECYCLE",
-	"lifecycle.script_timeout":       "MEW_LIFECYCLE_SCRIPT_TIMEOUT",
-	"workspaces.enabled":             "MEW_EXPERIMENTAL_WORKSPACES",
-	"runner.direct_scripts.enabled":  "MEW_EXPERIMENTAL_DIRECT_SCRIPTS",
-	"provenance.trusted_public_key":  "MEW_PROVENANCE_TRUSTED_PUBLIC_KEY",
-	"runner.mx.cache.dir":            "MEW_MX_CACHE_DIR",
-	"link.use_global_store":          "MEW_EXPERIMENTAL_GLOBAL_STORE",
-	"ui.pager":                       "MEW_PAGER",
-	"log.level":                      "MEW_LOG_LEVEL",
+	"cache.dir":                        "MEW_CACHE_DIR",
+	"store.dir":                        "MEW_STORE_DIR",
+	"offline":                          "MEW_OFFLINE",
+	"prefer_offline":                   "MEW_PREFER_OFFLINE",
+	"resolve.auto_install_peers":       "MEW_RESOLVE_AUTO_INSTALL_PEERS",
+	"resolve.strict_peer_dependencies": "MEW_RESOLVE_STRICT_PEER_DEPS",
+	"resolve.reject_deprecated":        "MEW_RESOLVE_REJECT_DEPRECATED",
+	"registry":                         "MEW_REGISTRY",
+	"registry.auth_token_env":          "MEW_REGISTRY_AUTH_TOKEN_ENV",
+	"lifecycle.enabled":                "MEW_EXPERIMENTAL_LIFECYCLE",
+	"lifecycle.script_timeout":         "MEW_LIFECYCLE_SCRIPT_TIMEOUT",
+	"workspaces.enabled":               "MEW_EXPERIMENTAL_WORKSPACES",
+	"runner.direct_scripts.enabled":    "MEW_EXPERIMENTAL_DIRECT_SCRIPTS",
+	"provenance.trusted_public_key":    "MEW_PROVENANCE_TRUSTED_PUBLIC_KEY",
+	"runner.mx.cache.dir":              "MEW_MX_CACHE_DIR",
+	"link.use_global_store":            "MEW_EXPERIMENTAL_GLOBAL_STORE",
+	"ui.pager":                         "MEW_PAGER",
+	"log.level":                        "MEW_LOG_LEVEL",
 }
 
 // EnvVar returns the environment variable that can set key, or "" when none.
@@ -319,14 +312,13 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) {
 		eff.Values[key] = Value{Raw: raw, Source: SourceEnv, Path: envKey}
 	}
 	identity := func(s string) (any, error) { return s, nil }
-	// Only keys that Load merges into Effective (presentation env is read later).
 	set("cache.dir", identity)
 	set("store.dir", identity)
 	set("offline", parseBool)
-	set("prefer-offline", parseBool)
-	set("resolve.autoInstallPeers", parseBool)
-	set("resolve.strictPeerDependencies", parseBool)
-	set("resolve.rejectDeprecated", parseBool)
+	set("prefer_offline", parseBool)
+	set("resolve.auto_install_peers", parseBool)
+	set("resolve.strict_peer_dependencies", parseBool)
+	set("resolve.reject_deprecated", parseBool)
 	set("registry", identity)
 	set("registry.auth_token_env", identity)
 	set("lifecycle.enabled", parseBool)
@@ -409,26 +401,16 @@ func validateKeyValue(key string, v any) error {
 				return fmt.Errorf("%s: store env var name only, not a secret", key)
 			}
 		}
-		if key == "install.linker" {
-			switch s {
-			case "auto", "hoisted", "isolated", "":
-			default:
-				return fmt.Errorf("install.linker: want auto|hoisted|isolated")
+		if spec := KeySpec(key); spec != nil && spec.Type == TypeEnum && len(spec.Enum) > 0 {
+			if s == "" {
+				return nil
 			}
-		}
-		if key == "lifecycle.script_trust" {
-			switch s {
-			case "allow", "deny", "ask", "":
-			default:
-				return fmt.Errorf("lifecycle.script_trust: want allow|deny|ask")
+			for _, allowed := range spec.Enum {
+				if s == allowed {
+					return nil
+				}
 			}
-		}
-		if key == "ui.theme" {
-			switch s {
-			case "auto", "light", "dark", "":
-			default:
-				return fmt.Errorf("ui.theme: want auto|light|dark")
-			}
+			return fmt.Errorf("%s: want %s", key, strings.Join(spec.Enum, "|"))
 		}
 	case "bool":
 		if _, ok := v.(bool); !ok {
@@ -447,6 +429,32 @@ func validateKeyValue(key string, v any) error {
 		default:
 			return fmt.Errorf("%s: want int", key)
 		}
+	case "duration":
+		s, ok := v.(string)
+		if !ok {
+			return fmt.Errorf("%s: want duration string", key)
+		}
+		if s != "" {
+			if _, err := ParseDuration(s); err != nil {
+				return fmt.Errorf("%s: invalid duration %q: %w", key, s, err)
+			}
+		}
+	case "enum":
+		s, ok := v.(string)
+		if !ok {
+			return fmt.Errorf("%s: want string (enum)", key)
+		}
+		if spec := KeySpec(key); spec != nil {
+			if s == "" {
+				return nil
+			}
+			for _, allowed := range spec.Enum {
+				if s == allowed {
+					return nil
+				}
+			}
+			return fmt.Errorf("%s: want %s", key, strings.Join(spec.Enum, "|"))
+		}
 	}
 	return nil
 }
@@ -461,7 +469,6 @@ func looksLikeSecret(s string) bool {
 	if len(s) >= 20 {
 		return true
 	}
-	// Env var names are typically UPPER_SNAKE.
 	for _, r := range s {
 		if !unicode.IsUpper(r) && !unicode.IsDigit(r) && r != '_' {
 			return true
@@ -470,16 +477,21 @@ func looksLikeSecret(s string) bool {
 	return false
 }
 
-// Get returns one effective value.
+// Get returns one effective value. Accepts canonical and recognized legacy keys.
 func Get(eff *Effective, key string) (Value, error) {
 	if eff == nil {
 		return Value{}, apperr.New(apperr.Config, "config.get", key, "nil config")
 	}
-	v, ok := eff.Values[key]
-	if !ok {
+	if v, ok := eff.Values[key]; ok {
+		return v, nil
+	}
+	if canon := CanonicalKey(key); canon != "" {
+		if v, ok := eff.Values[canon]; ok {
+			return v, nil
+		}
 		return Value{}, apperr.New(apperr.Config, "config.get", key, "unknown key")
 	}
-	return v, nil
+	return Value{}, apperr.New(apperr.Config, "config.get", key, "unknown key")
 }
 
 // List returns sorted entries.
@@ -522,29 +534,144 @@ func formatRaw(v any) string {
 	}
 }
 
-// SetFile writes a single key into a JSONC file (pure JSON rewrite).
-// Comments are not preserved: files with comments fail closed.
+// SetFile writes a single key into a JSONC file. Legacy keys are resolved to canonical form.
 func SetFile(path, key string, raw any) error {
-	if err := validateKeyValue(key, normalizeForWrite(raw)); err != nil {
+	canon, _, known := resolveKey(key)
+	if !known {
+		canon = key
+	}
+	if err := validateKeyValue(canon, normalizeForWrite(raw)); err != nil {
 		return apperr.Wrap(apperr.Config, "config.set", key, err)
 	}
 	raw = normalizeForWrite(raw)
 	return mutateFile(path, "config.set", func(existing map[string]any) (bool, error) {
-		setNested(existing, key, raw)
+		setNested(existing, canon, raw)
 		return true, nil
 	})
 }
 
-// UnsetFile removes a dotted key from a JSONC file (pure JSON rewrite).
-// Missing keys are idempotent. Empty parent objects left by the key path are dropped.
-// Comments are not preserved: files with comments fail closed.
+// UnsetFile removes a dotted key from a JSONC file. Legacy keys are resolved first.
 func UnsetFile(path, key string) error {
-	if _, err := validateKeyOwned(key); err != nil {
+	canon, _, known := resolveKey(key)
+	if !known {
+		canon = key
+	}
+	if _, err := validateKeyOwned(canon); err != nil {
 		return apperr.Wrap(apperr.Config, "config.unset", key, err)
 	}
 	return mutateFile(path, "config.unset", func(existing map[string]any) (bool, error) {
-		return unsetNested(existing, key), nil
+		return unsetNested(existing, canon), nil
 	})
+}
+
+// MigrateFile reads a config file and rewrites it with canonical keys.
+// Returns the count of migrated keys.
+func MigrateFile(path string) (int, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, apperr.Wrap(apperr.IO, "config.migrate", path, err)
+	}
+	if HasJSONCComments(b) {
+		return 0, apperr.New(apperr.Config, "config.migrate", path, "file contains comments; edit manually or remove comments before migrating")
+	}
+	parsed, err := ParseJSONC(b)
+	if err != nil {
+		return 0, apperr.Wrap(apperr.Config, "config.migrate", path, err)
+	}
+	m, ok := parsed.(map[string]any)
+	if !ok {
+		return 0, apperr.New(apperr.Config, "config.migrate", path, "root must be object")
+	}
+	count := migrateMap(m)
+	if count == 0 {
+		return 0, nil
+	}
+	out, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return 0, apperr.Wrap(apperr.Internal, "config.migrate", path, err)
+	}
+	out = append(out, '\n')
+	if err := fsx.PublishFileDurable(path, out, 0o644); err != nil {
+		return 0, apperr.Wrap(apperr.IO, "config.migrate", path, err)
+	}
+	return count, nil
+}
+
+// CheckMigration reports which legacy keys exist and their canonical replacements.
+func CheckMigration(path string) (map[string]string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, apperr.Wrap(apperr.IO, "config.migrate", path, err)
+	}
+	parsed, err := ParseJSONC(b)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.Config, "config.migrate", path, err)
+	}
+	m, ok := parsed.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	needed := map[string]string{}
+	for k := range flattenLegacy(m, "") {
+		if canon := CanonicalKey(k); canon != "" && canon != k {
+			needed[k] = canon
+		}
+	}
+	if len(needed) == 0 {
+		return nil, nil
+	}
+	return needed, nil
+}
+
+func flattenLegacy(v any, prefix string) map[string]any {
+	out := map[string]any{}
+	switch t := v.(type) {
+	case map[string]any:
+		for k, child := range t {
+			key := k
+			if prefix != "" {
+				key = prefix + "." + k
+			}
+			if cm, ok := child.(map[string]any); ok {
+				for ck, cv := range flattenLegacy(cm, key) {
+					out[ck] = cv
+				}
+			} else {
+				out[key] = child
+			}
+		}
+	}
+	return out
+}
+
+func migrateMap(m map[string]any) int {
+	count := 0
+	for k, v := range m {
+		if cm, ok := v.(map[string]any); ok {
+			count += migrateMap(cm)
+			if len(cm) == 0 {
+				delete(m, k)
+			}
+			continue
+		}
+		canon := CanonicalKey(k)
+		if canon == "" || canon == k {
+			continue
+		}
+		if _, exists := m[canon]; exists {
+			continue
+		}
+		m[canon] = v
+		delete(m, k)
+		count++
+	}
+	return count
 }
 
 func mutateFile(path, op string, mutate func(map[string]any) (changed bool, err error)) error {
@@ -602,7 +729,6 @@ func normalizeForWrite(v any) any {
 	switch t := v.(type) {
 	case string:
 		if b, err := parseBool(t); err == nil {
-			// keep string unless key expects bool — caller validates
 			_ = b
 		}
 		if n, err := strconv.Atoi(t); err == nil {
@@ -615,15 +741,17 @@ func normalizeForWrite(v any) any {
 }
 
 // ParseValue coerces a CLI string into a typed value for key.
+// Accepts canonical keys; legacy keys are resolved first.
 func ParseValue(key, s string) (any, error) {
-	kind, ok := ownedKeys[key]
-	if !ok && strings.HasPrefix(key, "registries.") {
-		kind = "string"
-		ok = true
+	canon, _, known := resolveKey(key)
+	if !known && strings.HasPrefix(key, "registries.") {
+		canon = key
+		known = true
 	}
-	if !ok {
+	if !known {
 		return nil, fmt.Errorf("unknown key %q", key)
 	}
+	kind := ownedKeys[canon]
 	switch kind {
 	case "bool":
 		return parseBool(s)
@@ -655,8 +783,6 @@ func setNested(m map[string]any, dotted string, v any) {
 	}
 }
 
-// unsetNested removes a dotted key. Empty parent maps created only by that path are dropped.
-// Returns whether the document changed.
 func unsetNested(m map[string]any, dotted string) bool {
 	return unsetNestedParts(m, strings.Split(dotted, "."))
 }

@@ -12,10 +12,10 @@ import (
 func PolicyFromEffective(eff *config.Effective) *policy.Policy {
 	pol := policy.Policy{StrictPeerDependencies: true}
 	if eff != nil {
-		pol.AutoInstallPeers = config.Bool(eff, "resolve.autoInstallPeers", false)
-		pol.StrictPeerDependencies = config.Bool(eff, "resolve.strictPeerDependencies", true)
-		pol.RejectDeprecated = config.Bool(eff, "resolve.rejectDeprecated", false)
-		pol.MinimumReleaseAge = time.Duration(config.Int(eff, "resolve.minimumReleaseAge", 0)) * time.Millisecond
+		pol.AutoInstallPeers = config.Bool(eff, "resolve.auto_install_peers", false)
+		pol.StrictPeerDependencies = config.Bool(eff, "resolve.strict_peer_dependencies", true)
+		pol.RejectDeprecated = config.Bool(eff, "resolve.reject_deprecated", false)
+		pol.MinimumReleaseAge = time.Duration(config.Int(eff, "resolve.minimum_release_age", 0)) * time.Millisecond
 		pol.Offline = config.Bool(eff, "offline", false)
 	}
 	_ = pol.Normalize()

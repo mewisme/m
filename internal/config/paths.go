@@ -54,12 +54,36 @@ func IsPathWithin(root, candidate string) (bool, error) {
 	return true, nil
 }
 
+// resolveAccessKey maps a possibly-legacy key to the canonical form stored in eff.Values.
+// Handles both directions: legacy→canonical lookup and canonical→legacy reverse lookup.
+func resolveAccessKey(eff *Effective, key string) string {
+	if eff == nil {
+		return key
+	}
+	if _, ok := eff.Values[key]; ok {
+		return key
+	}
+	// Try legacy→canonical: key is legacy, value stored under canonical.
+	if canon := CanonicalKey(key); canon != "" && canon != key {
+		if _, ok := eff.Values[canon]; ok {
+			return canon
+		}
+	}
+	// Try reverse: key is canonical, value stored under legacy.
+	if legacy := LegacyKey(key); legacy != "" {
+		if _, ok := eff.Values[legacy]; ok {
+			return legacy
+		}
+	}
+	return key
+}
+
 // String returns a string config value, or def if missing/empty.
 func String(eff *Effective, key, def string) string {
 	if eff == nil {
 		return def
 	}
-	v, ok := eff.Values[key]
+	v, ok := eff.Values[resolveAccessKey(eff, key)]
 	if !ok {
 		return def
 	}
@@ -75,7 +99,7 @@ func Bool(eff *Effective, key string, def bool) bool {
 	if eff == nil {
 		return def
 	}
-	v, ok := eff.Values[key]
+	v, ok := eff.Values[resolveAccessKey(eff, key)]
 	if !ok {
 		return def
 	}
@@ -91,7 +115,7 @@ func Int(eff *Effective, key string, def int) int {
 	if eff == nil {
 		return def
 	}
-	v, ok := eff.Values[key]
+	v, ok := eff.Values[resolveAccessKey(eff, key)]
 	if !ok {
 		return def
 	}
