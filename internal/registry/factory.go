@@ -32,7 +32,7 @@ func NewFromApp(eff *config.Effective, projectRoot string, identity project.Iden
 		BaseURL:       base,
 		CacheDir:      cacheDir,
 		Offline:       config.Bool(eff, "offline", false),
-		PreferOffline: config.Bool(eff, "prefer-offline", false),
+		PreferOffline: config.Bool(eff, "prefer_offline", false),
 		AuthToken:     config.AuthToken(eff),
 		HTTPClient:    hc,
 		MaxWorkers:    defaultMaxWorkers(),

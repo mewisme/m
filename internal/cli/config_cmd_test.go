@@ -39,7 +39,7 @@ func TestConfigSetDefaultWritesUser(t *testing.T) {
 	}
 }
 
-func TestConfigSetLocalWritesProject(t *testing.T) {
+func TestConfigSetProjectScope(t *testing.T) {
 	proj := t.TempDir()
 	if err := os.WriteFile(filepath.Join(proj, "package.json"), []byte(`{"name":"app"}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -50,7 +50,7 @@ func TestConfigSetLocalWritesProject(t *testing.T) {
 	root := NewMRoot(testBuildInfo())
 	buf := new(bytes.Buffer)
 	root.SetOut(buf)
-	root.SetArgs([]string{"--cwd", proj, "config", "set", "install.linker", "hoisted", "--local"})
+	root.SetArgs([]string{"--cwd", proj, "config", "set", "install.linker", "hoisted", "--scope", "project"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
@@ -66,34 +66,16 @@ func TestConfigSetLocalWritesProject(t *testing.T) {
 	}
 }
 
-func TestConfigSetLocalNoProjectFails(t *testing.T) {
+func TestConfigSetProjectNoProjectFails(t *testing.T) {
 	dir := t.TempDir()
 	root := NewMRoot(testBuildInfo())
-	root.SetArgs([]string{"--cwd", dir, "config", "set", "offline", "true", "--local"})
+	root.SetArgs([]string{"--cwd", dir, "config", "set", "offline", "true", "--scope", "project"})
 	err := root.Execute()
 	if err == nil {
 		t.Fatal("expected error")
 	}
 	if apperr.CodeOf(err) != apperr.NotFound {
 		t.Fatalf("code=%s err=%v", apperr.CodeOf(err), err)
-	}
-}
-
-func TestConfigSetFileExplicit(t *testing.T) {
-	cwd := t.TempDir()
-	root := NewMRoot(testBuildInfo())
-	buf := new(bytes.Buffer)
-	root.SetOut(buf)
-	root.SetArgs([]string{"--cwd", cwd, "config", "set", "offline", "true", "--file", "custom.jsonc"})
-	if err := root.Execute(); err != nil {
-		t.Fatal(err)
-	}
-	b, err := os.ReadFile(filepath.Join(cwd, "custom.jsonc"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(b), `"offline": true`) {
-		t.Fatalf("file contents:\n%s", b)
 	}
 }
 
@@ -124,7 +106,7 @@ func TestConfigUnset(t *testing.T) {
 	}
 }
 
-func TestConfigGetSourceJSON(t *testing.T) {
+func TestConfigGetJSON(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
 	if err := config.SetFile(filepath.Join(cfgDir, "config.jsonc"), "offline", true); err != nil {
@@ -134,7 +116,7 @@ func TestConfigGetSourceJSON(t *testing.T) {
 	root := NewMRoot(testBuildInfo())
 	buf := new(bytes.Buffer)
 	root.SetOut(buf)
-	root.SetArgs([]string{"--output", "json", "config", "get", "offline", "--source"})
+	root.SetArgs([]string{"--output", "json", "config", "get", "offline"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +132,7 @@ func TestConfigGetSourceJSON(t *testing.T) {
 	}
 }
 
-func TestConfigPathAndPaths(t *testing.T) {
+func TestConfigPath(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
 	proj := t.TempDir()
@@ -158,6 +140,7 @@ func TestConfigPathAndPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Default: user scope.
 	root := NewMRoot(testBuildInfo())
 	buf := new(bytes.Buffer)
 	root.SetOut(buf)
@@ -170,44 +153,34 @@ func TestConfigPathAndPaths(t *testing.T) {
 		t.Fatalf("path=%q want %q", buf.String(), wantUser)
 	}
 
+	// Project scope.
 	buf.Reset()
 	root = NewMRoot(testBuildInfo())
 	root.SetOut(buf)
-	root.SetArgs([]string{"--cwd", proj, "config", "path", "--local"})
+	root.SetArgs([]string{"--cwd", proj, "config", "path", "--scope", "project"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
 	wantProj := filepath.Join(proj, "m.jsonc")
 	if strings.TrimSpace(buf.String()) != wantProj {
-		t.Fatalf("local path=%q want %q", buf.String(), wantProj)
+		t.Fatalf("project path=%q want %q", buf.String(), wantProj)
 	}
 
+	// --all flag.
 	buf.Reset()
 	root = NewMRoot(testBuildInfo())
 	root.SetOut(buf)
-	root.SetArgs([]string{"--cwd", proj, "config", "paths"})
+	root.SetArgs([]string{"--cwd", proj, "config", "path", "--all"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
 	if !strings.Contains(out, wantUser) || !strings.Contains(out, wantProj) {
-		t.Fatalf("paths:\n%s", out)
+		t.Fatalf("path --all:\n%s", out)
 	}
 }
 
-func TestConfigFlagConflicts(t *testing.T) {
-	root := NewMRoot(testBuildInfo())
-	root.SetArgs([]string{"config", "set", "offline", "true", "--local", "--global"})
-	err := root.Execute()
-	if err == nil {
-		t.Fatal("expected conflict")
-	}
-	if apperr.CodeOf(err) != apperr.Usage {
-		t.Fatalf("code=%s err=%v", apperr.CodeOf(err), err)
-	}
-}
-
-func TestConfigListSourcesDisplaysUser(t *testing.T) {
+func TestConfigListShowOrigin(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
 	if err := config.SetFile(filepath.Join(cfgDir, "config.jsonc"), "offline", true); err != nil {
@@ -216,22 +189,13 @@ func TestConfigListSourcesDisplaysUser(t *testing.T) {
 	root := NewMRoot(testBuildInfo())
 	buf := new(bytes.Buffer)
 	root.SetOut(buf)
-	root.SetArgs([]string{"config", "list", "--sources"})
+	root.SetArgs([]string{"config", "list", "--show-origin"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
 	if !strings.Contains(out, "user") {
 		t.Fatalf("expected displayed source user:\n%s", out)
-	}
-	if strings.Contains(out, "\tglobal\t") || strings.Contains(out, " global ") {
-		// table may still contain the word in paths; require SOURCE column mapped
-		lines := strings.Split(out, "\n")
-		for _, line := range lines {
-			if strings.Contains(line, "offline") && strings.Contains(line, "global") && !strings.Contains(line, "user") {
-				t.Fatalf("offline row still shows global:\n%s", line)
-			}
-		}
 	}
 }
 
@@ -252,14 +216,14 @@ func TestConfigGetMarkdownThemeDefault(t *testing.T) {
 	}
 }
 
-func TestConfigGetMarkdownThemeSource(t *testing.T) {
+func TestConfigGetMarkdownThemeVerbose(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
 
 	root := NewMRoot(testBuildInfo())
 	buf := new(bytes.Buffer)
 	root.SetOut(buf)
-	root.SetArgs([]string{"config", "get", "ui.theme", "--source"})
+	root.SetArgs([]string{"config", "get", "ui.theme", "--verbose"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +292,7 @@ func TestConfigUnsetMarkdownThemeRestoresDefault(t *testing.T) {
 	}
 }
 
-func TestConfigSetMarkdownThemeLocalRejected(t *testing.T) {
+func TestConfigSetMarkdownThemeProjectRejected(t *testing.T) {
 	proj := t.TempDir()
 	if err := os.WriteFile(filepath.Join(proj, "package.json"), []byte(`{"name":"app"}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -337,10 +301,10 @@ func TestConfigSetMarkdownThemeLocalRejected(t *testing.T) {
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
 
 	root := NewMRoot(testBuildInfo())
-	root.SetArgs([]string{"--cwd", proj, "config", "set", "ui.theme", "light", "--local"})
+	root.SetArgs([]string{"--cwd", proj, "config", "set", "ui.theme", "light", "--scope", "project"})
 	err := root.Execute()
 	if err == nil {
-		t.Fatal("expected error for --local on user-scoped key")
+		t.Fatal("expected error for project scope on user-scoped key")
 	}
 	if !strings.Contains(err.Error(), "user-scoped") {
 		t.Fatalf("error should mention user-scoped: %v", err)
@@ -362,5 +326,23 @@ func TestConfigSetMarkdownThemeInvalidValue(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "ui.theme") {
 		t.Fatalf("error should mention key: %v", err)
+	}
+}
+
+func TestConfigSetEffectiveRejected(t *testing.T) {
+	root := NewMRoot(testBuildInfo())
+	root.SetArgs([]string{"config", "set", "offline", "true", "--scope", "effective"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for effective scope")
+	}
+}
+
+func TestConfigInvalidScope(t *testing.T) {
+	root := NewMRoot(testBuildInfo())
+	root.SetArgs([]string{"config", "set", "offline", "true", "--scope", "invalid"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for invalid scope")
 	}
 }

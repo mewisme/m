@@ -44,7 +44,7 @@ func resolverPolicyFingerprint(ac *Context) string {
 	if ac == nil || ac.Config == nil {
 		return ""
 	}
-	if config.Bool(ac.Config, "resolve.strictPeerDependencies", true) {
+	if config.Bool(ac.Config, "resolve.strict_peer_dependencies", true) {
 		return "strict-peers"
 	}
 	return "loose-peers"
