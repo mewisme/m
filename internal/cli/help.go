@@ -37,7 +37,7 @@ var commandHelpRegistry = map[string]cmdHelpMeta{
 	"exec":     {group: "Common workflows", workflow: 4, examples: []string{"m exec eslint ."}},
 	"ci":       {group: "Common workflows", workflow: 5, examples: []string{"m ci"}},
 	"update":   {group: "Common workflows", workflow: 6, examples: []string{"m update", "m update lodash"}},
-	"config":   {group: "Configuration and development", examples: []string{"m config list", "m config get store.dir", "m config set ui.color always", "m config set install.linker isolated --local"}},
+	"config":   {group: "Configuration and development", examples: []string{"m config list", "m config get ui.theme", "m config set ui.theme dark", "m config set install.linker isolated --scope project", "m config validate"}},
 	"doctor":   {group: "Inspect and diagnose", examples: []string{"m doctor", "m doctor --json"}},
 	"ls":       {group: "Inspect and diagnose", examples: []string{"m ls", "m ls -r"}},
 	"outdated": {group: "Inspect and diagnose", examples: []string{"m outdated", "m outdated --json"}},
@@ -127,6 +127,12 @@ const commandHelpTemplate = `{{with (or .Long .Short)}}{{. | trimTrailingWhitesp
 
 {{end}}Usage:
   {{.UseLine}}
+{{- if .HasSubCommands}}
+
+Available Commands:
+{{range .Commands}}{{if (and .IsAvailableCommand (not .IsAdditionalHelpTopicCommand))}}
+  {{rpad .Name 14}} {{.Short}}{{end}}{{end}}
+{{- end}}
 {{mewCommandSections .}}
 {{- if .HasAvailableLocalFlags}}
 
