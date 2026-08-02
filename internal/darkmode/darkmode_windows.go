@@ -15,7 +15,7 @@ func IsDarkMode() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("darkmode: registry open %s: %w", regPath, err)
 	}
-	defer k.Close()
+	defer func() { _ = k.Close() }()
 
 	v, _, err := k.GetIntegerValue("AppsUseLightTheme")
 	if err != nil {

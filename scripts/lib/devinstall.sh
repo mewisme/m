@@ -155,7 +155,7 @@ devinstall_resolve_metadata() {
   elif [[ -n "${MEW_VERSION:-}" ]]; then
     DEVINSTALL_VERSION="$MEW_VERSION"
   else
-    DEVINSTALL_VERSION='0.0.0-dev'
+    DEVINSTALL_VERSION='dev'
   fi
   # Development installs build the current working tree, which may not match
   # HEAD. Leave commit unset rather than attributing source changes to a Git

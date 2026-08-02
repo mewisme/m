@@ -81,7 +81,7 @@ assert_contains 'custom completion root' 'completions' "$CDIR"
 # 7. Source-build metadata never claims the current Git commit
 unset MEW_VERSION
 devinstall_resolve_metadata ''
-assert_eq 'source build dev version' '0.0.0-dev' "$DEVINSTALL_VERSION"
+assert_eq 'source build dev version' 'dev' "$DEVINSTALL_VERSION"
 assert_eq 'source build commit unset' '' "$DEVINSTALL_COMMIT"
 devinstall_resolve_metadata '1.2.3-local'
 assert_eq 'source build version override' '1.2.3-local' "$DEVINSTALL_VERSION"

@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/apperr"
@@ -39,7 +41,7 @@ func (g *globalFlags) presentationInput() presentation.Input {
 
 // loadUITheme reads ui.theme from config (lightweight, skips project config if missing).
 func (g *globalFlags) loadUITheme() string {
-	eff, err := config.Load(nil, config.LoadOptions{
+	eff, err := config.Load(context.TODO(), config.LoadOptions{
 		CWD:         g.cwd,
 		GlobalPath:  g.configPath,
 		ProjectRoot: g.cwd,
