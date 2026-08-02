@@ -81,21 +81,15 @@ const groupedRootHelpTemplate = `{{with (or .Long .Short)}}{{. | trimTrailingWhi
 {{end}}{{- if .HasSubCommands}}Usage:
   {{.CommandPath}} [command]
 {{end}}{{mewBareScripts .}}{{if .HasSubCommands}}
-
 {{mewGroupedCommands .}}
 {{- end}}
-
-{{- if .HasAvailableLocalFlags}}
-
+{{if .HasAvailableLocalFlags}}
 Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}
-{{- end}}
-{{- if .HasAvailableInheritedFlags}}
-
+{{end}}{{if .HasAvailableInheritedFlags}}
 Global Flags:
 {{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}
-{{- end}}
-{{- if .HasExample}}
+{{end}}{{if .HasExample}}
 
 Examples:
 {{.Example}}
@@ -106,19 +100,15 @@ Additional help topics:
 {{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
   {{rpad .CommandPath 28}} {{.Short}}{{end}}{{end}}
 {{- end}}
-
 Use "{{.CommandPath}} [command] --help" for more information about a command.
 Use "{{.CommandPath}} help <topic>" for curated topics (errors, runner, lifecycle-trust, …).
 `
 
 const groupedUsageTemplate = `Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
-
 {{mewGroupedCommands .}}{{end}}{{if .HasAvailableLocalFlags}}
-
 Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
-
 Global Flags:
 {{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}
 `
@@ -127,23 +117,17 @@ const commandHelpTemplate = `{{with (or .Long .Short)}}{{. | trimTrailingWhitesp
 
 {{end}}Usage:
   {{.UseLine}}
-{{- if .HasSubCommands}}
-
+{{if .HasSubCommands}}
 Available Commands:
-{{range .Commands}}{{if (and .IsAvailableCommand (not .IsAdditionalHelpTopicCommand))}}
-  {{rpad .Name 14}} {{.Short}}{{end}}{{end}}
-{{- end}}
-{{mewCommandSections .}}
+{{range .Commands}}{{if (and .IsAvailableCommand (not .IsAdditionalHelpTopicCommand))}}  {{rpad .Name 14}} {{.Short}}
+{{end}}{{end}}{{end}}{{mewCommandSections .}}
 {{- if .HasAvailableLocalFlags}}
-
 Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}
-{{- end}}
-{{- if .HasAvailableInheritedFlags}}
-
+{{end}}{{if .HasAvailableInheritedFlags}}
 Global Flags:
 {{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}
-{{- end}}
+{{end}}
 `
 
 // aliasSuffix returns " (m a)" or " (m a, m in)" for commands with public aliases.
@@ -232,7 +216,7 @@ func renderCommandSections(cmd *cobra.Command) string {
 	bin := rootBinaryName(cmd)
 	var b strings.Builder
 	if len(meta.examples) > 0 {
-		b.WriteString("\nExamples:\n")
+		b.WriteString("Examples:\n")
 		for _, ex := range meta.examples {
 			b.WriteString("  ")
 			b.WriteString(binaryReplace(ex, bin))
@@ -240,14 +224,20 @@ func renderCommandSections(cmd *cobra.Command) string {
 		}
 	}
 	if len(meta.related) > 0 {
-		b.WriteString("\nRelated:\n")
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString("Related:\n")
 		for _, rel := range meta.related {
 			b.WriteString("  ")
 			b.WriteString(rel)
 			b.WriteByte('\n')
 		}
 	}
-	return b.String()
+	if b.Len() > 0 {
+		return "\n" + b.String()
+	}
+	return ""
 }
 
 // binaryReplace substitutes "{binary}" with the actual invoked binary name.

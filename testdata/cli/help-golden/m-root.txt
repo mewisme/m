@@ -3,7 +3,6 @@ MewJS (Mew) is a Go-based JavaScript toolchain and package manager for package m
 Usage:
   m [command]
 
-
 Common workflows
   install        Install dependencies (m i)
   add            Add a dependency (m a)

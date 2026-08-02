@@ -3,7 +3,6 @@ MewJS package executable runner. Executes local or temporary package binaries.
 Usage:
   mx [command]
 
-
 Cache, store, and artifacts
   cache          Manage mx execution cache
 
