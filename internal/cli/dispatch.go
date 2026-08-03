@@ -150,14 +150,7 @@ func rootPersistentFlagNames(root *cobra.Command) []string {
 // phaseAParserFlagNames returns flags Phase A must understand (root persistent + dispatch workspace flags).
 func phaseAParserFlagNames(root *cobra.Command) []string {
 	base := rootPersistentFlagNames(root)
-	extra := []string{
-		"if-present",
-		"workspace-concurrency",
-		"workspace-order",
-		"workspace-output",
-		"workspace-bail",
-		"no-workspace-bail",
-	}
+	extra := dispatchOnlyFlagNames()
 	seen := map[string]struct{}{}
 	var out []string
 	for _, n := range base {
@@ -174,6 +167,21 @@ func phaseAParserFlagNames(root *cobra.Command) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// dispatchOnlyFlagNames are leading flags ParsePhaseA accepts that are not root
+// persistent flags. Bootstrap registers them too so a legitimate leading flag is
+// never mistaken for a dispatched child's argument.
+func dispatchOnlyFlagNames() []string {
+	return []string{
+		"if-present",
+		"workspace-concurrency",
+		"workspace-order",
+		"workspace-output",
+		"workspace-bail",
+		"no-workspace-bail",
+		"node",
+	}
 }
 
 // ParsePhaseA parses leading globals and returns the selector plus verbatim post-selector args.
@@ -239,6 +247,10 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 		leading.offline = parseBoolValue(value, true)
 	case "prefer-offline":
 		leading.preferOffline = parseBoolValue(value, true)
+	// Presentation-only root flags. Bootstrap parses these onto globalFlags
+	// before the controller exists, so Phase A only needs to consume them with
+	// the right arity rather than reject them as unknown.
+	case "log-level", "no-progress", "ascii", "no-summary", "accessible":
 	case "filter":
 		leading.filter = append(leading.filter, value)
 	case "recursive":
@@ -278,7 +290,7 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 
 func needsValue(name string) bool {
 	switch name {
-	case "output", "cwd", "config", "filter", "workspace-concurrency", "workspace-order", "workspace-output":
+	case "output", "log-level", "cwd", "config", "filter", "workspace-concurrency", "workspace-order", "workspace-output":
 		return true
 	default:
 		return false

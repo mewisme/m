@@ -35,8 +35,12 @@ func tryMXDispatch(ctx context.Context, root *cobra.Command, g *globalFlags, inf
 	if inv.Offline {
 		g.offline = true
 	}
-	if inv.CWD != "" {
-		g.cwd = inv.CWD
+	// mx parses --cwd out of child argv that bootstrap could not classify, so
+	// the invocation snapshot is reloaded for that directory.
+	if err := reloadSnapshotForCWD(ctx, g, inv.CWD); err != nil {
+		rep := g.newReporter(root)
+		rep.Error(classifyCLIError(err))
+		return apperr.ExitCode(err), true
 	}
 	ac, err := buildAppContext(ctx, root, g, info)
 	if err != nil {

@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/apperr"
@@ -19,6 +21,9 @@ func (g *globalFlags) bindPresentation(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&g.accessible, "accessible", false, "accessible append-only output")
 }
 
+// presentationInput builds resolver input from the parsed flags and the theme
+// bootstrap resolved from ui.theme. Theme is empty only before bootstrap runs,
+// which the resolver treats the same as "auto".
 func (g *globalFlags) presentationInput() presentation.Input {
 	return presentation.Input{
 		OutputFlag:   g.output,
@@ -30,17 +35,15 @@ func (g *globalFlags) presentationInput() presentation.Input {
 		LogLevelFlag: g.logLevel,
 		Debug:        g.resolveDebug(),
 		Unsafe:       g.unsafe,
-		Theme:        "", // resolved later via app context and darkmode detector
+		Theme:        g.theme,
 		BinaryName:   g.invokedBinary,
 	}
 }
 
-// presentationInputWithTheme returns presentation input with the effective theme value.
-// Use this when the app context has already loaded configuration.
-func (g *globalFlags) presentationInputWithTheme(theme string) presentation.Input {
-	in := g.presentationInput()
-	in.Theme = theme
-	return in
+// presentationNewController is the production controller constructor behind
+// newControllerFn.
+func presentationNewController(resolved presentation.ResolvedOptions, caps presentation.Capabilities, streams presentation.StreamWriters) (presentation.Controller, error) {
+	return presentation.NewController(resolved, caps, streams, darkmodeDetector{})
 }
 
 func (g *globalFlags) controller(cmd *cobra.Command) (presentation.Controller, error) {
@@ -53,7 +56,7 @@ func (g *globalFlags) controller(cmd *cobra.Command) (presentation.Controller, e
 	if err != nil {
 		return nil, err
 	}
-	ctrl, err := presentation.NewController(resolved, caps, streams, darkmodeDetector{})
+	ctrl, err := newControllerFn(resolved, caps, streams)
 	if err != nil {
 		return nil, err
 	}
@@ -144,6 +147,10 @@ func (g *globalFlags) validateStructuredConflict(cmd *cobra.Command) error {
 	return nil
 }
 
+// closePresentation closes the invocation controller exactly once, carrying the
+// final outcome. The cleanup context drops the parent's cancellation so progress
+// output is still flushed after Ctrl-C; the controller bounds it with its own
+// timeout. A close failure is cosmetic and never masks the command error.
 func closePresentation(cmd *cobra.Command, g *globalFlags, outcome presentation.Outcome) {
 	if g == nil || g.ctrl == nil {
 		return
@@ -152,7 +159,10 @@ func closePresentation(cmd *cobra.Command, g *globalFlags, outcome presentation.
 	if ctx == nil {
 		ctx = cmd.Root().Context()
 	}
-	_ = g.ctrl.Close(ctx, outcome)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	_ = g.ctrl.Close(context.WithoutCancel(ctx), outcome)
 }
 
 // ValidateCommandPresentation is exported for tests that need structured/json conflict checks.

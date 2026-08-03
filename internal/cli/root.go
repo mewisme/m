@@ -165,7 +165,14 @@ func isConfigRepairCommand(cmd *cobra.Command) bool {
 
 // isInfoCommand reports whether the command is purely informational.
 func isInfoCommand(cmd *cobra.Command) bool {
-	switch cmd.Name() {
+	return isInfoCommandName(cmd.Name())
+}
+
+// isInfoCommandName reports whether a command name is purely informational.
+// Bootstrap classifies by name because Cobra does not register the completion
+// pseudo-commands on the tree until Execute.
+func isInfoCommandName(name string) bool {
+	switch name {
 	case "help", "version", "completion", "__complete", "__completeNoDesc":
 		return true
 	}

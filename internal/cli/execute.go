@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"reflect"
 	goruntime "runtime"
 	"strings"
@@ -45,6 +44,12 @@ type globalFlags struct {
 	invokedBinary string
 	headerEmitted bool
 	ctrl          presentation.Controller
+	// theme is the ui.theme value resolved during bootstrap ("auto" when
+	// configuration is unavailable).
+	theme string
+	// snapshot is the single configuration snapshot for this invocation, shared
+	// by presentation and every app.Context built from it.
+	snapshot *app.ConfigSnapshot
 }
 
 var flagOwners sync.Map     // *cobra.Command -> *globalFlags
@@ -190,33 +195,22 @@ func writeInvocationHeaderOnce(cmd *cobra.Command) {
 	_, _ = fmt.Fprintln(cmd.OutOrStdout(), hdr)
 }
 
+// buildAppContext assembles the app context from invocation state bootstrap
+// already established. It resolves no paths, reads no environment, loads no
+// configuration, and creates no presentation of its own. A nil snapshot only
+// happens when a test drives a command without going through execute; app.New
+// then loads for itself.
 func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, info BuildInfo) (*app.Context, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	cwd := g.cwd
-	if cwd == "" {
-		var err error
-		cwd, err = os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		abs, err := filepath.Abs(cwd)
-		if err != nil {
-			return nil, err
-		}
-		cwd = abs
-	}
-
-	// Create the presentation controller once.
-	ctrl, ctrlErr := g.controller(cmd)
-	if ctrlErr != nil {
-		return nil, wrapPresentationErr(ctrlErr)
+	ctrl, err := g.controller(cmd)
+	if err != nil {
+		return nil, wrapPresentationErr(err)
 	}
 
 	ac, err := app.New(ctx, app.Options{
-		CWD:           cwd,
+		CWD:           g.cwd,
 		ConfigPath:    g.configPath,
 		Offline:       g.offline,
 		PreferOffline: g.preferOffline,
@@ -225,6 +219,7 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 		Commit:        info.Commit,
 		BuildDate:     info.BuildDate,
 		BinaryName:    g.invokedBinary,
+		Snapshot:      g.snapshot,
 	})
 	if err != nil {
 		return nil, err
@@ -274,67 +269,86 @@ func attachPrompter(ac *app.Context, cmd *cobra.Command, ctrl presentation.Contr
 	})
 }
 
-func execute(root *cobra.Command, info BuildInfo, argv []string) (exit int) {
-	g := ownerFlags(root)
-	rep, err := g.resolveReporter(root)
-	if err != nil {
-		fallback := diagnostics.NewReporter(diagnostics.Options{
-			Out: root.OutOrStdout(),
-			Err: root.ErrOrStderr(),
-		})
-		wrapped := wrapPresentationErr(err)
-		fallback.Error(wrapped)
-		return apperr.ExitCode(wrapped)
-	}
-	defer closePresentation(root, g, presentationOutcome(nil))
-	defer func() {
-		if rec := recover(); rec != nil {
-			err := apperr.New(apperr.InternalPanic, "cli", newCrashID(), fmt.Sprintf("panic: %v", rec))
-			rep.Error(err)
-			exit = apperr.ExitCode(err)
-		}
-	}()
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	root.SetContext(ctx)
-
+func execute(root *cobra.Command, info BuildInfo, argv []string) int {
 	if len(argv) == 0 {
 		argv = os.Args[1:]
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return runInvocation(ctx, root, info, argv)
+}
+
+// runInvocation is the single production invocation path: bootstrap presentation
+// and configuration, dispatch, then close the controller exactly once.
+func runInvocation(ctx context.Context, root *cobra.Command, info BuildInfo, argv []string) (exit int) {
+	g := ownerFlags(root)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	root.SetContext(ctx)
+
+	// Bootstrap: parse invocation flags, classify the command, load config once,
+	// resolve ui.theme, then create the one controller for this invocation.
+	bootErr := bootstrapInvocation(ctx, root, g, argv)
+	if g.ctrl == nil {
+		// Presentation itself could not be built: report on a minimal plain
+		// reporter and create no controller.
+		wrapped := wrapPresentationErr(bootErr)
+		diagnostics.NewReporter(diagnostics.Options{
+			Out: root.OutOrStdout(),
+			Err: root.ErrOrStderr(),
+		}).Error(wrapped)
+		return apperr.ExitCode(wrapped)
+	}
+	rep := g.ctrl.Reporter()
+
+	// Sole owner of controller shutdown: every return below, panics included,
+	// passes through here exactly once.
+	var outcomeErr error
+	defer func() {
+		if rec := recover(); rec != nil {
+			outcomeErr = apperr.New(apperr.InternalPanic, "cli", newCrashID(), fmt.Sprintf("panic: %v", rec))
+			rep.Error(outcomeErr)
+			exit = apperr.ExitCode(outcomeErr)
+		}
+		closePresentation(root, g, presentationOutcome(outcomeErr))
+	}()
+
+	if bootErr != nil {
+		outcomeErr = classifyCLIError(bootErr)
+		rep.Error(outcomeErr)
+		return apperr.ExitCode(outcomeErr)
 	}
 
 	if dispatchEnabledForRoot(root) {
 		if code, handled := tryDirectDispatch(ctx, root, g, info, argv); handled {
+			outcomeErr = dispatchOutcomeErr(code)
 			return code
 		}
 	}
 	if isMXRoot(root) {
 		if code, handled := tryMXDispatch(ctx, root, g, info, argv); handled {
+			outcomeErr = dispatchOutcomeErr(code)
 			return code
 		}
 	}
 
 	root.SetArgs(argv)
-	execErr := root.ExecuteContext(ctx)
-	rep, repErr := g.resolveReporter(root)
-	if repErr != nil {
-		fallback := diagnostics.NewReporter(diagnostics.Options{
-			Out: root.OutOrStdout(),
-			Err: root.ErrOrStderr(),
-		})
-		wrapped := wrapPresentationErr(repErr)
-		fallback.Error(wrapped)
-		closePresentation(root, g, presentationOutcome(wrapped))
-		return apperr.ExitCode(wrapped)
+	if execErr := root.ExecuteContext(ctx); execErr != nil {
+		outcomeErr = classifyCLIError(execErr)
+		rep.Error(outcomeErr)
+		return apperr.ExitCode(outcomeErr)
 	}
-	if execErr == nil {
-		closePresentation(root, g, presentationOutcome(nil))
-		return 0
+	return 0
+}
+
+// dispatchOutcomeErr converts a dispatch exit code into a close outcome. The
+// dispatch paths report their own errors, so only the failure signal is needed.
+func dispatchOutcomeErr(code int) error {
+	if code == 0 {
+		return nil
 	}
-	execErr = classifyCLIError(execErr)
-	rep.Error(execErr)
-	closePresentation(root, g, presentationOutcome(execErr))
-	return apperr.ExitCode(execErr)
+	return apperr.New(apperr.Internal, "cli.dispatch", "", "dispatch failed")
 }
 
 func dispatchEnabledForRoot(root *cobra.Command) bool {
@@ -573,38 +587,12 @@ func ExecuteWithContext(root *cobra.Command, ctx context.Context) int {
 	if len(argv) == 0 {
 		argv = os.Args[1:]
 	}
-	return executeWithArgv(root, ctx, argv)
+	return runInvocation(ctx, root, loadRootBuildInfo(root), argv)
 }
 
 // ExecuteWithArgv runs root with explicit argv (integration tests).
 func ExecuteWithArgv(root *cobra.Command, ctx context.Context, argv []string) int {
-	return executeWithArgv(root, ctx, argv)
-}
-
-func executeWithArgv(root *cobra.Command, ctx context.Context, argv []string) int {
-	g := ownerFlags(root)
-
-	if dispatchEnabledForRoot(root) {
-		if code, handled := tryDirectDispatch(ctx, root, g, loadRootBuildInfo(root), argv); handled {
-			return code
-		}
-	}
-	if isMXRoot(root) {
-		if code, handled := tryMXDispatch(ctx, root, g, loadRootBuildInfo(root), argv); handled {
-			return code
-		}
-	}
-
-	root.SetArgs(argv)
-	root.SetContext(ctx)
-	err := root.ExecuteContext(ctx)
-	rep := g.newReporter(root)
-	if err == nil {
-		return 0
-	}
-	err = classifyCLIError(err)
-	rep.Error(err)
-	return apperr.ExitCode(err)
+	return runInvocation(ctx, root, loadRootBuildInfo(root), argv)
 }
 
 func cobraPendingArgs(cmd *cobra.Command) []string {
