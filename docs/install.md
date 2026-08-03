@@ -6,12 +6,33 @@ install path (MVP **0016**).
 ## Pipeline
 
 ```text
-resolve → fetch (blob cache) → [optional: import to global store] → link (hoisted or isolated) → validate → commit (journal) → snapshot
+preflight → resolve → fetch (blob cache) → [optional: import to global store] → link (hoisted or isolated) → validate → commit (journal) → snapshot
 ```
+
+Preflight runs **before** the mutation session opens. It is read-only — no
+network, no resolution, no writes — and it covers option validity, foreign lock
+formats, Yarn PnP and Bun binary-lock rejection, frozen-lock validation, and
+using a workspace filter without the workspaces gate enabled. Because it runs
+first, a rejected install leaves no trace: no `.mew` directory, no journal, no
+project lock. The same checks run once more inside the session after the project
+is reopened under the lock, so anything that changed in between is still caught
+before the first mutation.
 
 Work happens under `<project>/.mew/txn/<id>/stage/` until commit. On failure,
 live `package.json`, `m.lock`, and `node_modules` are restored from journal
 backups.
+
+A normal install with no lockfile present is not an error: Mew resolves from the
+manifest and **creates `m.lock`**. Only `--frozen-lockfile` (and `m ci`) require
+an existing lock and fail when it is missing or corrupt.
+
+### Reported changes
+
+Install results distinguish direct dependency changes from transitive ones. Direct
+changes are computed across **both** the prior and next graphs, so a direct
+removal — a package that is direct before and gone after — is still reported
+rather than dropped for being absent from the new graph. Under a workspace
+filter, direct changes are scoped to the filtered importers.
 
 ## Commands
 

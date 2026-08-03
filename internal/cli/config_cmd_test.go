@@ -306,8 +306,12 @@ func TestConfigSetMarkdownThemeProjectRejected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for project scope on user-scoped key")
 	}
-	if !strings.Contains(err.Error(), "user-scoped") {
-		t.Fatalf("error should mention user-scoped: %v", err)
+	// The message is schema-driven: it names the key, the scopes the key
+	// allows, and the scope that was rejected.
+	for _, want := range []string{"ui.theme", "user", "project"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error should mention %q: %v", want, err)
+		}
 	}
 	if apperr.CodeOf(err) != apperr.Usage {
 		t.Fatalf("code=%s, want usage", apperr.CodeOf(err))

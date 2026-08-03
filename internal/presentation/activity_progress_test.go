@@ -188,23 +188,42 @@ func TestActivityProgressRendererASCIINoColor(t *testing.T) {
 }
 
 func TestActivityProgressRendererColorOutput(t *testing.T) {
-	var buf bytes.Buffer
-	settings := presentation.EffectiveSettings{
-		UseUnicode: false,
-		Width:      80,
-		Symbols:    presentation.ASCIISymbols,
-		UseColor:   true,
+	// Light and dark must both emit ANSI, but from genuinely different
+	// palettes: light uses standard (dark-on-light) cyan, dark uses bright.
+	cases := []struct {
+		name string
+		mode presentation.ThemeMode
+		want string
+		deny string
+	}{
+		{"light", presentation.ThemeLight, "\x1b[36m", "\x1b[96m"},
+		{"dark", presentation.ThemeDark, "\x1b[96m", ""},
 	}
-	r := presentation.NewActivityProgressRenderer(&buf, settings)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			settings := presentation.EffectiveSettings{
+				UseUnicode: false,
+				Width:      80,
+				Symbols:    presentation.ASCIISymbols,
+				UseColor:   true,
+				ThemeMode:  c.mode,
+			}
+			r := presentation.NewActivityProgressRenderer(&buf, settings)
 
-	r.OperationStarted(diagnostics.OperationStartedEvent{
-		ID: "x", Kind: "Resolving", Label: "Resolving",
-	})
-	out := buf.String()
-	if !strings.Contains(out, "\x1b[96m") {
-		t.Fatalf("color output missing bright cyan: %q", out)
+			r.OperationStarted(diagnostics.OperationStartedEvent{
+				ID: "x", Kind: "Resolving", Label: "Resolving",
+			})
+			out := buf.String()
+			if !strings.Contains(out, c.want) {
+				t.Fatalf("%s: missing %q in %q", c.name, c.want, out)
+			}
+			if c.deny != "" && strings.Contains(out, c.deny) {
+				t.Fatalf("%s: must not contain %q in %q", c.name, c.deny, out)
+			}
+			_ = r.Close()
+		})
 	}
-	_ = r.Close()
 }
 
 func TestActivityProgressRendererNoticeDurable(t *testing.T) {

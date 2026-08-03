@@ -27,16 +27,16 @@ const (
 
 // ConfigKeySpec is the canonical typed specification for one config key.
 type ConfigKeySpec struct {
-	Key         string     // canonical dotted snake_case
-	Group       string     // display group ("Installation", "Registry", etc.)
-	Description string     // one-line human description
-	Type        ValueType  // value type
-	Default     any        // default value
-	Enum        []string   // allowed values for TypeEnum
-	Minimum     *int64     // minimum for TypeInt (nil = no min)
-	Maximum     *int64     // maximum for TypeInt (nil = no max)
-	Scopes      []Scope    // writable scopes; empty = all writable scopes
-	Secret      bool       // redact in output
+	Key         string    // canonical dotted snake_case
+	Group       string    // display group ("Installation", "Registry", etc.)
+	Description string    // one-line human description
+	Type        ValueType // value type
+	Default     any       // default value
+	Enum        []string  // allowed values for TypeEnum
+	Minimum     *int64    // minimum for TypeInt (nil = no min)
+	Maximum     *int64    // maximum for TypeInt (nil = no max)
+	Scopes      []Scope   // writable scopes; empty = all writable scopes
+	Secret      bool      // redact in output
 	Deprecated  bool
 	Replacement string   // canonical replacement key
 	Commands    []string // e.g. "install", "add"

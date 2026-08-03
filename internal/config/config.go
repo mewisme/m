@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/mewisme/mew/internal/apperr"
@@ -121,25 +122,9 @@ func defaults() map[string]any {
 
 // GlobalConfigPath resolves the user config.jsonc path.
 // intentional: ambient env for m config writes outside app.New snapshot.
+// Delegates to GlobalConfigPathFromEnv so both callers share one policy.
 func GlobalConfigPath() string {
-	if d := os.Getenv("MEW_CONFIG_DIR"); d != "" {
-		return filepath.Join(d, "config.jsonc")
-	}
-	if home := os.Getenv("MEW_HOME"); home != "" {
-		return filepath.Join(home, "config", "config.jsonc")
-	}
-	if runtime.GOOS == "windows" {
-		base := os.Getenv("AppData")
-		if base == "" {
-			base = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Roaming")
-		}
-		return filepath.Join(base, "mew", "config.jsonc")
-	}
-	cfg := os.Getenv("XDG_CONFIG_HOME")
-	if cfg == "" {
-		cfg = filepath.Join(userHome(), ".config")
-	}
-	return filepath.Join(cfg, "mew", "config.jsonc")
+	return GlobalConfigPathFromEnv(NewEnvSnapshot(os.Environ(), runtime.GOOS))
 }
 
 func userHome() string {
@@ -193,7 +178,9 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 
 	_ = opts.IdentityMew
 
-	mergeEnv(eff, snap)
+	if err := mergeEnv(eff, snap); err != nil {
+		return nil, err
+	}
 
 	for k, v := range opts.CLI {
 		canon := k
@@ -295,37 +282,63 @@ func EnvVar(key string) string {
 	return envVarByKey[key]
 }
 
-func mergeEnv(eff *Effective, snap EnvSnapshot) {
-	set := func(key string, coerce func(string) (any, error)) {
+// EnvVarKeys returns the canonical keys settable through the environment.
+func EnvVarKeys() []string {
+	out := make([]string, 0, len(envVarByKey))
+	for k := range envVarByKey {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func mergeEnv(eff *Effective, snap EnvSnapshot) error {
+	// Iterate the mapping itself so a key can never be declared here and then
+	// forgotten in an apply list, and take the type from the key registry so
+	// coercion cannot disagree with the schema.
+	keys := make([]string, 0, len(envVarByKey))
+	for key := range envVarByKey {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
 		envKey := envVarByKey[key]
-		if envKey == "" {
-			return
-		}
 		v, ok := snap.Lookup(envKey)
 		if !ok || v == "" {
-			return
+			continue
 		}
-		raw, err := coerce(v)
+		raw, err := coerceEnvValue(key, v)
 		if err != nil {
-			return
+			// Fail closed: a malformed environment value is a configuration
+			// error, not something to silently ignore.
+			return apperr.Wrap(apperr.Config, "config.env", envKey, err)
+		}
+		if err := validateKeyValue(key, raw); err != nil {
+			return apperr.Wrap(apperr.Config, "config.env", envKey, err)
 		}
 		eff.Values[key] = Value{Raw: raw, Source: SourceEnv, Path: envKey}
 	}
-	identity := func(s string) (any, error) { return s, nil }
-	set("cache.dir", identity)
-	set("store.dir", identity)
-	set("offline", parseBool)
-	set("prefer_offline", parseBool)
-	set("resolve.auto_install_peers", parseBool)
-	set("resolve.strict_peer_dependencies", parseBool)
-	set("resolve.reject_deprecated", parseBool)
-	set("registry", identity)
-	set("registry.auth_token_env", identity)
-	set("lifecycle.enabled", parseBool)
-	set("lifecycle.script_timeout", identity)
-	set("workspaces.enabled", parseBool)
-	set("runner.direct_scripts.enabled", parseBool)
-	set("provenance.trusted_public_key", identity)
+	return nil
+}
+
+// coerceEnvValue converts an environment string into the type the key registry
+// declares for key.
+func coerceEnvValue(key, s string) (any, error) {
+	switch ownedKeys[key] {
+	case "bool":
+		return parseBool(s)
+	case "int":
+		n, err := strconv.Atoi(strings.TrimSpace(s))
+		if err != nil {
+			return nil, fmt.Errorf("invalid int %q", s)
+		}
+		return n, nil
+	default:
+		// string, duration, and enum all arrive as strings; validateKeyValue
+		// enforces their content.
+		return s, nil
+	}
 }
 
 func parseBool(s string) (any, error) {
@@ -544,9 +557,12 @@ func SetFile(path, key string, raw any) error {
 		return apperr.Wrap(apperr.Config, "config.set", key, err)
 	}
 	raw = normalizeForWrite(raw)
-	return mutateFile(path, "config.set", func(existing map[string]any) (bool, error) {
-		setNested(existing, canon, raw)
-		return true, nil
+	return spliceFile(path, "config.set", func(src []byte) ([]byte, bool, error) {
+		out, err := setJSONCPath(src, canon, raw)
+		if err != nil {
+			return nil, false, err
+		}
+		return out, true, nil
 	})
 }
 
@@ -559,8 +575,8 @@ func UnsetFile(path, key string) error {
 	if _, err := validateKeyOwned(canon); err != nil {
 		return apperr.Wrap(apperr.Config, "config.unset", key, err)
 	}
-	return mutateFile(path, "config.unset", func(existing map[string]any) (bool, error) {
-		return unsetNested(existing, canon), nil
+	return spliceFile(path, "config.unset", func(src []byte) ([]byte, bool, error) {
+		return unsetJSONCPath(src, canon)
 	})
 }
 
@@ -575,7 +591,8 @@ func MigrateFile(path string) (int, error) {
 		return 0, apperr.Wrap(apperr.IO, "config.migrate", path, err)
 	}
 	if HasJSONCComments(b) {
-		return 0, apperr.New(apperr.Config, "config.migrate", path, "file contains comments; edit manually or remove comments before migrating")
+		return 0, apperr.New(apperr.Config, "config.migrate", path,
+			"file contains comments; migration moves keys between locations and cannot place comments correctly — remove comments, or apply the renames manually with `m config set`/`m config unset`, which do preserve comments")
 	}
 	parsed, err := ParseJSONC(b)
 	if err != nil {
@@ -585,11 +602,27 @@ func MigrateFile(path string) (int, error) {
 	if !ok {
 		return 0, apperr.New(apperr.Config, "config.migrate", path, "root must be object")
 	}
-	count := migrateMap(m)
+
+	// Flatten to dotted paths and apply migration pipeline.
+	flat := flattenDotted(m, "")
+	conflicts := detectMigrationConflicts(flat)
+	if len(conflicts) > 0 {
+		sorted := make([]string, 0, len(conflicts))
+		for _, c := range conflicts {
+			sorted = append(sorted, c)
+		}
+		sort.Strings(sorted)
+		return 0, apperr.New(apperr.Config, "config.migrate", path,
+			fmt.Sprintf("conflicting legacy and canonical keys: %s", strings.Join(sorted, ", ")))
+	}
+
+	count := applyMigrationTransforms(flat)
 	if count == 0 {
 		return 0, nil
 	}
-	out, err := json.MarshalIndent(m, "", "  ")
+
+	unflattened := unflattenDotted(flat)
+	out, err := json.MarshalIndent(unflattened, "", "  ")
 	if err != nil {
 		return 0, apperr.Wrap(apperr.Internal, "config.migrate", path, err)
 	}
@@ -617,9 +650,11 @@ func CheckMigration(path string) (map[string]string, error) {
 	if !ok {
 		return nil, nil
 	}
+	flat := flattenDotted(m, "")
 	needed := map[string]string{}
-	for k := range flattenLegacy(m, "") {
-		if canon := CanonicalKey(k); canon != "" && canon != k {
+	for k := range flat {
+		canon := CanonicalKey(k)
+		if canon != "" && canon != k {
 			needed[k] = canon
 		}
 	}
@@ -629,7 +664,8 @@ func CheckMigration(path string) (map[string]string, error) {
 	return needed, nil
 }
 
-func flattenLegacy(v any, prefix string) map[string]any {
+// flattenDotted flattens a nested map into dotted-path keys.
+func flattenDotted(v any, prefix string) map[string]any {
 	out := map[string]any{}
 	switch t := v.(type) {
 	case map[string]any:
@@ -639,7 +675,7 @@ func flattenLegacy(v any, prefix string) map[string]any {
 				key = prefix + "." + k
 			}
 			if cm, ok := child.(map[string]any); ok {
-				for ck, cv := range flattenLegacy(cm, key) {
+				for ck, cv := range flattenDotted(cm, key) {
 					out[ck] = cv
 				}
 			} else {
@@ -650,64 +686,115 @@ func flattenLegacy(v any, prefix string) map[string]any {
 	return out
 }
 
-func migrateMap(m map[string]any) int {
-	count := 0
-	for k, v := range m {
-		if cm, ok := v.(map[string]any); ok {
-			count += migrateMap(cm)
-			if len(cm) == 0 {
-				delete(m, k)
-			}
-			continue
-		}
+// detectMigrationConflicts finds keys where both legacy and canonical forms exist.
+func detectMigrationConflicts(flat map[string]any) []string {
+	var conflicts []string
+	legacySeen := map[string]bool{}
+	for k := range flat {
 		canon := CanonicalKey(k)
 		if canon == "" || canon == k {
 			continue
 		}
-		if _, exists := m[canon]; exists {
+		legacySeen[canon] = true
+	}
+	for k := range flat {
+		if legacySeen[k] {
+			conflicts = append(conflicts, k)
+		}
+	}
+	sort.Strings(conflicts)
+	return conflicts
+}
+
+// applyMigrationTransforms rewrites flat keys and values in place.
+// Returns the count of keys migrated.
+func applyMigrationTransforms(flat map[string]any) int {
+	count := 0
+	renames := map[string]string{} // legacy → canonical
+	for k, v := range flat {
+		canon := CanonicalKey(k)
+		if canon == "" || canon == k {
 			continue
 		}
-		m[canon] = v
-		delete(m, k)
+		renames[k] = canon
+		// Transform values for known type changes.
+		switch k {
+		case "network.timeout_ms":
+			switch n := v.(type) {
+			case int:
+				flat[k] = time.Duration(n) * time.Millisecond
+			case float64:
+				flat[k] = time.Duration(int64(n)) * time.Millisecond
+			}
+		}
+	}
+	for legacy, canon := range renames {
+		v := flat[legacy]
+		if d, ok := v.(time.Duration); ok {
+			flat[canon] = d.String()
+		} else {
+			flat[canon] = v
+		}
+		delete(flat, legacy)
 		count++
 	}
 	return count
 }
 
-func mutateFile(path, op string, mutate func(map[string]any) (changed bool, err error)) error {
-	var existing map[string]any
+// unflattenDotted reconstructs a nested map from dotted-path keys.
+func unflattenDotted(flat map[string]any) map[string]any {
+	root := map[string]any{}
+	keys := make([]string, 0, len(flat))
+	for k := range flat {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		parts := strings.Split(k, ".")
+		cur := root
+		for i := 0; i < len(parts)-1; i++ {
+			if _, ok := cur[parts[i]]; !ok {
+				cur[parts[i]] = map[string]any{}
+			}
+			cur = cur[parts[i]].(map[string]any)
+		}
+		cur[parts[len(parts)-1]] = flat[k]
+	}
+	return root
+}
+
+// spliceFile applies a comment-preserving in-place edit to a JSONC config
+// file. Comments, blank lines, and the author's indentation outside the
+// edited span survive. Falls back to creating a fresh file when absent.
+func spliceFile(path, op string, edit func(src []byte) (out []byte, changed bool, err error)) error {
 	b, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return apperr.Wrap(apperr.IO, op, path, err)
 	}
-	if err == nil {
-		if HasJSONCComments(b) {
-			return apperr.New(apperr.Config, op, path, "file contains comments; edit manually or remove comments before mutating")
-		}
-		parsed, err := ParseJSONC(b)
-		if err != nil {
-			return apperr.Wrap(apperr.Config, op, path, err)
-		}
-		m, ok := parsed.(map[string]any)
-		if !ok {
-			return apperr.New(apperr.Config, op, path, "root must be object")
-		}
-		existing = m
-	} else {
-		existing = map[string]any{}
+	if os.IsNotExist(err) {
+		b = []byte("{}\n")
 	}
-	changed, err := mutate(existing)
+	// Parse first: never write over a file we cannot understand.
+	parsed, perr := ParseJSONC(b)
+	if perr != nil {
+		return apperr.Wrap(apperr.Config, op, path, perr)
+	}
+	if _, ok := parsed.(map[string]any); !ok {
+		return apperr.New(apperr.Config, op, path, "root must be object")
+	}
+	out, changed, err := edit(b)
 	if err != nil {
-		return err
+		return apperr.Wrap(apperr.Config, op, path, err)
 	}
+	// A no-op edit writes nothing, so unsetting an absent key never creates
+	// the file.
 	if !changed {
 		return nil
 	}
-	out, err := json.MarshalIndent(existing, "", "  ")
-	if err != nil {
+	// Verify the result still parses before publishing it.
+	if _, err := ParseJSONC(out); err != nil {
 		return apperr.Wrap(apperr.Internal, op, path, err)
 	}
-	out = append(out, '\n')
 	if err := fsx.PublishFileDurable(path, out, 0o644); err != nil {
 		return apperr.Wrap(apperr.IO, op, path, err)
 	}
@@ -783,35 +870,9 @@ func setNested(m map[string]any, dotted string, v any) {
 	}
 }
 
-func unsetNested(m map[string]any, dotted string) bool {
-	return unsetNestedParts(m, strings.Split(dotted, "."))
-}
-
-func unsetNestedParts(m map[string]any, parts []string) bool {
-	if len(parts) == 0 {
-		return false
-	}
-	if len(parts) == 1 {
-		if _, ok := m[parts[0]]; !ok {
-			return false
-		}
-		delete(m, parts[0])
-		return true
-	}
-	next, ok := m[parts[0]].(map[string]any)
-	if !ok {
-		return false
-	}
-	changed := unsetNestedParts(next, parts[1:])
-	if changed && len(next) == 0 {
-		delete(m, parts[0])
-	}
-	return changed
-}
-
 // ParseJSONC strips // and /* */ comments then unmarshals JSON.
 func ParseJSONC(b []byte) (any, error) {
-	stripped := stripJSONC(b)
+	stripped := blankJSONC(b)
 	dec := json.NewDecoder(bytes.NewReader(stripped))
 	dec.UseNumber()
 	var v any
@@ -877,53 +938,57 @@ func HasJSONCComments(b []byte) bool {
 	return false
 }
 
-func stripJSONC(b []byte) []byte {
-	var out bytes.Buffer
+// blankJSONC returns a copy of b with // and /* */ comment bytes replaced by
+// spaces, preserving newlines and total length. Because length is preserved,
+// byte offsets in the result map 1:1 onto b, so encoding/json decoder offsets
+// taken over the result are valid spans in the original source. This is what
+// makes comment-preserving in-place edits possible.
+func blankJSONC(b []byte) []byte {
+	out := make([]byte, len(b))
+	copy(out, b)
 	inStr := false
 	esc := false
-	for i := 0; i < len(b); i++ {
-		c := b[i]
+	for i := 0; i < len(out); i++ {
+		c := out[i]
 		if inStr {
-			out.WriteByte(c)
 			if esc {
 				esc = false
 				continue
 			}
-			if c == '\\' {
+			switch c {
+			case '\\':
 				esc = true
-				continue
-			}
-			if c == '"' {
+			case '"':
 				inStr = false
 			}
 			continue
 		}
 		if c == '"' {
 			inStr = true
-			out.WriteByte(c)
 			continue
 		}
-		if c == '/' && i+1 < len(b) {
-			if b[i+1] == '/' {
-				i += 2
-				for i < len(b) && b[i] != '\n' {
-					i++
-				}
-				if i < len(b) {
-					out.WriteByte('\n')
-				}
-				continue
+		if c != '/' || i+1 >= len(out) {
+			continue
+		}
+		switch out[i+1] {
+		case '/':
+			for ; i < len(out) && out[i] != '\n'; i++ {
+				out[i] = ' '
 			}
-			if b[i+1] == '*' {
-				i += 2
-				for i+1 < len(b) && (b[i] != '*' || b[i+1] != '/') {
+		case '*':
+			out[i], out[i+1] = ' ', ' '
+			i += 2
+			for ; i < len(out); i++ {
+				if out[i] == '*' && i+1 < len(out) && out[i+1] == '/' {
+					out[i], out[i+1] = ' ', ' '
 					i++
+					break
 				}
-				i++ // skip '/'
-				continue
+				if out[i] != '\n' {
+					out[i] = ' '
+				}
 			}
 		}
-		out.WriteByte(c)
 	}
-	return out.Bytes()
+	return out
 }

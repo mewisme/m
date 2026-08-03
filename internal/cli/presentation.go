@@ -1,12 +1,9 @@
 package cli
 
 import (
-	"context"
-
 	"github.com/spf13/cobra"
 
 	"github.com/mewisme/mew/internal/apperr"
-	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/darkmode"
 	"github.com/mewisme/mew/internal/diagnostics"
 	"github.com/mewisme/mew/internal/presentation"
@@ -23,7 +20,6 @@ func (g *globalFlags) bindPresentation(cmd *cobra.Command) {
 }
 
 func (g *globalFlags) presentationInput() presentation.Input {
-	theme := g.loadUITheme()
 	return presentation.Input{
 		OutputFlag:   g.output,
 		NoColor:      g.noColor,
@@ -34,22 +30,17 @@ func (g *globalFlags) presentationInput() presentation.Input {
 		LogLevelFlag: g.logLevel,
 		Debug:        g.resolveDebug(),
 		Unsafe:       g.unsafe,
-		Theme:        theme,
+		Theme:        "", // resolved later via app context and darkmode detector
 		BinaryName:   g.invokedBinary,
 	}
 }
 
-// loadUITheme reads ui.theme from config (lightweight, skips project config if missing).
-func (g *globalFlags) loadUITheme() string {
-	eff, err := config.Load(context.TODO(), config.LoadOptions{
-		CWD:         g.cwd,
-		GlobalPath:  g.configPath,
-		ProjectRoot: g.cwd,
-	})
-	if err != nil {
-		return ""
-	}
-	return config.String(eff, "ui.theme", "")
+// presentationInputWithTheme returns presentation input with the effective theme value.
+// Use this when the app context has already loaded configuration.
+func (g *globalFlags) presentationInputWithTheme(theme string) presentation.Input {
+	in := g.presentationInput()
+	in.Theme = theme
+	return in
 }
 
 func (g *globalFlags) controller(cmd *cobra.Command) (presentation.Controller, error) {

@@ -26,11 +26,15 @@ Source contract: [`plans/0003-target-architecture.md`](../../plans/0003-target-a
 
 ```mermaid
 flowchart LR
-  cmd[cmd/m mx] --> app[internal/app]
-  app --> cli[internal/cli]
-  cli --> pm[manifest project workspace registry resolver lockfile]
+  cmd[cmd/m mx] --> cli[internal/cli]
+  cli --> app[internal/app]
+  app --> pm[manifest project workspace registry resolver lockfile]
   pm --> mutate[fetch archive store linker transaction]
 ```
+
+`cmd -> cli -> app`: `cmd/*` only calls into `internal/cli`, `internal/cli` owns
+parsing and dispatch and builds the app context, and `internal/app` orchestrates
+domain packages. `internal/app` never imports `internal/cli`.
 
 Presentation (`cmd/*`, `internal/cli`, `internal/app`) must not own package-manager
 core logic. Domain packages resolve a complete immutable graph before any

@@ -5,24 +5,19 @@ import "path/filepath"
 // GlobalConfigPathFromEnv resolves the user config.jsonc path from a frozen env snapshot.
 func GlobalConfigPathFromEnv(snap EnvSnapshot) string {
 	if d, ok := snap.Lookup("MEW_CONFIG_DIR"); ok && d != "" {
-		return absJoin(d, "config.jsonc")
+		return absJoin(d, fileUserConfig)
 	}
 	if home, ok := snap.Lookup("MEW_HOME"); ok && home != "" {
-		return absJoin(home, "config", "config.jsonc")
+		return absJoin(home, dirConfig, fileUserConfig)
 	}
 	if snap.GOOS() == "windows" {
-		base, _ := snap.Lookup("APPDATA")
-		if base == "" {
-			profile, _ := snap.Lookup("USERPROFILE")
-			base = filepath.Join(profile, "AppData", "Roaming")
-		}
-		return absJoin(base, "mew", "config.jsonc")
+		return absJoin(productDir(windowsRoamingAppData(snap), fileUserConfig))
 	}
 	cfg, ok := snap.Lookup("XDG_CONFIG_HOME")
 	if !ok || cfg == "" {
 		cfg = filepath.Join(userHomeFromSnap(snap), ".config")
 	}
-	return absJoin(cfg, "mew", "config.jsonc")
+	return absJoin(productDir(cfg, fileUserConfig))
 }
 
 func userHomeFromSnap(snap EnvSnapshot) string {

@@ -97,15 +97,54 @@ func TestRejectRawToken(t *testing.T) {
 	}
 }
 
-func TestSetRefusesComments(t *testing.T) {
+func TestSetPreservesComments(t *testing.T) {
 	home := testkit.TempHome(t)
 	path := filepath.Join(home, "m.jsonc")
-	if err := os.WriteFile(path, []byte("{\n  // comment\n  \"registry\": \"https://a.example/\"\n}\n"), 0o644); err != nil {
+	src := "{\n  // keep me\n  \"registry\": \"https://a.example/\"\n}\n"
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	err := config.SetFile(path, "offline", true)
-	if err == nil {
-		t.Fatal("expected comment refuse")
+	if err := config.SetFile(path, "offline", true); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(b)
+	if !strings.Contains(got, "// keep me") {
+		t.Fatalf("comment lost:\n%s", got)
+	}
+	if !strings.Contains(got, `"offline": true`) {
+		t.Fatalf("value not written:\n%s", got)
+	}
+	if !strings.Contains(got, `"registry": "https://a.example/"`) {
+		t.Fatalf("sibling lost:\n%s", got)
+	}
+}
+
+func TestSetPreservesCommentsOnExistingKey(t *testing.T) {
+	home := testkit.TempHome(t)
+	path := filepath.Join(home, "m.jsonc")
+	src := "{\n  /* block */\n  \"offline\": false, // trailing\n  \"registry\": \"https://a.example/\"\n}\n"
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.SetFile(path, "offline", true); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(b)
+	for _, want := range []string{"/* block */", "// trailing", `"offline": true`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "false") {
+		t.Fatalf("old value remains:\n%s", got)
 	}
 }
 
@@ -200,14 +239,58 @@ func TestUnsetFileMissingFileIdempotent(t *testing.T) {
 	}
 }
 
-func TestUnsetFileRefusesComments(t *testing.T) {
+func TestUnsetPreservesComments(t *testing.T) {
 	home := testkit.TempHome(t)
 	path := filepath.Join(home, "m.jsonc")
-	if err := os.WriteFile(path, []byte("{\n  // comment\n  \"offline\": true\n}\n"), 0o644); err != nil {
+	src := "{\n  // keep me\n  \"offline\": true,\n  \"registry\": \"https://a.example/\"\n}\n"
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := config.UnsetFile(path, "offline"); err == nil {
-		t.Fatal("expected comment refuse")
+	if err := config.UnsetFile(path, "offline"); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(b)
+	if !strings.Contains(got, "// keep me") {
+		t.Fatalf("comment lost:\n%s", got)
+	}
+	if strings.Contains(got, "offline") {
+		t.Fatalf("key not removed:\n%s", got)
+	}
+	if !strings.Contains(got, `"registry": "https://a.example/"`) {
+		t.Fatalf("sibling lost:\n%s", got)
+	}
+	if _, err := config.ParseJSONC(b); err != nil {
+		t.Fatalf("result does not parse: %v\n%s", err, got)
+	}
+}
+
+// Removing the last member of a commented file must still leave valid JSON.
+func TestUnsetLastMemberWithComments(t *testing.T) {
+	home := testkit.TempHome(t)
+	path := filepath.Join(home, "m.jsonc")
+	src := "{\n  \"registry\": \"https://a.example/\",\n  // about offline\n  \"offline\": true\n}\n"
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.UnsetFile(path, "offline"); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.ParseJSONC(b); err != nil {
+		t.Fatalf("result does not parse: %v\n%s", err, b)
+	}
+	if strings.Contains(string(b), "offline") && !strings.Contains(string(b), "// about offline") {
+		t.Fatalf("key not removed:\n%s", b)
+	}
+	if !strings.Contains(string(b), `"registry"`) {
+		t.Fatalf("sibling lost:\n%s", b)
 	}
 }
 

@@ -140,16 +140,36 @@ func attachAppPreRun(root *cobra.Command, g *globalFlags, info BuildInfo) {
 		if ctx == nil {
 			ctx = context.Background()
 		}
+		// Config-repair and informational commands do not need a full app bootstrap.
+		if isConfigRepairCommand(cmd) || isInfoCommand(cmd) {
+			return nil
+		}
 		ac, err := buildAppContext(ctx, cmd, g, info)
 		if err != nil {
 			return err
 		}
 		cmd.SetContext(app.WithContext(ctx, ac))
-		// Emit invocation header after Cobra resolves the command path but before
-		// any application work, progress, or results.
 		writeInvocationHeaderOnce(cmd)
 		return nil
 	}
+}
+
+// isConfigRepairCommand reports whether the command should work without valid config.
+func isConfigRepairCommand(cmd *cobra.Command) bool {
+	switch cmd.Name() {
+	case "path", "validate", "edit", "migrate", "reset":
+		return cmd.Parent() != nil && cmd.Parent().Name() == "config"
+	}
+	return false
+}
+
+// isInfoCommand reports whether the command is purely informational.
+func isInfoCommand(cmd *cobra.Command) bool {
+	switch cmd.Name() {
+	case "help", "version", "completion", "__complete", "__completeNoDesc":
+		return true
+	}
+	return false
 }
 
 func newVersionCmd(binary string, info BuildInfo) *cobra.Command {

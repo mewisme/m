@@ -4,7 +4,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
@@ -14,9 +13,8 @@ import (
 
 // NewFromApp builds a Client from effective config and project identity.
 func NewFromApp(eff *config.Effective, projectRoot string, identity project.Identity) (*Client, error) {
-	timeoutMs := config.Int(eff, "network.timeout_ms", 60000)
 	hc, err := fetch.NewClient(fetch.Options{
-		Timeout:  time.Duration(timeoutMs) * time.Millisecond,
+		Timeout:  config.Duration(eff, "network.timeout", "60s"),
 		ProxyURL: config.String(eff, "network.proxy", ""),
 		CAFile:   config.String(eff, "network.ca_file", ""),
 	})

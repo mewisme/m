@@ -1,0 +1,520 @@
+name: full
+
+# Heavy tier. These are the same suites that used to block every pull request;
+# they are unchanged in scope, only moved off the default path. They run
+# nightly, on demand, and for a release tag, and still publish the same
+# artifacts and reports as before.
+
+on:
+  schedule:
+    # 03:17 UTC nightly. Off the hour to avoid the Actions scheduling spike.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CGO_ENABLED: "0"
+  GOTOOLCHAIN: local
+  NODE_VERSION: "22"
+
+jobs:
+  platform:
+    name: platform (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: linux
+            os: ubuntu-latest
+            ext: ""
+          - label: macos
+            os: macos-latest
+            ext: ""
+          - label: windows
+            os: windows-latest
+            ext: .exe
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      # Full run, no -short: this is where soak and the wall-clock suites the
+      # default gate skips actually execute.
+      - name: Test
+        run: go test ./... -count=1 -timeout 30m
+
+      - name: Cross-process lock and identity tests
+        run: >-
+          go test ./internal/transaction/... ./internal/store/... ./internal/fsx/...
+          -count=1 -run 'Proc|Identity|Takeover|Import|ABA'
+
+      - name: Race detector for Windows-critical packages
+        if: matrix.label == 'windows'
+        env:
+          CGO_ENABLED: "1"
+        run: >-
+          go test -race ./internal/transaction/... ./internal/store/... ./internal/fsx/...
+          -count=1 -timeout 20m
+
+      - name: Race detector for macOS-critical packages
+        if: matrix.label == 'macos'
+        env:
+          CGO_ENABLED: "1"
+        run: >-
+          go test -race ./internal/transaction/... ./internal/store/... ./internal/resolver/...
+          -count=1 -timeout 20m
+
+      - name: Build binaries
+        run: |
+          go build -trimpath -o "${{ runner.temp }}/m${{ matrix.ext }}" ./cmd/m
+          go build -trimpath -o "${{ runner.temp }}/mx${{ matrix.ext }}" ./cmd/mx
+
+      - name: Doctor
+        run: go run ./cmd/m --cwd fixtures/projects/mlock-greenfield doctor --json
+
+  race:
+    name: race (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Race detector
+        run: go test -race ./... -count=1 -timeout 40m
+
+  benchmarks:
+    name: benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Run benchmarks
+        run: go test ./... -run '^$' -bench . -benchtime 10x -count=1 -timeout 35m
+
+  cross-compile:
+    name: cross-compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Build all supported targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for target in \
+            linux/amd64 linux/arm64 \
+            darwin/amd64 darwin/arm64 \
+            windows/amd64 windows/arm64
+          do
+            goos="${target%/*}"
+            goarch="${target#*/}"
+            ext=""
+            [[ "$goos" == windows ]] && ext=".exe"
+
+            GOOS="$goos" GOARCH="$goarch" \
+              go build -trimpath -o "${RUNNER_TEMP}/m-${goos}-${goarch}${ext}" ./cmd/m
+            GOOS="$goos" GOARCH="$goarch" \
+              go build -trimpath -o "${RUNNER_TEMP}/mx-${goos}-${goarch}${ext}" ./cmd/mx
+          done
+
+  lock-pnpm:
+    name: lock conformance (pnpm ${{ matrix.major }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        major: [9, 10, 11]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Resolve pinned pnpm version
+        id: pnpm
+        shell: bash
+        run: |
+          set -a
+          source tools/conformance/pnpm-versions.env
+          set +a
+          case "${{ matrix.major }}" in
+            9) version="$PNPM9_VERSION" ;;
+            10) version="$PNPM10_VERSION" ;;
+            11) version="$PNPM11_VERSION" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ steps.pnpm.outputs.version }}
+
+      - name: Run pnpm lock bridge suite
+        shell: bash
+        run: >-
+          go test ./tests/conformance/... -count=1
+          -run 'TestLockBridgePnpm${{ matrix.major }}($|MutationSuite|PeerContext)'
+          -v -timeout 30m
+
+  lock-adapters:
+    name: lock conformance (other adapters)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Run npm, Yarn, Bun, Nub, and rejection suites
+        shell: bash
+        run: >-
+          go test ./tests/conformance/... -count=1
+          -run 'TestLockBridgePnpmUnsupported|TestLockBridgeNubFixtures|Npm|Bun|Yarn'
+          -v -timeout 25m
+
+  core-certification:
+    name: core certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      MEW_CONFORMANCE_REQUIRE_TOOLS: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Load pinned pnpm versions
+        id: pnpm
+        shell: bash
+        run: |
+          set -a
+          source tools/conformance/pnpm-versions.env
+          set +a
+          echo "pnpm11=$PNPM11_VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ steps.pnpm.outputs.pnpm11 }}
+
+      - name: Install pnpm 9 and 10 shims
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source tools/conformance/pnpm-versions.env
+          set +a
+          corepack enable
+          install -d "$HOME/.local/bin"
+          corepack prepare "pnpm@${PNPM9_VERSION}" --activate
+          ln -sf "$(command -v pnpm)" "$HOME/.local/bin/pnpm9"
+          corepack prepare "pnpm@${PNPM10_VERSION}" --activate
+          ln -sf "$(command -v pnpm)" "$HOME/.local/bin/pnpm10"
+          corepack prepare "pnpm@${PNPM11_VERSION}" --activate
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run core certification matrix
+        shell: bash
+        run: go run ./cmd/m conformance run core --json > core-report.json
+
+      - name: Prove certification fails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if go run ./cmd/m conformance run core \
+            --filter integration.cert-negative-zero-match \
+            --json > zero-match.json
+          then
+            echo "zero-match certification unexpectedly passed" >&2
+            exit 1
+          fi
+          grep -q '"status": "failed"' zero-match.json
+          grep -q 'zero tests matched' zero-match.json
+
+          if go run ./cmd/m conformance run core \
+            --filter integration.cert-negative-forced-skip \
+            --json > forced-skip.json
+          then
+            echo "forced-skip certification unexpectedly passed" >&2
+            exit 1
+          fi
+          grep -q '"status": "failed"' forced-skip.json
+          grep -q 'skipped' forced-skip.json
+
+      - name: Check PM health
+        run: go run ./cmd/m --cwd fixtures/projects/mlock-greenfield doctor --json
+
+      - name: Upload core certification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: core-certification-report
+          path: |
+            core-report.json
+            zero-match.json
+            forced-skip.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  platform-certification:
+    name: platform certification (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: linux
+            os: ubuntu-latest
+          - label: macos
+            os: macos-latest
+          - label: windows
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: CLI UX certification
+        shell: bash
+        run: >-
+          go run ./cmd/m conformance run cli-ux --json
+          > cli-ux-report-${{ matrix.label }}.json
+
+      - name: Runner certification
+        shell: bash
+        run: >-
+          go run ./cmd/m conformance run runner --json
+          --output runner-report-${{ matrix.label }}.json --force
+
+      - name: Upload platform reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: platform-certification-${{ matrix.label }}
+          path: |
+            cli-ux-report-${{ matrix.label }}.json
+            runner-report-${{ matrix.label }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  runner-certification:
+    name: runner certification aggregate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: platform-certification
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: platform-certification-*
+          path: certification-reports
+          merge-multiple: true
+
+      - name: Aggregate runner certification
+        shell: bash
+        run: |
+          go run ./cmd/m conformance verify runner \
+            --report certification-reports/runner-report-linux.json \
+            --report certification-reports/runner-report-windows.json \
+            --report certification-reports/runner-report-macos.json \
+            --output runner-certification-summary.json \
+            --force
+
+      - name: Upload runner summary
+        uses: actions/upload-artifact@v7
+        with:
+          name: runner-certification-summary
+          path: runner-certification-summary.json
+          if-no-files-found: error
+          retention-days: 14
+
+  crash-integration:
+    name: crash integration (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: linux-full
+            os: ubuntu-latest
+            run: Crash
+          - label: windows-snapshot
+            os: windows-latest
+            run: TestSnapshotCrash|TestWorkspaceSnapshotRestoreCrash
+          - label: windows-install
+            os: windows-latest
+            run: TestTxnCrash
+          - label: windows-update
+            os: windows-latest
+            run: TestUpdateCrash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Run crash recovery suite
+        shell: bash
+        run: >-
+          go test -tags crash ./tests/integration/... -count=1
+          -run '${{ matrix.run }}' -v -timeout 30m
+
+  security:
+    name: vulnerability scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Run govulncheck
+        shell: bash
+        run: |
+          set -a
+          source tools/versions.env
+          set +a
+          go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...
+
+  gate:
+    name: full certification gate
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - platform
+      - race
+      - benchmarks
+      - cross-compile
+      - lock-pnpm
+      - lock-adapters
+      - core-certification
+      - runner-certification
+      - crash-integration
+      - security
+    steps:
+      - name: Verify required jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for result in \
+            "${{ needs.platform.result }}" \
+            "${{ needs.race.result }}" \
+            "${{ needs.benchmarks.result }}" \
+            "${{ needs.cross-compile.result }}" \
+            "${{ needs.lock-pnpm.result }}" \
+            "${{ needs.lock-adapters.result }}" \
+            "${{ needs.core-certification.result }}" \
+            "${{ needs.runner-certification.result }}" \
+            "${{ needs.crash-integration.result }}" \
+            "${{ needs.security.result }}"
+          do
+            [[ "$result" == success ]] || exit 1
+          done

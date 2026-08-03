@@ -80,14 +80,17 @@ topic). Ordinary `m <command> --help` stays concise and does not open a pager.
 Topic sources live under [`docs/terminal-help/`](terminal-help/) and are curated
 separately from authoritative docs; each topic ends with a See also pointer.
 
-Auto mode uses Glamour on a human color stdout TTY. Pipe, CI, `TERM=dumb`,
-accessible, and explicit `--output=plain` stay on the plain
-renderer (headings keep `#` markers; no ANSI). The same gate applies to static
-design-system output (version, lock, resolve, summaries, errors).
+Auto mode uses the internal rich help renderer on a human color stdout TTY.
+Pipe, CI, `TERM=dumb`, accessible, and explicit `--output=plain` stay on the
+plain renderer (headings keep `#` markers; no ANSI). The same gate applies to
+static design-system output (version, lock, resolve, summaries, errors).
 
-Glamour's standard style follows effective theme (`auto`\|`light`\|`dark`;
-`accessible`/`none` map to Glamour `notty`). `auto` uses the terminal background
-hint (`COLORFGBG`).
+The rich renderer is Mew's own ASCII-only Markdown renderer
+([`internal/presentation/help`](../internal/presentation/help)), not Glamour:
+every glyph is ASCII and all styling comes from the shared theme palette, so it
+follows the effective UI theme (`auto`\|`light`\|`dark`) directly.
+`accessible`/`none` drop to the plain renderer. `auto` uses the terminal
+background hint (`COLORFGBG`).
 
 ### Topic pager
 

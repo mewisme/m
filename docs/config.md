@@ -11,6 +11,31 @@ Format: JSONC ([ADR 0003](adr/0003-config-jsonc.md)).
 4. `env` — `MEW_*` and mapped env keys
 5. `cli` — `--offline`, `--prefer-offline`, `--config` overlays
 
+### Raw layers vs effective configuration
+
+Two different questions, two different answers:
+
+- A **raw layer** (`user`, `project`) is what one file literally contains. It is
+  what `m config set --local` writes and what `m config get` reports as
+  `Previous` for that scope. A key absent from that file is absent, whatever any
+  other layer says.
+- **Effective** configuration is the merged result across all five layers, with
+  the winning `Source` and `Path` recorded per value. It is what commands
+  actually act on.
+
+So writing a key to the user layer does not guarantee it takes effect: a project
+file, an environment variable, or a CLI overlay above it still wins. `m config
+set` prints both the previous scope value and the resulting effective value so
+that difference is visible instead of surprising.
+
+### Which scopes a key accepts
+
+The key registry (`ConfigKeySpec`) is the single authority for each key's type,
+default, secret status, deprecation, and the scopes it may be written to. Scope
+enforcement reads `Scopes` from the registry, so a key cannot be declared in one
+place and enforced from a stale second list. Writing a key to a scope it does not
+declare fails with `ERR_M_USAGE` naming the allowed scopes.
+
 ## Files
 
 | Layer | Path |
@@ -22,6 +47,26 @@ Portable setups set `MEW_HOME=…` (writes land in `$MEW_HOME/config/config.json
 Config is never written beside the `m` executable.
 
 `MEW_HOME` influences derived dirs when specific overrides are unset.
+
+### Product directories
+
+One product directory name (`mew`) with fixed `config`, `cache`, and `store`
+subdirectories on every platform. The names live in one place
+(`internal/config/dirs.go`), so config, cache, and store cannot drift apart.
+
+| Platform | Base |
+|---|---|
+| Linux | `$XDG_CONFIG_HOME/mew`, `$XDG_CACHE_HOME/mew`, `$XDG_DATA_HOME/mew` (else `~/.config`, `~/.cache`, `~/.local/share`) |
+| macOS | `~/Library/Application Support/mew`, `~/Library/Caches/mew` |
+| Windows | `%LocalAppData%\mew` (cache, store), `%AppData%\mew` (config) |
+
+Precedence: `MEW_CONFIG_DIR` / `MEW_CACHE_DIR` / `MEW_STORE_DIR` override one
+root each; `MEW_HOME` derives all three; platform defaults come last.
+
+A store written by an older version under a previous vendor path is still
+discovered and adopted, so upgrading does not orphan an existing store. An
+explicit `MEW_STORE_DIR` always outranks that discovery, and the canonical path
+wins when both exist.
 
 ## Owned keys (v1)
 
@@ -69,10 +114,25 @@ Environment:
 | `MEW_EXPERIMENTAL_ISOLATED_LINKER` | Set to `1` to allow `install.linker=isolated` |
 | `MEW_RESOLVE_AUTO_INSTALL_PEERS` | Maps to `resolve.autoInstallPeers` |
 | `MEW_RESOLVE_STRICT_PEER_DEPS` | Maps to `resolve.strictPeerDependencies` |
-| `network.timeout_ms` | int | `60000` |
+
+Every environment mapping is driven by the key registry, so a mapped variable is
+always a real key and its value is coerced to that key's declared type. A value
+that cannot be coerced, or that fails the key's validation, fails load with
+`ERR_M_CONFIG` naming the variable — it is never silently dropped.
+
+Network:
+
+| Key | Type | Default |
+|---|---|---|
+| `network.timeout` | duration | `60s` — Go duration string (`60s`, `1m30s`) |
 | `network.proxy` | string | empty — http/https proxy URL (else env) |
 | `network.ca_file` | string | empty — optional PEM CA bundle |
 | `registry.auth_token_env` | string | empty — **env var name only**, never a secret |
+
+`network.timeout` is a duration, and it is applied to the HTTP client used for
+registry, fetch, and publish traffic. The former `network.timeout_ms` integer key
+is migrated: `m config migrate` rewrites `network.timeout_ms: 5000` to
+`network.timeout: "5s"`.
 
 Unknown keys under owned namespaces fail load with `ERR_M_CONFIG`.
 
@@ -131,8 +191,21 @@ allowed values, or `-` when free-form). `--sources` adds `SOURCE` and `PATH`
 
 `m config edit` is deferred (no editor runner yet).
 
-Set/unset rewrite deterministic pretty JSON and fail closed when the file
-contains comments ([ADR 0003](adr/0003-config-jsonc.md)).## Global flags
+Set/unset edit JSONC in place and **preserve comments**: the member is spliced
+into the existing bytes, so surrounding `//` and `/* */` comments, key order, and
+formatting survive. Files without comments are rewritten as deterministic pretty
+JSON. `m config unset` also prunes a parent object it leaves empty. See
+[ADR 0003](adr/0003-config-jsonc.md).
+
+`m config migrate` is the exception: it moves keys between locations and cannot
+place existing comments correctly, so it refuses a commented file and says to
+apply the renames with `m config set` / `m config unset` instead.
+
+`m config set` reports the value that was previously in the **target scope** and
+the new **effective** value, which can differ when a higher layer (env or CLI)
+still overrides the key being written.
+
+## Global flags
 
 | Flag | Effect |
 |---|---|

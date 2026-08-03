@@ -36,9 +36,60 @@ func TestDetectIdentityFixtures(t *testing.T) {
 	}
 }
 
-func TestConflictSignals(t *testing.T) {
+// A packageManager declaration that disagrees with the incumbent lockfile is
+// advisory, not fatal: the lockfile is the authority and wins.
+func TestDeclarationLosesToLockfile(t *testing.T) {
 	root := testkit.ModuleRoot(t)
-	_, err := project.DetectIdentity(filepath.Join(root, "fixtures", "identity", "conflict-signals"))
+	p, err := project.DetectIdentity(filepath.Join(root, "fixtures", "identity", "conflict-signals"))
+	if err != nil {
+		t.Fatalf("declaration/lockfile mismatch must not fail: %v", err)
+	}
+	if p.Identity != project.IdentityPNPM {
+		t.Fatalf("lockfile must win: got %s want %s signals=%v", p.Identity, project.IdentityPNPM, p.Signals)
+	}
+	if p.Declared != project.IdentityNPM {
+		t.Fatalf("declared identity must be preserved: got %q want %q", p.Declared, project.IdentityNPM)
+	}
+}
+
+// With no lockfile to contradict it, the declaration is the only evidence and
+// it decides: `packageManager` exists to name the manager before a lock exists.
+func TestDeclarationWithoutLockfile(t *testing.T) {
+	root := testkit.ModuleRoot(t)
+	p, err := project.DetectIdentity(filepath.Join(root, "fixtures", "identity", "declared-yarn-no-lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Identity != project.IdentityYarn {
+		t.Fatalf("declaration decides without a lockfile: got %s signals=%v", p.Identity, p.Signals)
+	}
+	if p.Declared != project.IdentityYarn {
+		t.Fatalf("declared identity must be preserved: got %q want %q", p.Declared, project.IdentityYarn)
+	}
+}
+
+// No declaration and no lockfile is a native mew project.
+func TestNoSignalsDefaultsToMew(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"x","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err := project.DetectIdentity(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Identity != project.IdentityMew {
+		t.Fatalf("got %s want mew", p.Identity)
+	}
+	if p.Declared != "" {
+		t.Fatalf("declared must be empty: got %q", p.Declared)
+	}
+}
+
+// Two lockfiles from different authorities is a genuine, unresolvable conflict.
+func TestConflictingLockfiles(t *testing.T) {
+	root := testkit.ModuleRoot(t)
+	_, err := project.DetectIdentity(filepath.Join(root, "fixtures", "identity", "conflict-lockfiles"))
 	if err == nil {
 		t.Fatal("expected conflict")
 	}

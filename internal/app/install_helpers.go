@@ -552,12 +552,19 @@ func sanitizeKeyDir(key string) string {
 	return strings.NewReplacer("@", "_at_", "/", "_", "#", "_").Replace(key)
 }
 
-func priorPackageKeys(ctx context.Context, ac *Context, proj *project.Project) (map[string]string, error) {
+// priorInstallState reads the incumbent lock once and returns both the prior
+// graph and its package keys. The graph is needed to compute direct deltas: a
+// direct removal exists only in the old importer state, so deriving direct keys
+// from the new graph alone would silently drop it.
+func priorInstallState(ctx context.Context, ac *Context, proj *project.Project) (*graph.Graph, map[string]string, error) {
 	g, err := readLockHints(ctx, ac, proj)
-	if err != nil || g == nil {
-		return map[string]string{}, nil
+	if err != nil {
+		return nil, nil, err
 	}
-	return packageKeysFromGraph(g), nil
+	if g == nil {
+		return nil, map[string]string{}, nil
+	}
+	return g, packageKeysFromGraph(g), nil
 }
 
 func packageKeysFromGraph(g *graph.Graph) map[string]string {
@@ -768,18 +775,33 @@ func BuildMutationPlan(in MutationPlanInput) (*plan.Plan, error) {
 	return p, p.Normalize()
 }
 
-// directPackageKeys returns the set of package keys that are direct dependencies
-// of any importer (workspace package) in the graph. Transitive-only packages are excluded.
-func directPackageKeys(g *graph.Graph) map[string]bool {
+// directPackageKeys returns the packages reachable in one edge from an importer;
+// transitive-only packages are excluded. When filter is non-empty only those
+// importers count, so a workspace-filtered install reports direct changes for
+// the targeted importer alone.
+func directPackageKeys(g *graph.Graph, filter ...string) map[string]bool {
 	if g == nil {
 		return nil
 	}
+	want := map[string]bool{}
+	for _, f := range filter {
+		if f != "" {
+			want[f] = true
+		}
+	}
+
 	importerIDs := make(map[string]bool, len(g.Importers))
 	for _, imp := range g.Importers {
+		if len(want) > 0 && !want[string(imp.ID)] && !want[imp.Name] {
+			continue
+		}
 		importerIDs[string(imp.ID)] = true
 	}
 	// Also treat the root importer as an importer for single-package projects.
-	importerIDs[string(graph.RootImporter)] = true
+	// A filter naming specific members excludes the root.
+	if len(want) == 0 {
+		importerIDs[string(graph.RootImporter)] = true
+	}
 
 	direct := make(map[string]bool)
 	for _, e := range g.Edges {
@@ -788,6 +810,19 @@ func directPackageKeys(g *graph.Graph) map[string]bool {
 		}
 	}
 	return direct
+}
+
+// directPackageKeysAcross unions the direct sets of the prior and next graphs.
+// A direct removal appears only in the prior graph and a direct addition only
+// in the next one, so both sides are required for correct accounting.
+func directPackageKeysAcross(prior, next *graph.Graph, filter ...string) map[string]bool {
+	out := map[string]bool{}
+	for _, g := range []*graph.Graph{prior, next} {
+		for k := range directPackageKeys(g, filter...) {
+			out[k] = true
+		}
+	}
+	return out
 }
 
 // filterDirectChanges returns only PackageChanges whose ToKey or FromKey is in directKeys.

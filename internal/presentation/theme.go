@@ -65,27 +65,27 @@ func brightANSI(code string) lipgloss.Style {
 
 func lightTheme() Theme {
 	return Theme{
-		Primary:   brightANSI("14"),            // bright cyan
-		Secondary: brightANSI("8"),             // bright black (gray)
-		Muted:     brightANSI("8"),             // bright black (gray)
-		Strong:    brightANSI("15").Bold(true), // bright white bold
-		Success:   brightANSI("10"),            // bright green
-		Warning:   brightANSI("11"),            // bright yellow
-		Error:     brightANSI("9"),             // bright red
-		Info:      brightANSI("14"),            // bright cyan
-		Command:   brightANSI("14"),            // bright cyan
-		Package:   brightANSI("14"),            // bright cyan
-		Version:   brightANSI("15"),            // bright white
-		Path:      brightANSI("8"),             // gray
-		Code:      brightANSI("13"),            // bright magenta
-		Number:    brightANSI("15"),            // bright white
-		Added:     brightANSI("10"),            // bright green
-		Updated:   brightANSI("11"),            // bright yellow
-		Removed:   brightANSI("9"),             // bright red
-		Reused:    brightANSI("8"),             // gray
-		Header:    brightANSI("15").Bold(true), // bright white bold
-		Label:     brightANSI("15").Bold(true), // bright white bold
-		Value:     brightANSI("15"),            // bright white
+		Primary:   fg("6"),            // cyan (standard, dark)
+		Secondary: fg("8"),            // bright black (gray)
+		Muted:     fg("8"),            // bright black (gray)
+		Strong:    fg("0").Bold(true), // black bold
+		Success:   fg("2"),            // green (standard, dark)
+		Warning:   fg("3"),            // yellow (standard, dark)
+		Error:     fg("1"),            // red (standard, dark)
+		Info:      fg("6"),            // cyan (standard, dark)
+		Command:   fg("6"),            // cyan (standard, dark)
+		Package:   fg("6"),            // cyan (standard, dark)
+		Version:   fg("0"),            // black
+		Path:      fg("8"),            // gray
+		Code:      fg("5"),            // magenta (standard, dark)
+		Number:    fg("0"),            // black
+		Added:     fg("2"),            // green (standard, dark)
+		Updated:   fg("3"),            // yellow (standard, dark)
+		Removed:   fg("1"),            // red (standard, dark)
+		Reused:    fg("8"),            // gray
+		Header:    fg("0").Bold(true), // black bold
+		Label:     fg("0").Bold(true), // black bold
+		Value:     fg("0"),            // black
 	}
 }
 
@@ -100,11 +100,11 @@ func darkTheme() Theme {
 		Error:     brightANSI("9"),             // bright red
 		Info:      brightANSI("14"),            // bright cyan
 		Command:   brightANSI("14"),            // bright cyan
-		Package:   brightANSI("14"),            // bright cyan
-		Version:   brightANSI("15"),            // bright white
-		Path:      brightANSI("8"),             // gray
+		Package:   brightANSI("13"),            // bright magenta (distinct from command)
+		Version:   brightANSI("10"),            // bright green (distinct from plain value)
+		Path:      brightANSI("12"),            // bright blue (distinct from gray)
 		Code:      brightANSI("13"),            // bright magenta
-		Number:    brightANSI("15"),            // bright white
+		Number:    brightANSI("11"),            // bright yellow
 		Added:     brightANSI("10"),            // bright green
 		Updated:   brightANSI("11"),            // bright yellow
 		Removed:   brightANSI("9"),             // bright red

@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/mewisme/mew/internal/registry"
 	"github.com/mewisme/mew/internal/testkit"
@@ -49,10 +48,14 @@ func TestOfflineInstallFailsWithMissingList(t *testing.T) {
 	}
 }
 
-func TestOfflineWarmFasterThanCold(t *testing.T) {
-	if os.Getenv("GITHUB_ACTIONS") == "true" {
-		t.Skip("wall-clock warm-vs-cold comparison is unreliable on shared CI runners")
-	}
+// A warm offline install must do no registry work at all. The original version
+// of this test compared wall-clock durations, which is a race against whatever
+// else the machine is doing: under a full parallel `go test ./...` the two
+// installs contend for the same cores and the warm run can legitimately measure
+// slower while being perfectly correct. Counting registry hits measures the
+// actual property — the warm path is faster *because* it serves everything from
+// cache and never touches the network — with no clock involved.
+func TestOfflineWarmServesFromCacheWithoutRegistry(t *testing.T) {
 	testkit.CleanEnv(t)
 	t.Setenv("NO_PROXY", "*")
 	reg := testkit.LoadRegistry(t, "registry/v1")
@@ -61,28 +64,23 @@ func TestOfflineWarmFasterThanCold(t *testing.T) {
 	coldProj := copyOfflineFixture(t)
 	coldCfg := writeRegistryConfig(t, coldProj, srv.URL)
 
-	coldStart := time.Now()
 	code, coldOut := runM(t, coldProj, coldCfg, "install")
 	if code != 0 {
 		t.Fatalf("cold install exit=%d out=%s", code, coldOut)
 	}
-	coldElapsed := time.Since(coldStart)
+	coldHits := reg.HitCount()
+	if coldHits == 0 {
+		t.Fatal("cold install must reach the registry; otherwise the warm comparison proves nothing")
+	}
 
 	warmProj := copyOfflineFixture(t)
 	warmCfg := writeRegistryConfig(t, warmProj, srv.URL)
-	warmStart := time.Now()
 	warmCode, warmOut := runM(t, warmProj, warmCfg, "install", "--offline")
-	warmElapsed := time.Since(warmStart)
 	if warmCode != 0 {
 		t.Fatalf("warm offline exit=%d out=%s", warmCode, warmOut)
 	}
-
-	const minColdWall = 100 * time.Millisecond
-	if coldElapsed < minColdWall {
-		t.Skipf("cold install %s below %s; wall-clock comparison unreliable on this runner", coldElapsed, minColdWall)
-	}
-	if warmElapsed >= coldElapsed {
-		t.Fatalf("warm wall %s not faster than cold %s", warmElapsed, coldElapsed)
+	if warmHits := reg.HitCount() - coldHits; warmHits != 0 {
+		t.Fatalf("warm offline install made %d registry request(s); must serve entirely from cache", warmHits)
 	}
 }
 

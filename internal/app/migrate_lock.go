@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
@@ -261,11 +260,6 @@ func commitMigratedLock(ctx context.Context, ac *Context, proj *project.Project,
 			return err
 		}
 	}
-	// #region agent log
-	agentMigrateDebugLog("migrate_lock.go:commit", "C", "migrate commit plan", map[string]any{
-		"foreignRemoves": foreign, "root": proj.Root,
-	})
-	// #endregion
 	if err := txn.Commit(ctx, nil); err != nil {
 		_, _ = sess.Abort(ctx)
 		return err
@@ -439,24 +433,3 @@ func EncodeLossReportJSON(report lockfile.LossReport) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
-
-// #region agent log
-func agentMigrateDebugLog(location, hypothesisId, message string, data map[string]any) {
-	payload := map[string]any{
-		"sessionId": "d57042", "timestamp": time.Now().UnixMilli(),
-		"location": location, "message": message, "data": data,
-		"hypothesisId": hypothesisId, "runId": "post-fix",
-	}
-	b, err := json.Marshal(payload)
-	if err != nil {
-		return
-	}
-	f, err := os.OpenFile(`f:\Project\package-managers\mew\debug-d57042.log`, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	defer func() { _ = f.Close() }()
-	_, _ = f.Write(append(b, '\n'))
-}
-
-// #endregion

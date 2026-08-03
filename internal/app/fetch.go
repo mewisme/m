@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/archive"
@@ -155,9 +154,8 @@ func VerifyBlobCache(ctx context.Context, ac *Context) (CacheVerifyResult, error
 }
 
 func newDownloader(ac *Context) (*fetch.Downloader, error) {
-	timeoutMs := config.Int(ac.Config, "network.timeout_ms", 60000)
 	hc, err := fetch.NewClient(fetch.Options{
-		Timeout:  time.Duration(timeoutMs) * time.Millisecond,
+		Timeout:  config.Duration(ac.Config, "network.timeout", "60s"),
 		ProxyURL: config.String(ac.Config, "network.proxy", ""),
 		CAFile:   config.String(ac.Config, "network.ca_file", ""),
 	})

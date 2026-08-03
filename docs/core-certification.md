@@ -8,6 +8,23 @@ Related: [`security-pm-core.md`](security-pm-core.md),
 [`../testdata/certification/sign-off-checklist.md`](../testdata/certification/sign-off-checklist.md),
 [`pm-commands.md`](pm-commands.md).
 
+## CI tiers
+
+Two workflows, two jobs to do.
+
+| Tier | Workflow | Trigger | Contains |
+|---|---|---|---|
+| Default gate | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | every pull request and push to `main` | gofmt, `go mod tidy` diff, `go vet`, lint, architecture, license and dependency allowlist, `go test ./... -short` on Linux, `m`/`mx` build, one limited Windows smoke job (config, identity, CLI, paths) |
+| Full certification | [`.github/workflows/full.yml`](../.github/workflows/full.yml) | nightly schedule, `workflow_dispatch`, `v*` tags | full Linux/macOS/Windows matrix, race detector, benchmarks, all-target cross compilation, pnpm/npm/Yarn/Bun lock conformance, crash integration, soak, core certification, CLI UX and runner certification, `govulncheck` |
+
+The default gate is the blocking check. It is deliberately narrow: it must catch
+compilation failures, unit regressions, configuration, identity, and
+install-preflight regressions, plus Windows path behavior — and nothing slower
+than that. The heavy suites are not deleted, only moved off the blocking path;
+every one remains runnable on demand and still uploads the same reports and
+artifacts. `-short` is what separates the tiers: soak and wall-clock comparisons
+skip in the default gate and execute in full.
+
 ## Certification entry points
 
 Machine-readable step list: [`tools/certification/core-manifest.json`](../tools/certification/core-manifest.json).
@@ -93,7 +110,7 @@ where applicable):
 Crash integration covers install interruption, update interruption, snapshot
 restore, and workspace snapshot paths. Windows runs in dedicated shards
 (snapshot, install/txn, update) per
-[`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+[`.github/workflows/full.yml`](../.github/workflows/full.yml).
 
 See [`transaction.md`](transaction.md) and
 [`docs/evidence/core/pass20-security-controls.md`](evidence/core/pass20-security-controls.md)

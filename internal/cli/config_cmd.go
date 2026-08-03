@@ -20,20 +20,11 @@ import (
 	"github.com/mewisme/mew/internal/project"
 )
 
-// userScopedKeys are config keys that can only be written to user config.
-var userScopedKeys = map[string]bool{
-	"ui.theme": true,
-}
-
 func newConfigCmd(g *globalFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Manage configuration",
-		Long: `Manage Mew configuration.
-
-Config keys use lowercase dotted snake_case (e.g. registry.url, install.linker).
-Default scope is user unless --scope is specified.
-Effective scope is read-only.`,
+		Long:  `Manage Mew configuration.`,
 	}
 	cmd.AddCommand(newConfigGetCmd(g))
 	cmd.AddCommand(newConfigSetCmd(g))
@@ -171,23 +162,19 @@ func newConfigSetCmd(g *globalFlags) *cobra.Command {
 			if err := checkUserScopedKey(key, target); err != nil {
 				return err
 			}
-			var prev string
-			if eff, _ := loadEffective(g); eff != nil {
-				if pv, err := config.Get(eff, key); err == nil {
-					prev = formatConfigValue(pv.Raw)
-				}
-			}
+			prev := readScopeValue(target.Path, key)
 			if err := config.SetFile(target.Path, key, val); err != nil {
 				return err
 			}
-			return writeConfigSetResult(g, cmd, key, prev, formatConfigValue(val), target)
+			newEffective := readEffectiveValue(g, key)
+			return writeConfigSetResult(g, cmd, key, prev, formatConfigValue(val), newEffective, target)
 		},
 	}
 	flags.bind(cmd)
 	return cmd
 }
 
-func writeConfigSetResult(g *globalFlags, cmd *cobra.Command, key, prev, current string, target configWriteTarget) error {
+func writeConfigSetResult(g *globalFlags, cmd *cobra.Command, key, prev, current, newEffective string, target configWriteTarget) error {
 	if configOutputQuiet(g, cmd) {
 		return nil
 	}
@@ -197,12 +184,16 @@ func writeConfigSetResult(g *globalFlags, cmd *cobra.Command, key, prev, current
 	}
 	r := g.mustStaticRenderer(cmd)
 	headline := fmt.Sprintf("✓ Updated %s", key)
-	body := r.KeyValues([]presentation.KeyValue{
+	kvs := []presentation.KeyValue{
 		{Key: "Previous", Value: diagnostics.Redact(prev)},
 		{Key: "Current", Value: diagnostics.Redact(current)},
 		{Key: "Scope", Value: string(target.Scope)},
 		{Key: "File", Value: target.Path, Style: presentation.ValuePath},
-	})
+	}
+	if newEffective != "" && newEffective != current {
+		kvs = append(kvs, presentation.KeyValue{Key: "Effective", Value: diagnostics.Redact(newEffective)})
+	}
+	body := r.KeyValues(kvs)
 	return writeStaticOut(cmd, headline+"\n\n"+body)
 }
 
@@ -268,11 +259,11 @@ func writeConfigUnsetResult(g *globalFlags, cmd *cobra.Command, key string, scop
 
 func newConfigListCmd(g *globalFlags) *cobra.Command {
 	var (
-		flags      configWriteFlags
-		showOrigin bool
-		changed    bool
+		flags        configWriteFlags
+		showOrigin   bool
+		changed      bool
 		inclDefaults bool
-		prefix     string
+		prefix       string
 	)
 	cmd := &cobra.Command{
 		Use:     "list",
@@ -390,7 +381,8 @@ func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, eff *config.Effect
 	}
 
 	var b strings.Builder
-	b.WriteString(scopeLabel + "\n\n")
+	b.WriteString(scopeLabel)
+	b.WriteString("\n\n")
 
 	for _, gname := range groupOrder {
 		entries := groups[gname]
@@ -398,7 +390,8 @@ func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, eff *config.Effect
 			continue
 		}
 		// Group heading: bright white via plain text.
-		b.WriteString(gname + "\n")
+		b.WriteString(gname)
+		b.WriteString("\n")
 		for _, e := range entries {
 			var line string
 			if e.isDef || e.isSec {
@@ -409,13 +402,15 @@ func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, eff *config.Effect
 			if showOrigin {
 				line += fmt.Sprintf("  [%s]", e.origin)
 			}
-			b.WriteString(line + "\n")
+			b.WriteString(line)
+			b.WriteString("\n")
 		}
 		b.WriteString("\n")
 	}
 
 	summary := fmt.Sprintf("%d configured, %d defaults", configured, defaulted)
-	b.WriteString(summary + "\n")
+	b.WriteString(summary)
+	b.WriteString("\n")
 
 	var filePath string
 	switch scope {
@@ -435,7 +430,8 @@ func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, eff *config.Effect
 		}
 	}
 	if filePath != "" {
-		b.WriteString(filePath + "\n")
+		b.WriteString(filePath)
+		b.WriteString("\n")
 	}
 
 	_ = showOrigin
@@ -591,11 +587,13 @@ func writeConfigExplainHuman(g *globalFlags, cmd *cobra.Command, key string, v c
 		b.WriteString(r.KeyValues(kv))
 	}
 	if legacy := config.LegacyKey(key); legacy != "" {
-		b.WriteString("\n" + r.KeyValues([]presentation.KeyValue{
+		b.WriteString("\n")
+		b.WriteString(r.KeyValues([]presentation.KeyValue{
 			{Key: "Legacy key", Value: legacy},
 		}))
 	}
-	b.WriteString("\n" + r.KeyValues([]presentation.KeyValue{
+	b.WriteString("\n")
+	b.WriteString(r.KeyValues([]presentation.KeyValue{
 		{Key: "Source", Value: displayConfigSource(v.Source)},
 		{Key: "File", Value: v.Path, Style: presentation.ValuePath},
 	}))
@@ -897,7 +895,7 @@ func newConfigValidateCmd(g *globalFlags) *cobra.Command {
 			}
 
 			r := g.mustStaticRenderer(cmd)
-			label := fmt.Sprintf("%s configuration", strings.ToUpper(string(scope)[:1]) + string(scope)[1:])
+			label := fmt.Sprintf("%s configuration", strings.ToUpper(string(scope)[:1])+string(scope)[1:])
 			if len(allErrors) == 0 {
 				var b strings.Builder
 				b.WriteString(fmt.Sprintf("✓ %s is valid\n\n", label))
@@ -912,7 +910,9 @@ func newConfigValidateCmd(g *globalFlags) *cobra.Command {
 				if len(allWarnings) > 0 {
 					b.WriteString("\nWarnings:\n")
 					for _, w := range allWarnings {
-						b.WriteString("  " + w + "\n")
+						b.WriteString("  ")
+						b.WriteString(w)
+						b.WriteString("\n")
 					}
 				}
 				return writeStaticOut(cmd, b.String())
@@ -1199,14 +1199,66 @@ func loadFileOverlay(path string) (map[string]any, error) {
 }
 
 func checkUserScopedKey(key string, target configWriteTarget) error {
-	if !userScopedKeys[key] {
+	spec := config.KeySpec(key)
+	if spec == nil {
 		return nil
 	}
-	if target.Scope == configScopeProject {
-		return apperr.New(apperr.Usage, "config.set", key,
-			key+" is a user-scoped setting; cannot write to project config")
+	if len(spec.Scopes) == 0 {
+		return nil
 	}
-	return nil
+	for _, s := range spec.Scopes {
+		if string(s) == string(target.Scope) {
+			return nil
+		}
+	}
+	allowedScopes := make([]string, len(spec.Scopes))
+	for i, s := range spec.Scopes {
+		allowedScopes[i] = string(s)
+	}
+	return apperr.New(apperr.Usage, "config.set", key,
+		fmt.Sprintf("%s is scoped to [%s]; cannot write to %s config",
+			key, strings.Join(allowedScopes, ", "), target.Scope))
+}
+
+// readScopeValue reads a single config value from a file without going through effective merge.
+func readScopeValue(filePath, key string) string {
+	b, err := os.ReadFile(filePath)
+	if err != nil {
+		return ""
+	}
+	parsed, err := config.ParseJSONC(b)
+	if err != nil {
+		return ""
+	}
+	m, ok := parsed.(map[string]any)
+	if !ok {
+		return ""
+	}
+	flat := flattenMap(m, "")
+	v, ok := flat[key]
+	if !ok {
+		canon := config.CanonicalKey(key)
+		if canon != "" && canon != key {
+			v, ok = flat[canon]
+		}
+	}
+	if !ok {
+		return ""
+	}
+	return formatConfigValue(v)
+}
+
+// readEffectiveValue reads the effective value for a key.
+func readEffectiveValue(g *globalFlags, key string) string {
+	eff, err := loadEffective(g)
+	if err != nil {
+		return ""
+	}
+	v, err := config.Get(eff, key)
+	if err != nil {
+		return ""
+	}
+	return formatConfigValue(v.Raw)
 }
 
 func formatConfigValue(v any) string {

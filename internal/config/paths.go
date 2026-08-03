@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 )
@@ -141,6 +142,32 @@ func Int(eff *Effective, key string, def int) int {
 	}
 }
 
+// Duration returns a duration config value, or def if missing/invalid.
+// Accepts standard Go duration strings. Fails closed: returns def when
+// the loaded value cannot be parsed as a duration.
+func Duration(eff *Effective, key, def string) time.Duration {
+	if eff == nil {
+		d, _ := time.ParseDuration(def)
+		return d
+	}
+	v, ok := eff.Values[resolveAccessKey(eff, key)]
+	if !ok {
+		d, _ := time.ParseDuration(def)
+		return d
+	}
+	s, ok := v.Raw.(string)
+	if !ok {
+		d, _ := time.ParseDuration(def)
+		return d
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		d, _ = time.ParseDuration(def)
+		return d
+	}
+	return d
+}
+
 // CacheRoot resolves the global cache directory (empty cache.dir → platform default).
 func CacheRoot(eff *Effective) string {
 	if d := String(eff, "cache.dir", ""); d != "" {
@@ -151,28 +178,23 @@ func CacheRoot(eff *Effective) string {
 		return d
 	}
 	if home, ok := snap.Lookup("MEW_HOME"); ok && home != "" {
-		return filepath.Join(home, "cache")
+		return filepath.Join(home, dirCache)
 	}
 	goos := snap.GOOS()
 	if goos == "" {
 		goos = runtime.GOOS
 	}
 	if goos == "windows" {
-		base, _ := snap.Lookup("LOCALAPPDATA")
-		if base == "" {
-			profile, _ := snap.Lookup("USERPROFILE")
-			base = filepath.Join(profile, "AppData", "Local")
-		}
-		return filepath.Join(base, "mew", "cache")
+		return productDir(windowsLocalAppData(snap), dirCache)
 	}
 	if goos == "darwin" {
-		return filepath.Join(userHomeFromSnap(snap), "Library", "Caches", "mew")
+		return productDir(filepath.Join(userHomeFromSnap(snap), "Library", "Caches"))
 	}
 	xdg, ok := snap.Lookup("XDG_CACHE_HOME")
 	if !ok || xdg == "" {
 		xdg = filepath.Join(userHomeFromSnap(snap), ".cache")
 	}
-	return filepath.Join(xdg, "mew")
+	return productDir(xdg)
 }
 
 // RegistryMetadataCacheDir is <cache>/registry.
@@ -208,40 +230,59 @@ func StoreRoot(eff *Effective) (string, error) {
 		return validateStorePath(d, "MEW_STORE_DIR")
 	}
 	if home, ok := snap.Lookup("MEW_HOME"); ok && home != "" {
-		return validateStorePath(filepath.Join(home, "store"), "MEW_HOME")
+		return validateStorePath(filepath.Join(home, dirStore), "MEW_HOME")
 	}
 	goos := snap.GOOS()
 	if goos == "" {
 		goos = runtime.GOOS
 	}
 	if goos == "windows" {
-		base, _ := snap.Lookup("LOCALAPPDATA")
-		if base == "" {
-			profile, _ := snap.Lookup("USERPROFILE")
-			base = filepath.Join(profile, "AppData", "Local")
-		}
-		return validateStorePath(filepath.Join(base, "mew", "store"), "default")
+		// Windows uses the flat product layout, not the vendor-qualified one.
+		return validateStorePath(productDir(windowsLocalAppData(snap), dirStore), "default")
 	}
 	if goos == "darwin" {
-		return validateStorePath(filepath.Join(userHomeFromSnap(snap), "Library", "Application Support", "github.com", "mewisme", "mew", "store"), "default")
+		base := filepath.Join(userHomeFromSnap(snap), "Library", "Application Support")
+		return validateStorePath(adoptLegacyStore(base, vendorDir(base, vendorStorePath)), "default")
 	}
 	xdg, ok := snap.Lookup("XDG_DATA_HOME")
 	if !ok || xdg == "" {
 		xdg = filepath.Join(userHomeFromSnap(snap), ".local", "share")
 	}
-	return validateStorePath(filepath.Join(xdg, "github.com", "mewisme", "mew", "store"), "default")
+	return validateStorePath(adoptLegacyStore(xdg, vendorDir(xdg, vendorStorePath)), "default")
+}
+
+// windowsLocalAppData resolves %LocalAppData%, falling back to the profile.
+func windowsLocalAppData(snap EnvSnapshot) string {
+	if base, _ := snap.Lookup("LOCALAPPDATA"); base != "" {
+		return base
+	}
+	profile, _ := snap.Lookup("USERPROFILE")
+	return filepath.Join(profile, "AppData", "Local")
+}
+
+// windowsRoamingAppData resolves %AppData%, falling back to the profile.
+func windowsRoamingAppData(snap EnvSnapshot) string {
+	if base, _ := snap.Lookup("APPDATA"); base != "" {
+		return base
+	}
+	profile, _ := snap.Lookup("USERPROFILE")
+	return filepath.Join(profile, "AppData", "Roaming")
 }
 
 func validateStorePath(p, subject string) (string, error) {
 	if p == "" {
 		return "", apperr.New(apperr.Config, "config.store", subject, "empty path")
 	}
-	if strings.Contains(p, "..") {
-		return "", apperr.New(apperr.Config, "config.store", subject, "path must not contain ..")
-	}
 	abs, err := filepath.Abs(p)
 	if err != nil {
 		return "", apperr.Wrap(apperr.Config, "config.store", subject, err)
+	}
+	cleaned := filepath.Clean(abs)
+	if cleaned != abs && !strings.HasPrefix(cleaned+string(filepath.Separator), abs+string(filepath.Separator)) {
+		rel, relErr := filepath.Rel(abs, cleaned)
+		if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "", apperr.New(apperr.Config, "config.store", subject, "path must not escape via ..")
+		}
 	}
 	if err := os.MkdirAll(abs, 0o755); err != nil {
 		return "", apperr.Wrap(apperr.Config, "config.store", subject, err)

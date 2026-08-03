@@ -37,15 +37,21 @@ Lock document fields: `schemaVersion`, `pid`, `processStart`, `txnId`, `createdA
 
 ## Mutation session (pass 6)
 
-Install-family commands acquire a `MutationSession` via `BeginMutationSession` before
-reading live `package.json` or `m.lock`. The session owns the project lock until
+Read-only install preflight runs **before** `BeginMutationSession`, so a rejected
+install never creates `.mew`, a journal, or the project lock (see
+[`install.md`](install.md)). The session then owns the project lock until
 `Finish` or `Abort`:
 
 1. Acquire project lock and recover incomplete journals (`BeginMutation`)
 2. `ReopenProject` — first live manifest/lock/config read after ownership is held
-3. `AppContext` — session copy with reloaded effective config (required after step 2)
-4. Run resolve/fetch/link/validate through `runInstallInSession`
-5. `Finish` — commit journal, verified `current` cleanup, release lock
+3. Re-run install preflight against the reopened project (read-only, race-safe)
+4. `AppContext` — session copy with reloaded effective config (required after step 2)
+5. Run resolve/fetch/link/validate through `runInstallInSession`
+6. `Finish` — commit journal, verified `current` cleanup, release lock
+
+Install-family commands acquire the session before reading live `package.json` or
+`m.lock`. The first mutation of live state (for example clearing `node_modules`)
+happens only after step 3 passes and the transaction can roll it back.
 
 **Ordering contract:** `AppContext()` returns an error until `ReopenProject` (or
 `ReloadEffectiveConfig`) has run. Production paths must never call `AppContext`

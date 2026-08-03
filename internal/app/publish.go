@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
@@ -141,9 +140,8 @@ func Publish(ctx context.Context, ac *Context, opts PublishOptions) (PublishResu
 		return result, nil
 	}
 
-	timeoutMs := config.Int(ac.Config, "network.timeout_ms", 60000)
 	hc, err := fetch.NewClient(fetch.Options{
-		Timeout:  time.Duration(timeoutMs) * time.Millisecond,
+		Timeout:  config.Duration(ac.Config, "network.timeout", "60s"),
 		ProxyURL: config.String(ac.Config, "network.proxy", ""),
 		CAFile:   config.String(ac.Config, "network.ca_file", ""),
 	})

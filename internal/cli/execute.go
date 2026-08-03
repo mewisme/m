@@ -208,12 +208,19 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 		}
 		cwd = abs
 	}
+
+	// Create the presentation controller once.
+	ctrl, ctrlErr := g.controller(cmd)
+	if ctrlErr != nil {
+		return nil, wrapPresentationErr(ctrlErr)
+	}
+
 	ac, err := app.New(ctx, app.Options{
 		CWD:           cwd,
 		ConfigPath:    g.configPath,
 		Offline:       g.offline,
 		PreferOffline: g.preferOffline,
-		Reporter:      g.mustReporter(cmd),
+		Reporter:      ctrl.Reporter(),
 		Version:       info.Version,
 		Commit:        info.Commit,
 		BuildDate:     info.BuildDate,
@@ -222,18 +229,10 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 	if err != nil {
 		return nil, err
 	}
-	g.ctrl = nil
-	rep, err := g.resolveReporter(cmd)
-	if err != nil {
-		return nil, wrapPresentationErr(err)
-	}
-	ac.Reporter = rep
-	if g.ctrl != nil {
-		ctrl := g.ctrl
-		ac.SuspendUI = ctrl.Suspend
-		ac.ResumeUI = ctrl.Resume
-		attachPrompter(ac, cmd, ctrl)
-	}
+
+	ac.SuspendUI = ctrl.Suspend
+	ac.ResumeUI = ctrl.Resume
+	attachPrompter(ac, cmd, ctrl)
 	return ac, nil
 }
 

@@ -53,6 +53,17 @@ func runInstallTxn(ctx context.Context, ac *Context, opts InstallOptions, edit m
 	if err != nil {
 		return res, err
 	}
+
+	// Preflight before the mutation session: nothing below may create `.mew`,
+	// write a journal, take the project lock, or reach the network.
+	preProj, err := project.Open(ctx, root)
+	if err != nil {
+		return res, err
+	}
+	if err := installPreflight(ctx, ac, preProj, opts); err != nil {
+		return res, err
+	}
+
 	sess, err := BeginMutationSession(ctx, ac, root)
 	if err != nil {
 		return res, err
@@ -156,15 +167,12 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 	txn := sess.Runner()
 
-	if opts.Frozen && !usesStagedSnapshotInputs(opts) {
-		if err := validateFrozenLockForProject(ctx, ac, proj); err != nil {
-			return res, err
-		}
-	}
-	if opts.CleanNodeModules {
-		if err := cleanLiveNodeModules(txn, proj.Root); err != nil {
-			return res, err
-		}
+	// Re-run preflight now that the lock is held: the project was reopened, so
+	// anything that changed between preflight and the lock is caught here,
+	// before any mutation. The checks are read-only, so repeating them is
+	// cheap and involves no network or resolution work.
+	if err := installPreflight(ctx, ac, proj, opts); err != nil {
+		return res, err
 	}
 
 	if prepare != nil {
@@ -172,26 +180,13 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 			return res, err
 		}
 	}
-	if err := requireWorkspacesGate(ac, opts); err != nil {
-		return res, err
-	}
-	if err := validatePnpmLockBeforeTxn(proj); err != nil {
-		return res, err
-	}
-	if err := validateNpmLockBeforeTxn(proj); err != nil {
-		return res, err
-	}
-	if err := validateBunLockBeforeTxn(proj); err != nil {
-		return res, err
-	}
-	if err := rejectBunLockbIfPresent(proj); err != nil {
-		return res, err
-	}
-	if err := validateYarnLockBeforeTxn(proj); err != nil {
-		return res, err
-	}
-	if err := gateYarnPnPInstall(proj); err != nil {
-		return res, err
+
+	// First mutation of live state: only after every preflight check passed and
+	// the transaction can roll it back.
+	if opts.CleanNodeModules {
+		if err := cleanLiveNodeModules(txn, proj.Root); err != nil {
+			return res, err
+		}
 	}
 
 	phResolve := beginInstallPhase(ac, opID, phaseResolve)
@@ -214,7 +209,11 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 			return res, err
 		}
 	}
-	priorKeys, _ := priorPackageKeys(ctx, ac, proj)
+	priorGraph, priorKeys, priorErr := priorInstallState(ctx, ac, proj)
+	if priorErr != nil {
+		resolveErr = priorErr
+		return res, priorErr
+	}
 	var resolution *resolver.Resolution
 	if opts.PreResolvedGraph != nil {
 		resolution = &resolver.Resolution{Graph: opts.PreResolvedGraph}
@@ -235,20 +234,17 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		return res, err
 	}
 	if workspace.Enabled(ac.Config) && len(opts.Filter) > 0 {
-		prior, priorErr := readLockHints(ctx, ac, proj)
-		if priorErr != nil {
-			resolveErr = priorErr
-			return res, priorErr
-		}
-		if prior != nil {
+		// A filtered install resolves only the targeted importers, so the
+		// untouched importers must be carried over from the incumbent lock.
+		if priorGraph != nil {
 			var priorExt lockfile.Extensions
 			if proj.Identity == project.IdentityMew {
 				if priorDoc, readErr := readLockDocument(proj.Root, proj.Identity); readErr == nil && priorDoc != nil {
 					priorExt = priorDoc.Extensions
 				}
 			}
-			untouched := untouchedImporterIDs(prior, resolution.Graph)
-			merged, mergeErr := mergeFilteredWorkspaceResolution(prior, priorExt, resolution, untouched)
+			untouched := untouchedImporterIDs(priorGraph, resolution.Graph)
+			merged, mergeErr := mergeFilteredWorkspaceResolution(priorGraph, priorExt, resolution, untouched)
 			if mergeErr != nil {
 				resolveErr = mergeErr
 				return res, mergeErr
@@ -261,7 +257,9 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		return res, resolveErr
 	}
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
-	res.DirectPackageChanges = filterDirectChanges(res.PackageChanges, directPackageKeys(resolution.Graph))
+	// Direct changes need both sides: a direct removal is only in priorGraph.
+	res.DirectPackageChanges = filterDirectChanges(res.PackageChanges,
+		directPackageKeysAcross(priorGraph, resolution.Graph, opts.Filter...))
 	resolveErr = nil
 	phResolve.Complete(statusOK)
 
@@ -578,7 +576,11 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 			return res, err
 		}
 	}
-	priorKeys, _ := priorPackageKeys(ctx, ac, proj)
+	priorGraph, priorKeys, priorErr := priorInstallState(ctx, ac, proj)
+	if priorErr != nil {
+		resolveErr = priorErr
+		return res, priorErr
+	}
 	var resolution *resolver.Resolution
 	if opts.PreResolvedGraph != nil {
 		resolution = &resolver.Resolution{Graph: opts.PreResolvedGraph}
@@ -599,6 +601,8 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 		return res, err
 	}
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
+	res.DirectPackageChanges = filterDirectChanges(res.PackageChanges,
+		directPackageKeysAcross(priorGraph, resolution.Graph, opts.Filter...))
 	if p, err := BuildMutationPlan(MutationPlanInput{
 		PriorKeys:     priorKeys,
 		Graph:         resolution.Graph,

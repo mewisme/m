@@ -335,7 +335,16 @@ go run ./cmd/m conformance run runner
 make core-cert-fast
 ```
 
-Install pinned tools: [`tools/install.ps1`](tools/install.ps1) or [`tools/install.sh`](tools/install.sh). CI workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Install pinned tools: [`tools/install.ps1`](tools/install.ps1) or [`tools/install.sh`](tools/install.sh).
+
+CI runs in two tiers. The blocking gate on every pull request is
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): formatting, static
+analysis, `go test ./... -short` on Linux, a build, and one limited Windows smoke
+job. The heavy suites — full three-OS matrix, race detector, cross compilation,
+lock conformance, crash integration, soak, benchmarks, certification, and
+`govulncheck` — run in [`.github/workflows/full.yml`](.github/workflows/full.yml)
+nightly, on demand, and for release tags. See
+[`docs/core-certification.md`](docs/core-certification.md).
 
 ## Roadmap
 

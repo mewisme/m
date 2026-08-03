@@ -18,7 +18,7 @@ Every path named in [`AGENTS.md`](../../AGENTS.md) repository shape must appear 
 | `internal/config/` | Layered configuration loader | exists | shipped |
 | `internal/diagnostics/` | Errors, progress, redaction, reporters | exists | shipped |
 | `internal/presentation/` | Output modes, capabilities, themes, static renderers | exists | shipped (UX-0001–0008 cert in progress) |
-| `internal/presentation/help/` | Plain + Glamour Markdown renderers for topic help | exists | shipped |
+| `internal/presentation/help/` | Plain + internal ASCII-only rich Markdown renderers for topic help (no Glamour) | exists | shipped |
 | `internal/presentation/pager/` | Safe optional pager resolve/exec for topic help | exists | shipped |
 | `internal/help/` | Embedded terminal-help topic registry (no Charm) | exists | shipped |
 | `docs/terminal-help/` | Curated embedded topic Markdown + embed FS | exists | shipped |

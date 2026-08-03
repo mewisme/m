@@ -1,6 +1,6 @@
 // Command verify-crash-shards proves every crash integration test belongs to
 // exactly one Windows CI shard. Shard regexes must stay in sync with
-// .github/workflows/ci.yml crash-integration matrix run expressions.
+// .github/workflows/full.yml crash-integration matrix run expressions.
 package main
 
 import (

@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/manifest"
@@ -36,6 +35,7 @@ type Project struct {
 	Root       string
 	Rel        string // importer path relative to Root ("." for root)
 	Identity   Identity
+	Declared   Identity // packageManager/devEngines declaration (may be "" for none)
 	Signals    []Signal
 	Doc        *manifest.Document
 	Normalized *manifest.Manifest
@@ -59,7 +59,15 @@ func FindRoot(cwd string) (string, error) {
 	}
 }
 
-// DetectIdentity applies AGENTS.md detection order.
+// DetectIdentity determines lockfile authority and declared package manager.
+//
+// Selection policy:
+//   - Lockfiles determine authority (incumbent lockfile wins).
+//   - packageManager and devEngines.packageManager are declaration signals only.
+//   - Multiple lockfiles from different authorities fail.
+//   - No lockfile → Mew authority (install creates m.lock).
+//   - A declaration that differs from the incumbent lockfile does not
+//     automatically fail; the incumbent lockfile wins.
 func DetectIdentity(root string) (*Project, error) {
 	pkgPath := filepath.Join(root, "package.json")
 	fieldID, fieldSig, fieldKind, err := readPackageManagerField(pkgPath)
@@ -68,49 +76,36 @@ func DetectIdentity(root string) (*Project, error) {
 	}
 
 	found := listLockfiles(root)
-	p := &Project{Root: root}
+	p := &Project{Root: root, Declared: fieldID}
 
 	if fieldID != "" {
 		p.Signals = append(p.Signals, Signal{Kind: fieldKind, Detail: fieldSig, Path: pkgPath})
-		for _, f := range found {
-			sig := Signal{Kind: "lockfile", Detail: f.file, Path: filepath.Join(root, f.file)}
-			p.Signals = append(p.Signals, sig)
-			if f.id != fieldID {
-				return nil, apperr.New(apperr.Config, "identity", root,
-					"conflicting signals: package field is "+string(fieldID)+" but lockfile is "+string(f.id))
-			}
-		}
-		p.Identity = fieldID
-		return p, nil
 	}
 
 	if len(found) == 0 {
+		// No lockfile to defer to, so the declaration is the only evidence
+		// available and it decides. `packageManager` exists precisely to say
+		// "this project is npm/pnpm/yarn" before a lock has been written.
+		if fieldID != "" {
+			p.Identity = fieldID
+			return p, nil
+		}
 		p.Identity = IdentityMew
 		p.Signals = append(p.Signals, Signal{Kind: "default", Detail: "mew native", Path: root})
 		return p, nil
 	}
 
+	// Collect lockfile signals and detect conflicts.
 	idSet := map[Identity]struct{}{}
 	for _, f := range found {
 		idSet[f.id] = struct{}{}
 		p.Signals = append(p.Signals, Signal{Kind: "lockfile", Detail: f.file, Path: filepath.Join(root, f.file)})
 	}
+
 	if len(idSet) > 1 {
-		// #region agent log
-		files := make([]string, 0, len(found))
-		ids := make([]string, 0, len(idSet))
-		for _, f := range found {
-			files = append(files, f.file+"="+string(f.id))
-		}
-		for id := range idSet {
-			ids = append(ids, string(id))
-		}
-		agentIdentityDebugLog("identity.go:conflict", "A", "conflicting lockfiles", map[string]any{
-			"root": root, "fieldID": string(fieldID), "locks": files, "identities": ids,
-		})
-		// #endregion
 		return nil, apperr.New(apperr.Config, "identity", root, "conflicting lockfiles present")
 	}
+
 	p.Identity = found[0].id
 	return p, nil
 }
@@ -204,24 +199,3 @@ func listLockfiles(root string) []lockCand {
 func ReadsBrandedConfig(id Identity) bool {
 	return id != IdentityMew
 }
-
-// #region agent log
-func agentIdentityDebugLog(location, hypothesisId, message string, data map[string]any) {
-	payload := map[string]any{
-		"sessionId": "d57042", "timestamp": time.Now().UnixMilli(),
-		"location": location, "message": message, "data": data,
-		"hypothesisId": hypothesisId, "runId": "post-fix",
-	}
-	b, err := json.Marshal(payload)
-	if err != nil {
-		return
-	}
-	f, err := os.OpenFile(`f:\Project\package-managers\mew\debug-d57042.log`, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	defer func() { _ = f.Close() }()
-	_, _ = f.Write(append(b, '\n'))
-}
-
-// #endregion
