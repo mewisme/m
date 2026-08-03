@@ -23,7 +23,6 @@ func TestPrecedenceEnvOverProjectOverGlobal(t *testing.T) {
 		Env: []string{
 			"MEW_REGISTRY=https://env.example/",
 		},
-		IdentityMew: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +51,6 @@ func TestCLIOverridesEnv(t *testing.T) {
 		GlobalPath:  filepath.Join(home, "missing.jsonc"),
 		Env:         []string{"MEW_OFFLINE=false"},
 		CLI:         map[string]any{"offline": true},
-		IdentityMew: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -70,7 +68,6 @@ func TestMewIgnoresNpmrc(t *testing.T) {
 		CWD:         proj,
 		ProjectRoot: proj,
 		GlobalPath:  filepath.Join(proj, "no-global.jsonc"),
-		IdentityMew: true,
 	})
 	if err != nil {
 		t.Fatal(err)

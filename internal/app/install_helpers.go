@@ -447,7 +447,7 @@ func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractR
 			onProgress(completed, pkg.ID.Name)
 		}
 		dest := filepath.Join(extractRoot, sanitizeKeyDir(key))
-		_ = os.RemoveAll(dest)
+		_ = os.RemoveAll(dest) // intentional: best-effort clear of a stale extract dir; a real obstruction surfaces from Extract below
 		art, err := dl.Download(ctx, fetch.DownloadRequest{
 			URL:       pkg.TarballURL,
 			Integrity: pkg.Integrity,
@@ -457,7 +457,7 @@ func fetchGraphLegacy(ctx context.Context, ac *Context, g *graph.Graph, extractR
 			return nil, err
 		}
 		if err := archive.Extract(ctx, art.BlobPath, dest, opts); err != nil {
-			_ = os.RemoveAll(dest)
+			_ = os.RemoveAll(dest) // intentional: best-effort cleanup of a partial extract; the extract error below is authoritative
 			return nil, err
 		}
 		extracts[key] = dest

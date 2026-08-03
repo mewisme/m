@@ -52,12 +52,27 @@ type Options struct {
 	Commit        string
 	BuildDate     string
 	BinaryName    string // "m", "mew", "mx", "mewx"
+	// Snapshot reuses an already-loaded configuration instead of loading a
+	// second time. The CLI needs ui.theme before it can build the reporter
+	// this Context carries, so it loads once via LoadConfig and passes the
+	// result back here. Nil means New loads its own.
+	Snapshot *ConfigSnapshot
+}
+
+// ConfigSnapshot is the resolved configuration for one invocation, along with
+// the inputs that produced it.
+type ConfigSnapshot struct {
+	CWD    string
+	Config *config.Effective
+	Spec   config.LoadSpec
 }
 
 type ctxKey struct{}
 
-// New builds an application context: resolve CWD, load config, attach reporter.
-func New(ctx context.Context, opts Options) (*Context, error) {
+// LoadConfig resolves the working directory and loads configuration. It is the
+// config half of New, split out so a caller that needs a config value in order
+// to construct the reporter can load once and hand the result to New.
+func LoadConfig(ctx context.Context, opts Options) (ConfigSnapshot, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -65,13 +80,13 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 	if cwd == "" {
 		wd, err := os.Getwd()
 		if err != nil {
-			return nil, err
+			return ConfigSnapshot{}, err
 		}
 		cwd = wd
 	}
 	abs, err := filepath.Abs(cwd)
 	if err != nil {
-		return nil, err
+		return ConfigSnapshot{}, err
 	}
 	cwd = abs
 
@@ -107,11 +122,11 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 	if opts.ConfigPath != "" {
 		cfgAbs, err := config.ResolveConfigPath(cwd, opts.ConfigPath)
 		if err != nil {
-			return nil, err
+			return ConfigSnapshot{}, err
 		}
 		within, err := config.IsPathWithin(projectRoot, cfgAbs)
 		if err != nil {
-			return nil, err
+			return ConfigSnapshot{}, err
 		}
 		if within {
 			loadOpts.ProjectPath = cfgAbs
@@ -125,7 +140,23 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 	spec := config.LoadSpecFromOptions(loadOpts)
 	eff, err := config.Load(ctx, spec.LoadOptions())
 	if err != nil {
-		return nil, err
+		return ConfigSnapshot{}, err
+	}
+	return ConfigSnapshot{CWD: cwd, Config: eff, Spec: spec}, nil
+}
+
+// New builds an application context: resolve CWD, load config, attach reporter.
+func New(ctx context.Context, opts Options) (*Context, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	snapshot := opts.Snapshot
+	if snapshot == nil {
+		loaded, err := LoadConfig(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		snapshot = &loaded
 	}
 
 	rep := opts.Reporter
@@ -134,9 +165,9 @@ func New(ctx context.Context, opts Options) (*Context, error) {
 	}
 
 	return &Context{
-		CWD:            cwd,
-		Config:         eff,
-		ConfigLoadSpec: spec,
+		CWD:            snapshot.CWD,
+		Config:         snapshot.Config,
+		ConfigLoadSpec: snapshot.Spec,
 		Reporter:       rep,
 		Version:        opts.Version,
 		Commit:         opts.Commit,

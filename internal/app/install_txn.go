@@ -218,9 +218,12 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	if opts.PreResolvedGraph != nil {
 		resolution = &resolver.Resolution{Graph: opts.PreResolvedGraph}
 		if len(opts.StagedLock) > 0 {
-			if lockDoc, decodeErr := mlock.Decode(opts.StagedLock); decodeErr == nil {
-				resolution.Extensions = lockDoc.Extensions
+			lockDoc, decodeErr := mlock.Decode(opts.StagedLock)
+			if decodeErr != nil {
+				resolveErr = apperr.Wrap(apperr.Lockfile, "app.install", "staged lock", decodeErr)
+				return res, resolveErr
 			}
+			resolution.Extensions = lockDoc.Extensions
 		}
 	} else {
 		resolution, err = resolveForInstall(ctx, ac, proj, opts, manifestChanged)
@@ -239,7 +242,12 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 		if priorGraph != nil {
 			var priorExt lockfile.Extensions
 			if proj.Identity == project.IdentityMew {
-				if priorDoc, readErr := readLockDocument(proj.Root, proj.Identity); readErr == nil && priorDoc != nil {
+				priorDoc, readErr := readPriorLockDocument(proj.Root, proj.Identity)
+				if readErr != nil {
+					resolveErr = readErr
+					return res, readErr
+				}
+				if priorDoc != nil {
 					priorExt = priorDoc.Extensions
 				}
 			}
@@ -360,10 +368,12 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 	}
 	var caps planner.Capabilities
 	if linkerMode == "isolated" {
+		// intentional: optional capability probe; zero caps degrade to copy linking
 		caps, _ = planner.ProbeCached(config.CacheRoot(ac.Config), extractDir, stageNM)
 	} else if useStore {
 		storeRoot, storeErr := config.StoreRoot(ac.Config)
 		if storeErr == nil {
+			// intentional: optional capability probe; zero caps degrade to copy linking
 			caps, _ = planner.ProbeCached(config.CacheRoot(ac.Config), storeRoot, stageNM)
 		}
 	}
@@ -585,9 +595,12 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 	if opts.PreResolvedGraph != nil {
 		resolution = &resolver.Resolution{Graph: opts.PreResolvedGraph}
 		if len(opts.StagedLock) > 0 {
-			if lockDoc, decodeErr := mlock.Decode(opts.StagedLock); decodeErr == nil {
-				resolution.Extensions = lockDoc.Extensions
+			lockDoc, decodeErr := mlock.Decode(opts.StagedLock)
+			if decodeErr != nil {
+				resolveErr = apperr.Wrap(apperr.Lockfile, "app.install", "staged lock", decodeErr)
+				return res, resolveErr
 			}
+			resolution.Extensions = lockDoc.Extensions
 		}
 	} else {
 		resolution, err = resolveForInstall(ctx, ac, proj, opts, manifestChanged)
@@ -603,14 +616,17 @@ func runInstallDryRun(ctx context.Context, ac *Context, opts InstallOptions, edi
 	res = diffKeys(priorKeys, packageKeysFromGraph(resolution.Graph))
 	res.DirectPackageChanges = filterDirectChanges(res.PackageChanges,
 		directPackageKeysAcross(priorGraph, resolution.Graph, opts.Filter...))
-	if p, err := BuildMutationPlan(MutationPlanInput{
+	p, err := BuildMutationPlan(MutationPlanInput{
 		PriorKeys:     priorKeys,
 		Graph:         resolution.Graph,
 		IgnoreScripts: opts.IgnoreScripts,
 		AC:            ac,
-	}); err == nil {
-		res.Plan = p
+	})
+	if err != nil {
+		resolveErr = err
+		return res, err
 	}
+	res.Plan = p
 	resolveErr = nil
 	phResolve.Complete(statusOK)
 	return res, nil
@@ -666,7 +682,7 @@ func stageSnapshot(ctx context.Context, stage string, proj *project.Project, res
 		return "", err
 	}
 	manifestPath := filepath.Join(proj.Root, "package.json")
-	if _, statErr := os.Stat(filepath.Join(stage, "package.json")); statErr == nil {
+	if _, statErr := os.Stat(filepath.Join(stage, "package.json")); statErr == nil { // intentional: staged manifest is an optional overlay; fall back to live
 		manifestPath = filepath.Join(stage, "package.json")
 	}
 	manifest, err := os.ReadFile(manifestPath)
@@ -802,7 +818,7 @@ func collectSnapshotMemberManifests(stage, projRoot string, id project.Identity,
 			return nil
 		}
 		staged := filepath.Join(stage, filepath.FromSlash(rel))
-		if data, err := os.ReadFile(staged); err == nil {
+		if data, err := os.ReadFile(staged); err == nil { // intentional: staged member manifest is an optional overlay; fall back to live
 			out[rel] = data
 			return nil
 		}
@@ -880,7 +896,13 @@ func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.R
 	}
 	livePath := LockPath(proj)
 	var extensions lockfile.Extensions
-	if _, extData, readErr := ext.ReadWithExtensions(context.Background(), livePath); readErr == nil {
+	if _, extData, readErr := ext.ReadWithExtensions(context.Background(), livePath); readErr != nil {
+		// A missing lock is greenfield; anything else means we would silently
+		// drop the incumbent extension payload.
+		if !errors.Is(readErr, os.ErrNotExist) && !isLockNotFound(readErr) {
+			return apperr.Wrap(apperr.Lockfile, "app.install", filepath.Base(livePath), readErr)
+		}
+	} else {
 		extensions = extData
 	}
 	if res != nil && len(res.Extensions) > 0 {
@@ -937,7 +959,11 @@ func writeStagedMlock(stagePath string, ac *Context, proj *project.Project, res 
 		return err
 	}
 	if workspace.Enabled(ac.Config) && len(opts.Filter) > 0 {
-		if priorDoc, readErr := readLockDocument(proj.Root, proj.Identity); readErr == nil && priorDoc != nil {
+		priorDoc, readErr := readPriorLockDocument(proj.Root, proj.Identity)
+		if readErr != nil {
+			return readErr
+		}
+		if priorDoc != nil {
 			mergePriorImporterSpecs(specs, priorDoc, res.Graph)
 		}
 	}
@@ -946,7 +972,11 @@ func writeStagedMlock(stagePath string, ac *Context, proj *project.Project, res 
 		return err
 	}
 	if workspace.Enabled(ac.Config) && len(opts.Filter) > 0 {
-		if priorDoc, readErr := readLockDocument(proj.Root, proj.Identity); readErr == nil && priorDoc != nil {
+		priorDoc, readErr := readPriorLockDocument(proj.Root, proj.Identity)
+		if readErr != nil {
+			return readErr
+		}
+		if priorDoc != nil {
 			mergePriorImporterSections(doc, priorDoc, importerIDsInGraph(res.Graph))
 		}
 	}

@@ -143,18 +143,6 @@ func KeysByGroup(group string) []string {
 	return keys
 }
 
-// ResolvedEntry holds a fully resolved config entry with metadata.
-type ResolvedEntry struct {
-	Key            string `json:"key"`
-	Value          any    `json:"value"`
-	EffectiveValue any    `json:"effective_value"`
-	Source         Scope  `json:"source"`
-	File           string `json:"file,omitempty"`
-	IsDefault      bool   `json:"is_default"`
-	IsSecret       bool   `json:"is_secret"`
-	LegacyKey      string `json:"legacy_key,omitempty"`
-}
-
 // legacyToCanonical maps recognized legacy forms to canonical keys.
 var legacyToCanonical = map[string]string{
 	// kebab-case → snake_case

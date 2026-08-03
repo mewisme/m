@@ -85,7 +85,7 @@ func patchExtract(ctx context.Context, ac *Context, proj *project.Project, opts 
 	if within, err := config.IsPathWithin(proj.Root, editAbs); err != nil || !within {
 		return res, apperr.New(apperr.Usage, "app.patch", editDir, "edit directory must be inside project root")
 	}
-	_ = os.RemoveAll(editAbs)
+	_ = os.RemoveAll(editAbs) // intentional: best-effort clear of a stale edit dir; a real obstruction surfaces from CopyDirTree below
 	if err := archive.CopyDirTree(originalDir, editAbs); err != nil {
 		return res, apperr.Wrap(apperr.IO, "app.patch", editAbs, err)
 	}
@@ -156,7 +156,7 @@ func patchCommit(ctx context.Context, ac *Context, proj *project.Project, opts P
 		return res, apperr.Wrap(apperr.IO, "app.patch", patchAbs, err)
 	}
 	if _, err := archive.PreflightPlan(ctx, patchAbs, originalDir); err != nil {
-		_ = os.Remove(patchAbs)
+		_ = os.Remove(patchAbs) // intentional: best-effort removal of a patch that failed preflight; the preflight error below is authoritative
 		return res, err
 	}
 	_, err = runInstallTxn(ctx, ac, InstallOptions{
@@ -248,7 +248,7 @@ func fetchPatchTree(ctx context.Context, ac *Context, proj *project.Project, pkg
 	}
 	key := pkg.ID.Key()
 	dest := filepath.Join(stage, sanitizeKeyDir(key))
-	_ = os.RemoveAll(dest)
+	_ = os.RemoveAll(dest) // intentional: best-effort clear of a stale extract dir; a real obstruction surfaces from fetchGraphLegacy below
 	extracts, err := fetchGraphLegacy(ctx, ac, g, stage, nil, nil)
 	if err != nil {
 		return "", err

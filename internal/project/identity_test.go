@@ -52,16 +52,16 @@ func TestDeclarationLosesToLockfile(t *testing.T) {
 	}
 }
 
-// With no lockfile to contradict it, the declaration is the only evidence and
-// it decides: `packageManager` exists to name the manager before a lock exists.
+// With no lockfile there is no authority to inherit, so the project is Mew
+// native and install writes m.lock. The declaration is recorded, not obeyed.
 func TestDeclarationWithoutLockfile(t *testing.T) {
 	root := testkit.ModuleRoot(t)
 	p, err := project.DetectIdentity(filepath.Join(root, "fixtures", "identity", "declared-yarn-no-lock"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Identity != project.IdentityYarn {
-		t.Fatalf("declaration decides without a lockfile: got %s signals=%v", p.Identity, p.Signals)
+	if p.Identity != project.IdentityMew {
+		t.Fatalf("declaration must not confer authority: got %s signals=%v", p.Identity, p.Signals)
 	}
 	if p.Declared != project.IdentityYarn {
 		t.Fatalf("declared identity must be preserved: got %q want %q", p.Declared, project.IdentityYarn)

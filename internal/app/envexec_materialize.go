@@ -74,6 +74,7 @@ func (m appFrozenMaterializer) Materialize(ctx context.Context, spec envexec.Fro
 		return err
 	}
 	if spec.LifecyclePolicy != envexec.LifecycleForbidden && lifecycle.Enabled(m.ac.Config) {
+		// intentional: ephemeral env; a failed install script must not abort materialization
 		_ = runLifecyclePhase(ctx, m.ac, proj, InstallOptions{IgnoreScripts: true}, stageNM, g, linkPlan, "", nil)
 	}
 	return nil

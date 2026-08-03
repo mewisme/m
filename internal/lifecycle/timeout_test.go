@@ -34,7 +34,6 @@ func TestScriptTimeoutFromConfigIgnoresAmbient(t *testing.T) {
 		CWD:         root,
 		ProjectRoot: root,
 		ProjectPath: cfgPath,
-		IdentityMew: true,
 	})
 	if err != nil {
 		t.Fatal(err)

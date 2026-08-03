@@ -83,13 +83,8 @@ func DetectIdentity(root string) (*Project, error) {
 	}
 
 	if len(found) == 0 {
-		// No lockfile to defer to, so the declaration is the only evidence
-		// available and it decides. `packageManager` exists precisely to say
-		// "this project is npm/pnpm/yarn" before a lock has been written.
-		if fieldID != "" {
-			p.Identity = fieldID
-			return p, nil
-		}
+		// Declarations never confer authority: with no lockfile the project is
+		// Mew native and install writes m.lock.
 		p.Identity = IdentityMew
 		p.Signals = append(p.Signals, Signal{Kind: "default", Detail: "mew native", Path: root})
 		return p, nil

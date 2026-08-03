@@ -56,7 +56,7 @@ func openCapsuleForExec(ctx context.Context, path string) (envexec.CapsuleOpenRe
 		},
 	})
 	if err != nil {
-		_ = os.RemoveAll(quarantine)
+		_ = os.RemoveAll(quarantine) // intentional: best-effort cleanup of a partial unpack; the unpack error below is authoritative
 		return empty, err
 	}
 	for _, ref := range man.Blobs {

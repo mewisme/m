@@ -3,7 +3,9 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -77,9 +79,15 @@ func findMember(blank []byte, objStart, objEnd int, key string) (member, bool, e
 	return member{}, false, nil
 }
 
+// ErrScalarParent reports that a dotted path tried to descend through a value
+// that is not an object. Creating the missing child would silently shadow the
+// existing scalar with a duplicate key, so the edit is refused instead.
+var ErrScalarParent = errors.New("intermediate key is not an object")
+
 // findPath walks a dotted path and returns the span of the final value.
 // Returns found=false with the deepest existing object span in parent when
-// some segment is missing.
+// some segment is missing. Returns ErrScalarParent when a segment exists but
+// holds a scalar, because descending further is structurally ambiguous.
 func findPath(blank []byte, path []string) (m member, found bool, parentStart, parentEnd int, depth int, err error) {
 	objStart, objEnd := 0, len(blank)
 	// Position objStart at the root '{'.
@@ -103,8 +111,8 @@ func findPath(blank []byte, path []string) (m member, found bool, parentStart, p
 		// Descend: the value must be an object.
 		vs := got.valueStart
 		if vs >= len(blank) || blank[vs] != '{' {
-			// Intermediate segment is a scalar; cannot descend.
-			return member{}, false, objStart, objEnd, i, nil
+			return member{}, false, objStart, objEnd, i,
+				fmt.Errorf("%w: %q", ErrScalarParent, strings.Join(path[:i+1], "."))
 		}
 		objStart, objEnd = vs, got.valueEnd
 	}
@@ -319,4 +327,85 @@ func concatBytes(a, b, c []byte) []byte {
 	out = append(out, b...)
 	out = append(out, c...)
 	return out
+}
+
+// DuplicateKeyError names one object key that appears twice in the same
+// object. encoding/json silently keeps the last occurrence, which makes a
+// duplicate look like a working setting that does nothing.
+type DuplicateKeyError struct {
+	Path string
+}
+
+func (e *DuplicateKeyError) Error() string {
+	return "duplicate key " + strconv.Quote(e.Path)
+}
+
+// DetectDuplicateKeys reports the first duplicated object key in a JSONC
+// document, walking nested objects and arrays. Comments are blanked first so
+// a key mentioned in a comment is never counted.
+func DetectDuplicateKeys(src []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(blankJSONC(src)))
+	dec.UseNumber()
+	tok, err := dec.Token()
+	if err != nil {
+		// Malformed input is the parser's error to report, not ours.
+		return nil //nolint:nilerr // parse errors surface through ParseJSONC
+	}
+	if tok != json.Delim('{') {
+		return nil
+	}
+	return walkDuplicates(dec, "")
+}
+
+// walkDuplicates consumes members of the object the decoder just opened.
+func walkDuplicates(dec *json.Decoder, prefix string) error {
+	seen := map[string]bool{}
+	for dec.More() {
+		kt, err := dec.Token()
+		if err != nil {
+			return nil //nolint:nilerr // parse errors surface through ParseJSONC
+		}
+		k, ok := kt.(string)
+		if !ok {
+			return nil
+		}
+		path := k
+		if prefix != "" {
+			path = prefix + "." + k
+		}
+		if seen[k] {
+			return &DuplicateKeyError{Path: path}
+		}
+		seen[k] = true
+		if err := walkDuplicateValue(dec, path); err != nil {
+			return err
+		}
+	}
+	// Consume the closing '}'.
+	if _, err := dec.Token(); err != nil {
+		return nil //nolint:nilerr // parse errors surface through ParseJSONC
+	}
+	return nil
+}
+
+// walkDuplicateValue consumes exactly one value, descending into containers.
+func walkDuplicateValue(dec *json.Decoder, path string) error {
+	tok, err := dec.Token()
+	if err != nil {
+		return nil //nolint:nilerr // parse errors surface through ParseJSONC
+	}
+	switch tok {
+	case json.Delim('{'):
+		return walkDuplicates(dec, path)
+	case json.Delim('['):
+		for dec.More() {
+			if err := walkDuplicateValue(dec, path); err != nil {
+				return err
+			}
+		}
+		if _, err := dec.Token(); err != nil {
+			return nil //nolint:nilerr // parse errors surface through ParseJSONC
+		}
+	}
+	return nil
 }

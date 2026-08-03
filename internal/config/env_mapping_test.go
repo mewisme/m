@@ -41,7 +41,6 @@ func TestEveryEnvMappingApplies(t *testing.T) {
 			ProjectRoot: dir,
 			GlobalPath:  filepath.Join(dir, "no-global.jsonc"),
 			Env:         []string{envVar + "=" + val},
-			IdentityMew: true,
 		})
 		if err != nil {
 			t.Errorf("%s=%s: load failed: %v", envVar, val, err)
@@ -70,7 +69,6 @@ func TestEnvInvalidValueFailsClosed(t *testing.T) {
 		ProjectRoot: dir,
 		GlobalPath:  filepath.Join(dir, "no-global.jsonc"),
 		Env:         []string{"MEW_OFFLINE=maybe"},
-		IdentityMew: true,
 	})
 	if err == nil {
 		t.Fatal("expected malformed MEW_OFFLINE to fail")

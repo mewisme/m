@@ -150,6 +150,8 @@ func (s *MutationSession) Abort(ctx context.Context) (transaction.FinishResult, 
 	if s == nil || s.runner == nil {
 		return transaction.FinishResult{}, nil
 	}
+	// intentional: the discarded bool is "rolledBack"; Abort's contract is the
+	// cleanup error, which rollbackSession already folds every failure into.
 	fr, cleanupErr, _ := rollbackSession(ctx, s, s.runner)
 	return fr, cleanupErr
 }

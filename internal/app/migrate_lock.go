@@ -197,7 +197,9 @@ func MigrateLock(ctx context.Context, ac *Context, opts MigrateLockOptions) (Mig
 			return out, encErr
 		}
 	}
-	_ = loss.Normalize()
+	if err := loss.Normalize(); err != nil {
+		return out, apperr.Wrap(apperr.Lockfile, "lock.migrate", "loss-report", err)
+	}
 	out.LossReport = loss
 	out.Path = filepath.Join(proj.Root, "m.lock")
 	out.SourceIdentity = string(fromID)
@@ -236,7 +238,7 @@ func commitMigratedLock(ctx context.Context, ac *Context, proj *project.Project,
 	stage := txn.StagePath()
 	stageLock := filepath.Join(stage, "m.lock")
 	if err := os.WriteFile(stageLock, data, 0o644); err != nil {
-		_, _ = sess.Abort(ctx)
+		_, _ = sess.Abort(ctx) // intentional: rollback cleanup on an already-failing path; primary error below is what the caller must see
 		return apperr.Wrap(apperr.IO, "lock.migrate", stageLock, err)
 	}
 	plan := []transaction.Op{{Kind: transaction.OpRename, Path: "m.lock", Backup: filepath.Join("stage", "m.lock")}}
@@ -245,23 +247,23 @@ func commitMigratedLock(ctx context.Context, ac *Context, proj *project.Project,
 		plan = append(plan, transaction.Op{Kind: transaction.OpRemove, Path: name})
 	}
 	if err := txn.SetPlan(plan); err != nil {
-		_, _ = sess.Abort(ctx)
+		_, _ = sess.Abort(ctx) // intentional: rollback cleanup on an already-failing path; primary error below is what the caller must see
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(proj.Root, "m.lock")); err == nil {
 		if err := txn.RecordBackup("m.lock"); err != nil {
-			_, _ = sess.Abort(ctx)
+			_, _ = sess.Abort(ctx) // intentional: rollback cleanup on an already-failing path; primary error below is what the caller must see
 			return err
 		}
 	}
 	for _, name := range foreign {
 		if err := txn.RecordBackup(name); err != nil {
-			_, _ = sess.Abort(ctx)
+			_, _ = sess.Abort(ctx) // intentional: rollback cleanup on an already-failing path; primary error below is what the caller must see
 			return err
 		}
 	}
 	if err := txn.Commit(ctx, nil); err != nil {
-		_, _ = sess.Abort(ctx)
+		_, _ = sess.Abort(ctx) // intentional: rollback cleanup on an already-failing path; primary error below is what the caller must see
 		return err
 	}
 	_, err = sess.Finish(ctx, false)

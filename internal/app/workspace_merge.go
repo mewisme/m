@@ -333,7 +333,10 @@ func mergePriorExtensions(active, prior lockfile.Extensions, removed, activeKeys
 	if len(priorLocals) == 0 {
 		return out, nil
 	}
-	activeLocals, _ := resolver.DecodeLocalSources(active)
+	activeLocals, err := resolver.DecodeLocalSources(active)
+	if err != nil {
+		return nil, err
+	}
 	if activeLocals == nil {
 		activeLocals = map[string]resolver.LocalSource{}
 	}

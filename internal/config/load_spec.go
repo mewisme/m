@@ -71,7 +71,6 @@ func (s LoadSpec) LoadOptions() LoadOptions {
 		GlobalPath:           s.GlobalPath,
 		RequireProjectConfig: s.RequireProjectConfig,
 		RequireGlobalConfig:  s.RequireGlobalConfig,
-		IdentityMew:          true,
 	}
 	if s.Env != nil {
 		opts.Env = append([]string(nil), s.Env...)

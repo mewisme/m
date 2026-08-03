@@ -39,7 +39,7 @@ func stagePatchDerivatives(ctx context.Context, stageRoot, storeRoot string, ext
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return apperr.Wrap(apperr.IO, "app.install.patch", dest, err)
 		}
-		_ = os.RemoveAll(dest)
+		_ = os.RemoveAll(dest) // intentional: best-effort clear of a stale derivation dir; a real obstruction surfaces from CopyDirTree below
 		if err := archive.CopyDirTree(src, dest); err != nil {
 			return apperr.Wrap(apperr.IO, "app.install.patch", src, err)
 		}

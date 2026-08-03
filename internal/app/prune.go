@@ -73,7 +73,9 @@ func runPruneDryRun(ctx context.Context, ac *Context, opts PruneOptions) (Instal
 			Op: "remove", Subject: rel, Detail: "extraneous node_modules entry",
 		})
 	}
-	_ = p.Normalize()
+	if err := p.Normalize(); err != nil {
+		return res, err
+	}
 	res.Plan = p
 	return res, nil
 }

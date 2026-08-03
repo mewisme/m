@@ -58,6 +58,7 @@ func buildDLXEnvironment(ctx context.Context, ac *Context, opts DLXOptions, reso
 		return err
 	}
 	if lifecycle.Enabled(ac.Config) {
+		// intentional: dlx env is disposable; a failed install script must not abort the run
 		_ = runLifecyclePhase(ctx, ac, proj, InstallOptions{IgnoreScripts: true}, stageNM, resolved.Resolution.Graph, linkPlan, "", nil)
 	}
 	if err := validateDLXUsability(stageNM, opts, resolved); err != nil {

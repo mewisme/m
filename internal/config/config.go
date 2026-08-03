@@ -12,8 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
-	"unicode"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/fsx"
@@ -38,8 +36,13 @@ type Value struct {
 }
 
 // Effective is the merged configuration map (dotted keys).
+//
+// Values holds the winning value per key. Layers retains what each source
+// declared on its own, so a value shadowed by a higher layer is still
+// recoverable through GetAtScope, ListAtScope, and Explain.
 type Effective struct {
 	Values map[string]Value
+	Layers []Layer
 	Env    EnvSnapshot
 }
 
@@ -64,8 +67,6 @@ type LoadOptions struct {
 	// RequireProjectConfig/RequireGlobalConfig make explicit --config paths mandatory.
 	RequireProjectConfig bool
 	RequireGlobalConfig  bool
-	// IdentityMew when true skips branded PM config authority (always true for Load today).
-	IdentityMew bool
 }
 
 // ownedKeys maps canonical keys to their type strings.
@@ -176,13 +177,18 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 		return nil, err
 	}
 
-	_ = opts.IdentityMew
-
 	if err := mergeEnv(eff, snap); err != nil {
 		return nil, err
 	}
 
-	for k, v := range opts.CLI {
+	cliLayer := newLayer(SourceCLI, "cli")
+	cliKeys := make([]string, 0, len(opts.CLI))
+	for k := range opts.CLI {
+		cliKeys = append(cliKeys, k)
+	}
+	sort.Strings(cliKeys)
+	for _, k := range cliKeys {
+		v := opts.CLI[k]
 		canon := k
 		if c := CanonicalKey(k); c != "" {
 			canon = c
@@ -191,6 +197,10 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 			return nil, err
 		}
 		eff.Values[canon] = Value{Raw: v, Source: SourceCLI, Path: "cli"}
+		cliLayer.Values[canon] = v
+	}
+	if len(cliLayer.Values) > 0 {
+		eff.Layers = append(eff.Layers, *cliLayer)
 	}
 	return eff, nil
 }
@@ -214,25 +224,44 @@ func mergeFile(eff *Effective, path string, src Source, required bool) error {
 	if err != nil {
 		return apperr.Wrap(apperr.Config, "config.load", path, err)
 	}
-	for k, v := range flat {
+	layer := newLayer(src, path)
+	// Sort so a legacy/canonical collision inside one file reports the same
+	// way on every run rather than following map iteration order.
+	keys := make([]string, 0, len(flat))
+	for k := range flat {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := flat[k]
 		canon, isLegacy, known := resolveKey(k)
 		if !known {
 			if err := validateUnknownKey(k, v); err != nil {
 				return apperr.Wrap(apperr.Config, "config.load", path+":"+k, err)
 			}
 			eff.Values[k] = Value{Raw: v, Source: src, Path: path}
+			layer.Values[k] = v
 			continue
 		}
 		if isLegacy {
-			if existing, ok := eff.Values[canon]; ok && existing.Source == src {
+			if _, ok := layer.Values[canon]; ok {
 				return apperr.New(apperr.Config, "config.load", path,
 					fmt.Sprintf("conflicting keys %q and %q; remove one", k, canon))
 			}
+		} else if _, ok := layer.Values[canon]; ok {
+			// The canonical key already arrived through its legacy spelling in
+			// this same file.
+			return apperr.New(apperr.Config, "config.load", path,
+				fmt.Sprintf("conflicting keys %q and %q; remove one", LegacyKey(canon), canon))
 		}
 		if err := validateKeyValue(canon, v); err != nil {
 			return apperr.Wrap(apperr.Config, "config.load", path+":"+k, err)
 		}
 		eff.Values[canon] = Value{Raw: v, Source: src, Path: path}
+		layer.Values[canon] = v
+	}
+	if len(layer.Values) > 0 {
+		eff.Layers = append(eff.Layers, *layer)
 	}
 	return nil
 }
@@ -302,6 +331,7 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) error {
 	}
 	sort.Strings(keys)
 
+	layer := newLayer(SourceEnv, "env")
 	for _, key := range keys {
 		envKey := envVarByKey[key]
 		v, ok := snap.Lookup(envKey)
@@ -318,6 +348,10 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) error {
 			return apperr.Wrap(apperr.Config, "config.env", envKey, err)
 		}
 		eff.Values[key] = Value{Raw: raw, Source: SourceEnv, Path: envKey}
+		layer.Values[key] = raw
+	}
+	if len(layer.Values) > 0 {
+		eff.Layers = append(eff.Layers, *layer)
 	}
 	return nil
 }
@@ -353,8 +387,13 @@ func parseBool(s string) (any, error) {
 }
 
 func putMap(eff *Effective, m map[string]any, src Source, path string) {
+	layer := newLayer(src, path)
 	for k, v := range m {
 		eff.Values[k] = Value{Raw: v, Source: src, Path: path}
+		layer.Values[k] = v
+	}
+	if len(layer.Values) > 0 {
+		eff.Layers = append(eff.Layers, *layer)
 	}
 }
 
@@ -410,8 +449,8 @@ func validateKeyValue(key string, v any) error {
 			return fmt.Errorf("%s: want string", key)
 		}
 		if key == "registry.auth_token_env" {
-			if looksLikeSecret(s) {
-				return fmt.Errorf("%s: store env var name only, not a secret", key)
+			if err := validateEnvVarName(s); err != nil {
+				return fmt.Errorf("%s: %w", key, err)
 			}
 		}
 		if spec := KeySpec(key); spec != nil && spec.Type == TypeEnum && len(spec.Enum) > 0 {
@@ -472,22 +511,31 @@ func validateKeyValue(key string, v any) error {
 	return nil
 }
 
-func looksLikeSecret(s string) bool {
+// validateEnvVarName enforces that a value naming an environment variable is
+// actually a variable name and not the secret itself. POSIX names are
+// [A-Z_][A-Z0-9_]*; a pasted token almost always carries lowercase letters,
+// dots, slashes, or spaces, so the shape check catches it before it lands in
+// a config file in plaintext.
+//
+// Length is deliberately not a signal here: legitimate names such as
+// MEW_PROVENANCE_TRUSTED_PUBLIC_KEY are long.
+func validateEnvVarName(s string) error {
 	if s == "" {
-		return false
+		return nil
 	}
-	if strings.Contains(s, ".") || strings.Contains(s, " ") {
-		return true
-	}
-	if len(s) >= 20 {
-		return true
-	}
-	for _, r := range s {
-		if !unicode.IsUpper(r) && !unicode.IsDigit(r) && r != '_' {
-			return true
+	for i, r := range s {
+		switch {
+		case r == '_':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+			if i == 0 {
+				return fmt.Errorf("environment variable name cannot start with a digit")
+			}
+		default:
+			return fmt.Errorf("store the environment variable name (A-Z, 0-9, underscore), not the secret itself")
 		}
 	}
-	return false
+	return nil
 }
 
 // Get returns one effective value. Accepts canonical and recognized legacy keys.
@@ -580,86 +628,28 @@ func UnsetFile(path, key string) error {
 	})
 }
 
-// MigrateFile reads a config file and rewrites it with canonical keys.
-// Returns the count of migrated keys.
+// MigrateFile reads a config file and rewrites it with canonical keys,
+// preserving comments. Returns the count of migrated keys.
 func MigrateFile(path string) (int, error) {
-	b, err := os.ReadFile(path)
+	plan, err := PlanMigration(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return 0, nil
-		}
-		return 0, apperr.Wrap(apperr.IO, "config.migrate", path, err)
+		return 0, err
 	}
-	if HasJSONCComments(b) {
-		return 0, apperr.New(apperr.Config, "config.migrate", path,
-			"file contains comments; migration moves keys between locations and cannot place comments correctly — remove comments, or apply the renames manually with `m config set`/`m config unset`, which do preserve comments")
-	}
-	parsed, err := ParseJSONC(b)
-	if err != nil {
-		return 0, apperr.Wrap(apperr.Config, "config.migrate", path, err)
-	}
-	m, ok := parsed.(map[string]any)
-	if !ok {
-		return 0, apperr.New(apperr.Config, "config.migrate", path, "root must be object")
-	}
-
-	// Flatten to dotted paths and apply migration pipeline.
-	flat := flattenDotted(m, "")
-	conflicts := detectMigrationConflicts(flat)
-	if len(conflicts) > 0 {
-		sorted := make([]string, 0, len(conflicts))
-		for _, c := range conflicts {
-			sorted = append(sorted, c)
-		}
-		sort.Strings(sorted)
-		return 0, apperr.New(apperr.Config, "config.migrate", path,
-			fmt.Sprintf("conflicting legacy and canonical keys: %s", strings.Join(sorted, ", ")))
-	}
-
-	count := applyMigrationTransforms(flat)
-	if count == 0 {
-		return 0, nil
-	}
-
-	unflattened := unflattenDotted(flat)
-	out, err := json.MarshalIndent(unflattened, "", "  ")
-	if err != nil {
-		return 0, apperr.Wrap(apperr.Internal, "config.migrate", path, err)
-	}
-	out = append(out, '\n')
-	if err := fsx.PublishFileDurable(path, out, 0o644); err != nil {
-		return 0, apperr.Wrap(apperr.IO, "config.migrate", path, err)
-	}
-	return count, nil
+	return plan.Apply()
 }
 
 // CheckMigration reports which legacy keys exist and their canonical replacements.
 func CheckMigration(path string) (map[string]string, error) {
-	b, err := os.ReadFile(path)
+	plan, err := PlanMigration(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, apperr.Wrap(apperr.IO, "config.migrate", path, err)
+		return nil, err
 	}
-	parsed, err := ParseJSONC(b)
-	if err != nil {
-		return nil, apperr.Wrap(apperr.Config, "config.migrate", path, err)
-	}
-	m, ok := parsed.(map[string]any)
-	if !ok {
+	if plan.Empty() {
 		return nil, nil
 	}
-	flat := flattenDotted(m, "")
-	needed := map[string]string{}
-	for k := range flat {
-		canon := CanonicalKey(k)
-		if canon != "" && canon != k {
-			needed[k] = canon
-		}
-	}
-	if len(needed) == 0 {
-		return nil, nil
+	needed := make(map[string]string, len(plan.Steps))
+	for _, s := range plan.Steps {
+		needed[s.From] = s.To
 	}
 	return needed, nil
 }
@@ -684,83 +674,6 @@ func flattenDotted(v any, prefix string) map[string]any {
 		}
 	}
 	return out
-}
-
-// detectMigrationConflicts finds keys where both legacy and canonical forms exist.
-func detectMigrationConflicts(flat map[string]any) []string {
-	var conflicts []string
-	legacySeen := map[string]bool{}
-	for k := range flat {
-		canon := CanonicalKey(k)
-		if canon == "" || canon == k {
-			continue
-		}
-		legacySeen[canon] = true
-	}
-	for k := range flat {
-		if legacySeen[k] {
-			conflicts = append(conflicts, k)
-		}
-	}
-	sort.Strings(conflicts)
-	return conflicts
-}
-
-// applyMigrationTransforms rewrites flat keys and values in place.
-// Returns the count of keys migrated.
-func applyMigrationTransforms(flat map[string]any) int {
-	count := 0
-	renames := map[string]string{} // legacy → canonical
-	for k, v := range flat {
-		canon := CanonicalKey(k)
-		if canon == "" || canon == k {
-			continue
-		}
-		renames[k] = canon
-		// Transform values for known type changes.
-		switch k {
-		case "network.timeout_ms":
-			switch n := v.(type) {
-			case int:
-				flat[k] = time.Duration(n) * time.Millisecond
-			case float64:
-				flat[k] = time.Duration(int64(n)) * time.Millisecond
-			}
-		}
-	}
-	for legacy, canon := range renames {
-		v := flat[legacy]
-		if d, ok := v.(time.Duration); ok {
-			flat[canon] = d.String()
-		} else {
-			flat[canon] = v
-		}
-		delete(flat, legacy)
-		count++
-	}
-	return count
-}
-
-// unflattenDotted reconstructs a nested map from dotted-path keys.
-func unflattenDotted(flat map[string]any) map[string]any {
-	root := map[string]any{}
-	keys := make([]string, 0, len(flat))
-	for k := range flat {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		parts := strings.Split(k, ".")
-		cur := root
-		for i := 0; i < len(parts)-1; i++ {
-			if _, ok := cur[parts[i]]; !ok {
-				cur[parts[i]] = map[string]any{}
-			}
-			cur = cur[parts[i]].(map[string]any)
-		}
-		cur[parts[len(parts)-1]] = flat[k]
-	}
-	return root
 }
 
 // spliceFile applies a comment-preserving in-place edit to a JSONC config

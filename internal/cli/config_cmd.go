@@ -1156,7 +1156,6 @@ func loadEffective(g *globalFlags) (*config.Effective, error) {
 		CWD:         cwd,
 		ProjectRoot: root,
 		CLI:         cli,
-		IdentityMew: true,
 	})
 }
 

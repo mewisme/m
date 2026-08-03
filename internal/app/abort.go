@@ -23,7 +23,7 @@ func abortMutation(ctx context.Context, sess *MutationSession, txn *transaction.
 	}
 	var ac *Context
 	if sess != nil {
-		ac, _ = sess.AppContext()
+		ac, _ = sess.AppContext() // intentional: reporting context only; abort must proceed unreported rather than fail
 	}
 	phRollback := beginInstallPhase(ac, newInstallOpID(), phaseRollback)
 	fr, cleanupErr, rolledBack := rollbackSession(ctx, sess, txn)

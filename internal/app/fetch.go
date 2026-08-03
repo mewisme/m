@@ -92,7 +92,7 @@ func Fetch(ctx context.Context, ac *Context, plan FetchPlan, destDir string) ([]
 			return nil, apperr.Wrap(apperr.IO, "app.fetch", pkgDest, err)
 		}
 		if err := archive.Extract(ctx, arts[i].BlobPath, pkgDest, opts); err != nil {
-			_ = os.RemoveAll(pkgDest)
+			_ = os.RemoveAll(pkgDest) // intentional: best-effort cleanup of a partial extract; the extract error below is authoritative
 			return nil, err
 		}
 		out[i] = FetchResult{
@@ -142,7 +142,7 @@ func VerifyBlobCache(ctx context.Context, ac *Context) (CacheVerifyResult, error
 			return apperr.Wrap(apperr.IO, "app.cache.verify", path, err)
 		}
 		parsed, _, verr := fetch.VerifyReader(f, algo+"-"+hex, "")
-		_ = f.Close()
+		_ = f.Close() // intentional: read-only handle; close error cannot affect the verification result
 		if verr != nil || parsed.Hex != strings.ToLower(hex) {
 			res.Bad++
 			return nil

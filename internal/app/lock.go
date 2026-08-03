@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -94,6 +95,20 @@ func readLockDocument(root string, id project.Identity) (*mlock.Document, error)
 		return nil, apperr.Wrap(apperr.IO, "lock.read", path, err)
 	}
 	return mlock.Decode(data)
+}
+
+// readPriorLockDocument reads the incumbent m.lock for merge inputs. An absent
+// lock is a legitimate greenfield case; corrupt or unreadable bytes are not and
+// must not be silently treated as "no prior document".
+func readPriorLockDocument(root string, id project.Identity) (*mlock.Document, error) {
+	doc, err := readLockDocument(root, id)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return doc, nil
 }
 
 // ReadLockGraph reads and validates the incumbent lock into a canonical graph.

@@ -38,10 +38,10 @@ func runLifecyclePhase(ctx context.Context, ac *Context, proj *project.Project, 
 		src.Vars = ac.Config.Env.Environ()
 	}
 	if ac.SuspendUI != nil {
-		_ = ac.SuspendUI(ctx)
+		_ = ac.SuspendUI(ctx) // intentional: UI suspend is cosmetic; failure must not block lifecycle scripts
 	}
 	if ac.ResumeUI != nil {
-		defer func() { _ = ac.ResumeUI(ctx) }()
+		defer func() { _ = ac.ResumeUI(ctx) }() // intentional: UI resume is cosmetic; failure must not mask the script result
 	}
 	lifeRes, err := lifecycle.RunInstallScripts(ctx, lifecycle.InstallInput{
 		ProjectRoot: proj.Root,
