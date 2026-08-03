@@ -1,10 +1,13 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/mewisme/mew/internal/apperr"
 )
 
 // Severity classifies a validation diagnostic.
@@ -35,19 +38,38 @@ const (
 )
 
 // Diagnostic is one validation finding.
+//
+// Key is the canonical key the finding is about; LegacyKey carries the spelling
+// actually written in the document when the two differ, so a report can name
+// what the user typed without losing the canonical identity. Fields are omitted
+// rather than emitted empty: an absent field means "not applicable here", which
+// an empty string cannot express.
 type Diagnostic struct {
-	Code     DiagnosticCode `json:"code"`
-	Severity Severity       `json:"severity"`
-	File     string         `json:"file,omitempty"`
-	Key      string         `json:"key,omitempty"`
-	Message  string         `json:"message"`
+	Code        DiagnosticCode `json:"code"`
+	Severity    Severity       `json:"severity"`
+	File        string         `json:"file,omitempty"`
+	Key         string         `json:"key,omitempty"`
+	LegacyKey   string         `json:"legacy_key,omitempty"`
+	Replacement string         `json:"replacement,omitempty"`
+	Message     string         `json:"message"`
 }
 
 func (d Diagnostic) String() string {
-	if d.Key == "" {
+	if d.ReportedKey() == "" {
 		return d.Message
 	}
-	return d.Key + ": " + d.Message
+	return d.ReportedKey() + ": " + d.Message
+}
+
+// ReportedKey is the spelling to show the user: the legacy form when the
+// document used one, otherwise the canonical key. Reporters use this so a
+// diagnostic names what was actually typed instead of a key the file
+// does not contain.
+func (d Diagnostic) ReportedKey() string {
+	if d.LegacyKey != "" {
+		return d.LegacyKey
+	}
+	return d.Key
 }
 
 // ValidateOptions tunes document validation.
@@ -60,11 +82,20 @@ type ValidateOptions struct {
 }
 
 // ValidationResult is the outcome for one file.
+//
+// Path and Scope identify what was validated; KeyCount is the number of leaf
+// keys the document declared. Keys is retained as the serialized name so the
+// existing JSON contract does not shift.
 type ValidationResult struct {
-	File        string       `json:"file"`
-	Keys        int          `json:"keys"`
+	Path        string       `json:"path"`
+	Scope       Scope        `json:"scope,omitempty"`
+	KeyCount    int          `json:"keys"`
 	Diagnostics []Diagnostic `json:"diagnostics"`
 }
+
+// File is the path that was validated. Retained as a method so callers reading
+// the older field name keep compiling against one obvious accessor.
+func (r ValidationResult) File() string { return r.Path }
 
 // Valid reports whether the result carries no error-severity diagnostics.
 func (r ValidationResult) Valid() bool {
@@ -82,6 +113,25 @@ func (r ValidationResult) Errors() []Diagnostic { return r.filter(SeverityError)
 // Warnings returns only the warning-severity diagnostics.
 func (r ValidationResult) Warnings() []Diagnostic { return r.filter(SeverityWarning) }
 
+// Err returns a typed ERR_M_CONFIG error for the first error-severity
+// diagnostic, or nil when the document is valid. This is the bridge that lets
+// configuration loading reject an invalid file using the same engine that backs
+// `m config validate`, rather than a second copy of the rules.
+//
+// The subject carries the file and the offending key so the message locates the
+// problem; secret values never reach it because diagnostics are built through
+// the redaction boundary.
+func (r ValidationResult) Err() error {
+	for _, d := range r.Errors() {
+		subject := r.Path
+		if k := d.ReportedKey(); k != "" {
+			subject = r.Path + ":" + k
+		}
+		return apperr.New(apperr.Config, "config.load", subject, d.Message)
+	}
+	return nil
+}
+
 func (r ValidationResult) filter(s Severity) []Diagnostic {
 	var out []Diagnostic
 	for _, d := range r.Diagnostics {
@@ -95,7 +145,7 @@ func (r ValidationResult) filter(s Severity) []Diagnostic {
 // ValidateFile validates one config file on disk. A missing file is valid and
 // yields no diagnostics, because an absent config is a legal state.
 func ValidateFile(path string, opts ValidateOptions) ValidationResult {
-	res := ValidationResult{File: path}
+	res := ValidationResult{Path: path, Scope: opts.Scope}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -114,23 +164,29 @@ func ValidateFile(path string, opts ValidateOptions) ValidationResult {
 //
 // Checks, in order: JSONC syntax, root shape, duplicate keys, then per-key
 // existence, type, constraints, writable scope, secret-inlining, legacy
-// spelling, and deprecation.
+// spelling, and deprecation. Diagnostics are returned in a deterministic order
+// so two runs over the same bytes produce byte-identical reports.
+//
+// The validator only reads: it never writes a file or mutates configuration.
 func ValidateDocument(src []byte, path string, opts ValidateOptions) ValidationResult {
-	res := ValidationResult{File: path}
-	add := func(code DiagnosticCode, sev Severity, key, msg string) {
+	res := ValidationResult{Path: path, Scope: opts.Scope}
+	// canon is the canonical key; legacy is the spelling the document used when
+	// it differs, so the report can name both without conflating them.
+	add := func(code DiagnosticCode, sev Severity, canon, legacy, msg string) {
 		res.Diagnostics = append(res.Diagnostics, Diagnostic{
-			Code: code, Severity: sev, File: path, Key: key, Message: msg,
+			Code: code, Severity: sev, File: path,
+			Key: canon, LegacyKey: legacy, Message: msg,
 		})
 	}
 
 	parsed, err := ParseJSONC(src)
 	if err != nil {
-		add(DiagSyntax, SeverityError, "", "invalid JSONC: "+err.Error())
+		add(DiagSyntax, SeverityError, "", "", "invalid JSONC: "+err.Error())
 		return res
 	}
 	m, ok := parsed.(map[string]any)
 	if !ok {
-		add(DiagRoot, SeverityError, "", "root must be an object")
+		add(DiagRoot, SeverityError, "", "", "root must be an object")
 		return res
 	}
 	if dupErr := DetectDuplicateKeys(src); dupErr != nil {
@@ -139,7 +195,7 @@ func ValidateDocument(src []byte, path string, opts ValidateOptions) ValidationR
 		if asDuplicate(dupErr, &dk) {
 			key = dk.Path
 		}
-		add(DiagDuplicateKey, SeverityError, key,
+		add(DiagDuplicateKey, SeverityError, key, "",
 			"duplicate key; the later value silently wins")
 	}
 
@@ -149,8 +205,12 @@ func ValidateDocument(src []byte, path string, opts ValidateOptions) ValidationR
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	res.Keys = len(keys)
+	res.KeyCount = len(keys)
 
+	// Conflict detection works on flattened dotted paths, so a nested legacy
+	// spelling ({"resolve":{"autoInstallPeers":true}}) is compared against the
+	// nested canonical form rather than looked up as a literal dotted member of
+	// the root map, which would never match.
 	present := make(map[string]bool, len(keys))
 	for _, k := range keys {
 		present[k] = true
@@ -168,16 +228,37 @@ func ValidateDocument(src []byte, path string, opts ValidateOptions) ValidationR
 			// Free-form namespaces stay legal; anything else in an owned
 			// namespace is a typo the user wants to hear about.
 			if err := validateUnknownKey(k, v); err != nil {
-				add(DiagUnknownKey, SeverityError, k, err.Error())
+				add(DiagUnknownKey, SeverityError, k, "", err.Error())
+				continue
+			}
+			// A free-form key has no spec, but registries.* still has a contract:
+			// the value is a registry URL. Only that namespace is checked here;
+			// other unowned keys are deliberately left alone, since treating
+			// them as typed would turn every free-form key into an error.
+			if strings.HasPrefix(k, "registries.") {
+				if err := validateKeyValue(k, v); err != nil {
+					add(DiagType, SeverityError, k, "", err.Error())
+				}
 			}
 			continue
 		}
+		// legacy is empty for a canonical spelling, so a report only mentions a
+		// legacy form when the document actually used one.
+		legacy := ""
+		if isLegacy {
+			legacy = k
+		}
 		if isLegacy {
 			if present[canon] {
-				add(DiagConflictingKey, SeverityError, k,
+				add(DiagConflictingKey, SeverityError, canon, legacy,
 					fmt.Sprintf("conflicts with %q; remove one", canon))
 			} else {
-				add(DiagLegacyKey, legacySeverity, k, "use "+canon)
+				d := Diagnostic{
+					Code: DiagLegacyKey, Severity: legacySeverity, File: path,
+					Key: canon, LegacyKey: legacy, Replacement: canon,
+					Message: "use " + canon,
+				}
+				res.Diagnostics = append(res.Diagnostics, d)
 			}
 		}
 		// Keys whose contract is "name of an environment variable" must not
@@ -189,13 +270,16 @@ func ValidateDocument(src []byte, path string, opts ValidateOptions) ValidationR
 		if strings.HasSuffix(canon, "_env") {
 			if s, isStr := v.(string); isStr {
 				if envErr := validateEnvVarName(s); envErr != nil {
-					add(DiagSecret, SeverityError, k, envErr.Error())
+					add(DiagSecret, SeverityError, canon, legacy, envErr.Error())
 					continue
 				}
 			}
 		}
 		if err := validateKeyValue(canon, v); err != nil {
-			add(typeOrConstraintCode(canon, v), SeverityError, k, err.Error())
+			// A secret key's value must not reach the message; the schema-driven
+			// redaction boundary decides, not the shape of the value.
+			add(typeOrConstraintCode(canon, v), SeverityError, canon, legacy,
+				redactDiagnosticMessage(canon, err.Error()))
 			continue
 		}
 		spec := KeySpec(canon)
@@ -203,10 +287,10 @@ func ValidateDocument(src []byte, path string, opts ValidateOptions) ValidationR
 			continue
 		}
 		if err := validateRange(spec, v); err != nil {
-			add(DiagConstraint, SeverityError, k, err.Error())
+			add(DiagConstraint, SeverityError, canon, legacy, err.Error())
 		}
 		if opts.Scope != "" && opts.Scope != ScopeEffective && !scopeAllows(spec, opts.Scope) {
-			add(DiagScope, SeverityError, k,
+			add(DiagScope, SeverityError, canon, legacy,
 				fmt.Sprintf("not writable in %s scope; allowed: %s",
 					opts.Scope, strings.Join(scopeNames(spec), ", ")))
 		}
@@ -215,10 +299,43 @@ func ValidateDocument(src []byte, path string, opts ValidateOptions) ValidationR
 			if spec.Replacement != "" {
 				msg += "; use " + spec.Replacement
 			}
-			add(DiagDeprecated, legacySeverity, k, msg)
+			d := Diagnostic{
+				Code: DiagDeprecated, Severity: legacySeverity, File: path,
+				Key: canon, LegacyKey: legacy, Replacement: spec.Replacement,
+				Message: msg,
+			}
+			res.Diagnostics = append(res.Diagnostics, d)
 		}
 	}
+	sortDiagnostics(res.Diagnostics)
 	return res
+}
+
+// sortDiagnostics imposes a total order: file, then reported key, then code.
+// Two validations of the same bytes therefore produce identical reports, which
+// is what lets callers diff them and tests assert on them.
+func sortDiagnostics(ds []Diagnostic) {
+	sort.SliceStable(ds, func(i, j int) bool {
+		a, b := ds[i], ds[j]
+		if a.File != b.File {
+			return a.File < b.File
+		}
+		if a.ReportedKey() != b.ReportedKey() {
+			return a.ReportedKey() < b.ReportedKey()
+		}
+		return a.Code < b.Code
+	})
+}
+
+// redactDiagnosticMessage strips a secret key's value out of a message built by
+// a lower-level validator that has no notion of secrecy.
+func redactDiagnosticMessage(key, msg string) string {
+	if !IsSecret(key) {
+		return msg
+	}
+	// The value is not recoverable from the message safely, so report the
+	// constraint without it.
+	return "invalid value for " + key + " (value withheld)"
 }
 
 // asDuplicate is a tiny errors.As shim kept local so the diagnostic path does
@@ -264,6 +381,15 @@ func validateRange(spec *ConfigKeySpec, v any) error {
 		n = t
 	case float64:
 		n = int64(t)
+	case json.Number:
+		// ParseJSONC decodes with UseNumber, so an integer written in a config
+		// file arrives here as json.Number. Without this case every range check
+		// on a file-sourced value silently passed.
+		parsed, err := t.Int64()
+		if err != nil {
+			return nil
+		}
+		n = parsed
 	default:
 		return nil
 	}

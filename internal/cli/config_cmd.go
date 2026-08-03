@@ -745,6 +745,13 @@ func writeConfigPathJSON(cmd *cobra.Command, cwd string, scope configScope, all 
 
 // ── validate ──────────────────────────────────────────────────
 
+// newConfigValidateCmd validates the files a scope selects and fails when any
+// of them is invalid.
+//
+// It owns no validation rules of its own: `internal/config` decides what is
+// legal, so a document this command calls invalid is exactly a document that
+// will not load. The command's job is target resolution, reporting, and exit
+// status.
 func newConfigValidateCmd(g *globalFlags) *cobra.Command {
 	var (
 		flags  configWriteFlags
@@ -759,138 +766,28 @@ func newConfigValidateCmd(g *globalFlags) *cobra.Command {
 				return err
 			}
 			scope := flags.resolvedScope()
-			cwd := g.cwd
+			paths, scopes, err := configValidateTargets(scope, g.cwd)
+			if err != nil {
+				return err
+			}
 
-			var files []string
-			switch scope {
-			case configScopeUser:
-				files = []string{config.GlobalConfigPath()}
-			case configScopeProject:
-				target, err := resolveConfigWriteTarget(configScopeProject, cwd)
-				if err != nil {
+			report := config.ValidateFiles(configScopeToConfig(scope), paths, scopes,
+				config.ValidateOptions{Strict: strict})
+
+			// The report is emitted first and always, then the outcome decides the
+			// exit status. Invalid configuration never exits zero.
+			if configOutputStructured(g, cmd) {
+				if err := writeConfigJSON(cmd, configValidateJSON(scope, report)); err != nil {
 					return err
 				}
-				files = []string{target.Path}
-			case configScopeEffective:
-				userPath, projPath := resolveEffectivePaths(cwd)
-				files = []string{userPath}
-				if projPath != "" {
-					files = append(files, projPath)
-				}
+				// The report is the machine document for this command; suppress the
+				// reporter so stdout does not also carry an unrelated error doc.
+				return suppressReport(configValidateErr(report))
 			}
-
-			var allErrors []string
-			var allWarnings []string
-			totalKeys := 0
-			type fileResult struct {
-				path     string
-				errors   []string
-				warnings []string
-				keys     int
+			if err := writeStaticOut(cmd, configValidateView(g.mustStaticRenderer(cmd), scope, report)); err != nil {
+				return err
 			}
-			var results []fileResult
-
-			for _, f := range files {
-				if _, err := os.Stat(f); os.IsNotExist(err) {
-					continue
-				}
-				b, err := os.ReadFile(f)
-				if err != nil {
-					allErrors = append(allErrors, fmt.Sprintf("Cannot read %s: %v", f, err))
-					continue
-				}
-				parsed, err := config.ParseJSONC(b)
-				if err != nil {
-					fr := fileResult{path: f}
-					fr.errors = append(fr.errors, fmt.Sprintf("Parse error: %v", err))
-					results = append(results, fr)
-					continue
-				}
-				m, ok := parsed.(map[string]any)
-				if !ok {
-					results = append(results, fileResult{path: f, errors: []string{"Root must be an object"}})
-					continue
-				}
-				fr := fileResult{path: f}
-				for k := range flattenMap(m, "") {
-					fr.keys++
-					canon, isLegacy, known := resolveKeyLocal(k)
-					if !known {
-						fr.errors = append(fr.errors, fmt.Sprintf("Unknown key %q", k))
-						continue
-					}
-					if isLegacy {
-						msg := fmt.Sprintf("%s: use %s", k, canon)
-						if strict {
-							fr.errors = append(fr.errors, msg)
-						} else {
-							fr.warnings = append(fr.warnings, msg)
-						}
-					}
-					if canon != "" {
-						if _, exists := m[canon]; exists && isLegacy {
-							fr.errors = append(fr.errors,
-								fmt.Sprintf("Conflicting keys %q and %q; remove one", k, canon))
-						}
-					}
-				}
-				results = append(results, fr)
-				totalKeys += fr.keys
-				allErrors = append(allErrors, fr.errors...)
-				allWarnings = append(allWarnings, fr.warnings...)
-			}
-
-			if configOutputStructured(g, cmd) {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetEscapeHTML(false)
-				return enc.Encode(map[string]any{
-					"scope":    string(scope),
-					"valid":    len(allErrors) == 0,
-					"keys":     totalKeys,
-					"errors":   allErrors,
-					"warnings": allWarnings,
-					"files":    files,
-				})
-			}
-
-			r := g.mustStaticRenderer(cmd)
-			label := fmt.Sprintf("%s configuration", strings.ToUpper(string(scope)[:1])+string(scope)[1:])
-			if len(allErrors) == 0 {
-				var b strings.Builder
-				b.WriteString(fmt.Sprintf("✓ %s is valid\n\n", label))
-				b.WriteString(r.KeyValues([]presentation.KeyValue{
-					{Key: "Keys", Value: strconv.Itoa(totalKeys)},
-				}))
-				if len(files) > 0 {
-					b.WriteString(r.KeyValues([]presentation.KeyValue{
-						{Key: "File", Value: strings.Join(files, "\n"), Style: presentation.ValuePath},
-					}))
-				}
-				if len(allWarnings) > 0 {
-					b.WriteString("\nWarnings:\n")
-					for _, w := range allWarnings {
-						b.WriteString("  ")
-						b.WriteString(w)
-						b.WriteString("\n")
-					}
-				}
-				return writeStaticOut(cmd, b.String())
-			}
-
-			var b strings.Builder
-			b.WriteString(fmt.Sprintf("× %s is invalid\n\n", label))
-			for _, fr := range results {
-				for _, e := range fr.errors {
-					b.WriteString(fmt.Sprintf("  %s\n  File %s\n\n", e, fr.path))
-				}
-			}
-			if len(allWarnings) > 0 {
-				b.WriteString("Warnings:\n")
-				for _, w := range allWarnings {
-					b.WriteString(fmt.Sprintf("  %s\n", w))
-				}
-			}
-			return writeStaticOut(cmd, b.String())
+			return configValidateErr(report)
 		},
 	}
 	flags.bind(cmd)
@@ -898,33 +795,140 @@ func newConfigValidateCmd(g *globalFlags) *cobra.Command {
 	return cmd
 }
 
-func resolveKeyLocal(key string) (canonical string, isLegacy bool, known bool) {
-	canon := config.CanonicalKey(key)
-	if canon != "" && canon != key {
-		return canon, true, true
+// configValidateTargets resolves the files a scope selects, paired with the
+// scope each file backs. Effective spans both files in resolution order.
+func configValidateTargets(scope configScope, cwd string) ([]string, []config.Scope, error) {
+	switch scope {
+	case configScopeUser:
+		return []string{config.GlobalConfigPath()}, []config.Scope{config.ScopeUser}, nil
+	case configScopeProject:
+		target, err := resolveConfigWriteTarget(configScopeProject, cwd)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []string{target.Path}, []config.Scope{config.ScopeProject}, nil
+	default:
+		userPath, projPath := resolveEffectivePaths(cwd)
+		paths := []string{userPath}
+		scopes := []config.Scope{config.ScopeUser}
+		if projPath != "" {
+			paths = append(paths, projPath)
+			scopes = append(scopes, config.ScopeProject)
+		}
+		return paths, scopes, nil
 	}
-	if config.IsCanonical(key) {
-		return key, false, true
-	}
-	return "", false, false
 }
 
-func flattenMap(m map[string]any, prefix string) map[string]any {
-	out := map[string]any{}
-	for k, child := range m {
-		key := k
-		if prefix != "" {
-			key = prefix + "." + k
+// configValidateErr converts a report into the command's outcome. Warnings alone
+// are not fatal: --strict already promoted them to errors inside the validator
+// when the user asked for that.
+func configValidateErr(report config.ValidationReport) error {
+	errs := report.Errors()
+	if len(errs) == 0 {
+		return nil
+	}
+	subject := errs[0].File
+	if k := errs[0].ReportedKey(); k != "" {
+		subject += ":" + k
+	}
+	return apperr.New(apperr.Config, "config.validate", subject,
+		fmt.Sprintf("invalid configuration: %d error(s)", len(errs)))
+}
+
+// configValidateJSON is the machine report: a small stable schema, no ANSI and
+// no human headings. Unavailable fields are omitted rather than emitted empty.
+func configValidateJSON(scope configScope, report config.ValidationReport) map[string]any {
+	files := make([]any, 0, len(report.Files))
+	for _, f := range report.Files {
+		entry := map[string]any{
+			"path":        f.Path,
+			"valid":       f.Valid(),
+			"keys":        f.KeyCount,
+			"diagnostics": configDiagnosticsJSON(f.Diagnostics),
 		}
-		if cm, ok := child.(map[string]any); ok {
-			for ck, cv := range flattenMap(cm, key) {
-				out[ck] = cv
-			}
-		} else {
-			out[key] = child
+		if f.Scope != "" {
+			entry["scope"] = string(f.Scope)
 		}
+		files = append(files, entry)
+	}
+	return map[string]any{
+		"scope":       string(scope),
+		"valid":       report.Valid,
+		"keys":        report.KeyCount(),
+		"files":       files,
+		"errors":      configDiagnosticsJSON(report.Errors()),
+		"warnings":    configDiagnosticsJSON(report.Warnings()),
+		"diagnostics": configDiagnosticsJSON(report.Diagnostics()),
+	}
+}
+
+func configDiagnosticsJSON(ds []config.Diagnostic) []any {
+	out := make([]any, 0, len(ds))
+	for _, d := range ds {
+		entry := map[string]any{
+			"severity": string(d.Severity),
+			"code":     string(d.Code),
+			"message":  d.Message,
+		}
+		if k := d.ReportedKey(); k != "" {
+			entry["key"] = k
+		}
+		if d.LegacyKey != "" && d.Key != "" {
+			entry["canonical_key"] = d.Key
+		}
+		if d.File != "" {
+			entry["path"] = d.File
+		}
+		if d.Replacement != "" {
+			entry["replacement"] = d.Replacement
+		}
+		out = append(out, entry)
 	}
 	return out
+}
+
+// configValidateView renders the complete report for humans. Every collected
+// diagnostic is printed, including warnings on an otherwise valid document.
+func configValidateView(r presentation.StaticRenderer, scope configScope, report config.ValidationReport) string {
+	label := strings.ToUpper(string(scope)[:1]) + string(scope)[1:] + " configuration"
+	var b strings.Builder
+	if report.Valid {
+		b.WriteString(fmt.Sprintf("✓ %s is valid\n\n", label))
+	} else {
+		b.WriteString(fmt.Sprintf("× %s is invalid\n\n", label))
+	}
+	b.WriteString(r.KeyValues([]presentation.KeyValue{
+		{Key: "Keys", Value: strconv.Itoa(report.KeyCount())},
+	}))
+	if paths := configReportPaths(report); len(paths) > 0 {
+		b.WriteString(r.KeyValues([]presentation.KeyValue{
+			{Key: "File", Value: strings.Join(paths, "\n"), Style: presentation.ValuePath},
+		}))
+	}
+	writeDiagnosticSection(&b, "Errors", report.Errors())
+	writeDiagnosticSection(&b, "Warnings", report.Warnings())
+	return b.String()
+}
+
+func configReportPaths(report config.ValidationReport) []string {
+	out := make([]string, 0, len(report.Files))
+	for _, f := range report.Files {
+		out = append(out, f.Path)
+	}
+	return out
+}
+
+func writeDiagnosticSection(b *strings.Builder, title string, ds []config.Diagnostic) {
+	if len(ds) == 0 {
+		return
+	}
+	b.WriteString("\n" + title + ":\n")
+	for _, d := range ds {
+		b.WriteString("  " + d.String() + "\n")
+		if d.File != "" {
+			b.WriteString("  File " + d.File + "\n")
+		}
+	}
 }
 
 // ── migrate ───────────────────────────────────────────────────

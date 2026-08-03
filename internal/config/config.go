@@ -196,6 +196,11 @@ func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 		if err := validateKeyValue(canon, v); err != nil {
 			return nil, err
 		}
+		if spec := KeySpec(canon); spec != nil {
+			if err := validateRange(spec, v); err != nil {
+				return nil, apperr.Wrap(apperr.Config, "config.cli", canon, err)
+			}
+		}
 		eff.Values[canon] = Value{Raw: v, Source: SourceCLI, Path: "cli"}
 		cliLayer.Values[canon] = v
 	}
@@ -216,6 +221,18 @@ func mergeFile(eff *Effective, path string, src Source, required bool) error {
 		}
 		return apperr.Wrap(apperr.IO, "config.load", path, err)
 	}
+	// One validator backs both loading and `m config validate`, so a file that
+	// the validate command calls invalid can never load successfully.
+	//
+	// No Scope is passed: the per-key writable-scope rule governs where `m config
+	// set` may write a key, not whether an existing file may be read. A project
+	// file that already carries a user-only key stays loadable — refusing it here
+	// would break working installs on a rule about writes. `m config validate
+	// --scope project` still reports it, which is where the user asks about
+	// placement. Strict is off too: a legacy spelling still works and only warns.
+	if verr := ValidateDocument(b, path, ValidateOptions{}).Err(); verr != nil {
+		return verr
+	}
 	raw, err := ParseJSONC(b)
 	if err != nil {
 		return apperr.Wrap(apperr.Config, "config.load", path, err)
@@ -234,28 +251,13 @@ func mergeFile(eff *Effective, path string, src Source, required bool) error {
 	sort.Strings(keys)
 	for _, k := range keys {
 		v := flat[k]
-		canon, isLegacy, known := resolveKey(k)
+		canon, _, known := resolveKey(k)
 		if !known {
-			if err := validateUnknownKey(k, v); err != nil {
-				return apperr.Wrap(apperr.Config, "config.load", path+":"+k, err)
-			}
+			// Validation already accepted this key, so it is a legal free-form
+			// entry and is retained under the spelling the file used.
 			eff.Values[k] = Value{Raw: v, Source: src, Path: path}
 			layer.Values[k] = v
 			continue
-		}
-		if isLegacy {
-			if _, ok := layer.Values[canon]; ok {
-				return apperr.New(apperr.Config, "config.load", path,
-					fmt.Sprintf("conflicting keys %q and %q; remove one", k, canon))
-			}
-		} else if _, ok := layer.Values[canon]; ok {
-			// The canonical key already arrived through its legacy spelling in
-			// this same file.
-			return apperr.New(apperr.Config, "config.load", path,
-				fmt.Sprintf("conflicting keys %q and %q; remove one", LegacyKey(canon), canon))
-		}
-		if err := validateKeyValue(canon, v); err != nil {
-			return apperr.Wrap(apperr.Config, "config.load", path+":"+k, err)
 		}
 		eff.Values[canon] = Value{Raw: v, Source: src, Path: path}
 		layer.Values[canon] = v
@@ -346,6 +348,13 @@ func mergeEnv(eff *Effective, snap EnvSnapshot) error {
 		}
 		if err := validateKeyValue(key, raw); err != nil {
 			return apperr.Wrap(apperr.Config, "config.env", envKey, err)
+		}
+		// Ranges are part of the schema, so an environment value must clear the
+		// same Minimum/Maximum a file value does.
+		if spec := KeySpec(key); spec != nil {
+			if err := validateRange(spec, raw); err != nil {
+				return apperr.Wrap(apperr.Config, "config.env", envKey, err)
+			}
 		}
 		eff.Values[key] = Value{Raw: raw, Source: SourceEnv, Path: envKey}
 		layer.Values[key] = raw
@@ -603,6 +612,13 @@ func SetFile(path, key string, raw any) error {
 	}
 	if err := validateKeyValue(canon, normalizeForWrite(raw)); err != nil {
 		return apperr.Wrap(apperr.Config, "config.set", key, err)
+	}
+	// A value that would fail validation on load must not be written in the
+	// first place, so `config set` enforces schema ranges too.
+	if spec := KeySpec(canon); spec != nil {
+		if err := validateRange(spec, normalizeForWrite(raw)); err != nil {
+			return apperr.Wrap(apperr.Config, "config.set", key, err)
+		}
 	}
 	raw = normalizeForWrite(raw)
 	return spliceFile(path, "config.set", func(src []byte) ([]byte, bool, error) {

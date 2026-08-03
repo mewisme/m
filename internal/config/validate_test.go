@@ -153,8 +153,8 @@ func TestValidateMissingFileIsValid(t *testing.T) {
 func TestValidateCountsKeys(t *testing.T) {
 	res := ValidateDocument([]byte(`{"offline": true, "network": {"proxy": "", "timeout": "1s"}}`),
 		"test.jsonc", ValidateOptions{})
-	if res.Keys != 3 {
-		t.Errorf("Keys = %d, want 3", res.Keys)
+	if res.KeyCount != 3 {
+		t.Errorf("KeyCount = %d, want 3", res.KeyCount)
 	}
 }
 

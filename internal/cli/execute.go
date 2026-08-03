@@ -336,10 +336,37 @@ func runInvocation(ctx context.Context, root *cobra.Command, info BuildInfo, arg
 	root.SetArgs(argv)
 	if execErr := root.ExecuteContext(ctx); execErr != nil {
 		outcomeErr = classifyCLIError(execErr)
-		rep.Error(outcomeErr)
+		// A command that already emitted its own machine report suppresses the
+		// reporter's rendering, so a structured consumer receives exactly one
+		// document instead of the report followed by an unrelated error doc.
+		if !reportSuppressed(outcomeErr) {
+			rep.Error(outcomeErr)
+		}
 		return apperr.ExitCode(outcomeErr)
 	}
 	return 0
+}
+
+// suppressedError marks an error whose report the command already wrote itself.
+// It changes nothing about typing or exit status: the wrapped typed error still
+// resolves through errors.As, so apperr.CodeOf and apperr.ExitCode are
+// unaffected. Only the reporter's duplicate rendering is skipped.
+type suppressedError struct{ err error }
+
+func (e *suppressedError) Error() string { return e.err.Error() }
+func (e *suppressedError) Unwrap() error { return e.err }
+
+// suppressReport wraps err so runInvocation does not render it a second time.
+func suppressReport(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &suppressedError{err: err}
+}
+
+func reportSuppressed(err error) bool {
+	var s *suppressedError
+	return errors.As(err, &s)
 }
 
 // dispatchOutcomeErr converts a dispatch exit code into a close outcome. The
