@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,11 +14,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
-	"github.com/mewisme/mew/internal/diagnostics"
 	"github.com/mewisme/mew/internal/presentation"
-	"github.com/mewisme/mew/internal/project"
 )
 
 func newConfigCmd(g *globalFlags) *cobra.Command {
@@ -55,48 +55,36 @@ func newConfigGetCmd(g *globalFlags) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := args[0]
-			eff, err := loadEffective(g)
+			if err := flags.validateScope(); err != nil {
+				return err
+			}
+			eff, err := invocationConfig(g)
 			if err != nil {
 				return err
 			}
 			scope := flags.resolvedScope()
-			v, err := config.Get(eff, key)
+			view, err := resolveConfigGet(eff, key, scope)
 			if err != nil {
+				if configOutputStructured(g, cmd) {
+					// Structured consumers get the shape they expect even for a
+					// key the scope does not declare; the typed error still sets
+					// the exit code.
+					if nse := (*notSetError)(nil); errors.As(err, &nse) {
+						_ = writeConfigJSON(cmd, configGetNotSetJSON(eff, nse.key, scope))
+					}
+				}
 				return err
 			}
 
 			if configOutputStructured(g, cmd) {
-				return writeConfigGetJSON(cmd, key, v, scope, eff)
+				return writeConfigJSON(cmd, view.json())
 			}
 
 			if !verbose {
-				_, err = fmt.Fprintln(cmd.OutOrStdout(), formatConfigValue(v.Raw))
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), view.Entry.Value)
 				return err
 			}
-
-			r := g.mustStaticRenderer(cmd)
-			spec := config.KeySpec(key)
-			lines := []string{"", r.KeyValues([]presentation.KeyValue{
-				{Key: "Value", Value: diagnostics.Redact(formatConfigValue(v.Raw))},
-				{Key: "Source", Value: displayConfigSource(v.Source)},
-				{Key: "Path", Value: v.Path, Style: presentation.ValuePath},
-			})}
-			if spec != nil {
-				extra := []presentation.KeyValue{
-					{Key: "Description", Value: spec.Description},
-				}
-				typeStr := string(spec.Type)
-				if spec.Type == config.TypeEnum {
-					typeStr = "enum (" + strings.Join(spec.Enum, ", ") + ")"
-				}
-				extra = append(extra, presentation.KeyValue{Key: "Type", Value: typeStr})
-				extra = append(extra, presentation.KeyValue{Key: "Default", Value: formatConfigValue(spec.Default)})
-				if len(spec.Enum) > 0 {
-					extra = append(extra, presentation.KeyValue{Key: "Allowed", Value: strings.Join(spec.Enum, ", ")})
-				}
-				lines = append(lines, r.KeyValues(extra))
-			}
-			return writeStaticOut(cmd, strings.Join(lines, "\n"))
+			return writeStaticOut(cmd, renderConfigGetVerbose(g, cmd, view))
 		},
 	}
 	flags.bind(cmd)
@@ -104,27 +92,64 @@ func newConfigGetCmd(g *globalFlags) *cobra.Command {
 	return cmd
 }
 
-func writeConfigGetJSON(cmd *cobra.Command, key string, v config.Value, scope configScope, eff *config.Effective) error {
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetEscapeHTML(false)
-	out := map[string]any{
-		"key":    key,
-		"value":  v.Raw,
-		"source": displayConfigSource(v.Source),
-		"path":   v.Path,
-		"scope":  string(scope),
+// configGetNotSetJSON is the structured document for a key that is registered
+// but unset at the requested raw scope. Reporting configured=false before the
+// typed error keeps the JSON shape stable for consumers that parse stdout.
+func configGetNotSetJSON(eff *config.Effective, key string, scope configScope) configGetJSON {
+	out := configGetJSON{
+		Key:        key,
+		Scope:      string(scope),
+		Configured: false,
+		IsSecret:   config.IsSecret(key),
 	}
-	spec := config.KeySpec(key)
-	if spec != nil {
-		out["type"] = string(spec.Type)
-		out["default"] = spec.Default
-		out["is_secret"] = spec.Secret
-		if spec.Secret {
-			out["value"] = "<redacted>"
+	if spec := config.KeySpec(key); spec != nil {
+		out.Type = string(spec.Type)
+	}
+	if ev, err := config.GetEffective(eff, key); err == nil {
+		out.EffectiveValue = config.RedactValue(key, ev.Raw)
+		out.Source = displayConfigSource(ev.Source)
+		out.IsDefault = ev.Source == config.SourceDefaults
+	}
+	return out
+}
+
+// renderConfigGetVerbose renders the metadata block for `config get -v`.
+// Only semantically available fields appear.
+func renderConfigGetVerbose(g *globalFlags, cmd *cobra.Command, view configGetView) string {
+	r := g.mustStaticRenderer(cmd)
+	kvs := []presentation.KeyValue{
+		{Key: "Key", Value: view.Entry.Key},
+	}
+	if view.Entry.Configured {
+		kvs = append(kvs, presentation.KeyValue{Key: "Configured", Value: view.Entry.Value})
+	}
+	if view.EffectiveKnown {
+		kvs = append(kvs, presentation.KeyValue{Key: "Effective", Value: view.EffectiveValue})
+	}
+	kvs = append(kvs,
+		presentation.KeyValue{Key: "Scope", Value: string(view.Entry.Scope)},
+		presentation.KeyValue{Key: "Source", Value: view.Entry.Source},
+	)
+	if view.Entry.Path != "" {
+		kvs = append(kvs, presentation.KeyValue{Key: "File", Value: view.Entry.Path, Style: presentation.ValuePath})
+	}
+	if spec := view.Spec; spec != nil {
+		typeStr := string(spec.Type)
+		if spec.Type == config.TypeEnum {
+			typeStr = "enum"
+		}
+		kvs = append(kvs,
+			presentation.KeyValue{Key: "Type", Value: typeStr},
+			presentation.KeyValue{Key: "Default", Value: config.RedactString(view.Entry.Key, formatConfigValue(spec.Default))},
+		)
+		if len(spec.Enum) > 0 {
+			kvs = append(kvs, presentation.KeyValue{Key: "Allowed", Value: strings.Join(spec.Enum, ", ")})
 		}
 	}
-	_ = eff
-	return enc.Encode(out)
+	if view.Entry.IsSecret {
+		kvs = append(kvs, presentation.KeyValue{Key: "Is secret", Value: "true"})
+	}
+	return "\n" + r.KeyValues(kvs)
 }
 
 // ── set ───────────────────────────────────────────────────────
@@ -154,47 +179,69 @@ func newConfigSetCmd(g *globalFlags) *cobra.Command {
 				return apperr.Wrap(apperr.Usage, "config.set", key, err)
 			}
 			scope := flags.resolvedScope()
-			cwd := g.cwd
-			target, err := resolveConfigWriteTarget(scope, cwd)
+			target, err := resolveConfigWriteTarget(scope, g.cwd)
 			if err != nil {
 				return err
 			}
-			if err := checkUserScopedKey(key, target); err != nil {
+			if err := checkWritableScope(key, target.Scope); err != nil {
 				return err
 			}
-			prev := readScopeValue(target.Path, key)
+
+			// Previous is the value this scope held, read from its own layer.
+			// The effective winner may come from a different layer entirely, and
+			// reporting that as "previous" would describe a value the write did
+			// not replace.
+			eff, err := invocationConfig(g)
+			if err != nil {
+				return err
+			}
+			prev, prevSet := scopeValueOrUnset(eff, scope, key)
+
 			if err := config.SetFile(target.Path, key, val); err != nil {
 				return err
 			}
-			newEffective := readEffectiveValue(g, key)
-			return writeConfigSetResult(g, cmd, key, prev, formatConfigValue(val), newEffective, target)
+
+			// One reload republishes the invocation snapshot so the reported
+			// target-scope and effective values both come from the same state.
+			reloaded, reloadErr := reloadInvocationConfig(cmd.Context(), g)
+			current := config.RedactString(key, formatConfigValue(val))
+			effective := ""
+			if reloadErr == nil {
+				if cur, ok := scopeValueOrUnset(reloaded, scope, key); ok {
+					current = cur
+				}
+				if ev, eerr := config.GetEffective(reloaded, canonicalConfigKey(key)); eerr == nil {
+					effective = config.RedactString(key, formatConfigValue(ev.Raw))
+				}
+			}
+			return writeConfigSetResult(g, cmd, key, prev, prevSet, current, effective, target)
 		},
 	}
 	flags.bind(cmd)
 	return cmd
 }
 
-func writeConfigSetResult(g *globalFlags, cmd *cobra.Command, key, prev, current, newEffective string, target configWriteTarget) error {
+func writeConfigSetResult(g *globalFlags, cmd *cobra.Command, key, prev string, prevSet bool, current, effective string, target configWriteTarget) error {
 	if configOutputQuiet(g, cmd) {
 		return nil
 	}
-	canon := config.CanonicalKey(key)
-	if canon != "" && canon != key {
-		key = canon
-	}
+	key = canonicalConfigKey(key)
 	r := g.mustStaticRenderer(cmd)
-	headline := fmt.Sprintf("✓ Updated %s", key)
+	headline := fmt.Sprintf("%s Updated %s", r.Settings().Symbols.Success, key)
+	prevDisplay := prev
+	if !prevSet {
+		prevDisplay = "(unset)"
+	}
 	kvs := []presentation.KeyValue{
-		{Key: "Previous", Value: diagnostics.Redact(prev)},
-		{Key: "Current", Value: diagnostics.Redact(current)},
+		{Key: "Previous", Value: prevDisplay},
+		{Key: "Current", Value: current},
 		{Key: "Scope", Value: string(target.Scope)},
-		{Key: "File", Value: target.Path, Style: presentation.ValuePath},
 	}
-	if newEffective != "" && newEffective != current {
-		kvs = append(kvs, presentation.KeyValue{Key: "Effective", Value: diagnostics.Redact(newEffective)})
+	if effective != "" && effective != current {
+		kvs = append(kvs, presentation.KeyValue{Key: "Effective", Value: effective})
 	}
-	body := r.KeyValues(kvs)
-	return writeStaticOut(cmd, headline+"\n\n"+body)
+	kvs = append(kvs, presentation.KeyValue{Key: "File", Value: target.Path, Style: presentation.ValuePath})
+	return writeStaticOut(cmd, headline+"\n\n"+r.KeyValues(kvs))
 }
 
 // ── unset ─────────────────────────────────────────────────────
@@ -215,44 +262,52 @@ func newConfigUnsetCmd(g *globalFlags) *cobra.Command {
 				return err
 			}
 			scope := flags.resolvedScope()
-			cwd := g.cwd
-			target, err := resolveConfigWriteTarget(scope, cwd)
+			target, err := resolveConfigWriteTarget(scope, g.cwd)
 			if err != nil {
 				return err
 			}
-			if err := checkUserScopedKey(key, target); err != nil {
+			if err := checkWritableScope(key, target.Scope); err != nil {
 				return err
 			}
+			// UnsetFile writes nothing when the key is absent, so an already
+			// unset key is an idempotent no-op and other layers are untouched.
 			if err := config.UnsetFile(target.Path, key); err != nil {
 				return err
 			}
-			return writeConfigUnsetResult(g, cmd, key, scope, target.Path)
+			return writeConfigUnsetResult(cmd.Context(), g, cmd, key, scope, target.Path)
 		},
 	}
 	flags.bind(cmd)
 	return cmd
 }
 
-func writeConfigUnsetResult(g *globalFlags, cmd *cobra.Command, key string, scope configScope, path string) error {
+func writeConfigUnsetResult(ctx context.Context, g *globalFlags, cmd *cobra.Command, key string, scope configScope, path string) error {
 	if configOutputQuiet(g, cmd) {
 		return nil
 	}
-	var effectiveMsg string
-	if eff, err := loadEffective(g); err == nil {
-		if v, err := config.Get(eff, key); err == nil {
-			effectiveMsg = fmt.Sprintf("Effective value is now %s.", formatConfigValue(v.Raw))
+	canon := canonicalConfigKey(key)
+	// One reload, after the write, so the reported fallback is the layer that
+	// actually wins now rather than the one that won before.
+	var fallback, fallbackSrc string
+	if eff, err := reloadInvocationConfig(ctx, g); err == nil {
+		if v, gerr := config.GetEffective(eff, canon); gerr == nil {
+			fallback = config.RedactString(canon, formatConfigValue(v.Raw))
+			fallbackSrc = displayConfigSource(v.Source)
 		}
 	}
+
 	r := g.mustStaticRenderer(cmd)
-	headline := fmt.Sprintf("✓ Removed %s from %s configuration", key, scope)
-	body := ""
-	if effectiveMsg != "" {
-		body = "\n" + effectiveMsg
+	headline := fmt.Sprintf("%s Removed %s from %s configuration",
+		r.Settings().Symbols.Success, canon, scope)
+	kvs := make([]presentation.KeyValue, 0, 3)
+	if fallback != "" {
+		kvs = append(kvs, presentation.KeyValue{Key: "Effective", Value: fallback})
 	}
-	body += "\n" + r.KeyValues([]presentation.KeyValue{
-		{Key: "File", Value: path, Style: presentation.ValuePath},
-	})
-	return writeStaticOut(cmd, headline+body)
+	if fallbackSrc != "" {
+		kvs = append(kvs, presentation.KeyValue{Key: "Source", Value: fallbackSrc})
+	}
+	kvs = append(kvs, presentation.KeyValue{Key: "File", Value: path, Style: presentation.ValuePath})
+	return writeStaticOut(cmd, headline+"\n\n"+r.KeyValues(kvs))
 }
 
 // ── list ──────────────────────────────────────────────────────
@@ -276,224 +331,131 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 				return err
 			}
 			scope := flags.resolvedScope()
-			eff, err := loadEffective(g)
+			eff, err := invocationConfig(g)
 			if err != nil {
 				return err
 			}
+			opts := configListOptions{prefix: prefix, changed: changed, inclDefaults: inclDefaults}
+			entries := resolveConfigList(eff, scope, opts)
 
 			if configOutputStructured(g, cmd) {
-				return writeConfigListJSON(cmd, eff, scope, showOrigin, changed, inclDefaults, prefix)
+				return writeConfigListJSON(cmd, entries, scope, showOrigin)
 			}
-
-			return writeConfigListHuman(g, cmd, eff, scope, showOrigin, changed, inclDefaults, prefix)
+			return writeConfigListHuman(g, cmd, entries, scope, showOrigin)
 		},
 	}
 	flags.bind(cmd)
-	cmd.Flags().BoolVar(&showOrigin, "show-origin", false, "show value source")
+	cmd.Flags().BoolVar(&showOrigin, "show-origin", false, "show value source and file")
 	cmd.Flags().BoolVar(&changed, "changed", false, "show only values different from defaults")
-	cmd.Flags().BoolVar(&inclDefaults, "defaults", false, "include every schema key including defaults")
+	cmd.Flags().BoolVar(&inclDefaults, "defaults", false, "include registered schema defaults")
 	cmd.Flags().StringVar(&prefix, "prefix", "", "filter keys by namespace prefix")
 	return cmd
 }
 
-func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, eff *config.Effective, scope configScope, showOrigin, changed, inclDefaults bool, prefix string) error {
+func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, entries []configEntryView, scope configScope, showOrigin bool) error {
 	r := g.mustStaticRenderer(cmd)
-
-	var scopeLabel string
-	switch scope {
-	case configScopeUser:
-		scopeLabel = "User configuration"
-	case configScopeProject:
-		scopeLabel = "Project configuration"
-	case configScopeEffective:
-		scopeLabel = "Effective configuration"
-	}
-
-	type listEntry struct {
-		key    string
-		value  string
-		origin string
-		isDef  bool
-		isSec  bool
-	}
-	groups := make(map[string][]listEntry)
-	groupOrder := config.Groups()
-
-	for _, gname := range groupOrder {
-		for _, key := range config.KeysByGroup(gname) {
-			if prefix != "" && !strings.HasPrefix(key, prefix) {
-				continue
-			}
-			v, err := config.Get(eff, key)
-			if err != nil {
-				continue
-			}
-			spec := config.KeySpec(key)
-			isDefault := v.Source == config.SourceDefaults
-
-			// Filter by scope.
-			if scope == configScopeUser && v.Source != config.SourceGlobal {
-				if v.Source == config.SourceDefaults {
-					if !inclDefaults {
-						continue
-					}
-				} else if v.Source != config.SourceGlobal {
-					continue
-				}
-			}
-			if scope == configScopeProject && v.Source != config.SourceProject {
-				if v.Source == config.SourceDefaults {
-					if !inclDefaults {
-						continue
-					}
-				} else {
-					continue
-				}
-			}
-
-			if changed && isDefault {
-				continue
-			}
-
-			val := formatConfigValue(v.Raw)
-			if spec != nil && spec.Secret {
-				val = "<redacted>"
-			}
-
-			groups[gname] = append(groups[gname], listEntry{
-				key: key, value: val,
-				origin: displayConfigSource(v.Source),
-				isDef:  isDefault,
-				isSec:  spec != nil && spec.Secret,
-			})
-		}
-	}
-
-	var configured, defaulted int
-	for _, entries := range groups {
-		for _, e := range entries {
-			if e.isDef {
-				defaulted++
-			} else {
-				configured++
-			}
-		}
-	}
+	settings := r.Settings()
+	// Narrow terminals and accessible mode get one field per line; the same
+	// threshold the shared KeyValues renderer uses.
+	stacked := settings.Width < 60 || settings.Accessible
 
 	var b strings.Builder
-	b.WriteString(scopeLabel)
+	b.WriteString(configScopeLabel(scope))
 	b.WriteString("\n\n")
 
-	for _, gname := range groupOrder {
-		entries := groups[gname]
-		if len(entries) == 0 {
-			continue
+	var configured, defaulted int
+	lastGroup := ""
+	keyWidth := 0
+	for _, e := range entries {
+		if w := presentation.CellWidth(e.Key); w > keyWidth {
+			keyWidth = w
 		}
-		// Group heading: bright white via plain text.
-		b.WriteString(gname)
-		b.WriteString("\n")
-		for _, e := range entries {
-			var line string
-			if e.isDef || e.isSec {
-				line = fmt.Sprintf("  %-36s %s", e.key, e.value)
-			} else {
-				line = fmt.Sprintf("  %-36s %s", e.key, e.value)
+	}
+	for _, e := range entries {
+		if e.Configured {
+			configured++
+		} else {
+			defaulted++
+		}
+		if e.Group != lastGroup {
+			if lastGroup != "" {
+				b.WriteString("\n")
 			}
-			if showOrigin {
-				line += fmt.Sprintf("  [%s]", e.origin)
+			group := e.Group
+			if group == "" {
+				group = "Other"
 			}
-			b.WriteString(line)
+			b.WriteString(group)
 			b.WriteString("\n")
+			lastGroup = e.Group
 		}
+		b.WriteString(configListRow(e, keyWidth, showOrigin, stacked))
 		b.WriteString("\n")
 	}
-
-	summary := fmt.Sprintf("%d configured, %d defaults", configured, defaulted)
-	b.WriteString(summary)
-	b.WriteString("\n")
-
-	var filePath string
-	switch scope {
-	case configScopeUser:
-		filePath = config.GlobalConfigPath()
-	case configScopeProject:
-		if cwd := g.cwd; cwd != "" {
-			if root, err := project.FindRoot(cwd); err == nil {
-				filePath = filepath.Join(root, "m.jsonc")
-			}
-		}
-	case configScopeEffective:
-		userPath, projPath := resolveEffectivePaths(g.cwd)
-		filePath = userPath
-		if projPath != "" {
-			filePath += "\n" + projPath
-		}
-	}
-	if filePath != "" {
-		b.WriteString(filePath)
+	if len(entries) > 0 {
 		b.WriteString("\n")
 	}
-
-	_ = showOrigin
-	_ = r
+	b.WriteString(fmt.Sprintf("%d configured, %d defaults\n", configured, defaulted))
 	return writeStaticOut(cmd, b.String())
 }
 
-func writeConfigListJSON(cmd *cobra.Command, eff *config.Effective, scope configScope, showOrigin, changed, inclDefaults bool, prefix string) error {
-	type jsonEntry struct {
-		Key       string `json:"key"`
-		Value     any    `json:"value"`
-		Source    string `json:"source"`
-		File      string `json:"file,omitempty"`
-		Type      string `json:"type"`
-		IsDefault bool   `json:"is_default"`
-		IsSecret  bool   `json:"is_secret"`
+// configListRow renders one list row, padded to keyWidth so columns align on
+// visible width rather than byte length.
+func configListRow(e configEntryView, keyWidth int, showOrigin, stacked bool) string {
+	if stacked {
+		var b strings.Builder
+		b.WriteString("  ")
+		b.WriteString(e.Key)
+		b.WriteString("\n    ")
+		b.WriteString(e.Value)
+		if showOrigin {
+			b.WriteString("\n    ")
+			b.WriteString(e.Source)
+			if e.Path != "" {
+				b.WriteString(" ")
+				b.WriteString(e.Path)
+			}
+		}
+		return b.String()
 	}
-	var entries []jsonEntry
-	for _, key := range config.RegisteredKeys() {
-		if prefix != "" && !strings.HasPrefix(key, prefix) {
-			continue
-		}
-		v, err := config.Get(eff, key)
-		if err != nil {
-			continue
-		}
-		isDef := v.Source == config.SourceDefaults
-		if !inclDefaults && isDef && scope != configScopeEffective {
-			if scope == configScopeUser && v.Source != config.SourceGlobal {
-				continue
-			}
-			if scope == configScopeProject && v.Source != config.SourceProject {
-				continue
-			}
-			if changed && isDef {
-				continue
-			}
-		}
-		spec := config.KeySpec(key)
-		je := jsonEntry{
-			Key:       key,
-			Value:     v.Raw,
-			Source:    displayConfigSource(v.Source),
-			File:      v.Path,
-			IsDefault: isDef,
-		}
-		if spec != nil {
-			je.Type = string(spec.Type)
-			je.IsSecret = spec.Secret
-			if spec.Secret {
-				je.Value = "<redacted>"
-			}
-		}
-		entries = append(entries, je)
+	pad := keyWidth - presentation.CellWidth(e.Key)
+	if pad < 0 {
+		pad = 0
 	}
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetEscapeHTML(false)
-	_ = showOrigin
-	_ = changed
-	return enc.Encode(map[string]any{
+	line := "  " + e.Key + strings.Repeat(" ", pad+2) + e.Value
+	if showOrigin {
+		line += "  [" + e.Source + "]"
+		if e.Path != "" {
+			line += " " + e.Path
+		}
+	}
+	return line
+}
+
+func configScopeLabel(scope configScope) string {
+	switch scope {
+	case configScopeProject:
+		return "Project configuration"
+	case configScopeEffective:
+		return "Effective configuration"
+	default:
+		return "User configuration"
+	}
+}
+
+func writeConfigListJSON(cmd *cobra.Command, entries []configEntryView, scope configScope, showOrigin bool) error {
+	rows := make([]configEntryJSON, 0, len(entries))
+	for _, e := range entries {
+		row := e.json()
+		if !showOrigin {
+			// Provenance detail is opt-in; the source name itself always stays.
+			row.Path = ""
+		}
+		rows = append(rows, row)
+	}
+	return writeConfigJSON(cmd, map[string]any{
 		"scope":   string(scope),
-		"entries": entries,
+		"entries": rows,
 	})
 }
 
@@ -510,73 +472,95 @@ func newConfigExplainCmd(g *globalFlags) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := args[0]
-			_ = flags
-			eff, err := loadEffective(g)
+			if err := flags.validateScope(); err != nil {
+				return err
+			}
+			eff, err := invocationConfig(g)
 			if err != nil {
 				return err
 			}
-			v, err := config.Get(eff, key)
+			view, err := resolveConfigExplain(eff, key, flags.resolvedScope())
 			if err != nil {
 				return err
 			}
 
 			if configOutputStructured(g, cmd) {
-				return writeConfigExplainJSON(cmd, key, v, eff)
+				return writeConfigJSON(cmd, view.json())
 			}
-
-			return writeConfigExplainHuman(g, cmd, key, v, eff)
+			return writeStaticOut(cmd, renderConfigExplainHuman(g, cmd, view))
 		},
 	}
 	flags.bind(cmd)
 	return cmd
 }
 
-func writeConfigExplainHuman(g *globalFlags, cmd *cobra.Command, key string, v config.Value, eff *config.Effective) error {
+func renderConfigExplainHuman(g *globalFlags, cmd *cobra.Command, view configResolutionView) string {
 	r := g.mustStaticRenderer(cmd)
-	spec := config.KeySpec(key)
-
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("%s = %s\n\n", key, diagnostics.Redact(formatConfigValue(v.Raw))))
-	b.WriteString("Resolution\n")
+	b.WriteString(fmt.Sprintf("%s = %s\n", view.Key, view.Effective.Value))
+	if view.Spec != nil && view.Spec.Description != "" {
+		b.WriteString(view.Spec.Description)
+		b.WriteString("\n")
+	}
+	b.WriteString("\nResolution\n")
 
-	chain := []config.Source{config.SourceDefaults, config.SourceGlobal, config.SourceProject, config.SourceEnv, config.SourceCLI}
-	for _, src := range chain {
-		for k, sv := range eff.Values {
-			if (k == key || config.CanonicalKey(k) == key) && sv.Source == src {
-				marker := ""
-				if sv.Source == v.Source {
-					marker = "  <- effective"
-				}
-				b.WriteString(fmt.Sprintf("  %-10s %s%s\n",
-					displayConfigSource(sv.Source),
-					diagnostics.Redact(formatConfigValue(sv.Raw)), marker))
-				break
-			}
+	// Layer rows align on the widest source name so the effective marker lines
+	// up regardless of which layers are present.
+	srcWidth := 0
+	for _, l := range view.Layers {
+		if w := presentation.CellWidth(l.Source); w > srcWidth {
+			srcWidth = w
 		}
 	}
+	for _, l := range view.Layers {
+		pad := srcWidth - presentation.CellWidth(l.Source)
+		if pad < 0 {
+			pad = 0
+		}
+		b.WriteString("  " + l.Source + strings.Repeat(" ", pad+2) + l.Value)
+		if l.Effective {
+			b.WriteString("  <- effective")
+		}
+		b.WriteString("\n")
+	}
 
-	b.WriteString("\nSchema\n")
-	if spec != nil {
+	if view.Selected != nil {
+		// Labelled so the requested-scope value cannot be mistaken for another
+		// rung of the resolution chain above.
+		b.WriteString("\nRequested scope\n")
+		b.WriteString(r.KeyValues([]presentation.KeyValue{
+			{Key: string(view.Selected.Scope), Value: view.Selected.Value},
+		}))
+		b.WriteString("\n")
+	}
+
+	if spec := view.Spec; spec != nil {
+		b.WriteString("\nSchema\n")
 		typeStr := string(spec.Type)
 		if spec.Type == config.TypeEnum {
 			typeStr = "enum"
 		}
 		kv := []presentation.KeyValue{
 			{Key: "Type", Value: typeStr},
-			{Key: "Default", Value: formatConfigValue(spec.Default)},
+			{Key: "Default", Value: config.RedactString(view.Key, formatConfigValue(spec.Default))},
 		}
 		if len(spec.Enum) > 0 {
 			kv = append(kv, presentation.KeyValue{Key: "Allowed", Value: strings.Join(spec.Enum, ", ")})
 		}
-		if len(spec.Scopes) > 0 {
-			scopes := make([]string, len(spec.Scopes))
-			for i, s := range spec.Scopes {
-				scopes[i] = string(s)
-			}
+		if rng := configRangeText(spec); rng != "" {
+			kv = append(kv, presentation.KeyValue{Key: "Range", Value: rng})
+		}
+		if scopes := configScopeNames(spec); len(scopes) > 0 {
 			kv = append(kv, presentation.KeyValue{Key: "Scopes", Value: strings.Join(scopes, ", ")})
 		}
 		if len(spec.Commands) > 0 {
 			kv = append(kv, presentation.KeyValue{Key: "Used by", Value: strings.Join(spec.Commands, ", ")})
+		}
+		if env := config.EnvVar(view.Key); env != "" {
+			kv = append(kv, presentation.KeyValue{Key: "Env var", Value: env})
+		}
+		if view.LegacyKey != "" {
+			kv = append(kv, presentation.KeyValue{Key: "Legacy key", Value: view.LegacyKey})
 		}
 		if spec.Deprecated {
 			kv = append(kv, presentation.KeyValue{Key: "Deprecated", Value: "true"})
@@ -584,53 +568,28 @@ func writeConfigExplainHuman(g *globalFlags, cmd *cobra.Command, key string, v c
 		if spec.Replacement != "" {
 			kv = append(kv, presentation.KeyValue{Key: "Replaced by", Value: spec.Replacement})
 		}
+		if spec.Secret {
+			kv = append(kv, presentation.KeyValue{Key: "Is secret", Value: "true"})
+		}
 		b.WriteString(r.KeyValues(kv))
-	}
-	if legacy := config.LegacyKey(key); legacy != "" {
 		b.WriteString("\n")
-		b.WriteString(r.KeyValues([]presentation.KeyValue{
-			{Key: "Legacy key", Value: legacy},
-		}))
 	}
-	b.WriteString("\n")
-	b.WriteString(r.KeyValues([]presentation.KeyValue{
-		{Key: "Source", Value: displayConfigSource(v.Source)},
-		{Key: "File", Value: v.Path, Style: presentation.ValuePath},
-	}))
-
-	return writeStaticOut(cmd, b.String())
+	return b.String()
 }
 
-func writeConfigExplainJSON(cmd *cobra.Command, key string, v config.Value, eff *config.Effective) error {
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetEscapeHTML(false)
-	spec := config.KeySpec(key)
-	out := map[string]any{
-		"key":             key,
-		"effective_value": v.Raw,
-		"source":          displayConfigSource(v.Source),
-		"file":            v.Path,
+// configRangeText renders an int key's min/max bounds, or "" when unbounded.
+func configRangeText(spec *config.ConfigKeySpec) string {
+	if spec.Minimum == nil && spec.Maximum == nil {
+		return ""
 	}
-	if spec != nil {
-		out["value"] = v.Raw
-		out["type"] = string(spec.Type)
-		out["default"] = spec.Default
-		out["description"] = spec.Description
-		if len(spec.Enum) > 0 {
-			out["allowed"] = spec.Enum
-		}
-		scopes := make([]string, len(spec.Scopes))
-		for i, s := range spec.Scopes {
-			scopes[i] = string(s)
-		}
-		out["scopes"] = scopes
-		out["is_secret"] = spec.Secret
-		if spec.Secret {
-			out["value"] = "<redacted>"
-		}
+	switch {
+	case spec.Minimum != nil && spec.Maximum != nil:
+		return fmt.Sprintf("%d..%d", *spec.Minimum, *spec.Maximum)
+	case spec.Minimum != nil:
+		return fmt.Sprintf(">= %d", *spec.Minimum)
+	default:
+		return fmt.Sprintf("<= %d", *spec.Maximum)
 	}
-	_ = eff
-	return enc.Encode(out)
 }
 
 // ── edit ──────────────────────────────────────────────────────
@@ -1117,180 +1076,86 @@ func completeConfigEnumValues(key string) []string {
 
 // ── helpers ───────────────────────────────────────────────────
 
-func loadEffective(g *globalFlags) (*config.Effective, error) {
-	cwd := g.cwd
-	if cwd == "" {
-		var err error
-		cwd, err = os.Getwd()
-		if err != nil {
-			return nil, apperr.Wrap(apperr.IO, "config", "cwd", err)
-		}
+// invocationConfig returns the one configuration snapshot bootstrap resolved
+// for this invocation. Config commands never load a second time: --config, the
+// project root, and the environment were all interpreted once, and reading them
+// again here could disagree with what the rest of the invocation sees.
+//
+// A nil snapshot means the command was driven without going through the
+// bootstrap path, which only happens in tests; loading once on that path keeps
+// them working without giving production a second loader.
+func invocationConfig(g *globalFlags) (*config.Effective, error) {
+	if g != nil && g.snapshot != nil && g.snapshot.Config != nil {
+		return g.snapshot.Config, nil
 	}
-	root := cwd
-	if r, err := project.FindRoot(cwd); err == nil {
-		root = r
-	}
-
-	cli := map[string]any{}
-	if g.offline {
-		cli["offline"] = true
-	}
-	if g.preferOffline {
-		cli["prefer_offline"] = true
-	}
-	if g.configPath != "" {
-		resolved, err := config.ResolveConfigPath(cwd, g.configPath)
-		if err != nil {
-			return nil, err
-		}
-		overlay, err := loadFileOverlay(resolved)
-		if err != nil {
-			return nil, err
-		}
-		for k, v := range overlay {
-			cli[k] = v
-		}
-	}
-
-	return config.Load(context.Background(), config.LoadOptions{
-		CWD:         cwd,
-		ProjectRoot: root,
-		CLI:         cli,
-	})
+	return reloadInvocationConfig(context.Background(), g)
 }
 
-func loadFileOverlay(path string) (map[string]any, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, apperr.Wrap(apperr.IO, "config", path, err)
+// reloadInvocationConfig republishes the invocation snapshot from the same
+// inputs bootstrap used, and returns the fresh effective config. Write commands
+// call it exactly once after mutating a file so every value they report comes
+// from one post-write state.
+func reloadInvocationConfig(ctx context.Context, g *globalFlags) (*config.Effective, error) {
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	parsed, err := config.ParseJSONC(b)
-	if err != nil {
-		return nil, apperr.Wrap(apperr.Config, "config", path, err)
-	}
-	dir, err := os.MkdirTemp("", "mew-cfg-*")
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = os.RemoveAll(dir) }()
-	tmp := filepath.Join(dir, "m.jsonc")
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
-		return nil, err
-	}
-	eff, err := config.Load(context.Background(), config.LoadOptions{
-		CWD:         dir,
-		ProjectRoot: dir,
-		ProjectPath: tmp,
-		GlobalPath:  filepath.Join(dir, "no-global.jsonc"),
-		Env:         []string{},
+	snap, err := loadConfigFn(ctx, app.Options{
+		CWD:           g.cwd,
+		ConfigPath:    g.configPath,
+		Offline:       g.offline,
+		PreferOffline: g.preferOffline,
 	})
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]any{}
-	for k, v := range eff.Values {
-		if v.Source == config.SourceProject {
-			out[k] = v.Raw
-		}
-	}
-	_ = parsed
-	return out, nil
+	g.snapshot = &snap
+	g.cwd = snap.CWD
+	return snap.Config, nil
 }
 
-func checkUserScopedKey(key string, target configWriteTarget) error {
-	spec := config.KeySpec(key)
+// canonicalConfigKey returns the canonical spelling of key, or key itself when
+// it is not a registered or legacy name.
+func canonicalConfigKey(key string) string {
+	if c := config.CanonicalKey(key); c != "" {
+		return c
+	}
+	return key
+}
+
+// scopeValueOrUnset returns the display value a raw scope holds for key, and
+// whether the scope declares it at all. Callers report "unset" rather than an
+// empty string so a missing key never reads as an empty value.
+func scopeValueOrUnset(eff *config.Effective, scope configScope, key string) (string, bool) {
+	canon := canonicalConfigKey(key)
+	v, err := config.GetAtScope(eff, configScopeToConfig(scope), canon)
+	if err != nil {
+		return "", false
+	}
+	return config.RedactString(canon, formatConfigValue(v.Raw)), true
+}
+
+// checkWritableScope enforces the schema's per-key writable scopes. The scope
+// list comes from ConfigKeySpec so the CLI keeps no second copy of the policy.
+// Unknown Mew-owned keys are rejected earlier by ParseValue and UnsetFile;
+// dynamic registries.* keys have no spec and keep their existing any-scope
+// policy.
+func checkWritableScope(key string, scope configScope) error {
+	spec := config.KeySpec(canonicalConfigKey(key))
 	if spec == nil {
 		return nil
+	}
+	target := configScopeToConfig(scope)
+	for _, s := range spec.Scopes {
+		if s == target {
+			return nil
+		}
 	}
 	if len(spec.Scopes) == 0 {
 		return nil
 	}
-	for _, s := range spec.Scopes {
-		if string(s) == string(target.Scope) {
-			return nil
-		}
-	}
-	allowedScopes := make([]string, len(spec.Scopes))
-	for i, s := range spec.Scopes {
-		allowedScopes[i] = string(s)
-	}
-	return apperr.New(apperr.Usage, "config.set", key,
-		fmt.Sprintf("%s is scoped to [%s]; cannot write to %s config",
-			key, strings.Join(allowedScopes, ", "), target.Scope))
-}
-
-// readScopeValue reads a single config value from a file without going through effective merge.
-func readScopeValue(filePath, key string) string {
-	b, err := os.ReadFile(filePath)
-	if err != nil {
-		return ""
-	}
-	parsed, err := config.ParseJSONC(b)
-	if err != nil {
-		return ""
-	}
-	m, ok := parsed.(map[string]any)
-	if !ok {
-		return ""
-	}
-	flat := flattenMap(m, "")
-	v, ok := flat[key]
-	if !ok {
-		canon := config.CanonicalKey(key)
-		if canon != "" && canon != key {
-			v, ok = flat[canon]
-		}
-	}
-	if !ok {
-		return ""
-	}
-	return formatConfigValue(v)
-}
-
-// readEffectiveValue reads the effective value for a key.
-func readEffectiveValue(g *globalFlags, key string) string {
-	eff, err := loadEffective(g)
-	if err != nil {
-		return ""
-	}
-	v, err := config.Get(eff, key)
-	if err != nil {
-		return ""
-	}
-	return formatConfigValue(v.Raw)
-}
-
-func formatConfigValue(v any) string {
-	switch t := v.(type) {
-	case string:
-		return t
-	case bool:
-		return strconv.FormatBool(t)
-	case int:
-		return strconv.Itoa(t)
-	case float64:
-		return strconv.FormatInt(int64(t), 10)
-	default:
-		return fmt.Sprint(t)
-	}
-}
-
-func writeConfigMutationResult(g *globalFlags, cmd *cobra.Command, verb, key, value string, target configWriteTarget) error {
-	if configOutputQuiet(g, cmd) {
-		return nil
-	}
-	r := g.mustStaticRenderer(cmd)
-	var headline string
-	if value == "" {
-		headline = fmt.Sprintf("%s %s", verb, key)
-	} else {
-		headline = fmt.Sprintf("%s %s = %s", verb, key, diagnostics.Redact(value))
-	}
-	body := r.KeyValues([]presentation.KeyValue{
-		{Key: "Scope", Value: string(target.Scope)},
-		{Key: "Path", Value: target.Path, Style: presentation.ValuePath},
-	})
-	return writeStaticOut(cmd, headline+"\n\n"+body)
+	return apperr.New(apperr.Usage, "config.write", spec.Key,
+		fmt.Sprintf("%s is writable in %s scope; cannot write to %s config",
+			spec.Key, strings.Join(configScopeNames(spec), ", "), scope))
 }
 
 func configOutputStructured(g *globalFlags, cmd *cobra.Command) bool {

@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -199,6 +200,9 @@ func TestConfigListShowOrigin(t *testing.T) {
 	}
 }
 
+// TestConfigGetMarkdownThemeDefault pins the raw-scope contract: a key that
+// only carries a schema default is not configured in user scope, so the default
+// scope reports a typed not-set error rather than silently returning "auto".
 func TestConfigGetMarkdownThemeDefault(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
@@ -207,18 +211,36 @@ func TestConfigGetMarkdownThemeDefault(t *testing.T) {
 	buf := new(bytes.Buffer)
 	root.SetOut(buf)
 	root.SetArgs([]string{"config", "get", "ui.theme"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatalf("unset user key must not return the default, got %q", buf.String())
+	}
+	if apperr.CodeOf(err) != apperr.Config {
+		t.Fatalf("code=%s want %s", apperr.CodeOf(err), apperr.Config)
+	}
+	if !errors.Is(err, config.ErrNotSet) {
+		t.Fatalf("errors.Is(err, config.ErrNotSet) must hold: %v", err)
+	}
+
+	// The merged value is still reachable through the effective scope.
+	buf.Reset()
+	root = NewMRoot(testBuildInfo())
+	root.SetOut(buf)
+	root.SetArgs([]string{"config", "get", "ui.theme", "--scope", "effective"})
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
-
 	if got := strings.TrimSpace(buf.String()); got != "auto" {
-		t.Fatalf("default ui.theme: got %q, want auto", got)
+		t.Fatalf("effective ui.theme: got %q, want auto", got)
 	}
 }
 
 func TestConfigGetMarkdownThemeVerbose(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
+	if err := config.SetFile(filepath.Join(cfgDir, "config.jsonc"), "ui.theme", "dark"); err != nil {
+		t.Fatal(err)
+	}
 
 	root := NewMRoot(testBuildInfo())
 	buf := new(bytes.Buffer)
@@ -228,11 +250,13 @@ func TestConfigGetMarkdownThemeVerbose(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "auto") {
+	if !strings.Contains(out, "dark") {
 		t.Fatalf("value missing:\n%s", out)
 	}
-	if !strings.Contains(out, "defaults") && !strings.Contains(out, "Source") {
-		t.Fatalf("source info missing:\n%s", out)
+	for _, want := range []string{"Key", "Scope", "Source", "Type", "Default"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("verbose output missing %q:\n%s", want, out)
+		}
 	}
 }
 

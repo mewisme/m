@@ -112,10 +112,3 @@ func resolveEffectivePaths(cwd string) (userPath, projectPath string) {
 	}
 	return
 }
-
-func displayConfigSource(src config.Source) string {
-	if src == config.SourceGlobal {
-		return "user"
-	}
-	return string(src)
-}
