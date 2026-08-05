@@ -95,7 +95,7 @@ func TestNodeVersionExplicitCandidate(t *testing.T) {
 	}
 
 	inst, err := node.Discover(context.Background(), node.Request{
-		WorkingDir:       t.TempDir(),
+		WorkingDir:        t.TempDir(),
 		ExplicitCandidate: nodePath,
 	})
 	if err != nil {
@@ -111,7 +111,7 @@ func TestNodeVersionExplicitCandidate(t *testing.T) {
 
 func TestNodeVersionNotFound(t *testing.T) {
 	_, err := node.Discover(context.Background(), node.Request{
-		WorkingDir:       t.TempDir(),
+		WorkingDir:        t.TempDir(),
 		ExplicitCandidate: "/nonexistent/node",
 	})
 	if err == nil {
