@@ -202,6 +202,50 @@ Sensitive paths (`.mew`, `node_modules`, snapshots) are guarded with ancestor
 run before transaction mutations and are revalidated immediately before publish.
 See `internal/fsx` and [`architecture/transaction-boundary.md`](architecture/transaction-boundary.md).
 
+## Staged fallback behavior
+
+Staged files (manifest, lock, store manifest) fall back to their live counterparts
+only when the staged path genuinely does **not** exist. A staged file that exists but
+is malformed, unreadable, or truncated fails closed with `ERR_M_INTEGRITY` — it is
+never silently replaced by the live copy. Required lockfiles (`m.lock` when it is
+the active format) follow the same rule: a missing or unreadable required lockfile
+fails the operation; fallback is only for optional artifacts.
+
+## Snapshot content coherence
+
+Each snapshot record (`snapshot list --json`) represents **one** coherent staged
+state: the manifest, lock, and graph digest captured at commit time. A snapshot
+restore replays that exact state through the same staged-publish pipeline as a
+fresh install. The restore never mixes live and staged inputs — it is a whole-state
+operation.
+
+## Active context for lock operations
+
+Correctness-sensitive lock operations (stale recovery, owner verification,
+`current` pointer cleanup) use the **active context** — the context passed to
+`BeginMutation`, not a background or detached context. This means cancellation
+propagates to lock acquisition, stale detection, and release. Lock wait loops
+respect context deadline and return `ERR_M_CANCELLED` on timeout.
+
+## Disposable environment lifecycle
+
+Execution environments created for `mx` and `m exec --snapshot` / `--capsule` are
+disposable: the environment directory is created under the mx cache, used for one
+invocation, and eligible for prune after the configured retention period. No
+environment state persists across invocations unless explicitly snapshotted. The
+prune policy (`runner.mx.cache.retention_days`) applies to all disposable
+environments, not only completed ones — interrupted environments are also pruned
+after retention.
+
+## Mutation lock scope
+
+The project mutation lock acquired by `BeginMutation` may cover network work
+(fetch, resolution metadata refresh) in addition to local filesystem mutation.
+This prevents concurrent drift: two processes cannot interleave a fetch-then-link
+sequence where each sees a different registry state. The lock is held from
+preflight through commit or abort; network work that can be safely parallelized
+without drift (e.g., advisory database refresh) runs outside the lock.
+
 ## Non-atomicity (explicit)
 
 Mew does **not** claim multi-file filesystem atomicity. Recovery relies on ordered

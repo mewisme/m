@@ -12,13 +12,13 @@ The primary binary is **`m`** (alias **`mew`**). The package executable runner i
 
 > **Status:** Active development. Build from source — there are no published GitHub releases or official installers yet. A [development installer](CONTRIBUTING.md#development-installation) (`scripts/install-dev.*`) is available for local use only.
 >
-> **Certified:** package-manager core (MVP **0031**); runner surfaces in [`docs/runner-compatibility.md`](docs/runner-compatibility.md) (`m run`, `m exec`, `mx`, workspace orchestration when enabled, snapshot/capsule offline execution).
+> **Implemented:** package-manager core (MVP **0031**); runner surfaces (`m run`, `m exec`, `mx`, workspace orchestration when enabled, snapshot/capsule offline execution) with conformance certification in [`docs/runner-compatibility.md`](docs/runner-compatibility.md).
 >
 > **Experimental (gated):** direct `m <script>` shortcuts, verified-bin direct dispatch, isolated linker, global store, lifecycle scripts, workspace install filters.
 >
 > **Planned:** runtime augmentation (**0050+**), Node and external PM management (**0060+**), `init` / `link`, public distribution (**0072+**).
 >
-> Authoritative status: [`docs/core-certification.md`](docs/core-certification.md), [`docs/runner-compatibility.md`](docs/runner-compatibility.md), [`features/inventory.json`](features/inventory.json), [`plans/CHECKLIST.md`](plans/CHECKLIST.md) (tracker may lag code).
+> Authoritative status: [`docs/core-certification.md`](docs/core-certification.md), [`docs/runner-compatibility.md`](docs/runner-compatibility.md), [`features/inventory.json`](features/inventory.json), [`plans/CHECKLIST.md`](plans/CHECKLIST.md) (checklist may lag code).
 
 ## Why Mew
 
@@ -41,17 +41,17 @@ Capabilities below are implemented and covered by tests or certification fixture
 
 | Domain | Status | Highlights |
 |---|---|---|
-| Dependency management | Certified | `install`, `add`, `remove`, `update`, `ci`, `dedupe`, `prune`, `ls`, `outdated` |
-| Workspaces | Shipped (gated) | Discovery, catalogs, `--filter` on install family; workspace `m run` with `-r` / `--filter` |
-| Lockfiles | Certified / partial | Native `m.lock`; pnpm 9/10/11 semantic mutation; npm/Yarn/Bun read and byte-preserving paths |
-| Store and cache | Certified | Global content store, registry metadata cache, verified integrity |
-| Transaction and recovery | Certified | Journal v3, project lock, `recover`, `rollback`, crash integration tests |
-| Snapshots and capsules | Certified | `snapshot list/restore`, `history`, `capsule create/restore` |
-| Script execution | Certified | `m run` — hooks, `--` forwarding, signals, workspace orchestration |
-| Executable execution | Certified | `m exec` (local, snapshot, capsule); `mx` DLX with consent and cache |
+| Dependency management | Implemented | `install`, `add`, `remove`, `update`, `ci`, `dedupe`, `prune`, `ls`, `outdated` |
+| Workspaces | Implemented (gated) | Discovery, catalogs, `--filter` on install family; workspace `m run` with `-r` / `--filter` |
+| Lockfiles | Implemented | Native `m.lock`; pnpm 9/10/11 semantic mutation; npm/Yarn/Bun read and byte-preserving paths |
+| Store and cache | Implemented | Global content store, registry metadata cache, verified integrity |
+| Transaction and recovery | Implemented | Journal v3, project lock, `recover`, `rollback`, crash integration tests |
+| Snapshots and capsules | Implemented | `snapshot list/restore`, `history`, `capsule create/restore` |
+| Script execution | Implemented | `m run` — hooks, `--` forwarding, signals, workspace orchestration |
+| Executable execution | Implemented | `m exec` (local, snapshot, capsule); `mx` DLX with consent and cache |
 | Direct shortcuts | Experimental | `m <script>` and verified `m <bin>` behind config/env gates |
-| Security and supply chain | Certified | `audit`, `sbom`, `policy`, `verify provenance`, lifecycle trust |
-| Diagnostics | Certified | `doctor`, `features`, `conformance`, `bench install` |
+| Security and supply chain | Implemented | `audit` (advisory scanning), `sbom`, `policy`, `verify provenance`, lifecycle trust |
+| Diagnostics | Implemented | `doctor`, `features`, `conformance`, `bench install` |
 
 **Reserved stubs** (`ERR_M_UNIMPLEMENTED`): `init`, `link` only.
 

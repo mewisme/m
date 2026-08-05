@@ -102,6 +102,23 @@ Presentation is controlled exclusively by CLI flags (`--output`, `--no-color`,
 `--no-progress`, `--ascii`, `--accessible`, `--no-summary`). Environment
 variables and config keys no longer influence presentation output.
 
+### `ui.theme` wiring
+
+`ui.theme` is the only config key that influences presentation. It is resolved
+during invocation bootstrap (not at presentation resolve time) and stored in the
+`config.Effective` snapshot. The resolved value (`auto`, `light`, or `dark`)
+passes through `presentation.ResolveTheme`:
+
+- `light` → `ThemeLight` (always light palette)
+- `dark` → `ThemeDark` (always dark palette)
+- `auto` → OS dark-mode detector → `ThemeDark` or `ThemeLight`; falls back to
+  `ThemeLight` when detection is unavailable or fails
+
+The resolved `ThemeMode` is embedded in `EffectiveSettings` and consumed by the
+static renderer and live UI sink. Accessibility flags and `--no-color` override
+the palette by disabling color output entirely — the theme mode still reflects
+the user's preference for any non-color styling.
+
 Environment:
 
 | Variable | Effect |
@@ -218,6 +235,112 @@ still overrides the key being written.
 
 For **mew** identity, `.npmrc`, `.yarnrc*`, `pnpm-workspace.yaml`, and
 `.pnpmfile.cjs` are **not** config authority. See [`identity.md`](identity.md).
+
+## Invocation bootstrap
+
+Every normal invocation runs one configuration bootstrap before command dispatch.
+Bootstrap merges defaults, user, project, environment, and CLI layers into one
+`config.Effective` snapshot. That snapshot is immutable for the lifetime of the
+invocation — commands do not re-read files or re-merge layers mid-invocation. The
+bootstrap also resolves `ui.theme` and initializes the presentation controller
+with the resolved theme mode.
+
+A bootstrap failure (missing required file, malformed JSONC, duplicate keys,
+unknown required key) exits non-zero before command dispatch. Bootstrap happens
+once; if the bootstrap config is valid but a specific command needs a reload
+(e.g., after a mutation lock is acquired), the reload uses the same frozen
+`ConfigLoadSpec` with only `ProjectRoot` updated.
+
+## Validation
+
+### Shared validation
+
+`config.Load` validates every loaded layer through a single `Validator` shared
+across all scopes. The validator is the key registry (`ConfigKeySpec`): every key
+must be a known owned key or within a known owned namespace. Unknown keys under
+owned namespaces fail load with `ERR_M_CONFIG`. Keys outside owned namespaces are
+preserved as passthrough (they do not fail load but are not in the effective map).
+
+### Non-zero exit on invalid config
+
+Invalid configuration fails non-zero. A malformed JSONC file, a duplicate key,
+an unknown key under an owned namespace, or a value that fails type coercion all
+produce `ERR_M_CONFIG` at load time. The error message names the file, the
+specific key or line, and the reason — it does not produce a generic "invalid
+config" message.
+
+### Duplicate JSONC key rejection
+
+`m.jsonc` and `config.jsonc` are parsed as JSONC. The parser rejects files
+containing duplicate keys within the same object. The error names the duplicate
+key and the file. This is a parse-time check, not a merge-time check — it catches
+duplicates before any layer merging occurs.
+
+### `m config validate`
+
+`m config validate` loads and validates all layers without mutating anything.
+Exit 0 means every layer is syntactically valid, every key in owned namespaces
+is known, and every value passes type coercion. Exit non-zero means at least
+one layer failed. The command reports the first error per layer.
+
+`m config validate --strict` also requires that every key in every layer is
+resolvable as a known config key — passthrough keys in non-owned namespaces
+become errors.
+
+## Migration
+
+`m config migrate` rewrites legacy key names to their current canonical forms
+deterministically. The migration is a pure function of the input file: given
+the same input, it produces the same output every time. Known migrations:
+
+- `network.timeout_ms` (int, ms) → `network.timeout` (duration string)
+- Renamed key paths (no semantic change, only the key name)
+
+Migration refuses to operate on files with comments (JSONC), since it rewrites
+the entire document and cannot place existing comments correctly. The error
+message directs the user to apply renames manually with `m config set` /
+`m config unset`. A migration that would produce output identical to input is
+a no-op (exit 0, no file written).
+
+## Secret redaction
+
+`m config list --sources` redacts values for keys registered as secret
+(`Secret: true` in `ConfigKeySpec`) and any value that matches a secret-shaped
+pattern (e.g., strings starting with `npm_` containing long base64-like
+suffixes). Redacted values display as `<redacted>`.
+
+The redaction is output-only: the underlying config value is intact and usable.
+Structured output (`--output=json`) also redacts — the JSON value for a secret
+key is the string `"<redacted>"`. Credential references
+(`registry.auth_token_env`) are not themselves secrets (they name an env var),
+but the resolved token is never displayed.
+
+## Edit recovery
+
+`m config edit` opens the target file in the configured editor (`EDITOR` or
+`VISUAL`). If the editor exits non-zero or the file is unreadable after the
+editor returns, the command restores the previous content from a backup taken
+before the editor launched. If the backup restore also fails, the command
+reports both errors and the path to the backup file so manual recovery is
+possible. The editor subprocess inherits stdin/stdout/stderr so interactive
+editors work.
+
+## Reset confirmation
+
+`m config reset` drops the target config file and replaces it with an empty
+valid JSONC document (`{}` with a trailing newline). This is a destructive
+operation. In interactive terminals, reset prompts for confirmation unless
+`--yes` is passed. In non-interactive terminals (CI), reset without `--yes`
+fails with `ERR_M_USAGE` explaining the confirmation requirement.
+
+## Repair with malformed config
+
+Commands that need to repair or reset configuration (`m config edit`,
+`m config reset`, `m config migrate --force`) remain usable even when the
+current configuration is malformed. These commands bypass normal config loading
+and operate on the raw file bytes. Other config commands (`get`, `set`, `list`,
+`validate`) require a loadable configuration and fail with `ERR_M_CONFIG` if
+any layer is malformed.
 
 ## Mutation reload (`ConfigLoadSpec`)
 
