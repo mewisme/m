@@ -70,7 +70,7 @@ func newConfigGetCmd(g *globalFlags) *cobra.Command {
 					// key the scope does not declare; the typed error still sets
 					// the exit code.
 					if nse := (*notSetError)(nil); errors.As(err, &nse) {
-						_ = writeConfigJSON(cmd, configGetNotSetJSON(eff, nse.key, scope))
+						_ = writeConfigJSON(cmd, configGetNotSetView(eff, nse.key, scope).json())
 					}
 				}
 				return err
@@ -90,27 +90,6 @@ func newConfigGetCmd(g *globalFlags) *cobra.Command {
 	flags.bind(cmd)
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "show full metadata")
 	return cmd
-}
-
-// configGetNotSetJSON is the structured document for a key that is registered
-// but unset at the requested raw scope. Reporting configured=false before the
-// typed error keeps the JSON shape stable for consumers that parse stdout.
-func configGetNotSetJSON(eff *config.Effective, key string, scope configScope) configGetJSON {
-	out := configGetJSON{
-		Key:        key,
-		Scope:      string(scope),
-		Configured: false,
-		IsSecret:   config.IsSecret(key),
-	}
-	if spec := config.KeySpec(key); spec != nil {
-		out.Type = string(spec.Type)
-	}
-	if ev, err := config.GetEffective(eff, key); err == nil {
-		out.EffectiveValue = config.RedactValue(key, ev.Raw)
-		out.Source = displayConfigSource(ev.Source)
-		out.IsDefault = ev.Source == config.SourceDefaults
-	}
-	return out
 }
 
 // renderConfigGetVerbose renders the metadata block for `config get -v`.
@@ -195,7 +174,7 @@ func newConfigSetCmd(g *globalFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			prev, prevSet := scopeValueOrUnset(eff, scope, key)
+			prevDisplay, prevRaw, prevSet := scopeValueOrUnset(eff, scope, key)
 
 			if err := config.SetFile(target.Path, key, val); err != nil {
 				return err
@@ -204,43 +183,66 @@ func newConfigSetCmd(g *globalFlags) *cobra.Command {
 			// One reload republishes the invocation snapshot so the reported
 			// target-scope and effective values both come from the same state.
 			reloaded, reloadErr := reloadInvocationConfig(cmd.Context(), g)
-			current := config.RedactString(key, formatConfigValue(val))
-			effective := ""
+			canon := canonicalConfigKey(key)
+			currentDisplay := config.RedactString(canon, formatConfigValue(val))
+			currentRaw := config.RedactValue(canon, val)
+			effectiveDisplay := ""
+			effectiveRaw := any(nil)
+			effectiveSrc := ""
 			if reloadErr == nil {
-				if cur, ok := scopeValueOrUnset(reloaded, scope, key); ok {
-					current = cur
+				if curDisplay, curRaw, ok := scopeValueOrUnset(reloaded, scope, key); ok {
+					currentDisplay = curDisplay
+					currentRaw = curRaw
 				}
-				if ev, eerr := config.GetEffective(reloaded, canonicalConfigKey(key)); eerr == nil {
-					effective = config.RedactString(key, formatConfigValue(ev.Raw))
+				if ev, eerr := config.GetEffective(reloaded, canon); eerr == nil {
+					effectiveDisplay = config.RedactString(canon, formatConfigValue(ev.Raw))
+					effectiveRaw = config.RedactValue(canon, ev.Raw)
+					effectiveSrc = displayConfigSource(ev.Source)
 				}
 			}
-			return writeConfigSetResult(g, cmd, key, prev, prevSet, current, effective, target)
+			mv := configMutationView{
+				Key:              canon,
+				Scope:            scope,
+				Path:             target.Path,
+				Previous:         prevRaw,
+				PreviousDisplay:  prevDisplay,
+				PreviousSet:      prevSet,
+				Current:          currentRaw,
+				CurrentDisplay:   currentDisplay,
+				EffectiveValue:   effectiveRaw,
+				EffectiveDisplay: effectiveDisplay,
+				EffectiveSource:  effectiveSrc,
+				Changed:          true,
+			}
+			return writeConfigSetResult(g, cmd, mv)
 		},
 	}
 	flags.bind(cmd)
 	return cmd
 }
 
-func writeConfigSetResult(g *globalFlags, cmd *cobra.Command, key, prev string, prevSet bool, current, effective string, target configWriteTarget) error {
+func writeConfigSetResult(g *globalFlags, cmd *cobra.Command, mv configMutationView) error {
+	if configOutputStructured(g, cmd) {
+		return writeConfigJSON(cmd, mv.json())
+	}
 	if configOutputQuiet(g, cmd) {
 		return nil
 	}
-	key = canonicalConfigKey(key)
 	r := g.mustStaticRenderer(cmd)
-	headline := fmt.Sprintf("%s Updated %s", r.Settings().Symbols.Success, key)
-	prevDisplay := prev
-	if !prevSet {
+	headline := fmt.Sprintf("%s Updated %s", r.Settings().Symbols.Success, mv.Key)
+	prevDisplay := mv.PreviousDisplay
+	if !mv.PreviousSet {
 		prevDisplay = "(unset)"
 	}
 	kvs := []presentation.KeyValue{
 		{Key: "Previous", Value: prevDisplay},
-		{Key: "Current", Value: current},
-		{Key: "Scope", Value: string(target.Scope)},
+		{Key: "Current", Value: mv.CurrentDisplay},
+		{Key: "Scope", Value: string(mv.Scope)},
 	}
-	if effective != "" && effective != current {
-		kvs = append(kvs, presentation.KeyValue{Key: "Effective", Value: effective})
+	if mv.EffectiveDisplay != "" && mv.EffectiveDisplay != mv.CurrentDisplay {
+		kvs = append(kvs, presentation.KeyValue{Key: "Effective", Value: mv.EffectiveDisplay})
 	}
-	kvs = append(kvs, presentation.KeyValue{Key: "File", Value: target.Path, Style: presentation.ValuePath})
+	kvs = append(kvs, presentation.KeyValue{Key: "File", Value: mv.Path, Style: presentation.ValuePath})
 	return writeStaticOut(cmd, headline+"\n\n"+r.KeyValues(kvs))
 }
 
@@ -269,44 +271,71 @@ func newConfigUnsetCmd(g *globalFlags) *cobra.Command {
 			if err := checkWritableScope(key, target.Scope); err != nil {
 				return err
 			}
+			canon := canonicalConfigKey(key)
+
+			// Snapshot the value before removal so we can report what was removed.
+			eff, err := invocationConfig(g)
+			if err != nil {
+				return err
+			}
+			prevDisplay, prevRaw, prevSet := scopeValueOrUnset(eff, scope, key)
+
 			// UnsetFile writes nothing when the key is absent, so an already
 			// unset key is an idempotent no-op and other layers are untouched.
 			if err := config.UnsetFile(target.Path, key); err != nil {
 				return err
 			}
-			return writeConfigUnsetResult(cmd.Context(), g, cmd, key, scope, target.Path)
+
+			// One reload, after the write, so the reported fallback is the layer
+			// that actually wins now rather than the one that won before.
+			var fallbackDisplay, fallbackSrc string
+			var fallbackRaw any
+			if reloaded, err := reloadInvocationConfig(cmd.Context(), g); err == nil {
+				if v, gerr := config.GetEffective(reloaded, canon); gerr == nil {
+					fallbackDisplay = config.RedactString(canon, formatConfigValue(v.Raw))
+					fallbackRaw = config.RedactValue(canon, v.Raw)
+					fallbackSrc = displayConfigSource(v.Source)
+				}
+			}
+			mv := configMutationView{
+				Key:              canon,
+				Scope:            scope,
+				Path:             target.Path,
+				Previous:         prevRaw,
+				PreviousDisplay:  prevDisplay,
+				PreviousSet:      prevSet,
+				Current:          fallbackRaw,
+				CurrentDisplay:   fallbackDisplay,
+				EffectiveValue:   fallbackRaw,
+				EffectiveDisplay: fallbackDisplay,
+				EffectiveSource:  fallbackSrc,
+				Changed:          true,
+			}
+			return writeConfigUnsetResult(g, cmd, mv)
 		},
 	}
 	flags.bind(cmd)
 	return cmd
 }
 
-func writeConfigUnsetResult(ctx context.Context, g *globalFlags, cmd *cobra.Command, key string, scope configScope, path string) error {
+func writeConfigUnsetResult(g *globalFlags, cmd *cobra.Command, mv configMutationView) error {
+	if configOutputStructured(g, cmd) {
+		return writeConfigJSON(cmd, mv.json())
+	}
 	if configOutputQuiet(g, cmd) {
 		return nil
 	}
-	canon := canonicalConfigKey(key)
-	// One reload, after the write, so the reported fallback is the layer that
-	// actually wins now rather than the one that won before.
-	var fallback, fallbackSrc string
-	if eff, err := reloadInvocationConfig(ctx, g); err == nil {
-		if v, gerr := config.GetEffective(eff, canon); gerr == nil {
-			fallback = config.RedactString(canon, formatConfigValue(v.Raw))
-			fallbackSrc = displayConfigSource(v.Source)
-		}
-	}
-
 	r := g.mustStaticRenderer(cmd)
 	headline := fmt.Sprintf("%s Removed %s from %s configuration",
-		r.Settings().Symbols.Success, canon, scope)
+		r.Settings().Symbols.Success, mv.Key, mv.Scope)
 	kvs := make([]presentation.KeyValue, 0, 3)
-	if fallback != "" {
-		kvs = append(kvs, presentation.KeyValue{Key: "Effective", Value: fallback})
+	if mv.CurrentDisplay != "" {
+		kvs = append(kvs, presentation.KeyValue{Key: "Effective", Value: mv.CurrentDisplay})
 	}
-	if fallbackSrc != "" {
-		kvs = append(kvs, presentation.KeyValue{Key: "Source", Value: fallbackSrc})
+	if mv.EffectiveSource != "" {
+		kvs = append(kvs, presentation.KeyValue{Key: "Source", Value: mv.EffectiveSource})
 	}
-	kvs = append(kvs, presentation.KeyValue{Key: "File", Value: path, Style: presentation.ValuePath})
+	kvs = append(kvs, presentation.KeyValue{Key: "File", Value: mv.Path, Style: presentation.ValuePath})
 	return writeStaticOut(cmd, headline+"\n\n"+r.KeyValues(kvs))
 }
 
@@ -337,11 +366,12 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 			}
 			opts := configListOptions{prefix: prefix, changed: changed, inclDefaults: inclDefaults}
 			entries := resolveConfigList(eff, scope, opts)
+			view := configListView{Scope: scope, Entries: entries}
 
 			if configOutputStructured(g, cmd) {
-				return writeConfigListJSON(cmd, entries, scope, showOrigin)
+				return writeConfigListJSON(cmd, view, showOrigin)
 			}
-			return writeConfigListHuman(g, cmd, entries, scope, showOrigin)
+			return writeConfigListHuman(g, cmd, view, showOrigin)
 		},
 	}
 	flags.bind(cmd)
@@ -352,7 +382,7 @@ func newConfigListCmd(g *globalFlags) *cobra.Command {
 	return cmd
 }
 
-func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, entries []configEntryView, scope configScope, showOrigin bool) error {
+func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, view configListView, showOrigin bool) error {
 	r := g.mustStaticRenderer(cmd)
 	settings := r.Settings()
 	// Narrow terminals and accessible mode get one field per line; the same
@@ -360,18 +390,18 @@ func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, entries []configEn
 	stacked := settings.Width < 60 || settings.Accessible
 
 	var b strings.Builder
-	b.WriteString(configScopeLabel(scope))
+	b.WriteString(configScopeLabel(view.Scope))
 	b.WriteString("\n\n")
 
 	var configured, defaulted int
 	lastGroup := ""
 	keyWidth := 0
-	for _, e := range entries {
+	for _, e := range view.Entries {
 		if w := presentation.CellWidth(e.Key); w > keyWidth {
 			keyWidth = w
 		}
 	}
-	for _, e := range entries {
+	for _, e := range view.Entries {
 		if e.Configured {
 			configured++
 		} else {
@@ -392,7 +422,7 @@ func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, entries []configEn
 		b.WriteString(configListRow(e, keyWidth, showOrigin, stacked))
 		b.WriteString("\n")
 	}
-	if len(entries) > 0 {
+	if len(view.Entries) > 0 {
 		b.WriteString("\n")
 	}
 	b.WriteString(fmt.Sprintf("%d configured, %d defaults\n", configured, defaulted))
@@ -443,20 +473,15 @@ func configScopeLabel(scope configScope) string {
 	}
 }
 
-func writeConfigListJSON(cmd *cobra.Command, entries []configEntryView, scope configScope, showOrigin bool) error {
-	rows := make([]configEntryJSON, 0, len(entries))
-	for _, e := range entries {
-		row := e.json()
-		if !showOrigin {
-			// Provenance detail is opt-in; the source name itself always stays.
-			row.Path = ""
+func writeConfigListJSON(cmd *cobra.Command, view configListView, showOrigin bool) error {
+	out := view.json()
+	if !showOrigin {
+		// Provenance detail is opt-in; the source name itself always stays.
+		for i := range out.Entries {
+			out.Entries[i].Path = ""
 		}
-		rows = append(rows, row)
 	}
-	return writeConfigJSON(cmd, map[string]any{
-		"scope":   string(scope),
-		"entries": rows,
-	})
+	return writeConfigJSON(cmd, out)
 }
 
 // ── explain ───────────────────────────────────────────────────
@@ -954,58 +979,96 @@ func newConfigMigrateCmd(g *globalFlags) *cobra.Command {
 			}
 
 			if check {
-				needed, err := config.CheckMigration(target.Path)
+				plan, err := config.PlanMigration(target.Path)
 				if err != nil {
 					return err
 				}
-				if configOutputStructured(g, cmd) {
-					enc := json.NewEncoder(cmd.OutOrStdout())
-					enc.SetEscapeHTML(false)
-					return enc.Encode(map[string]any{
-						"needs_migration": len(needed) > 0,
-						"changes":         needed,
-						"file":            target.Path,
-					})
-				}
-				if len(needed) == 0 {
-					return writeStaticOut(cmd, "Already canonical.")
-				}
-				var b strings.Builder
-				b.WriteString("! Configuration uses deprecated keys\n\n")
-				for legacy, canon := range needed {
-					b.WriteString(fmt.Sprintf("  %s\n    Use %s\n\n", legacy, canon))
-				}
-				b.WriteString("Run `m config migrate` to update the file.\n")
-				return writeStaticOut(cmd, b.String())
+				return writeConfigMigrationCheck(g, cmd, plan, target)
 			}
 
-			count, err := config.MigrateFile(target.Path)
+			plan, err := config.PlanMigration(target.Path)
 			if err != nil {
 				return err
 			}
-			if configOutputStructured(g, cmd) {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetEscapeHTML(false)
-				return enc.Encode(map[string]any{
-					"migrated": count,
-					"file":     target.Path,
-				})
+			count, err := plan.Apply()
+			if err != nil {
+				return err
 			}
-			r := g.mustStaticRenderer(cmd)
-			if count == 0 {
-				return writeStaticOut(cmd, "Already canonical.")
-			}
-			return writeStaticOut(cmd, fmt.Sprintf("✓ Migrated %d key(s) in %s\n\n%s",
-				count, target.Path,
-				r.KeyValues([]presentation.KeyValue{
-					{Key: "Scope", Value: string(target.Scope)},
-					{Key: "File", Value: target.Path, Style: presentation.ValuePath},
-				})))
+			return writeConfigMigrationResult(g, cmd, plan, count, target)
 		},
 	}
 	flags.bind(cmd)
 	cmd.Flags().BoolVar(&check, "check", false, "dry-run: report what would change without writing")
 	return cmd
+}
+
+// writeConfigMigrationCheck renders the --check report from the shared plan.
+// Human and structured output use the same deterministic step ordering.
+func writeConfigMigrationCheck(g *globalFlags, cmd *cobra.Command, plan config.MigrationPlan, target configWriteTarget) error {
+	if configOutputStructured(g, cmd) {
+		steps := make([]map[string]any, 0, len(plan.Steps))
+		for _, s := range plan.Steps {
+			steps = append(steps, map[string]any{
+				"from": s.From, "to": s.To,
+			})
+		}
+		if steps == nil {
+			steps = []map[string]any{}
+		}
+		conflicts := plan.Conflicts
+		if conflicts == nil {
+			conflicts = []string{}
+		}
+		return writeConfigJSON(cmd, configMigrationCheckJSON{
+			NeedsMigration: len(plan.Steps) > 0,
+			Steps:          steps,
+			Conflicts:      conflicts,
+			Path:           target.Path,
+		})
+	}
+	if plan.Empty() {
+		return writeStaticOut(cmd, "Already canonical.")
+	}
+	if len(plan.Conflicts) > 0 {
+		return plan.ConflictError()
+	}
+	var b strings.Builder
+	b.WriteString("! Configuration uses deprecated keys\n\n")
+	for _, s := range plan.Steps {
+		b.WriteString(fmt.Sprintf("  %s\n    Use %s\n\n", s.From, s.To))
+	}
+	b.WriteString("Run `m config migrate` to update the file.\n")
+	return writeStaticOut(cmd, b.String())
+}
+
+// writeConfigMigrationResult renders the apply result from the shared plan.
+func writeConfigMigrationResult(g *globalFlags, cmd *cobra.Command, plan config.MigrationPlan, count int, target configWriteTarget) error {
+	if configOutputStructured(g, cmd) {
+		steps := make([]map[string]any, 0, len(plan.Steps))
+		for _, s := range plan.Steps {
+			steps = append(steps, map[string]any{
+				"from": s.From, "to": s.To,
+			})
+		}
+		if steps == nil {
+			steps = []map[string]any{}
+		}
+		return writeConfigJSON(cmd, configMigrationApplyJSON{
+			Migrated: count,
+			Steps:    steps,
+			Path:     target.Path,
+		})
+	}
+	r := g.mustStaticRenderer(cmd)
+	if count == 0 {
+		return writeStaticOut(cmd, "Already canonical.")
+	}
+	return writeStaticOut(cmd, fmt.Sprintf("✓ Migrated %d key(s) in %s\n\n%s",
+		count, target.Path,
+		r.KeyValues([]presentation.KeyValue{
+			{Key: "Scope", Value: string(target.Scope)},
+			{Key: "File", Value: target.Path, Style: presentation.ValuePath},
+		})))
 }
 
 // ── reset ─────────────────────────────────────────────────────
@@ -1126,16 +1189,16 @@ func canonicalConfigKey(key string) string {
 	return key
 }
 
-// scopeValueOrUnset returns the display value a raw scope holds for key, and
-// whether the scope declares it at all. Callers report "unset" rather than an
-// empty string so a missing key never reads as an empty value.
-func scopeValueOrUnset(eff *config.Effective, scope configScope, key string) (string, bool) {
+// scopeValueOrUnset returns the display and raw values a raw scope holds for
+// key, and whether the scope declares it at all. Both values are redacted when
+// the key is secret.
+func scopeValueOrUnset(eff *config.Effective, scope configScope, key string) (display string, raw any, set bool) {
 	canon := canonicalConfigKey(key)
 	v, err := config.GetAtScope(eff, configScopeToConfig(scope), canon)
 	if err != nil {
-		return "", false
+		return "", nil, false
 	}
-	return config.RedactString(canon, formatConfigValue(v.Raw)), true
+	return config.RedactString(canon, formatConfigValue(v.Raw)), config.RedactValue(canon, v.Raw), true
 }
 
 // checkWritableScope enforces the schema's per-key writable scopes. The scope

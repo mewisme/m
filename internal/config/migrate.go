@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"sort"
 	"strings"
@@ -84,11 +85,22 @@ func planFromFlat(path string, flat map[string]any) MigrationPlan {
 			continue
 		}
 		old := flat[k]
+		newVal, xerr := transformMigratedValue(k, old)
+		if xerr != nil {
+			plan.Conflicts = append(plan.Conflicts,
+				fmt.Sprintf("%s: invalid value: %v", k, xerr))
+			continue
+		}
+		if verr := validateMigratedValue(canon, newVal); verr != nil {
+			plan.Conflicts = append(plan.Conflicts,
+				fmt.Sprintf("%s -> %s: invalid transformed value: %v", k, canon, verr))
+			continue
+		}
 		plan.Steps = append(plan.Steps, MigrationStep{
 			From:     k,
 			To:       canon,
 			OldValue: old,
-			NewValue: transformMigratedValue(k, old),
+			NewValue: newVal,
 		})
 	}
 	sort.Strings(plan.Conflicts)
@@ -96,23 +108,63 @@ func planFromFlat(path string, flat map[string]any) MigrationPlan {
 }
 
 // transformMigratedValue applies the value change a rename implies. Renames
-// that only change spelling return the value untouched.
-func transformMigratedValue(legacyKey string, v any) any {
+// that only change spelling return the value untouched. Returns an error when
+// the legacy value cannot be safely transformed.
+func transformMigratedValue(legacyKey string, v any) (any, error) {
 	switch legacyKey {
 	case "network.timeout_ms":
-		// int milliseconds became a duration string.
-		switch n := v.(type) {
-		case int:
-			return (time.Duration(n) * time.Millisecond).String()
-		case float64:
-			return (time.Duration(int64(n)) * time.Millisecond).String()
+		d, err := legacyTimeoutToDuration(v)
+		if err != nil {
+			return nil, err
 		}
+		return d.String(), nil
 	}
-	return v
+	return v, nil
 }
 
-// conflictError renders the plan's conflicts as a Config error.
-func (p MigrationPlan) conflictError() error {
+// legacyTimeoutToDuration converts a legacy network.timeout_ms value into a
+// time.Duration. Strings, negatives, and fractions are rejected.
+func legacyTimeoutToDuration(v any) (time.Duration, error) {
+	var ms int64
+	switch n := v.(type) {
+	case int:
+		ms = int64(n)
+	case int64:
+		ms = n
+	case float64:
+		if n != float64(int64(n)) {
+			return 0, fmt.Errorf("network.timeout_ms must be an integer, got %v", v)
+		}
+		ms = int64(n)
+	default:
+		return 0, fmt.Errorf("network.timeout_ms must be an integer, got %T", v)
+	}
+	if ms < 0 {
+		return 0, fmt.Errorf("network.timeout_ms must not be negative, got %d", ms)
+	}
+	d := time.Duration(ms) * time.Millisecond
+	if d < 0 {
+		return 0, fmt.Errorf("network.timeout_ms overflow: %d", ms)
+	}
+	return d, nil
+}
+
+// validateMigratedValue checks that a transformed value is valid for its
+// canonical key per the schema registry.
+func validateMigratedValue(canon string, v any) error {
+	if err := validateKeyValue(canon, normalizeForWrite(v)); err != nil {
+		return err
+	}
+	if spec := KeySpec(canon); spec != nil {
+		if err := validateRange(spec, normalizeForWrite(v)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ConflictError renders the plan's conflicts as a Config error.
+func (p MigrationPlan) ConflictError() error {
 	if len(p.Conflicts) == 0 {
 		return nil
 	}
@@ -125,7 +177,7 @@ func (p MigrationPlan) conflictError() error {
 // every comment outside the moved members survives. Returns the number of
 // keys migrated.
 func (p MigrationPlan) Apply() (int, error) {
-	if err := p.conflictError(); err != nil {
+	if err := p.ConflictError(); err != nil {
 		return 0, err
 	}
 	if p.Empty() {
@@ -156,6 +208,11 @@ func (p MigrationPlan) Apply() (int, error) {
 	// Never publish bytes we cannot read back.
 	if _, err := ParseJSONC(out); err != nil {
 		return 0, apperr.Wrap(apperr.Internal, "config.migrate", p.Path, err)
+	}
+	// Validate the complete output document against the canonical schema before
+	// publishing, so a partially-migrated document never reaches disk.
+	if verr := ValidateDocument(out, p.Path, ValidateOptions{}).Err(); verr != nil {
+		return 0, verr
 	}
 	if err := fsx.PublishFileDurable(p.Path, out, 0o644); err != nil {
 		return 0, apperr.Wrap(apperr.IO, "config.migrate", p.Path, err)

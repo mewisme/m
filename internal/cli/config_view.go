@@ -163,7 +163,7 @@ type configGetView struct {
 type configGetJSON struct {
 	Key            string `json:"key"`
 	Value          any    `json:"value"`
-	EffectiveValue any    `json:"effective_value"`
+	EffectiveValue any    `json:"effective_value,omitempty"`
 	Scope          string `json:"scope"`
 	Source         string `json:"source"`
 	Path           string `json:"path,omitempty"`
@@ -189,6 +189,41 @@ func (v configGetView) json() configGetJSON {
 		out.EffectiveValue = v.EffectiveRaw
 	}
 	return out
+}
+
+// configGetNotSetView builds a configGetView for a key absent at the requested
+// raw scope, so the JSON shape stays stable for consumers that parse stdout.
+func configGetNotSetView(eff *config.Effective, key string, scope configScope) configGetView {
+	canon := key
+	if c := config.CanonicalKey(key); c != "" {
+		canon = c
+	}
+	spec := config.KeySpec(canon)
+	entry := configEntryView{
+		Key:        canon,
+		Value:      config.RedactString(canon, formatConfigValue(nil)),
+		Raw:        config.RedactValue(canon, nil),
+		Scope:      scope,
+		Configured: false,
+		IsDefault:  false,
+		IsSecret:   config.IsSecret(canon),
+	}
+	if spec != nil {
+		entry.Type = string(spec.Type)
+	}
+	view := configGetView{
+		Entry: entry,
+		Spec:  spec,
+	}
+	if ev, err := config.GetEffective(eff, canon); err == nil {
+		view.EffectiveKnown = true
+		view.EffectiveRaw = config.RedactValue(canon, ev.Raw)
+		view.EffectiveValue = config.RedactString(canon, formatConfigValue(ev.Raw))
+		view.EffectiveSrc = displayConfigSource(ev.Source)
+		view.Entry.Source = displayConfigSource(ev.Source)
+		view.Entry.IsDefault = ev.Source == config.SourceDefaults
+	}
+	return view
 }
 
 // ── resolution view ───────────────────────────────────────────
@@ -299,6 +334,85 @@ func configScopeNames(spec *config.ConfigKeySpec) []string {
 		out[i] = string(s)
 	}
 	return out
+}
+
+// ── mutation view ──────────────────────────────────────────────
+
+// configMutationView is the resolved result of a config set or unset operation.
+// Previous, Current, and EffectiveValue are already redacted.
+type configMutationView struct {
+	Key              string
+	Scope            configScope
+	Path             string
+	Previous         any    // structured; already redacted
+	PreviousDisplay  string // human form; already redacted
+	PreviousSet      bool
+	Current          any    // structured; already redacted
+	CurrentDisplay   string // human form; already redacted
+	EffectiveValue   any    // structured; already redacted
+	EffectiveDisplay string // human form; already redacted
+	EffectiveSource  string
+	Changed          bool
+}
+
+type configMutationJSON struct {
+	Key             string `json:"key"`
+	Scope           string `json:"scope"`
+	Path            string `json:"path"`
+	Previous        any    `json:"previous"`
+	Current         any    `json:"current"`
+	EffectiveValue  any    `json:"effective_value,omitempty"`
+	EffectiveSource string `json:"effective_source,omitempty"`
+	Changed         bool   `json:"changed"`
+}
+
+func (v configMutationView) json() configMutationJSON {
+	return configMutationJSON{
+		Key:             v.Key,
+		Scope:           string(v.Scope),
+		Path:            v.Path,
+		Previous:        v.Previous,
+		Current:         v.Current,
+		EffectiveValue:  v.EffectiveValue,
+		EffectiveSource: v.EffectiveSource,
+		Changed:         v.Changed,
+	}
+}
+
+// ── list view ───────────────────────────────────────────────────
+
+// configListView is the filtered, ordered collection for `config list`.
+type configListView struct {
+	Scope   configScope
+	Entries []configEntryView
+}
+
+type configListJSON struct {
+	Scope   string            `json:"scope"`
+	Entries []configEntryJSON `json:"entries"`
+}
+
+func (v configListView) json() configListJSON {
+	rows := make([]configEntryJSON, 0, len(v.Entries))
+	for _, e := range v.Entries {
+		rows = append(rows, e.json())
+	}
+	return configListJSON{Scope: string(v.Scope), Entries: rows}
+}
+
+// ── migration view ─────────────────────────────────────────────
+
+type configMigrationCheckJSON struct {
+	NeedsMigration bool             `json:"needs_migration"`
+	Steps          []map[string]any `json:"changes"`
+	Conflicts      []string         `json:"conflicts,omitempty"`
+	Path           string           `json:"path"`
+}
+
+type configMigrationApplyJSON struct {
+	Migrated int              `json:"migrated"`
+	Steps    []map[string]any `json:"changes"`
+	Path     string           `json:"path"`
 }
 
 // ── resolution ────────────────────────────────────────────────

@@ -655,6 +655,8 @@ func MigrateFile(path string) (int, error) {
 }
 
 // CheckMigration reports which legacy keys exist and their canonical replacements.
+// The returned map is keyed by legacy key for lookup; use PlanMigration directly
+// when ordered steps are needed for output.
 func CheckMigration(path string) (map[string]string, error) {
 	plan, err := PlanMigration(path)
 	if err != nil {
@@ -800,8 +802,13 @@ func setNested(m map[string]any, dotted string, v any) {
 }
 
 // ParseJSONC strips // and /* */ comments then unmarshals JSON.
+// Duplicate object keys at any depth are rejected before decode, so no value
+// is silently dropped by encoding/json's last-value-wins behavior.
 func ParseJSONC(b []byte) (any, error) {
 	stripped := blankJSONC(b)
+	if err := detectDuplicates(stripped); err != nil {
+		return nil, err
+	}
 	dec := json.NewDecoder(bytes.NewReader(stripped))
 	dec.UseNumber()
 	var v any

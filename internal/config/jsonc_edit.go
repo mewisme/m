@@ -333,32 +333,45 @@ func concatBytes(a, b, c []byte) []byte {
 // object. encoding/json silently keeps the last occurrence, which makes a
 // duplicate look like a working setting that does nothing.
 type DuplicateKeyError struct {
-	Path string
+	Path   string
+	Line   int
+	Column int
 }
 
 func (e *DuplicateKeyError) Error() string {
-	return "duplicate key " + strconv.Quote(e.Path)
+	s := "duplicate key " + strconv.Quote(e.Path)
+	if e.Line > 0 {
+		s += fmt.Sprintf(" at line %d column %d", e.Line, e.Column)
+	}
+	return s
+}
+
+// detectDuplicates reports the first duplicated object key in blanked JSONC
+// (comments already replaced with spaces). The blanked buffer preserves byte
+// offsets so encoding/json decoder input offsets map 1:1 to the original source
+// for line/column calculation.
+func detectDuplicates(blanked []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(blanked))
+	dec.UseNumber()
+	tok, err := dec.Token()
+	if err != nil {
+		return nil //nolint:nilerr // parse errors surface through ParseJSONC
+	}
+	if tok != json.Delim('{') {
+		return nil
+	}
+	return walkDuplicates(dec, blanked, "")
 }
 
 // DetectDuplicateKeys reports the first duplicated object key in a JSONC
 // document, walking nested objects and arrays. Comments are blanked first so
 // a key mentioned in a comment is never counted.
 func DetectDuplicateKeys(src []byte) error {
-	dec := json.NewDecoder(bytes.NewReader(blankJSONC(src)))
-	dec.UseNumber()
-	tok, err := dec.Token()
-	if err != nil {
-		// Malformed input is the parser's error to report, not ours.
-		return nil //nolint:nilerr // parse errors surface through ParseJSONC
-	}
-	if tok != json.Delim('{') {
-		return nil
-	}
-	return walkDuplicates(dec, "")
+	return detectDuplicates(blankJSONC(src))
 }
 
 // walkDuplicates consumes members of the object the decoder just opened.
-func walkDuplicates(dec *json.Decoder, prefix string) error {
+func walkDuplicates(dec *json.Decoder, blanked []byte, prefix string) error {
 	seen := map[string]bool{}
 	for dec.More() {
 		kt, err := dec.Token()
@@ -374,10 +387,11 @@ func walkDuplicates(dec *json.Decoder, prefix string) error {
 			path = prefix + "." + k
 		}
 		if seen[k] {
-			return &DuplicateKeyError{Path: path}
+			line, col := offsetLineCol(blanked, int(dec.InputOffset()))
+			return &DuplicateKeyError{Path: path, Line: line, Column: col}
 		}
 		seen[k] = true
-		if err := walkDuplicateValue(dec, path); err != nil {
+		if err := walkDuplicateValue(dec, blanked, path); err != nil {
 			return err
 		}
 	}
@@ -389,17 +403,17 @@ func walkDuplicates(dec *json.Decoder, prefix string) error {
 }
 
 // walkDuplicateValue consumes exactly one value, descending into containers.
-func walkDuplicateValue(dec *json.Decoder, path string) error {
+func walkDuplicateValue(dec *json.Decoder, blanked []byte, path string) error {
 	tok, err := dec.Token()
 	if err != nil {
 		return nil //nolint:nilerr // parse errors surface through ParseJSONC
 	}
 	switch tok {
 	case json.Delim('{'):
-		return walkDuplicates(dec, path)
+		return walkDuplicates(dec, blanked, path)
 	case json.Delim('['):
 		for dec.More() {
-			if err := walkDuplicateValue(dec, path); err != nil {
+			if err := walkDuplicateValue(dec, blanked, path); err != nil {
 				return err
 			}
 		}
@@ -408,4 +422,25 @@ func walkDuplicateValue(dec *json.Decoder, path string) error {
 		}
 	}
 	return nil
+}
+
+// offsetLineCol converts a byte offset into a 1-based line and column number.
+func offsetLineCol(b []byte, offset int) (line, col int) {
+	if offset < 0 {
+		return 0, 0
+	}
+	if offset > len(b) {
+		offset = len(b)
+	}
+	line = 1
+	col = 0
+	for i := 0; i < offset; i++ {
+		if b[i] == '\n' {
+			line++
+			col = 0
+		} else {
+			col++
+		}
+	}
+	return line, col + 1 // 1-based column
 }

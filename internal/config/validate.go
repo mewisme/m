@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
@@ -181,6 +182,13 @@ func ValidateDocument(src []byte, path string, opts ValidateOptions) ValidationR
 
 	parsed, err := ParseJSONC(src)
 	if err != nil {
+		// Duplicate keys are a schema-level error, not a syntax error.
+		var dk *DuplicateKeyError
+		if asDuplicate(err, &dk) {
+			add(DiagDuplicateKey, SeverityError, dk.Path, "",
+				"duplicate key "+strconv.Quote(dk.Path))
+			return res
+		}
 		add(DiagSyntax, SeverityError, "", "", "invalid JSONC: "+err.Error())
 		return res
 	}
@@ -188,15 +196,6 @@ func ValidateDocument(src []byte, path string, opts ValidateOptions) ValidationR
 	if !ok {
 		add(DiagRoot, SeverityError, "", "", "root must be an object")
 		return res
-	}
-	if dupErr := DetectDuplicateKeys(src); dupErr != nil {
-		var dk *DuplicateKeyError
-		key := ""
-		if asDuplicate(dupErr, &dk) {
-			key = dk.Path
-		}
-		add(DiagDuplicateKey, SeverityError, key, "",
-			"duplicate key; the later value silently wins")
 	}
 
 	flat := flattenDotted(m, "")
