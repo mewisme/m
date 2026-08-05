@@ -350,6 +350,11 @@ jobs:
           - label: windows
             os: windows-latest
     steps:
+      - name: Prevent CRLF conversion (Windows git dirty false positive)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v7
         with:
           persist-credentials: false

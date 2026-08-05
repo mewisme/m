@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -188,7 +189,19 @@ func TestRuntimeE2EZeroAugmentation(t *testing.T) {
 func TestRuntimeE2EScriptWinsOverFile(t *testing.T) {
 	skipWithoutNode(t)
 	proj := runtimeE2EFixture(t)
-	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"hello": "node -e \"require('fs').writeFileSync('output.txt','script-wins\\n')\""}}`)
+	// Use an absolute path so output lands in proj regardless of CWD.
+	// Forward slashes keep the JSON string literal well-formed on every OS.
+	outPath := filepath.ToSlash(filepath.Join(proj, "output.txt"))
+	pkg := map[string]any{
+		"scripts": map[string]string{
+			"hello": "node -e \"require('fs').writeFileSync('" + outPath + "','script-wins\\n')\"",
+		},
+	}
+	data, err := json.MarshalIndent(pkg, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(proj, "package.json"), string(data))
 	code, _ := runMProject(t, proj, "run", "hello")
 	if code != 0 {
 		t.Fatalf("exit=%d", code)
