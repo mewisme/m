@@ -14,6 +14,8 @@ DEVINSTALL_TARGET_GOOS=''
 DEVINSTALL_TARGET_GOARCH=''
 DEVINSTALL_VERSION=''
 DEVINSTALL_COMMIT=''
+DEVINSTALL_SHORT_COMMIT=''
+DEVINSTALL_DIRTY=0
 DEVINSTALL_BUILD_DATE=''
 DEVINSTALL_INSTALL_DIR=''
 DEVINSTALL_COMPLETION_BASE=''
@@ -157,11 +159,23 @@ devinstall_resolve_metadata() {
   else
     DEVINSTALL_VERSION='dev'
   fi
-  # Development installs build the current working tree, which may not match
-  # HEAD. Leave commit unset rather than attributing source changes to a Git
-  # commit that does not fully describe them.
+
   DEVINSTALL_COMMIT=''
+  DEVINSTALL_SHORT_COMMIT=''
+  DEVINSTALL_DIRTY=0
   DEVINSTALL_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  local git_commit
+  git_commit="$(git rev-parse HEAD 2>/dev/null)" || true
+  if [[ -n "$git_commit" ]]; then
+    DEVINSTALL_COMMIT="$git_commit"
+    DEVINSTALL_SHORT_COMMIT="${git_commit:0:7}"
+    local dirty_out
+    dirty_out="$(git status --porcelain 2>/dev/null)" || true
+    if [[ -n "$dirty_out" ]]; then
+      DEVINSTALL_DIRTY=1
+    fi
+  fi
 }
 
 devinstall_check_repo() {
@@ -174,7 +188,7 @@ devinstall_check_repo() {
 devinstall_metadata() {
   local repo="$1" version_override="$2"
   devinstall_resolve_metadata "$version_override"
-  echo "$DEVINSTALL_VERSION|$DEVINSTALL_COMMIT|$DEVINSTALL_BUILD_DATE"
+  echo "$DEVINSTALL_VERSION|$DEVINSTALL_COMMIT|$DEVINSTALL_SHORT_COMMIT|$DEVINSTALL_DIRTY|$DEVINSTALL_BUILD_DATE"
 }
 
 devinstall_check() {
@@ -183,7 +197,7 @@ devinstall_check() {
   go_ver="$(devinstall_check_go_version "$(devinstall_go_mod_version "$repo")")"
   devinstall_check_repo
   devinstall_resolve_metadata "$version_override"
-  echo "$go_ver|$DEVINSTALL_VERSION|$DEVINSTALL_COMMIT|$DEVINSTALL_BUILD_DATE|$repo/bin"
+  echo "$go_ver|$DEVINSTALL_VERSION|$DEVINSTALL_COMMIT|$DEVINSTALL_SHORT_COMMIT|$DEVINSTALL_DIRTY|$DEVINSTALL_BUILD_DATE|$repo/bin"
 }
 
 devinstall_binary_names() {
@@ -192,14 +206,24 @@ devinstall_binary_names() {
 }
 
 devinstall_build() {
-  local bin_dir="$DEVINSTALL_REPO_ROOT/bin" m_name mx_name ldflags
+  local bin_dir="$DEVINSTALL_REPO_ROOT/bin" m_name mx_name ldflags dirty_str
   IFS='|' read -r m_name mx_name <<<"$(devinstall_binary_names "$DEVINSTALL_TARGET_GOOS")"
-  ldflags="-X main.version=$DEVINSTALL_VERSION -X main.commit=$DEVINSTALL_COMMIT -X main.buildDate=$DEVINSTALL_BUILD_DATE"
+  dirty_str='false'
+  if [[ "$DEVINSTALL_DIRTY" == 1 ]]; then dirty_str='true'; fi
+  ldflags="-X main.version=$DEVINSTALL_VERSION -X main.commit=$DEVINSTALL_COMMIT -X main.shortCommit=$DEVINSTALL_SHORT_COMMIT -X main.dirty=$dirty_str -X main.buildDate=$DEVINSTALL_BUILD_DATE -X main.targetOS=$DEVINSTALL_TARGET_GOOS -X main.targetArch=$DEVINSTALL_TARGET_GOARCH"
   devinstall_log_stage build "CGO_ENABLED=0 go build -> bin/$m_name, bin/$mx_name"
   CGO_ENABLED=0 GOOS="$DEVINSTALL_TARGET_GOOS" GOARCH="$DEVINSTALL_TARGET_GOARCH" \
     go build -ldflags "$ldflags" -o "$bin_dir/$m_name" ./cmd/m || devinstall_die 'go build m failed'
   CGO_ENABLED=0 GOOS="$DEVINSTALL_TARGET_GOOS" GOARCH="$DEVINSTALL_TARGET_GOARCH" \
     go build -ldflags "$ldflags" -o "$bin_dir/$mx_name" ./cmd/mx || devinstall_die 'go build mx failed'
+
+  # Byte-identical copies: os.Args[0] determines logical identity.
+  local ext=''
+  if [[ "$DEVINSTALL_TARGET_GOOS" == windows ]]; then ext='.exe'; fi
+  cp "$bin_dir/$m_name" "$bin_dir/mew$ext"
+  cp "$bin_dir/$mx_name" "$bin_dir/mewx$ext"
+  chmod +x "$bin_dir/mew$ext" "$bin_dir/mewx$ext" 2>/dev/null || true
+  devinstall_log_stage build "created mew$ext (copy of m$ext), mewx$ext (copy of mx$ext)"
 }
 
 devinstall_default_paths() {
@@ -231,33 +255,36 @@ devinstall_copy_atomic() {
 
 devinstall_install_unix() {
   local repo="$1" bin_dir="$2" m_name="$3" mx_name="$4" install_dir="$5" force="$6"
-  local completion_root paths_line
+  local completion_root paths_line mew_name mewx_name ext
   paths_line="$(devinstall_default_paths "$install_dir")"
   IFS='|' read -r install_dir completion_root <<<"$paths_line"
+  ext=''
+  if [[ "$DEVINSTALL_TARGET_GOOS" == windows ]]; then ext='.exe'; fi
+  mew_name="mew$ext"
+  mewx_name="mewx$ext"
   mkdir -p "$install_dir"
   devinstall_copy_atomic "$bin_dir/$m_name" "$install_dir/m"
   devinstall_copy_atomic "$bin_dir/$mx_name" "$install_dir/mx"
-  chmod +x "$install_dir/m" "$install_dir/mx"
-  for link in mew:m mewx:mx; do
-    local link_name link_target link_path
-    link_name="${link%%:*}"
-    link_target="${link##*:}"
-    link_path="$install_dir/$link_name"
-    if [[ -e "$link_path" && ! -L "$link_path" ]]; then
-      if [[ "$force" != 1 ]]; then devinstall_die "refusing to replace non-symlink $link_path (use --force)"; fi
-      rm -f "$link_path"
-    fi
-    ln -sf "$link_target" "$link_path"
-  done
+  devinstall_copy_atomic "$bin_dir/$mew_name" "$install_dir/mew"
+  devinstall_copy_atomic "$bin_dir/$mewx_name" "$install_dir/mewx"
+  chmod +x "$install_dir/m" "$install_dir/mx" "$install_dir/mew" "$install_dir/mewx" 2>/dev/null || true
   echo "$install_dir|$completion_root"
 }
 
 devinstall_install_unix_files() {
   local install_dir="$1" force="$2"
-  local bin_dir="$DEVINSTALL_REPO_ROOT/bin" m_name mx_name line
+  local bin_dir="$DEVINSTALL_REPO_ROOT/bin" m_name mx_name ext mew_name mewx_name
   IFS='|' read -r m_name mx_name <<<"$(devinstall_binary_names "$DEVINSTALL_TARGET_GOOS")"
-  line="$(devinstall_install_unix "$DEVINSTALL_REPO_ROOT" "$bin_dir" "$m_name" "$mx_name" "$install_dir" "$force")"
-  IFS='|' read -r DEVINSTALL_INSTALL_DIR DEVINSTALL_COMPLETION_BASE <<<"$line"
+  ext=''
+  if [[ "$DEVINSTALL_TARGET_GOOS" == windows ]]; then ext='.exe'; fi
+  mew_name="mew$ext"
+  mewx_name="mewx$ext"
+  mkdir -p "$install_dir"
+  devinstall_copy_atomic "$bin_dir/$m_name" "$install_dir/m"
+  devinstall_copy_atomic "$bin_dir/$mx_name" "$install_dir/mx"
+  devinstall_copy_atomic "$bin_dir/$mew_name" "$install_dir/mew"
+  devinstall_copy_atomic "$bin_dir/$mewx_name" "$install_dir/mewx"
+  chmod +x "$install_dir/m" "$install_dir/mx" "$install_dir/mew" "$install_dir/mewx" 2>/dev/null || true
 }
 
 devinstall_upsert_managed_block() {
@@ -403,18 +430,56 @@ devinstall_completion_unix() {
 
 devinstall_verify_unix() {
   local install_dir="$1" completion_root="$2"
+  local expected_target="$DEVINSTALL_TARGET_GOOS/$DEVINSTALL_TARGET_GOARCH"
   for cmd in m mx mew mewx; do
-    "$install_dir/$cmd" version >/dev/null || devinstall_die "verify failed for $cmd"
+    local bin="$install_dir/$cmd"
+    if [[ ! -x "$bin" ]]; then
+      devinstall_die "verify failed: missing $bin"
+    fi
+    local json_out
+    json_out="$("$bin" version --json 2>&1)" || devinstall_die "verify failed: $cmd version --json (exit $?)"
+    local parsed
+    parsed="$(python3 -c "
+import json, sys
+try:
+    d = json.loads(sys.argv[1])
+except Exception as e:
+    sys.exit('invalid JSON: ' + str(e))
+binary = d.get('binary', '')
+version = d.get('version', '')
+commit = d.get('commit', '')
+target = d.get('target_os', '') + '/' + d.get('target_arch', '')
+print('|'.join([binary, version, commit, target]))
+" "$json_out")" || devinstall_die "verify failed: invalid JSON from $cmd version --json"
+
+    IFS='|' read -r json_binary json_version json_commit json_target <<<"$parsed"
+    if [[ "$json_binary" != "$cmd" ]]; then
+      devinstall_die "identity mismatch for ${cmd}: expected $cmd, got $json_binary"
+    fi
+    if [[ "$json_version" != "$DEVINSTALL_VERSION" ]]; then
+      devinstall_die "version mismatch for ${cmd}: expected $DEVINSTALL_VERSION, got $json_version"
+    fi
+    if [[ -n "$DEVINSTALL_COMMIT" && "$json_commit" != "$DEVINSTALL_COMMIT" ]]; then
+      devinstall_die "commit mismatch for ${cmd}: expected $DEVINSTALL_COMMIT, got $json_commit"
+    fi
+    if [[ "$json_target" != "$expected_target" ]]; then
+      devinstall_die "target mismatch for ${cmd}: expected $expected_target, got $json_target"
+    fi
   done
+
+  devinstall_log_stage verify 'm, mew, mx, and mewx identities ok'
+
   if [[ -n "$completion_root" ]]; then
     for f in bash/m bash/mx zsh/_m zsh/_mx fish/m.fish fish/mx.fish; do
-      [[ -s "$completion_root/$f" ]] || devinstall_die "completion file missing or empty: $completion_root/$f"
+      if [[ ! -s "$completion_root/$f" ]]; then
+        devinstall_die "verify failed: missing completion $completion_root/$f"
+      fi
     done
   fi
-  case ":$PATH:" in
-    *":$install_dir:"*) ;;
-    *) devinstall_log_stage verify 'warning: install directory not on current shell PATH (restart terminal)' ;;
-  esac
+
+  if ! command -v m >/dev/null 2>&1; then
+    devinstall_log_stage verify 'warning: m not on current shell PATH (restart terminal)'
+  fi
 }
 
 devinstall_uninstall_unix() {
@@ -437,6 +502,8 @@ devinstall_uninstall_unix() {
 }
 
 devinstall_print_summary() {
+  local dirty_label='false'
+  if [[ "$DEVINSTALL_DIRTY" == 1 ]]; then dirty_label='true'; fi
   cat <<EOF
 
 MewJS development install summary
@@ -444,6 +511,9 @@ MewJS development install summary
   source:      working tree
   target:      $DEVINSTALL_TARGET_GOOS/$DEVINSTALL_TARGET_GOARCH
   version:     $DEVINSTALL_VERSION
+  commit:      $DEVINSTALL_COMMIT
+  short:       $DEVINSTALL_SHORT_COMMIT
+  dirty:       $dirty_label
   build date:  $DEVINSTALL_BUILD_DATE
   install dir: ${DEVINSTALL_INSTALL_DIR:-<build-only>}
   completion:  ${DEVINSTALL_COMPLETION_BASE:-<skipped>}

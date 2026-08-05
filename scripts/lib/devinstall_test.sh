@@ -78,14 +78,21 @@ IFS='|' read -r IDIR CDIR <<<"$PATHS"
 assert_eq 'custom install dir' '/tmp/custom mew/bin' "$IDIR"
 assert_contains 'custom completion root' 'completions' "$CDIR"
 
-# 7. Source-build metadata never claims the current Git commit
+# 7. Source-build metadata resolves Git commit from working tree
 unset MEW_VERSION
 devinstall_resolve_metadata ''
 assert_eq 'source build dev version' 'dev' "$DEVINSTALL_VERSION"
-assert_eq 'source build commit unset' '' "$DEVINSTALL_COMMIT"
+# When run from a Git working tree, commit should be resolved.
+if git rev-parse HEAD >/dev/null 2>&1; then
+  assert_eq 'source build commit set from git' "$(git rev-parse HEAD)" "$DEVINSTALL_COMMIT"
+  assert_eq 'source build short set' "$(git rev-parse --short HEAD 2>/dev/null || git rev-parse HEAD | head -c7)" "$DEVINSTALL_SHORT_COMMIT"
+fi
 devinstall_resolve_metadata '1.2.3-local'
 assert_eq 'source build version override' '1.2.3-local' "$DEVINSTALL_VERSION"
-assert_eq 'source build override commit unset' '' "$DEVINSTALL_COMMIT"
+# commit still resolved from git even with version override
+if git rev-parse HEAD >/dev/null 2>&1; then
+  assert_eq 'source build override commit still set' "$(git rev-parse HEAD)" "$DEVINSTALL_COMMIT"
+fi
 
 # 8. Managed-block idempotency
 IDEM="$(mktemp)"
@@ -102,37 +109,33 @@ assert_contains 'alias bash mew' 'mew' "$ALIAS_CONTENT"
 assert_contains 'alias bash mewx' 'mewx' "$ALIAS_CONTENT"
 rm -f "$ALIAS_TMP"
 
-# 10. Install unix symlink + force (isolated temp)
+# 10. Install unix atomic copies (isolated temp)
 INSTALL_TMP="$(mktemp -d)"
 BIN_TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP" "$IDEM" "$INSTALL_TMP" "$BIN_TMP"' EXIT
 mkdir -p "$BIN_TMP"
 printf '#!/bin/sh\necho v\n' >"$BIN_TMP/m"
 printf '#!/bin/sh\necho v\n' >"$BIN_TMP/mx"
-chmod +x "$BIN_TMP/m" "$BIN_TMP/mx"
-echo conflict >"$INSTALL_TMP/mew"
-if ( devinstall_install_unix "$PWD" "$BIN_TMP" m mx "$INSTALL_TMP" 0 2>/dev/null ); then
-  fail 'conflict without force fails'
+printf '#!/bin/sh\necho v\n' >"$BIN_TMP/mew"
+printf '#!/bin/sh\necho v\n' >"$BIN_TMP/mewx"
+chmod +x "$BIN_TMP/m" "$BIN_TMP/mx" "$BIN_TMP/mew" "$BIN_TMP/mewx"
+LINE="$(devinstall_install_unix "$PWD" "$BIN_TMP" m mx "$INSTALL_TMP" 0)"
+if [[ -x "$INSTALL_TMP/m" && -x "$INSTALL_TMP/mx" && -x "$INSTALL_TMP/mew" && -x "$INSTALL_TMP/mewx" ]]; then
+  ok 'install unix copies all four binaries'
 else
-  ok 'conflict without force fails'
+  fail 'install unix copies all four binaries'
 fi
-LINE="$(devinstall_install_unix "$PWD" "$BIN_TMP" m mx "$INSTALL_TMP" 1)"
-case "$(uname -s)" in
-  MINGW*|MSYS*|CYGWIN*)
-    if [[ -x "$INSTALL_TMP/mew" ]]; then ok 'force replaces conflict (windows git bash)'; else fail 'force replaces conflict'; fi
-    ;;
-  *)
-    if [[ -L "$INSTALL_TMP/mew" ]]; then
-      target="$(readlink "$INSTALL_TMP/mew" 2>/dev/null || true)"
-      case "$target" in
-        m|*/m) ok 'force replaces conflict' ;;
-        *) fail "force replaces conflict (got target '$target')" ;;
-      esac
-    else
-      fail 'force replaces conflict (not a symlink)'
-    fi
-    ;;
-esac
+# Verify mew and mewx are regular files (copies), not symlinks.
+if [[ -f "$INSTALL_TMP/mew" && ! -L "$INSTALL_TMP/mew" ]]; then
+  ok 'mew is a regular file (copy)'
+else
+  fail 'mew is a regular file (copy)'
+fi
+if [[ -f "$INSTALL_TMP/mewx" && ! -L "$INSTALL_TMP/mewx" ]]; then
+  ok 'mewx is a regular file (copy)'
+else
+  fail 'mewx is a regular file (copy)'
+fi
 
 # 11. Uninstall cleans owned files
 IFS='|' read -r IDIR CDIR <<<"$LINE"

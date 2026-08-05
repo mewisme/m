@@ -31,7 +31,7 @@ Usage: install-dev.sh [options]
   --goos <os>           Target GOOS (windows|linux|darwin)
   --goarch <arch>       Target GOARCH (amd64|arm64)
   --version <ver>       Override build version metadata
-  --force               Replace conflicting symlinks
+  --force               Replace conflicting files
   -h, --help            Show this help
 EOF
 }
@@ -68,16 +68,14 @@ if [[ "$EMULATED" == 1 ]]; then
 fi
 
 stage check 'validating prerequisites'
-GO_VER="$(devinstall_check_go_version "$(devinstall_go_mod_version "$REPO_ROOT")")"
+devinstall_check_go_version "$(devinstall_go_mod_version "$REPO_ROOT")" >/dev/null
 devinstall_check_repo
 devinstall_resolve_metadata "$FLAG_VERSION"
-stage check "go=${GO_VER%% *} source=working-tree version=${DEVINSTALL_VERSION} date=${DEVINSTALL_BUILD_DATE}"
-BIN_DIR="$REPO_ROOT/bin"
+DIRTY_LABEL=''
+if [[ "$DEVINSTALL_DIRTY" == 1 ]]; then DIRTY_LABEL='+dirty'; fi
+stage check "version=${DEVINSTALL_VERSION}${DIRTY_LABEL} commit=${DEVINSTALL_SHORT_COMMIT} target=${DEVINSTALL_TARGET_GOOS}/${DEVINSTALL_TARGET_GOARCH}"
 
-stage build 'building binaries'
 devinstall_build
-IFS='|' read -r M_NAME MX_NAME <<<"$(devinstall_binary_names "$DEVINSTALL_TARGET_GOOS")"
-stage build "built ${BIN_DIR}/${M_NAME}, ${BIN_DIR}/${MX_NAME}"
 
 if [[ "$BUILD_ONLY" == 1 ]]; then
   stage done 'build-only complete'
@@ -91,10 +89,15 @@ if [[ "$CAN_INSTALL" != 1 ]]; then
   devinstall_die 'cannot install cross-compiled binaries on this host (use --build-only)'
 fi
 
-stage install 'copying binaries to install directory'
-INSTALL_LINE="$(devinstall_install_unix "$REPO_ROOT" "$BIN_DIR" "$M_NAME" "$MX_NAME" "$INSTALL_DIR" "$FORCE")"
-IFS='|' read -r DEVINSTALL_INSTALL_DIR DEVINSTALL_COMPLETION_BASE <<<"$INSTALL_LINE"
-stage install "installed to ${DEVINSTALL_INSTALL_DIR}"
+if [[ -z "$INSTALL_DIR" ]]; then
+  DEVINSTALL_INSTALL_DIR="$(devinstall_default_install_dir_unix)"
+else
+  DEVINSTALL_INSTALL_DIR="$INSTALL_DIR"
+fi
+DEVINSTALL_COMPLETION_BASE="$(devinstall_completion_base_from_install_dir "$DEVINSTALL_INSTALL_DIR")"
+
+stage install "installing to $DEVINSTALL_INSTALL_DIR"
+devinstall_install_unix_files "$DEVINSTALL_INSTALL_DIR" "$FORCE"
 
 if [[ "$SKIP_PATH" != 1 ]]; then
   stage path 'updating shell profile PATH'
