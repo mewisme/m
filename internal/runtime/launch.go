@@ -56,8 +56,11 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 
 	if req.AugmentationMode != AugmentNone {
 		// Verify cached assets before use; corrupt entries are deleted.
-		// After verification failure, EnsureAssets will re-extract missing files.
-		_ = VerifyCache(eff)
+		// VerifyCache only returns fatal errors (permission, I/O, manifest).
+		// Missing or corrupt files are deleted so EnsureAssets re-extracts them.
+		if err := VerifyCache(eff); err != nil {
+			return nil, err
+		}
 		assetPaths, err := EnsureAssets(eff)
 		if err != nil {
 			return nil, err

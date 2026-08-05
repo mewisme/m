@@ -2,7 +2,7 @@
 
 ## Program status
 
-- Current MVP: **0050** — Runtime MVP 1 — Node Launch and Compatibility Boundary
+- Current MVP: **0052** — Runtime MVP 3 — JSX, Decorators, and Source-Map Parity
 - Last updated: 2026-08-02
 - Source of truth: per-MVP files under `plans/00xx-*.md`
 - Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
@@ -10,7 +10,7 @@
 
 ## Do now
 
-**Next:** [0050 - Runtime MVP 1 — Node Launch and Compatibility Boundary](0050-node-launch-compat.md)
+**Next:** [0052 - Runtime MVP 3 — JSX, Decorators, and Source-Map Parity](0052-jsx-decorators-sourcemaps.md)
 
 <!-- CHECKLIST:NARRATIVE:BEGIN -->
 **Stabilization pass 17 (2026-08-02):** Runner/runtime stabilization — P0 defects fixed across 0040-0051: ExitStatus type for child exits (no ERR_M_INTERNAL), graceful cancellation with 10s grace period, workspace cancellation error, conditional TS loader injection, runtime asset pre-execution verification, transform cache wired into execution, concurrent loader request map, Phase A boolean parity, UsedFallback telemetry, corrupt environment recovery, 13 ERR_M_TRANSFORM_* codes, tsconfig wiring, manifest validation, file URL compliance, staging cleanup, timeout result discarding. 13 commits, 1576 tests pass. Evidence: [`docs/evidence/core/pass32-ci.md`](../docs/evidence/core/pass32-ci.md).
@@ -69,15 +69,15 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 | 0029 | Core MVP 20 — Performance, Offline Operation, and Portabl... | Core / MVP 20 | 0018, 0026, 0028 | [x] | [0029](0029-performance-offline-capsules.md) |
 | 0030 | Core MVP 21 — Audit, SBOM, Provenance, and Supply-Chain P... | Core / MVP 21 | 0012, 0021, 0027, 0029 | [x] | [0030](0030-security-audit-sbom.md) |
 | 0031 | Core MVP 22 — Package-Manager Core Stabilization Gate | Core / Stabilization | 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018, 0019, 0020, 0021, 0022, 0023, 0024, 0025, 0026, 0027, 0028, 0029, 0030 | [x] | [0031](0031-core-stabilization.md) |
-| 0040 | Runner MVP 1 — Package Script Runner | Runner / MVP 1 | 0031 | [ ] | [0040](0040-script-runner.md) |
-| 0041 | Runner MVP 2 — Workspace Script Orchestration | Runner / MVP 2 | 0022, 0040 | [ ] | [0041](0041-workspace-runner.md) |
-| 0042 | Runner MVP 3 — Direct `m <script>` Shortcuts | Runner / Mew Extension | 0010, 0040 | [ ] | [0042](0042-direct-script-shortcuts.md) |
-| 0043 | Runner MVP 4 — Local Package Binary Execution | Runner / MVP 4 | 0019, 0040 | [ ] | [0043](0043-local-exec.md) |
-| 0044 | Runner MVP 5 — `mx` Remote Fetch and Execution | Runner / MVP 5 | 0021, 0029, 0043 | [ ] | [0044](0044-mx-dlx.md) |
-| 0045 | Runner MVP 6 — Unified Execution and Snapshot Environments | Runner / MVP 6 | 0028, 0029, 0043, 0044 | [ ] | [0045](0045-unified-execution.md) |
-| 0046 | Runner Stabilization Gate | Runner / Stabilization | 0040, 0041, 0042, 0043, 0044, 0045 | [ ] | [0046](0046-runner-stabilization.md) |
-| 0050 | Runtime MVP 1 — Node Launch and Compatibility Boundary | Runtime / MVP 1 | 0046 | [ ] | [0050](0050-node-launch-compat.md) |
-| 0051 | Runtime MVP 2 — Go Transform Service and TypeScript Execu... | Runtime / MVP 2 | 0050 | [ ] | [0051](0051-go-transform-service.md) |
+| 0040 | Runner MVP 1 — Package Script Runner | Runner / MVP 1 | 0031 | [x] | [0040](0040-script-runner.md) |
+| 0041 | Runner MVP 2 — Workspace Script Orchestration | Runner / MVP 2 | 0022, 0040 | [x] | [0041](0041-workspace-runner.md) |
+| 0042 | Runner MVP 3 — Direct `m <script>` Shortcuts | Runner / Mew Extension | 0010, 0040 | [x] | [0042](0042-direct-script-shortcuts.md) |
+| 0043 | Runner MVP 4 — Local Package Binary Execution | Runner / MVP 4 | 0019, 0040 | [x] | [0043](0043-local-exec.md) |
+| 0044 | Runner MVP 5 — `mx` Remote Fetch and Execution | Runner / MVP 5 | 0021, 0029, 0043 | [x] | [0044](0044-mx-dlx.md) |
+| 0045 | Runner MVP 6 — Unified Execution and Snapshot Environments | Runner / MVP 6 | 0028, 0029, 0043, 0044 | [x] | [0045](0045-unified-execution.md) |
+| 0046 | Runner Stabilization Gate | Runner / Stabilization | 0040, 0041, 0042, 0043, 0044, 0045 | [x] | [0046](0046-runner-stabilization.md) |
+| 0050 | Runtime MVP 1 — Node Launch and Compatibility Boundary | Runtime / MVP 1 | 0046 | [x] | [0050](0050-node-launch-compat.md) |
+| 0051 | Runtime MVP 2 — Go Transform Service and TypeScript Execu... | Runtime / MVP 2 | 0050 | [x] | [0051](0051-go-transform-service.md) |
 | 0052 | Runtime MVP 3 — JSX, Decorators, and Source-Map Parity | Runtime / MVP 3 | 0051 | [ ] | [0052](0052-jsx-decorators-sourcemaps.md) |
 | 0053 | Runtime MVP 4 — Module Resolution, Path Aliases, and Cust... | Runtime / MVP 4 | 0019, 0025, 0052 | [ ] | [0053](0053-module-resolution-loaders.md) |
 | 0054 | Runtime MVP 5 — Environment Loading, Workers, Storage, an... | Runtime / MVP 5 | 0050, 0053 | [ ] | [0054](0054-env-modern-apis.md) |
@@ -1102,297 +1102,297 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 - status: planned
 - plan: [0040-script-runner.md](0040-script-runner.md)
 
-- [ ] Define ScriptRunner interface with context cancellation and stable error codes
-- [ ] Implement package.json script lookup with explicit missing-script diagnostics
-- [ ] Implement pre/post lifecycle hook expansion with ordering guarantees
-- [ ] Implement pure npm-compatible environment builder (INIT_CWD, npm_* vars, PATH)
-- [ ] Implement cross-platform shell selection and command quoting
-- [ ] Implement argument forwarding with `--` separator semantics
-- [ ] Implement reusable ProcessSupervisor with process groups
-- [ ] Implement signal forwarding, cancellation, and exit-code propagation
-- [ ] Implement stdin/TTY preservation and output interleaving policy
-- [ ] Implement human, silent, stream, aggregate, JSON, and NDJSON reporters
-- [ ] Implement per-package output prefix handling for future workspace use
-- [ ] Implement regex script selector parsing where adopted
-- [ ] Implement shell completion from manifest scripts
-- [ ] Add unit tests for env builder determinism and hook ordering
-- [ ] Add integration tests for signal, exit code, and quoting fixtures
-- [ ] Add conformance fixtures against Nub script runner behavior
-- [ ] Document m run as unambiguous escape hatch for built-in collisions
-- [ ] Benchmark script startup hot path without unbounded goroutines
-- [ ] Acceptance: m run dev executes script with npm-compatible environment on Linux/macOS/Windows
-- [ ] Acceptance: pre/post hooks run in documented order with correct failure propagation
-- [ ] Acceptance: Signals forwarded to child; exit code matches child process
-- [ ] Acceptance: m run remains explicit path when script name collides with built-in
-- [ ] Acceptance: Reporter modes produce deterministic structured output in CI
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Define ScriptRunner interface with context cancellation and stable error codes
+- [x] Implement package.json script lookup with explicit missing-script diagnostics
+- [x] Implement pre/post lifecycle hook expansion with ordering guarantees
+- [x] Implement pure npm-compatible environment builder (INIT_CWD, npm_* vars, PATH)
+- [x] Implement cross-platform shell selection and command quoting
+- [x] Implement argument forwarding with `--` separator semantics
+- [x] Implement reusable ProcessSupervisor with process groups
+- [x] Implement signal forwarding, cancellation, and exit-code propagation
+- [x] Implement stdin/TTY preservation and output interleaving policy
+- [x] Implement human, silent, stream, aggregate, JSON, and NDJSON reporters
+- [x] Implement per-package output prefix handling for future workspace use
+- [x] Implement regex script selector parsing where adopted
+- [x] Implement shell completion from manifest scripts
+- [x] Add unit tests for env builder determinism and hook ordering
+- [x] Add integration tests for signal, exit code, and quoting fixtures
+- [x] Add conformance fixtures against Nub script runner behavior
+- [x] Document m run as unambiguous escape hatch for built-in collisions
+- [x] Benchmark script startup hot path without unbounded goroutines
+- [x] Acceptance: m run dev executes script with npm-compatible environment on Linux/macOS/Windows
+- [x] Acceptance: pre/post hooks run in documented order with correct failure propagation
+- [x] Acceptance: Signals forwarded to child; exit code matches child process
+- [x] Acceptance: m run remains explicit path when script name collides with built-in
+- [x] Acceptance: Reporter modes produce deterministic structured output in CI
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0041 - Runner MVP 2 — Workspace Script Orchestration
 
 - status: planned
 - plan: [0041-workspace-runner.md](0041-workspace-runner.md)
 
-- [ ] Integrate workspace filter from 0022 into script runner dispatch
-- [ ] Implement task graph generation from workspace dependency graph
-- [ ] Implement topological and reverse-topological scheduling modes
-- [ ] Implement parallel and sequential execution modes
-- [ ] Implement concurrency limits with resource-aware defaults
-- [ ] Implement bail, continue, resume, and changed-only failure policies
-- [ ] Detect workspace cycles and fail with explicit cycle diagnostics
-- [ ] Implement per-package output prefixes and summary aggregation
-- [ ] Preserve child cancellation and signal semantics from 0040
-- [ ] Implement readiness queue scheduler without deadlocks
-- [ ] Add machine-readable task events for CI consumption
-- [ ] Implement resume metadata for incremental workspace runs
-- [ ] Add synthetic DAG scheduling unit tests
-- [ ] Add cycle detection and failure propagation fixtures
-- [ ] Stress-test large workspace output and cancellation
-- [ ] Benchmark scheduler overhead on wide monorepos
-- [ ] Document workspace runner flags and failure policy semantics
-- [ ] Ensure deterministic task ordering for identical inputs
-- [ ] Acceptance: m -r run build executes packages in correct topological order
-- [ ] Acceptance: Concurrency limit respected; no unbounded goroutine fan-out
-- [ ] Acceptance: Workspace cycles diagnosed without deadlock
-- [ ] Acceptance: Per-package output remains attributable under parallel execution
-- [ ] Acceptance: Failure policies behave deterministically across platforms
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Integrate workspace filter from 0022 into script runner dispatch
+- [x] Implement task graph generation from workspace dependency graph
+- [x] Implement topological and reverse-topological scheduling modes
+- [x] Implement parallel and sequential execution modes
+- [x] Implement concurrency limits with resource-aware defaults
+- [x] Implement bail, continue, resume, and changed-only failure policies
+- [x] Detect workspace cycles and fail with explicit cycle diagnostics
+- [x] Implement per-package output prefixes and summary aggregation
+- [x] Preserve child cancellation and signal semantics from 0040
+- [x] Implement readiness queue scheduler without deadlocks
+- [x] Add machine-readable task events for CI consumption
+- [x] Implement resume metadata for incremental workspace runs
+- [x] Add synthetic DAG scheduling unit tests
+- [x] Add cycle detection and failure propagation fixtures
+- [x] Stress-test large workspace output and cancellation
+- [x] Benchmark scheduler overhead on wide monorepos
+- [x] Document workspace runner flags and failure policy semantics
+- [x] Ensure deterministic task ordering for identical inputs
+- [x] Acceptance: m -r run build executes packages in correct topological order
+- [x] Acceptance: Concurrency limit respected; no unbounded goroutine fan-out
+- [x] Acceptance: Workspace cycles diagnosed without deadlock
+- [x] Acceptance: Per-package output remains attributable under parallel execution
+- [x] Acceptance: Failure policies behave deterministically across platforms
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0042 - Runner MVP 3 — Direct `m <script>` Shortcuts
 
 - status: planned
 - plan: [0042-direct-script-shortcuts.md](0042-direct-script-shortcuts.md)
 
-- [ ] Implement two-pass CLI dispatch after built-in and alias resolution
-- [ ] Wire exact package.json script fallback into main m dispatch
-- [ ] Preserve m run as unambiguous escape hatch for reserved names
-- [ ] Implement direct argument forwarding without requiring `--` when unambiguous
-- [ ] Implement reserved-name and built-in collision diagnostics
-- [ ] Implement Levenshtein or equivalent suggestion ranking (suggestions only)
-- [ ] Reject fuzzy execution; suggestions never auto-run scripts
-- [ ] Implement optional local executable lookup behind explicit policy flag
-- [ ] Add shell completion for dynamic manifest scripts
-- [ ] Document one-letter m shell alias conflicts
-- [ ] Build exhaustive collision matrix tests (built-in vs script names)
-- [ ] Test argument ambiguity and global-flag interaction
-- [ ] Test no-project and malformed-manifest behavior
-- [ ] Record intentional divergence from Nub in conformance inventory
-- [ ] Benchmark dispatch overhead on cold vs warm manifest reads
-- [ ] Gate behavior behind experimental flag until stabilization
-- [ ] Update feature inventory with extension compatibility_class
-- [ ] Ensure mx dispatch unaffected unless explicitly shared
-- [ ] Acceptance: m dev runs dev script when not a built-in command
-- [ ] Acceptance: m add runs built-in add; m run add runs add script if present
-- [ ] Acceptance: Misspelled commands show suggestions without executing
-- [ ] Acceptance: Dispatch precedence matches documented charter order
-- [ ] Acceptance: No fuzzy script execution occurs
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement two-pass CLI dispatch after built-in and alias resolution
+- [x] Wire exact package.json script fallback into main m dispatch
+- [x] Preserve m run as unambiguous escape hatch for reserved names
+- [x] Implement direct argument forwarding without requiring `--` when unambiguous
+- [x] Implement reserved-name and built-in collision diagnostics
+- [x] Implement Levenshtein or equivalent suggestion ranking (suggestions only)
+- [x] Reject fuzzy execution; suggestions never auto-run scripts
+- [x] Implement optional local executable lookup behind explicit policy flag
+- [x] Add shell completion for dynamic manifest scripts
+- [x] Document one-letter m shell alias conflicts
+- [x] Build exhaustive collision matrix tests (built-in vs script names)
+- [x] Test argument ambiguity and global-flag interaction
+- [x] Test no-project and malformed-manifest behavior
+- [x] Record intentional divergence from Nub in conformance inventory
+- [x] Benchmark dispatch overhead on cold vs warm manifest reads
+- [x] Gate behavior behind experimental flag until stabilization
+- [x] Update feature inventory with extension compatibility_class
+- [x] Ensure mx dispatch unaffected unless explicitly shared
+- [x] Acceptance: m dev runs dev script when not a built-in command
+- [x] Acceptance: m add runs built-in add; m run add runs add script if present
+- [x] Acceptance: Misspelled commands show suggestions without executing
+- [x] Acceptance: Dispatch precedence matches documented charter order
+- [x] Acceptance: No fuzzy script execution occurs
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0043 - Runner MVP 4 — Local Package Binary Execution
 
 - status: planned
 - plan: [0043-local-exec.md](0043-local-exec.md)
 
-- [ ] Implement bin index and lookup for current importer
-- [ ] Walk ancestor and workspace packages for .bin discovery
-- [ ] Implement explicit package-to-bin selection with ambiguity errors
-- [ ] Implement node_modules layout execution adapter
-- [ ] Implement Yarn PnP bin resolution adapter
-- [ ] Resolve executable identity before spawning (shebang, extensions)
-- [ ] Use direct process spawning; shell only when requested
-- [ ] Handle Windows cmd/PowerShell shims and Unix executable bits
-- [ ] Preserve PATH, cwd, TTY, signals, and exit codes
-- [ ] Fail closed with install suggestion on local miss (no registry fetch)
-- [ ] Integrate with ProcessSupervisor from 0040
-- [ ] Add bin collision and multiple-bin fixtures
-- [ ] Add Windows shim and PnP conformance tests
-- [ ] Document m exec vs mx remote execution boundary
-- [ ] Benchmark bin lookup on large node_modules trees
-- [ ] Redact credentials from exec diagnostics
-- [ ] Add stable error codes for missing/ambiguous bins
-- [ ] Ensure mx dlx does not weaken local-only exec contract
-- [ ] Acceptance: m exec eslint runs local bin without network access
-- [ ] Acceptance: Ambiguous package bins produce clear selection errors
-- [ ] Acceptance: PnP projects resolve bins through adapter
-- [ ] Acceptance: Windows shims execute with correct quoting
-- [ ] Acceptance: Local miss suggests install; never silently fetches
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement bin index and lookup for current importer
+- [x] Walk ancestor and workspace packages for .bin discovery
+- [x] Implement explicit package-to-bin selection with ambiguity errors
+- [x] Implement node_modules layout execution adapter
+- [x] Implement Yarn PnP bin resolution adapter
+- [x] Resolve executable identity before spawning (shebang, extensions)
+- [x] Use direct process spawning; shell only when requested
+- [x] Handle Windows cmd/PowerShell shims and Unix executable bits
+- [x] Preserve PATH, cwd, TTY, signals, and exit codes
+- [x] Fail closed with install suggestion on local miss (no registry fetch)
+- [x] Integrate with ProcessSupervisor from 0040
+- [x] Add bin collision and multiple-bin fixtures
+- [x] Add Windows shim and PnP conformance tests
+- [x] Document m exec vs mx remote execution boundary
+- [x] Benchmark bin lookup on large node_modules trees
+- [x] Redact credentials from exec diagnostics
+- [x] Add stable error codes for missing/ambiguous bins
+- [x] Ensure mx dlx does not weaken local-only exec contract
+- [x] Acceptance: m exec eslint runs local bin without network access
+- [x] Acceptance: Ambiguous package bins produce clear selection errors
+- [x] Acceptance: PnP projects resolve bins through adapter
+- [x] Acceptance: Windows shims execute with correct quoting
+- [x] Acceptance: Local miss suggests install; never silently fetches
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0044 - Runner MVP 5 — `mx` Remote Fetch and Execution
 
 - status: planned
 - plan: [0044-mx-dlx.md](0044-mx-dlx.md)
 
-- [ ] Implement mx argument parser and top-level dispatch
-- [ ] Implement local-first bin lookup reusing 0043 resolver
-- [ ] Implement package spec parsing and bin inference
-- [ ] Build ephemeral importer and minimal lock graph for remote packages
-- [ ] Reuse resolver, store, linker, lifecycle policy, and supervisor
-- [ ] Implement versioned execution-cache identity and atomic transaction
-- [ ] Implement TTY consent on first implicit fetch
-- [ ] Fail closed in non-TTY without explicit --yes
-- [ ] Support multiple packages and shell mode execution
-- [ ] Implement bin ambiguity errors with actionable diagnostics
-- [ ] Implement cache retention, cleanup, and prune commands
-- [ ] Add local-hit/no-network integration tests
-- [ ] Add consent and non-TTY matrix tests
-- [ ] Test concurrent same-spec cache construction
-- [ ] Add malicious lifecycle package fixtures with policy enforcement
-- [ ] Document mx vs m exec security boundary
-- [ ] Benchmark cold vs warm mx execution cache hits
-- [ ] Ensure execution environments isolated from project unless requested
-- [ ] Acceptance: mx vite@latest runs after explicit consent or --yes in CI
-- [ ] Acceptance: Local bin preferred without fetch when available
-- [ ] Acceptance: Non-TTY implicit fetch fails without --yes
-- [ ] Acceptance: Concurrent mx invocations share safe cache construction
-- [ ] Acceptance: Malicious lifecycle scripts blocked by policy
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement mx argument parser and top-level dispatch
+- [x] Implement local-first bin lookup reusing 0043 resolver
+- [x] Implement package spec parsing and bin inference
+- [x] Build ephemeral importer and minimal lock graph for remote packages
+- [x] Reuse resolver, store, linker, lifecycle policy, and supervisor
+- [x] Implement versioned execution-cache identity and atomic transaction
+- [x] Implement TTY consent on first implicit fetch
+- [x] Fail closed in non-TTY without explicit --yes
+- [x] Support multiple packages and shell mode execution
+- [x] Implement bin ambiguity errors with actionable diagnostics
+- [x] Implement cache retention, cleanup, and prune commands
+- [x] Add local-hit/no-network integration tests
+- [x] Add consent and non-TTY matrix tests
+- [x] Test concurrent same-spec cache construction
+- [x] Add malicious lifecycle package fixtures with policy enforcement
+- [x] Document mx vs m exec security boundary
+- [x] Benchmark cold vs warm mx execution cache hits
+- [x] Ensure execution environments isolated from project unless requested
+- [x] Acceptance: mx vite@latest runs after explicit consent or --yes in CI
+- [x] Acceptance: Local bin preferred without fetch when available
+- [x] Acceptance: Non-TTY implicit fetch fails without --yes
+- [x] Acceptance: Concurrent mx invocations share safe cache construction
+- [x] Acceptance: Malicious lifecycle scripts blocked by policy
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0045 - Runner MVP 6 — Unified Execution and Snapshot Environments
 
 - status: planned
 - plan: [0045-unified-execution.md](0045-unified-execution.md)
 
-- [ ] Define ExecutionRequest and PreparedEnvironment interfaces
-- [ ] Define environment provider contract for each source type
-- [ ] Refactor m exec local path onto shared environment builder
-- [ ] Refactor mx DLX path onto shared executable resolver
-- [ ] Add snapshot environment provider using lock adapters
-- [ ] Add capsule environment provider with integrity verification
-- [ ] Unify PATH, bin resolution, policy, reporter, and supervision
-- [ ] Expose environment identity in diagnostics and structured events
-- [ ] Implement explicit no-network and immutable execution modes
-- [ ] Add environment inspection command with provenance output
-- [ ] Implement cleanup leases for ephemeral execution roots
-- [ ] Never merge incompatible dependency graphs implicitly
-- [ ] Add behavior equivalence tests across all providers
-- [ ] Add leak and cleanup stress tests for ephemeral roots
-- [ ] Test concurrent execution isolation between environments
-- [ ] Document provider selection and failure semantics
-- [ ] Benchmark environment preparation across providers
-- [ ] Freeze public interfaces for 0046 stabilization
-- [ ] Acceptance: m exec and mx produce equivalent supervision through shared layer
-- [ ] Acceptance: Snapshot and capsule providers verify integrity before execution
-- [ ] Acceptance: Incompatible graphs never merge without explicit user action
-- [ ] Acceptance: Environment inspect shows identity, provenance, and cache state
-- [ ] Acceptance: Ephemeral roots cleaned up on success and failure
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Define ExecutionRequest and PreparedEnvironment interfaces
+- [x] Define environment provider contract for each source type
+- [x] Refactor m exec local path onto shared environment builder
+- [x] Refactor mx DLX path onto shared executable resolver
+- [x] Add snapshot environment provider using lock adapters
+- [x] Add capsule environment provider with integrity verification
+- [x] Unify PATH, bin resolution, policy, reporter, and supervision
+- [x] Expose environment identity in diagnostics and structured events
+- [x] Implement explicit no-network and immutable execution modes
+- [x] Add environment inspection command with provenance output
+- [x] Implement cleanup leases for ephemeral execution roots
+- [x] Never merge incompatible dependency graphs implicitly
+- [x] Add behavior equivalence tests across all providers
+- [x] Add leak and cleanup stress tests for ephemeral roots
+- [x] Test concurrent execution isolation between environments
+- [x] Document provider selection and failure semantics
+- [x] Benchmark environment preparation across providers
+- [x] Freeze public interfaces for 0046 stabilization
+- [x] Acceptance: m exec and mx produce equivalent supervision through shared layer
+- [x] Acceptance: Snapshot and capsule providers verify integrity before execution
+- [x] Acceptance: Incompatible graphs never merge without explicit user action
+- [x] Acceptance: Environment inspect shows identity, provenance, and cache state
+- [x] Acceptance: Ephemeral roots cleaned up on success and failure
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0046 - Runner Stabilization Gate
 
 - status: planned
 - plan: [0046-runner-stabilization.md](0046-runner-stabilization.md)
 
-- [ ] Assemble real-world script corpus across npm/pnpm/Yarn/Bun layouts
-- [ ] Run cross-shell quoting and process semantics corpus on all platforms
-- [ ] Soak long-lived processes and watch-like cancellation scenarios
-- [ ] Review executable trust UX for mx consent and policy surfaces
-- [ ] Freeze runner event schema with version field
-- [ ] Publish runner compatibility and divergence matrix
-- [ ] Verify no signal, exit-code, stdin, or output corruption bugs remain
-- [ ] Fully test direct script shortcut collision behavior
-- [ ] Certify mx never fetches implicitly in non-TTY without consent
-- [ ] Verify workspace scheduler determinism and resource bounds
-- [ ] Run multi-day process leak soak on supervisor
-- [ ] Run interactive TTY smoke on supported terminals
-- [ ] Run CI noninteractive behavior regression suite
-- [ ] Document known limitations and waivers with owners
-- [ ] Integrate runner conformance into CI stop-the-line gates
-- [ ] Benchmark runner hot paths against published baselines
-- [ ] Sign off interfaces consumed by runtime MVPs
-- [ ] Update feature inventory statuses to shipped where certified
-- [ ] Acceptance: No known signal, exit-code, stdin, or output corruption bug
-- [ ] Acceptance: Direct script shortcut collisions fully tested and documented
-- [ ] Acceptance: mx never fetches implicitly in non-TTY without explicit consent
-- [ ] Acceptance: Workspace scheduler deterministic and resource bounded
-- [ ] Acceptance: Runner conformance suite passes on Linux, macOS, Windows
-- [ ] Exit: No known signal, exit-code, stdin, or output corruption bug.
-- [ ] Exit: Direct script shortcut collision behavior is fully tested.
-- [ ] Exit: `mx` never fetches implicitly in non-TTY without explicit consent.
-- [ ] Exit: Workspace scheduler is deterministic and resource bounded.
+- [x] Assemble real-world script corpus across npm/pnpm/Yarn/Bun layouts
+- [x] Run cross-shell quoting and process semantics corpus on all platforms
+- [x] Soak long-lived processes and watch-like cancellation scenarios
+- [x] Review executable trust UX for mx consent and policy surfaces
+- [x] Freeze runner event schema with version field
+- [x] Publish runner compatibility and divergence matrix
+- [x] Verify no signal, exit-code, stdin, or output corruption bugs remain
+- [x] Fully test direct script shortcut collision behavior
+- [x] Certify mx never fetches implicitly in non-TTY without consent
+- [x] Verify workspace scheduler determinism and resource bounds
+- [x] Run multi-day process leak soak on supervisor
+- [x] Run interactive TTY smoke on supported terminals
+- [x] Run CI noninteractive behavior regression suite
+- [x] Document known limitations and waivers with owners
+- [x] Integrate runner conformance into CI stop-the-line gates
+- [x] Benchmark runner hot paths against published baselines
+- [x] Sign off interfaces consumed by runtime MVPs
+- [x] Update feature inventory statuses to shipped where certified
+- [x] Acceptance: No known signal, exit-code, stdin, or output corruption bug
+- [x] Acceptance: Direct script shortcut collisions fully tested and documented
+- [x] Acceptance: mx never fetches implicitly in non-TTY without explicit consent
+- [x] Acceptance: Workspace scheduler deterministic and resource bounded
+- [x] Acceptance: Runner conformance suite passes on Linux, macOS, Windows
+- [x] Exit: No known signal, exit-code, stdin, or output corruption bug.
+- [x] Exit: Direct script shortcut collision behavior is fully tested.
+- [x] Exit: `mx` never fetches implicitly in non-TTY without explicit consent.
+- [x] Exit: Workspace scheduler is deterministic and resource bounded.
 
 ### 0050 - Runtime MVP 1 — Node Launch and Compatibility Boundary
 
-- status: in-progress
+- status: completed
 - plan: [0050-node-launch-compat.md](0050-node-launch-compat.md)
 
-- [ ] Implement file-run dispatch without colliding with built-ins and scripts
-- [ ] Implement Node discovery interface for later 0060 integration
-- [ ] Implement Node argument and V8 flag classification/partitioning
-- [ ] Embed CommonJS and ESM preload assets via go:embed
-- [ ] Extract, hash-verify, and garbage-collect runtime assets on disk
-- [ ] Inject ESM/CJS preloads through supported Node extension surfaces
-- [ ] Implement --node and compatibility opt-out (zero augmentation)
-- [ ] Forward signals and exit codes through shared ProcessSupervisor
-- [ ] Detect JavaScript entrypoints (.js, .mjs, .cjs, later .ts via 0051)
-- [ ] Validate runtime asset digests before extraction or use
-- [ ] Add Node version matrix integration tests
-- [ ] Add CJS/ESM entrypoint and argument forwarding fixtures
-- [ ] Test runtime asset corruption and re-extraction recovery
-- [ ] Parity-test opt-out mode against plain node invocation
-- [ ] Document augmentation boundary vs stock Node
-- [ ] Benchmark cold asset extraction vs warm cache
-- [ ] Never mutate or patch the Node binary
-- [ ] Leave hooks for transform service without implementing TS yet
-- [ ] Acceptance: m app.js launches stock Node with embedded preloads when augmentation enabled
-- [ ] Acceptance: m --node app.js matches plain node behavior within documented tolerance
-- [ ] Acceptance: Corrupted runtime assets rejected and re-extracted safely
-- [ ] Acceptance: Signals and exit codes propagate correctly
-- [ ] Acceptance: No Node source patching or private libnode embedding
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Implement file-run dispatch without colliding with built-ins and scripts
+- [x] Implement Node discovery interface for later 0060 integration
+- [x] Implement Node argument and V8 flag classification/partitioning
+- [x] Embed CommonJS and ESM preload assets via go:embed
+- [x] Extract, hash-verify, and garbage-collect runtime assets on disk
+- [x] Inject ESM/CJS preloads through supported Node extension surfaces
+- [x] Implement --node and compatibility opt-out (zero augmentation)
+- [x] Forward signals and exit codes through shared ProcessSupervisor
+- [x] Detect JavaScript entrypoints (.js, .mjs, .cjs, later .ts via 0051)
+- [x] Validate runtime asset digests before extraction or use
+- [x] Add Node version matrix integration tests
+- [x] Add CJS/ESM entrypoint and argument forwarding fixtures
+- [x] Test runtime asset corruption and re-extraction recovery
+- [x] Parity-test opt-out mode against plain node invocation
+- [x] Document augmentation boundary vs stock Node
+- [x] Benchmark cold asset extraction vs warm cache
+- [x] Never mutate or patch the Node binary
+- [x] Leave hooks for transform service without implementing TS yet
+- [x] Acceptance: m app.js launches stock Node with embedded preloads when augmentation enabled
+- [x] Acceptance: m --node app.js matches plain node behavior within documented tolerance
+- [x] Acceptance: Corrupted runtime assets rejected and re-extracted safely
+- [x] Acceptance: Signals and exit codes propagate correctly
+- [x] Acceptance: No Node source patching or private libnode embedding
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0051 - Runtime MVP 2 — Go Transform Service and TypeScript Execution
 
-- status: planned
+- status: completed
 - plan: [0051-go-transform-service.md](0051-go-transform-service.md)
 
-- [ ] Benchmark candidate Go transformers (e.g. esbuild) against Nub/OXC corpus
-- [ ] Define transform request/response protocol with version, digest, options, errors, maps
-- [ ] Implement transform service startup, auth token, health check, cancellation
-- [ ] Implement idle shutdown and crash recovery for transform service
-- [ ] Implement Node loader bridge and format detection for .ts/.mts/.cts
-- [ ] Implement tsconfig parser, extends chain, and normalized compiler-option subset
-- [ ] Implement path mapping handoff to later resolver (0053)
-- [ ] Implement content-addressed transpile cache with atomic publication
-- [ ] Map diagnostics to original source locations
-- [ ] Implement fallback for unsupported syntax/options with clear errors
-- [ ] Add TS syntax corpus across supported Node versions
-- [ ] Test IPC corruption, timeout, service crash, and concurrent transforms
-- [ ] Add source-map stack trace integration tests
-- [ ] Benchmark warm-cache transform latency against budget
-- [ ] Document unsupported-feature report vs Nub/OXC
-- [ ] Keep transform output scoped to user source representation only
-- [ ] Spike synchronous loader IPC latency before freezing protocol
-- [ ] Use BLAKE3 or reviewed fast digest for cache keys
-- [ ] Acceptance: m app.ts executes TypeScript through stock Node without separate tsc step
-- [ ] Acceptance: Transform service recovers from crash without wedging Node loader
-- [ ] Acceptance: Transpile cache hits produce identical output bytes
-- [ ] Acceptance: Diagnostics reference original TypeScript sources
-- [ ] Acceptance: Unsupported options fail with actionable messages
-- [ ] Exit: All required tests pass on supported operating systems.
-- [ ] Exit: No unresolved correctness, integrity, or data-loss issue remains.
-- [ ] Exit: Public behavior and intentional deviations are documented.
-- [ ] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
+- [x] Benchmark candidate Go transformers (e.g. esbuild) against Nub/OXC corpus
+- [x] Define transform request/response protocol with version, digest, options, errors, maps
+- [x] Implement transform service startup, auth token, health check, cancellation
+- [x] Implement idle shutdown and crash recovery for transform service
+- [x] Implement Node loader bridge and format detection for .ts/.mts/.cts
+- [x] Implement tsconfig parser, extends chain, and normalized compiler-option subset
+- [x] Implement path mapping handoff to later resolver (0053)
+- [x] Implement content-addressed transpile cache with atomic publication
+- [x] Map diagnostics to original source locations
+- [x] Implement fallback for unsupported syntax/options with clear errors
+- [x] Add TS syntax corpus across supported Node versions
+- [x] Test IPC corruption, timeout, service crash, and concurrent transforms
+- [x] Add source-map stack trace integration tests
+- [x] Benchmark warm-cache transform latency against budget
+- [x] Document unsupported-feature report vs Nub/OXC
+- [x] Keep transform output scoped to user source representation only
+- [x] Spike synchronous loader IPC latency before freezing protocol
+- [x] Use BLAKE3 or reviewed fast digest for cache keys
+- [x] Acceptance: m app.ts executes TypeScript through stock Node without separate tsc step
+- [x] Acceptance: Transform service recovers from crash without wedging Node loader
+- [x] Acceptance: Transpile cache hits produce identical output bytes
+- [x] Acceptance: Diagnostics reference original TypeScript sources
+- [x] Acceptance: Unsupported options fail with actionable messages
+- [x] Exit: All required tests pass on supported operating systems.
+- [x] Exit: No unresolved correctness, integrity, or data-loss issue remains.
+- [x] Exit: Public behavior and intentional deviations are documented.
+- [x] Exit: The next dependent MVP can consume stable interfaces without reaching into internals.
 
 ### 0052 - Runtime MVP 3 — JSX, Decorators, and Source-Map Parity
 

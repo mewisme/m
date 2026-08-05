@@ -52,10 +52,39 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 		sourceMap = api.SourceMapExternal
 	}
 
-	result := api.Transform(string(req.SourceBytes), api.TransformOptions{
+	format := mapFormat(req.Format)
+	// Respect tsconfig module setting for format when not explicit.
+	if req.NormalizedOpts.Module != "" {
+		switch strings.ToUpper(req.NormalizedOpts.Module) {
+		case "COMMONJS":
+			format = api.FormatCommonJS
+		case "ES6", "ES2015", "ES2020", "ES2022", "ESNEXT", "NODENEXT", "NODE16":
+			format = api.FormatESModule
+		case "PRESERVE":
+			// Keep whatever format was mapped from the request.
+		}
+	}
+
+	jsxMode := api.JSXTransform // default
+	jsxSet := false
+	if req.NormalizedOpts.JSX != "" {
+		switch strings.ToLower(req.NormalizedOpts.JSX) {
+		case "react":
+			jsxMode = api.JSXTransform
+			jsxSet = true
+		case "react-jsx", "react-jsxdev":
+			jsxMode = api.JSXAutomatic
+			jsxSet = true
+		case "preserve":
+			jsxMode = api.JSXPreserve
+			jsxSet = true
+		}
+	}
+
+	transformOpts := api.TransformOptions{
 		Loader:            loader,
 		Target:            esbuildTarget,
-		Format:            mapFormat(req.Format),
+		Format:            format,
 		Sourcemap:         sourceMap,
 		SourcesContent:    api.SourcesContentInclude,
 		Sourcefile:        req.SourcePath,
@@ -67,7 +96,12 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 		TreeShaking:       api.TreeShakingFalse,
 		Platform:          api.PlatformNode,
 		Charset:           api.CharsetUTF8,
-	})
+	}
+	if jsxSet {
+		transformOpts.JSX = jsxMode
+	}
+
+	result := api.Transform(string(req.SourceBytes), transformOpts)
 
 	if len(result.Errors) > 0 {
 		return zero, transformErrors(result.Errors)
@@ -120,8 +154,41 @@ func mapFormat(f ModuleFormat) api.Format {
 }
 
 func mapTarget(tsconfigTarget string, nodeMajor int) api.Target {
-	// Translate tsconfig target + Node major to esbuild target.
-	// Default to current Node LTS-level target.
+	// Translate tsconfig target to esbuild target when set;
+	// otherwise fall back to Node major version.
+	if tsconfigTarget != "" {
+		switch strings.ToUpper(tsconfigTarget) {
+		case "ES3":
+			return api.ES5 // esbuild doesn't support ES3; downgrade to ES5
+		case "ES5":
+			return api.ES5
+		case "ES2015", "ES6":
+			return api.ES2015
+		case "ES2016":
+			return api.ES2016
+		case "ES2017":
+			return api.ES2017
+		case "ES2018":
+			return api.ES2018
+		case "ES2019":
+			return api.ES2019
+		case "ES2020":
+			return api.ES2020
+		case "ES2021":
+			return api.ES2021
+		case "ES2022":
+			return api.ES2022
+		case "ES2023":
+			return api.ES2023
+		case "ES2024":
+			return api.ES2024
+		case "ESNEXT":
+			return api.ESNext
+		default:
+			// Unknown target: fall through to Node-based heuristic.
+		}
+	}
+	// Default to Node major version-based target.
 	switch {
 	case nodeMajor >= 22:
 		return api.ESNext

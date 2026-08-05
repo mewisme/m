@@ -2,8 +2,19 @@
 // Communicates with the Go transform service over local TCP.
 import { connect } from 'node:net';
 
-let endpoint = null;
-let token = null;
+// Capture credentials at module load time and strip from process.env
+// immediately, before any user module executes. Credentials are held in
+// closure variables reachable only by this loader, never by user code.
+const endpoint = process.env.MEW_TRANSFORM_ENDPOINT || null;
+const token = process.env.MEW_TRANSFORM_TOKEN || null;
+const transformOptions = process.env.MEW_TRANSFORM_OPTIONS || '{}';
+const optsDigest = process.env.MEW_TRANSFORM_OPTS_DIGEST || '';
+
+delete process.env.MEW_TRANSFORM_ENDPOINT;
+delete process.env.MEW_TRANSFORM_TOKEN;
+delete process.env.MEW_TRANSFORM_OPTIONS;
+delete process.env.MEW_TRANSFORM_OPTS_DIGEST;
+
 let conn = null;
 let seq = 0;
 // Per-request resolve/reject map keyed by request ID for concurrent transforms.
@@ -12,15 +23,13 @@ const pending = new Map();
 const DEFAULT_TIMEOUT = 60000; // 60s per request
 
 function ensureEnv() {
-  if (endpoint && token) return true;
-  endpoint = process.env.MEW_TRANSFORM_ENDPOINT;
-  token = process.env.MEW_TRANSFORM_TOKEN;
   return !!(endpoint && token);
 }
 
 export function stripPrivateEnv() {
-  delete process.env.MEW_TRANSFORM_ENDPOINT;
-  delete process.env.MEW_TRANSFORM_TOKEN;
+  // Credentials were stripped from process.env at module load time.
+  // This function exists for explicit cleanup if needed; it is a no-op
+  // for the env side because process.env is already clean.
 }
 
 // Reject all pending requests — called on disconnect or fatal error.
@@ -146,8 +155,8 @@ async function sendTransform(path, source) {
         source_digest: '',
         loader: loaderFromPath(path),
         format: formatFromPath(path),
-        options: process.env.MEW_TRANSFORM_OPTIONS || '{}',
-        opts_digest: process.env.MEW_TRANSFORM_OPTS_DIGEST || '',
+        options: transformOptions,
+        opts_digest: optsDigest,
         node_major: process.versions.node ? parseInt(process.versions.node.split('.')[0], 10) : 20,
         source_map: 'inline',
         cancel_token: id,

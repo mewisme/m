@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -45,6 +46,9 @@ type ServiceOptions struct {
 	Workers        int    // max concurrent transforms, default 4
 	IdleTimeout    time.Duration
 	RequestTimeout time.Duration
+	// Context is used for listener creation and health check dial.
+	// When nil, a background context is used (backward compat for tests).
+	Context context.Context
 }
 
 // NewSession creates a transform service session bound to a random local port.
@@ -78,8 +82,12 @@ func NewSession(opts ServiceOptions) (*Session, error) {
 	}
 
 	// Listen on localhost random port.
+	listenCtx := opts.Context
+	if listenCtx == nil {
+		listenCtx = context.Background()
+	}
 	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	ln, err := lc.Listen(listenCtx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, fmt.Errorf("listen: %w", err)
 	}
@@ -106,21 +114,39 @@ func (s *Session) EnvOverlay() []string {
 	}
 }
 
-// Start begins accepting connections. Returns after the health check succeeds.
+// Start begins accepting connections. Returns after the authenticated health
+// check succeeds: it connects to the listener and performs the real protocol
+// hello handshake to verify the service is reachable and authenticated.
 func (s *Session) Start(ctx context.Context) error {
 	if s.listener == nil {
 		return fmt.Errorf("session not initialized")
 	}
 
-	// Health check: connect to ourselves.
+	go s.serve(ctx)
+
+	// Health check: connect and perform real auth handshake.
 	conn, err := net.DialTimeout("tcp", s.Endpoint, 5*time.Second)
 	if err != nil {
 		_ = s.listener.Close()
 		return fmt.Errorf("health check dial: %w", err)
 	}
-	_ = conn.Close()
+	defer func() { _ = conn.Close() }()
 
-	go s.serve(ctx)
+	// Perform real hello handshake.
+	if err := EncodeFrame(conn, HelloRequest{V: ProtocolVersion, Token: s.Token}); err != nil {
+		_ = s.listener.Close()
+		return fmt.Errorf("health check hello encode: %w", err)
+	}
+	var helloResp HelloResponse
+	if err := DecodeFrame(conn, &helloResp); err != nil {
+		_ = s.listener.Close()
+		return fmt.Errorf("health check hello decode: %w", err)
+	}
+	if !helloResp.OK {
+		_ = s.listener.Close()
+		return fmt.Errorf("health check auth failed: %s", helloResp.Reason)
+	}
+
 	return nil
 }
 
@@ -172,11 +198,25 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 	// Step 1: authenticate via hello.
 	var hello HelloRequest
 	if err := DecodeFrame(conn, &hello); err != nil {
-		_ = EncodeFrame(conn, HelloResponse{V: ProtocolVersion, OK: false, Reason: "decode error"})
+		_ = EncodeFrame(conn, HelloResponse{
+			V: ProtocolVersion, OK: false,
+			ErrCode: string(apperr.TransformProtocolVersion), Reason: "decode error",
+		})
+		return
+	}
+	if err := hello.Validate(); err != nil {
+		_ = EncodeFrame(conn, HelloResponse{
+			V: ProtocolVersion, OK: false,
+			ErrCode: SanitizeErrorCode(string(apperr.TransformProtocolVersion)),
+			Reason:  SanitizeErrorMessage(err.Error()),
+		})
 		return
 	}
 	if subtle.ConstantTimeCompare([]byte(hello.Token), []byte(s.Token)) != 1 {
-		_ = EncodeFrame(conn, HelloResponse{V: ProtocolVersion, OK: false, Reason: "unauthorized"})
+		_ = EncodeFrame(conn, HelloResponse{
+			V: ProtocolVersion, OK: false,
+			ErrCode: string(apperr.TransformAuth), Reason: "unauthorized",
+		})
 		return
 	}
 	_ = EncodeFrame(conn, HelloResponse{V: ProtocolVersion, OK: true})
@@ -309,13 +349,20 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 	if s.cacheDir != "" {
 		identity := s.engine.Identity()
 		key := CacheKey(tReq, identity)
-		if cached, cerr := TryReadCache(s.cacheDir, key); cerr == nil && cached != nil {
+		cached, cerr := TryReadCache(s.cacheDir, key)
+		if cerr != nil {
+			// Corrupt entries are cleaned up by TryReadCache; re-transform below.
+			// Permission/I/O errors propagate as transform failures.
+			if !isCacheCorruption(cerr) {
+				resultErr = cerr
+			}
+		} else if cached != nil {
 			result = cached
 		}
 	}
 
-	// Cache miss or cache disabled: run engine.
-	if result == nil {
+	// Cache miss, corruption, or cache disabled: run engine.
+	if result == nil && resultErr == nil {
 		engineResult, engineErr := s.engine.Transform(reqCtx, tReq)
 		// Discard late results: if the context expired during transform,
 		// the engine result must not be cached or returned to the client.
@@ -328,6 +375,9 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 				identity := s.engine.Identity()
 				key := CacheKey(tReq, identity)
 				if werr := WriteCache(s.cacheDir, key, &engineResult); werr != nil {
+					// Cache write failures are non-fatal for the transform
+					// but indicate a disk issue worth investigating.
+					// ponytail: structured logging hook goes here.
 					_ = werr
 				}
 			}
@@ -404,4 +454,21 @@ func generateToken(byteLen int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// isCacheCorruption reports whether err is a recoverable cache corruption
+// (entry was cleaned up, caller should regenerate). Permission and I/O
+// errors are NOT corruption — they indicate a disk problem.
+func isCacheCorruption(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "cache code digest mismatch") ||
+		strings.Contains(msg, "cache map digest mismatch") ||
+		strings.Contains(msg, "cache code missing") ||
+		strings.Contains(msg, "cache map missing") ||
+		strings.Contains(msg, "corrupt cache meta") ||
+		strings.Contains(msg, "cache output digest mismatch") ||
+		strings.Contains(msg, "invalid cache key shape")
 }

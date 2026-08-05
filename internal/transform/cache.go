@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sync"
 
+	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
 )
 
@@ -22,6 +24,7 @@ type cacheEntry struct {
 	SchemaVersion int    `json:"schema_version"`
 	CodeDigest    string `json:"code_digest"`
 	MapDigest     string `json:"map_digest,omitempty"`
+	OutputDigest  string `json:"output_digest"`
 }
 
 // TransformCacheDir returns the root of the transform cache.
@@ -53,11 +56,20 @@ func CacheKeyPath(cacheDir, key string) string {
 	return filepath.Join(cacheDir, key[:2], key)
 }
 
+// keyShapeRE validates a cache key is a 64-char hex string (SHA-256).
+var keyShapeRE = regexp.MustCompile(`^[a-fA-F0-9]{64}$`)
+
 var cacheMu sync.Mutex
 
 // TryReadCache attempts to read a cached transform result.
-// Returns nil if the entry doesn't exist, is corrupt, or doesn't match.
+// Returns nil, nil for a clean miss (no entry exists).
+// Returns an error for corruption, permission failure, or I/O errors.
 func TryReadCache(cacheDir, key string) (*TransformResult, error) {
+	// Validate key shape before any filesystem access.
+	if !keyShapeRE.MatchString(key) {
+		return nil, fmt.Errorf("invalid cache key shape %q", key)
+	}
+
 	cacheMu.Lock()
 	defer cacheMu.Unlock()
 
@@ -70,8 +82,9 @@ func TryReadCache(cacheDir, key string) (*TransformResult, error) {
 	metaData, metaErr := os.ReadFile(metaPath)
 	if metaErr != nil {
 		if os.IsNotExist(metaErr) {
-			return nil, nil // miss
+			return nil, nil // clean miss
 		}
+		// Permission or unexpected I/O: propagate, don't silently convert to miss.
 		return nil, fmt.Errorf("reading cache meta: %w", metaErr)
 	}
 
@@ -81,15 +94,22 @@ func TryReadCache(cacheDir, key string) (*TransformResult, error) {
 		return nil, fmt.Errorf("corrupt cache meta: %w", err)
 	}
 	if entry.SchemaVersion != CacheSchemaVersion {
-		return nil, nil // stale schema → miss
+		_ = os.Remove(metaPath)
+		_ = os.Remove(codePath)
+		_ = os.Remove(mapPath)
+		return nil, nil // stale schema: clean up and miss
 	}
 
-	// Read code.
+	// Read code. Missing code when metadata references it is corruption.
 	code, codeErr := os.ReadFile(codePath)
 	if codeErr != nil {
 		if os.IsNotExist(codeErr) {
-			return nil, nil
+			// Metadata committed but code missing: corrupt entry, clean up.
+			_ = os.Remove(metaPath)
+			_ = os.Remove(mapPath)
+			return nil, fmt.Errorf("cache code missing for committed entry at %s", key)
 		}
+		// Permission or I/O error: propagate.
 		return nil, fmt.Errorf("reading cache code: %w", codeErr)
 	}
 	if digestBytes(code) != entry.CodeDigest {
@@ -99,31 +119,53 @@ func TryReadCache(cacheDir, key string) (*TransformResult, error) {
 		return nil, fmt.Errorf("cache code digest mismatch at %s", key)
 	}
 
-	// Read source map if present.
+	// Read source map if metadata references one.
 	var srcMap []byte
 	if entry.MapDigest != "" {
 		srcMap, codeErr = os.ReadFile(mapPath)
-		if codeErr != nil && !os.IsNotExist(codeErr) {
+		if codeErr != nil {
+			if os.IsNotExist(codeErr) {
+				// Metadata committed but map missing: corrupt entry, clean up.
+				_ = os.Remove(codePath)
+				_ = os.Remove(metaPath)
+				return nil, fmt.Errorf("cache map missing for committed entry at %s", key)
+			}
 			return nil, fmt.Errorf("reading cache map: %w", codeErr)
 		}
-		if len(srcMap) > 0 && digestBytes(srcMap) != entry.MapDigest {
+		if digestBytes(srcMap) != entry.MapDigest {
+			_ = os.Remove(codePath)
 			_ = os.Remove(mapPath)
 			_ = os.Remove(metaPath)
 			return nil, fmt.Errorf("cache map digest mismatch at %s", key)
 		}
 	}
 
+	// Validate combined output digest (same computation as engine.Transform).
+	expectedOutput := computeOutputDigest(code, srcMap)
+	if entry.OutputDigest != expectedOutput {
+		_ = os.Remove(codePath)
+		_ = os.Remove(mapPath)
+		_ = os.Remove(metaPath)
+		return nil, fmt.Errorf("cache output digest mismatch at %s", key)
+	}
+
 	return &TransformResult{
 		Code:         code,
 		SourceMap:    srcMap,
-		OutputDigest: entry.CodeDigest,
+		OutputDigest: entry.OutputDigest,
 		CacheStatus:  CacheStatusHit,
 		Elapsed:      0,
 	}, nil
 }
 
 // WriteCache writes a transform result to cache atomically.
+// Code and map are written first; metadata (the commit record) is written last.
+// Permission and I/O errors are propagated.
 func WriteCache(cacheDir, key string, result *TransformResult) error {
+	if result == nil {
+		return apperr.New(apperr.TransformCacheCorrupt, "transform.cache", key, "nil result")
+	}
+
 	cacheMu.Lock()
 	defer cacheMu.Unlock()
 
@@ -136,9 +178,13 @@ func WriteCache(cacheDir, key string, result *TransformResult) error {
 		return fmt.Errorf("mkdir cache: %w", err)
 	}
 
+	// Canonical output digest: SHA-256(code || map), same as engine.Transform.
+	outputDigest := computeOutputDigest(result.Code, result.SourceMap)
+
 	entry := cacheEntry{
 		SchemaVersion: CacheSchemaVersion,
 		CodeDigest:    digestBytes(result.Code),
+		OutputDigest:  outputDigest,
 	}
 
 	// Write code atomically.
@@ -160,6 +206,14 @@ func WriteCache(cacheDir, key string, result *TransformResult) error {
 		return err
 	}
 	return writeAtomic(metaPath, metaData)
+}
+
+// computeOutputDigest returns SHA-256(code || map), matching engine.Transform.
+func computeOutputDigest(code, srcMap []byte) string {
+	h := sha256.New()
+	h.Write(code)
+	h.Write(srcMap)
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // writeAtomic writes data to a file using temp + rename for atomicity.

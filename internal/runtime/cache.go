@@ -112,7 +112,8 @@ func EnsureAssets(eff *config.Effective) (map[string]string, error) {
 }
 
 // VerifyCache re-checks every extracted asset digest against the manifest.
-// Symlinks are rejected; corrupted files are deleted.
+// Symlinks and corrupt files are deleted so EnsureAssets will re-extract them.
+// Only fatal errors (permission denied, manifest corruption, I/O) are returned.
 func VerifyCache(eff *config.Effective) error {
 	cacheDir, err := CacheDir(eff)
 	if err != nil {
@@ -126,18 +127,23 @@ func VerifyCache(eff *config.Effective) error {
 		dest := filepath.Join(cacheDir, entry.Path)
 		if isSymlink(dest) {
 			_ = os.Remove(dest)
-			return apperr.New(apperr.RuntimeAssetCache, "runtime.verify", entry.Path,
-				"cached asset is a symlink; rejected for safety")
+			// Re-extraction will restore this asset; continue checking others.
+			continue
 		}
 		f, err := os.Open(dest)
 		if err != nil {
+			if os.IsNotExist(err) {
+				// Missing file will be re-extracted by EnsureAssets.
+				continue
+			}
+			// Permission or unexpected I/O error: fail closed.
 			return apperr.Wrap(apperr.RuntimeAssetCache, "runtime.verify", entry.Path, err)
 		}
 		verifyErr := assets.VerifyAsset(f, entry.SHA256)
 		_ = f.Close()
 		if verifyErr != nil {
 			_ = os.Remove(dest) // Delete corrupted file for re-extraction.
-			return verifyErr
+			continue
 		}
 	}
 	return nil

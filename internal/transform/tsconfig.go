@@ -12,13 +12,16 @@ import (
 )
 
 // NormalizedOptions collects transform-relevant tsconfig options.
+// Only options that affect transform output are included; options that
+// only affect type-checking (noEmit) are excluded.
+// baseUrl and paths affect module resolution (0052+) and are carried
+// for cache key stability.
 type NormalizedOptions struct {
 	Target                  string              `json:"target,omitempty"`
 	Module                  string              `json:"module,omitempty"`
 	UseDefineForClassFields bool                `json:"useDefineForClassFields,omitempty"`
 	VerbatimModuleSyntax    bool                `json:"verbatimModuleSyntax,omitempty"`
 	ImportHelpers           bool                `json:"importHelpers,omitempty"`
-	NoEmit                  bool                `json:"noEmit,omitempty"`
 	BaseURL                 string              `json:"baseUrl,omitempty"`
 	Paths                   map[string][]string `json:"paths,omitempty"`
 	JSX                     string              `json:"jsx,omitempty"`
@@ -35,12 +38,21 @@ func (o NormalizedOptions) Digest() string {
 const maxTsconfigDepth = 20
 
 // DiscoverTsconfig searches upward from sourceDir to find the nearest tsconfig.json.
+// Permission and I/O errors during discovery are propagated.
 func DiscoverTsconfig(sourceDir string) (string, error) {
 	dir := filepath.Clean(sourceDir)
 	for {
 		candidate := filepath.Join(dir, "tsconfig.json")
-		if _, err := os.Stat(candidate); err == nil {
+		info, err := os.Stat(candidate)
+		if err == nil {
+			if info.IsDir() {
+				return "", fmt.Errorf("tsconfig path is a directory: %s", candidate)
+			}
 			return candidate, nil
+		}
+		if !os.IsNotExist(err) {
+			// Permission or I/O error: propagate.
+			return "", fmt.Errorf("cannot stat %s: %w", candidate, err)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -98,7 +110,10 @@ func resolveExtends(path string, visited map[string]bool, depth int) ([]Tsconfig
 	}
 
 	// relative extends
-	resolved := resolveExtendsPath(abs, parentPath)
+	resolved, err := resolveExtendsPath(abs, parentPath)
+	if err != nil {
+		return nil, err
+	}
 	parents, err := resolveExtends(resolved, visited, depth+1)
 	if err != nil {
 		return nil, err
@@ -108,18 +123,18 @@ func resolveExtends(path string, visited map[string]bool, depth int) ([]Tsconfig
 }
 
 // resolveExtendsPath resolves an extends path relative to the config file.
-func resolveExtendsPath(configPath, extends string) string {
+// Package-style extends (e.g. "@scope/tsconfig") return an actionable error.
+func resolveExtendsPath(configPath, extends string) (string, error) {
 	if strings.HasPrefix(extends, ".") {
 		base := filepath.Dir(configPath)
 		resolved := filepath.Join(base, extends)
 		if filepath.Ext(resolved) == "" {
 			resolved += ".json"
 		}
-		return resolved
+		return resolved, nil
 	}
-	// Package-style extends (e.g. "@scope/tsconfig") are not resolved yet.
-	// ponytail: package extends deferred to when a real use case needs it.
-	return extends
+	// Package-style extends are not supported yet.
+	return "", fmt.Errorf("tsconfig extends %q: package-style extends are not yet supported (config %s)", extends, configPath)
 }
 
 // parseTsconfigFile reads and JSONC-parses a tsconfig.json file.
@@ -197,11 +212,6 @@ func applyCompilerOptions(opts *NormalizedOptions, raw map[string]any) {
 			opts.ImportHelpers = b
 		}
 	}
-	if v, ok := co["noEmit"]; ok {
-		if b, isBool := v.(bool); isBool {
-			opts.NoEmit = b
-		}
-	}
 	// Paths: child paths replace parent paths for the same key.
 	if v, ok := co["paths"].(map[string]any); ok {
 		if opts.Paths == nil {
@@ -233,7 +243,6 @@ func UnsupportedOptions(raw map[string]any) []string {
 		"useDefineForClassFields": true,
 		"verbatimModuleSyntax":    true,
 		"importHelpers":           true,
-		"noEmit":                  true,
 		"baseUrl":                 true,
 		"paths":                   true,
 		"jsx":                     true,

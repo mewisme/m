@@ -80,7 +80,7 @@ func TestValidateTransformRequestV2(t *testing.T) {
 			name: "valid",
 			req: transform.TransformRequestV2{
 				V: transform.ProtocolVersion, ID: "1", Op: "transform",
-				Path: "a.ts", Source: "x", Loader: "ts",
+				Path: "a.ts", Source: "x", Loader: "ts", Format: "esm",
 			},
 			wantErr: false,
 		},
@@ -88,7 +88,7 @@ func TestValidateTransformRequestV2(t *testing.T) {
 			name: "wrong version",
 			req: transform.TransformRequestV2{
 				V: 1, ID: "1", Op: "transform",
-				Path: "a.ts", Source: "x", Loader: "ts",
+				Path: "a.ts", Source: "x", Loader: "ts", Format: "esm",
 			},
 			wantErr: true,
 		},
@@ -96,7 +96,7 @@ func TestValidateTransformRequestV2(t *testing.T) {
 			name: "missing path",
 			req: transform.TransformRequestV2{
 				V: transform.ProtocolVersion, ID: "1", Op: "transform",
-				Source: "x", Loader: "ts",
+				Source: "x", Loader: "ts", Format: "esm",
 			},
 			wantErr: true,
 		},
@@ -104,7 +104,7 @@ func TestValidateTransformRequestV2(t *testing.T) {
 			name: "missing source",
 			req: transform.TransformRequestV2{
 				V: transform.ProtocolVersion, ID: "1", Op: "transform",
-				Path: "a.ts", Loader: "ts",
+				Path: "a.ts", Loader: "ts", Format: "esm",
 			},
 			wantErr: true,
 		},
@@ -112,7 +112,7 @@ func TestValidateTransformRequestV2(t *testing.T) {
 			name: "unknown op",
 			req: transform.TransformRequestV2{
 				V: transform.ProtocolVersion, ID: "1", Op: "bundle",
-				Path: "a.ts", Source: "x", Loader: "ts",
+				Path: "a.ts", Source: "x", Loader: "ts", Format: "esm",
 			},
 			wantErr: true,
 		},
@@ -139,5 +139,118 @@ func TestHelloRoundTrip(t *testing.T) {
 	}
 	if got.Token != "secret" {
 		t.Fatalf("token=%q", got.Token)
+	}
+}
+
+func TestHelloRequestValidateWrongVersion(t *testing.T) {
+	hello := transform.HelloRequest{V: 1, Token: "secret"}
+	err := hello.Validate()
+	if err == nil {
+		t.Fatal("expected error for wrong hello protocol version")
+	}
+}
+
+func TestHelloRequestValidateOK(t *testing.T) {
+	hello := transform.HelloRequest{V: transform.ProtocolVersion, Token: "secret"}
+	if err := hello.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTransformRequestV2ValidateLoader(t *testing.T) {
+	req := transform.TransformRequestV2{
+		V: transform.ProtocolVersion, ID: "1", Op: "transform",
+		Path: "a.ts", Source: "x", Loader: "invalid", Format: "esm",
+	}
+	err := req.Validate()
+	if err == nil {
+		t.Fatal("expected error for unknown loader")
+	}
+}
+
+func TestTransformRequestV2ValidateFormat(t *testing.T) {
+	req := transform.TransformRequestV2{
+		V: transform.ProtocolVersion, ID: "1", Op: "transform",
+		Path: "a.ts", Source: "x", Loader: "ts", Format: "umd",
+	}
+	err := req.Validate()
+	if err == nil {
+		t.Fatal("expected error for unknown format")
+	}
+}
+
+func TestTransformRequestV2ValidateSourceMapMode(t *testing.T) {
+	req := transform.TransformRequestV2{
+		V: transform.ProtocolVersion, ID: "1", Op: "transform",
+		Path: "a.ts", Source: "x", Loader: "ts", Format: "esm",
+		SourceMap: "foobar",
+	}
+	err := req.Validate()
+	if err == nil {
+		t.Fatal("expected error for unknown source-map mode")
+	}
+
+	// Empty source-map mode is OK (defaults to none).
+	req.SourceMap = ""
+	if err := req.Validate(); err != nil {
+		t.Fatalf("empty source-map should be valid: %v", err)
+	}
+}
+
+func TestTransformRequestV2ValidateIDTooLong(t *testing.T) {
+	req := transform.TransformRequestV2{
+		V: transform.ProtocolVersion, ID: string(make([]byte, 300)), Op: "transform",
+		Path: "a.ts", Source: "x", Loader: "ts", Format: "esm",
+	}
+	err := req.Validate()
+	if err == nil {
+		t.Fatal("expected error for too-long ID")
+	}
+}
+
+func TestEncodeFrameRejectsOversized(t *testing.T) {
+	// Create a payload that exceeds MaxFrameSize.
+	huge := transform.TransformRequestV2{
+		V:      transform.ProtocolVersion,
+		ID:     "1",
+		Op:     "transform",
+		Path:   "a.ts",
+		Source: string(make([]byte, transform.MaxFrameSize)), // > MaxFrameSize when JSON-encoded
+		Loader: "ts",
+		Format: "esm",
+	}
+	var buf bytes.Buffer
+	err := transform.EncodeFrame(&buf, huge)
+	if err == nil {
+		t.Fatal("expected error for oversized frame")
+	}
+}
+
+func TestSanitizeErrorCode(t *testing.T) {
+	stable := transform.SanitizeErrorCode("ERR_M_TRANSFORM_SYNTAX")
+	if stable != "ERR_M_TRANSFORM_SYNTAX" {
+		t.Fatalf("stable code sanitized: %s", stable)
+	}
+
+	unknown := transform.SanitizeErrorCode("ERR_M_TOP_SECRET")
+	if unknown != "ERR_M_TRANSFORM_ENGINE" {
+		t.Fatalf("unknown code not sanitized: %s", unknown)
+	}
+
+	empty := transform.SanitizeErrorCode("")
+	if empty != "ERR_M_TRANSFORM_ENGINE" {
+		t.Fatalf("empty code not sanitized: %s", empty)
+	}
+}
+
+func TestSanitizeErrorMessage(t *testing.T) {
+	msg := transform.SanitizeErrorMessage("const x = 1; unexpected token")
+	if msg == "const x = 1; unexpected token" {
+		t.Fatal("source content not sanitized from error message")
+	}
+
+	ok := transform.SanitizeErrorMessage("transform timeout")
+	if ok != "transform timeout" {
+		t.Fatalf("safe message altered: %s", ok)
 	}
 }

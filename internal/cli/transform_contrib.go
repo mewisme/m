@@ -32,16 +32,14 @@ func buildTransformContribution(ctx context.Context, cwd, entrypoint string, eff
 		Engine:   transform.NewEsbuildEngine(),
 		CacheDir: cacheDir,
 		Workers:  4,
+		Context:  ctx,
 	})
 	if err != nil {
 		return nil, apperr.Wrap(apperr.Internal, "cli.transform", entrypoint,
 			fmt.Errorf("starting transform service: %w", err))
 	}
 
-	// Start the listener using the command context for proper cancellation.
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	// Start the listener using the invocation context for proper cancellation.
 	if err := sess.Start(ctx); err != nil {
 		_ = sess.Close()
 		return nil, apperr.Wrap(apperr.RuntimeNodeStart, "cli.transform", entrypoint,

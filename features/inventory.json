@@ -1246,7 +1246,10 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0050",
-      "tests": []
+      "tests": [
+        "tests/integration/runtime_e2e_test.go",
+        "internal/runtime/"
+      ]
     },
     {
       "id": "runtime.typescript",
@@ -1256,7 +1259,10 @@
       "mew_status": "shipped",
       "compatibility_class": "parity",
       "primary_mvp": "0051",
-      "tests": []
+      "tests": [
+        "tests/integration/runtime_e2e_test.go",
+        "internal/transform/"
+      ]
     },
     {
       "id": "runtime.jsx",
