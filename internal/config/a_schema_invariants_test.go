@@ -134,13 +134,13 @@ func TestAllowedValuesMatchesRegistry(t *testing.T) {
 	for _, key := range RegisteredKeys() {
 		spec := KeySpec(key)
 		got := AllowedValues(key)
-		switch {
-		case spec.Type == TypeEnum:
+		switch spec.Type {
+		case TypeEnum:
 			want := strings.Join(spec.Enum, "|")
 			if got != want {
 				t.Errorf("%s: AllowedValues = %q, want %q", key, got, want)
 			}
-		case spec.Type == TypeBool:
+		case TypeBool:
 			if got != "true|false" {
 				t.Errorf("%s: AllowedValues = %q, want \"true|false\"", key, got)
 			}

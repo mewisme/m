@@ -642,8 +642,8 @@ func TestConfigPathUserJSON(t *testing.T) {
 	if parsed.User != userPath {
 		t.Fatalf("expected user %s, got %s", userPath, parsed.User)
 	}
-	if projPath != "" && parsed.Project != "" {
-		// No project path expected in this test without a project root.
+	if projPath == "" && parsed.Project != "" {
+		t.Errorf("unexpected project path: %s", parsed.Project)
 	}
 }
 
@@ -737,8 +737,9 @@ func TestRecoveryPathFormat(t *testing.T) {
 	recPath := recoveryPath("/home/user/.config/mew/config.jsonc")
 	dir := filepath.Dir(recPath)
 	base := filepath.Base(recPath)
-	if dir != "/home/user/.config/mew" {
-		t.Fatalf("unexpected recovery dir: %s", dir)
+	wantDir := filepath.Join("/home", "user", ".config", "mew")
+	if dir != wantDir {
+		t.Fatalf("unexpected recovery dir: %s (want %s)", dir, wantDir)
 	}
 	if !strings.HasPrefix(base, "config.jsonc.invalid-") {
 		t.Fatalf("expected config.jsonc.invalid-* prefix, got %s", base)

@@ -93,7 +93,14 @@ func (Adapter) EncodePreserving(ctx context.Context, path string, g *graph.Graph
 	if err != nil {
 		return lockfile.WriteResult{}, err
 	}
-	same, err := lockfile.GraphsEqual(priorGraph, g)
+
+	// Normalize TarballURL before comparison — resolved URLs differ across
+	// registries but do not represent a semantic graph change.
+	normalized := cloneGraphForCompare(g)
+	for i := range priorGraph.Packages {
+		priorGraph.Packages[i].TarballURL = ""
+	}
+	same, err := lockfile.GraphsEqual(priorGraph, normalized)
 	if err != nil {
 		return lockfile.WriteResult{}, err
 	}
@@ -106,6 +113,21 @@ func (Adapter) EncodePreserving(ctx context.Context, path string, g *graph.Graph
 		subject = "package-lock.json"
 	}
 	return lockfile.WriteResult{}, ErrMutationUnsupported("npm.write", subject)
+}
+
+func cloneGraphForCompare(g *graph.Graph) *graph.Graph {
+	data, err := graph.EncodeJSON(g)
+	if err != nil {
+		return g
+	}
+	cp, err := graph.DecodeJSON(data)
+	if err != nil {
+		return g
+	}
+	for i := range cp.Packages {
+		cp.Packages[i].TarballURL = ""
+	}
+	return cp
 }
 
 // LossFromDocument reports fields that would be lost migrating to canonical graph.

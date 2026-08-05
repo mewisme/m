@@ -62,9 +62,38 @@ const npmLockBridgePackageJSON = `{
   }
 }`
 
+const npmLockBody = `{
+  "name": "lock-bridge-test",
+  "version": "1.0.0",
+  "lockfileVersion": 2,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "lock-bridge-test",
+      "version": "1.0.0",
+      "dependencies": {
+        "lodash": "^4.17.21"
+      }
+    },
+    "node_modules/lodash": {
+      "version": "4.17.21",
+      "integrity": "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
+    }
+  },
+  "dependencies": {
+    "lodash": {
+      "version": "4.17.21",
+      "integrity": "sha256-758b80171fc185274170cb6db31a08042813d860a47b612d0671122a306b8b63"
+    }
+  }
+}`
+
 func setupNpmLockBridgeProject(t *testing.T) (projDir, cfgPath string) {
 	t.Helper()
 	projDir, cfgPath, _ = setupRegistryProject(t, npmLockBridgePackageJSON)
+	if err := os.WriteFile(filepath.Join(projDir, "package-lock.json"), []byte(npmLockBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	code, out := runM(t, projDir, cfgPath, "install")
 	if code != 0 {
 		t.Fatalf("bootstrap install exit=%d out=%s", code, out)

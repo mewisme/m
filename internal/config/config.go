@@ -128,13 +128,6 @@ func GlobalConfigPath() string {
 	return GlobalConfigPathFromEnv(NewEnvSnapshot(os.Environ(), runtime.GOOS))
 }
 
-func userHome() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	return os.Getenv("USERPROFILE")
-}
-
 // Load merges all layers into an Effective config.
 func Load(ctx context.Context, opts LoadOptions) (*Effective, error) {
 	_ = ctx
@@ -781,23 +774,6 @@ func ParseValue(key, s string) (any, error) {
 		return n, nil
 	default:
 		return s, nil
-	}
-}
-
-func setNested(m map[string]any, dotted string, v any) {
-	parts := strings.Split(dotted, ".")
-	cur := m
-	for i, p := range parts {
-		if i == len(parts)-1 {
-			cur[p] = v
-			return
-		}
-		next, ok := cur[p].(map[string]any)
-		if !ok {
-			next = map[string]any{}
-			cur[p] = next
-		}
-		cur = next
 	}
 }
 

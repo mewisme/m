@@ -90,11 +90,12 @@ func shellSplit(s string) ([]string, error) {
 				cur.WriteByte(c)
 			}
 		case inDouble:
-			if c == '\\' {
+			switch c {
+			case '\\':
 				escaped = true
-			} else if c == '"' {
+			case '"':
 				inDouble = false
-			} else {
+			default:
 				cur.WriteByte(c)
 			}
 		case c == '\'':

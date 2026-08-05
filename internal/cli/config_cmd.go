@@ -424,7 +424,7 @@ func writeConfigListHuman(g *globalFlags, cmd *cobra.Command, view configListVie
 	if len(view.Entries) > 0 {
 		b.WriteString("\n")
 	}
-	b.WriteString(fmt.Sprintf("%d configured, %d defaults\n", configured, defaulted))
+	fmt.Fprintf(&b, "%d configured, %d defaults\n", configured, defaulted)
 	return writeStaticOut(cmd, b.String())
 }
 
@@ -521,7 +521,7 @@ func newConfigExplainCmd(g *globalFlags) *cobra.Command {
 func renderConfigExplainHuman(g *globalFlags, cmd *cobra.Command, view configResolutionView) string {
 	r := g.mustStaticRenderer(cmd)
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("%s = %s\n", view.Key, view.Effective.Value))
+	fmt.Fprintf(&b, "%s = %s\n", view.Key, view.Effective.Value)
 	if view.Spec != nil && view.Spec.Description != "" {
 		b.WriteString(view.Spec.Description)
 		b.WriteString("\n")
@@ -903,7 +903,7 @@ func configValidateView(r presentation.StaticRenderer, scope configScope, report
 	label := strings.ToUpper(string(scope)[:1]) + string(scope)[1:] + " configuration"
 	var b strings.Builder
 	if report.Valid {
-		b.WriteString(fmt.Sprintf("✓ %s is valid\n\n", label))
+		fmt.Fprintf(&b, "✓ %s is valid\n\n", label)
 	} else {
 		b.WriteString(fmt.Sprintf("× %s is invalid\n\n", label))
 	}

@@ -123,14 +123,16 @@ func (r ValidationResult) Warnings() []Diagnostic { return r.filter(SeverityWarn
 // problem; secret values never reach it because diagnostics are built through
 // the redaction boundary.
 func (r ValidationResult) Err() error {
-	for _, d := range r.Errors() {
-		subject := r.Path
-		if k := d.ReportedKey(); k != "" {
-			subject = r.Path + ":" + k
-		}
-		return apperr.New(apperr.Config, "config.load", subject, d.Message)
+	errs := r.Errors()
+	if len(errs) == 0 {
+		return nil
 	}
-	return nil
+	d := errs[0]
+	subject := r.Path
+	if k := d.ReportedKey(); k != "" {
+		subject = r.Path + ":" + k
+	}
+	return apperr.New(apperr.Config, "config.load", subject, d.Message)
 }
 
 func (r ValidationResult) filter(s Severity) []Diagnostic {

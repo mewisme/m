@@ -99,9 +99,9 @@ func TestPackageMapCertifiedPathsHaveInventoryEvidence(t *testing.T) {
 		capability string
 		featureID  string
 	}{
-		{"internal/sbom/", "certified", "security.sbom"},
-		{"internal/provenance/", "shipped", "security.provenance"},
-		{"internal/features/", "shipped", "foundation.features-inventory"},
+		{"internal/sbom/", "implemented", "security.sbom"},
+		{"internal/provenance/", "implemented", "security.provenance"},
+		{"internal/features/", "implemented", "foundation.features-inventory"},
 	}
 	rowRE := regexp.MustCompile("`([^`]+)`.*\\|\\s*(exists|reserved|absent)\\s*\\|\\s*(\\S+)\\s*\\|")
 	for _, line := range strings.Split(string(mapText), "\n") {
@@ -136,8 +136,8 @@ func TestREADMECertifiedClaimMatchesInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(readme), "**Certified:") {
-		t.Fatal("README missing certified PM core claim")
+	if !strings.Contains(string(readme), "**Implemented:") {
+		t.Fatal("README missing implemented PM core claim")
 	}
 	inv, err := features.LoadFile(filepath.Join(root, "features", "inventory.json"))
 	if err != nil {

@@ -1083,11 +1083,9 @@ func TestExecuteCancellation(t *testing.T) {
 			Use: "waitcancel-noblock",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				close(started)
-				select {
-				case <-cmd.Context().Done():
-					close(done)
-					return cmd.Context().Err()
-				}
+				<-cmd.Context().Done()
+				close(done)
+				return cmd.Context().Err()
 			},
 		})
 		testkit.CleanEnv(t)
