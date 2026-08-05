@@ -905,7 +905,7 @@ func configValidateView(r presentation.StaticRenderer, scope configScope, report
 	if report.Valid {
 		fmt.Fprintf(&b, "✓ %s is valid\n\n", label)
 	} else {
-		b.WriteString(fmt.Sprintf("× %s is invalid\n\n", label))
+		fmt.Fprintf(&b, "× %s is invalid\n\n", label)
 	}
 	b.WriteString(r.KeyValues([]presentation.KeyValue{
 		{Key: "Keys", Value: strconv.Itoa(report.KeyCount())},
@@ -1020,7 +1020,7 @@ func writeConfigMigrationCheck(g *globalFlags, cmd *cobra.Command, plan config.M
 	var b strings.Builder
 	b.WriteString("! Configuration uses deprecated keys\n\n")
 	for _, s := range plan.Steps {
-		b.WriteString(fmt.Sprintf("  %s\n    Use %s\n\n", s.From, s.To))
+		fmt.Fprintf(&b, "  %s\n    Use %s\n\n", s.From, s.To)
 	}
 	b.WriteString("Run `m config migrate` to update the file.\n")
 	return writeStaticOut(cmd, b.String())
