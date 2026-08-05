@@ -25,7 +25,9 @@ func (ExtAdapter) Write(ctx context.Context, path string, g *graph.Graph) error 
 }
 
 func (ExtAdapter) ReadWithExtensions(ctx context.Context, path string) (*graph.Graph, lockfile.Extensions, error) {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, nil, apperr.Wrap(apperr.IO, "mlock.read", path, err)
@@ -60,13 +62,16 @@ func (a ExtAdapter) WritePreserving(
 }
 
 func (ExtAdapter) EncodePreserving(
-	_ context.Context,
+	ctx context.Context,
 	_ string,
 	g *graph.Graph,
 	prior []byte,
 	ext lockfile.Extensions,
 	det lockfile.Detection,
 ) (lockfile.WriteResult, error) {
+	if err := ctx.Err(); err != nil {
+		return lockfile.WriteResult{}, err
+	}
 	if len(prior) > 0 {
 		doc, err := Decode(prior)
 		if err != nil {

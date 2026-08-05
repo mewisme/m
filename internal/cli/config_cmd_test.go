@@ -200,10 +200,10 @@ func TestConfigListShowOrigin(t *testing.T) {
 	}
 }
 
-// TestConfigGetMarkdownThemeDefault pins the raw-scope contract: a key that
+// TestConfigGetUIThemeDefault pins the raw-scope contract: a key that
 // only carries a schema default is not configured in user scope, so the default
 // scope reports a typed not-set error rather than silently returning "auto".
-func TestConfigGetMarkdownThemeDefault(t *testing.T) {
+func TestConfigGetUIThemeDefault(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
 
@@ -235,7 +235,7 @@ func TestConfigGetMarkdownThemeDefault(t *testing.T) {
 	}
 }
 
-func TestConfigGetMarkdownThemeVerbose(t *testing.T) {
+func TestConfigGetUIThemeVerbose(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
 	if err := config.SetFile(filepath.Join(cfgDir, "config.jsonc"), "ui.theme", "dark"); err != nil {
@@ -260,7 +260,7 @@ func TestConfigGetMarkdownThemeVerbose(t *testing.T) {
 	}
 }
 
-func TestConfigSetMarkdownThemeUser(t *testing.T) {
+func TestConfigSetUIThemeUser(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
 
@@ -285,7 +285,7 @@ func TestConfigSetMarkdownThemeUser(t *testing.T) {
 	}
 }
 
-func TestConfigUnsetMarkdownThemeRestoresDefault(t *testing.T) {
+func TestConfigUnsetUIThemeRestoresDefault(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
 	path := filepath.Join(cfgDir, "config.jsonc")
@@ -316,7 +316,7 @@ func TestConfigUnsetMarkdownThemeRestoresDefault(t *testing.T) {
 	}
 }
 
-func TestConfigSetMarkdownThemeProjectRejected(t *testing.T) {
+func TestConfigSetUIThemeProjectRejected(t *testing.T) {
 	proj := t.TempDir()
 	if err := os.WriteFile(filepath.Join(proj, "package.json"), []byte(`{"name":"app"}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -342,7 +342,7 @@ func TestConfigSetMarkdownThemeProjectRejected(t *testing.T) {
 	}
 }
 
-func TestConfigSetMarkdownThemeInvalidValue(t *testing.T) {
+func TestConfigSetUIThemeInvalidValue(t *testing.T) {
 	cfgDir := t.TempDir()
 	t.Setenv("MEW_CONFIG_DIR", cfgDir)
 

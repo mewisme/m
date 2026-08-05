@@ -50,6 +50,9 @@ type globalFlags struct {
 	// snapshot is the single configuration snapshot for this invocation, shared
 	// by presentation and every app.Context built from it.
 	snapshot *app.ConfigSnapshot
+	// prompter is the presentation-selected prompt adapter, set during buildAppContext.
+	prompter  prompt.Prompter
+	canPrompt bool
 }
 
 var flagOwners sync.Map     // *cobra.Command -> *globalFlags
@@ -96,6 +99,50 @@ func (g *globalFlags) resolveDebug() bool {
 		return true
 	}
 	return strings.EqualFold(os.Getenv("M_LOG"), "debug")
+}
+
+// ensurePrompter lazily creates and caches a Prompter from the controller.
+// Returns nil, false when prompting is unavailable (non-interactive or no controller).
+func (g *globalFlags) ensurePrompter(cmd *cobra.Command) (prompt.Prompter, bool) {
+	if g.prompter != nil {
+		return g.prompter, g.canPrompt
+	}
+	if g.ctrl == nil {
+		return nil, false
+	}
+	resolved := g.ctrl.Options()
+	caps := g.ctrl.Capabilities()
+	settings := g.ctrl.Settings()
+
+	human := !resolved.Structured() && resolved.Output != presentation.OutputSilent
+	decision := prompt.ResolveInteractive(prompt.InteractiveAuto, prompt.Caps{
+		StdinTTY:     caps.StdinTTY,
+		HumanMode:    human,
+		CI:           caps.CI,
+		Accessible:   settings.Accessible,
+		AccessibleOK: true,
+		RichOK:       true,
+	})
+	g.canPrompt = decision.CanPrompt
+	if !decision.CanPrompt {
+		return nil, false
+	}
+	useRich := !decision.UseAccessible &&
+		settings.UseInteractive &&
+		!settings.Accessible &&
+		resolved.Output == presentation.OutputRich
+	g.prompter = presprompt.New(presprompt.Options{
+		Stdin:      cmd.InOrStdin(),
+		Stderr:     cmd.ErrOrStderr(),
+		Width:      settings.Width,
+		UseColor:   settings.UseColor,
+		UseUnicode: settings.UseUnicode,
+		Accessible: !useRich,
+		UseRich:    useRich,
+		Suspend:    g.ctrl.Suspend,
+		Resume:     g.ctrl.Resume,
+	})
+	return g.prompter, g.canPrompt
 }
 
 func attachGlobals(root *cobra.Command) *globalFlags {
@@ -228,6 +275,8 @@ func buildAppContext(ctx context.Context, cmd *cobra.Command, g *globalFlags, in
 	ac.SuspendUI = ctrl.Suspend
 	ac.ResumeUI = ctrl.Resume
 	attachPrompter(ac, cmd, ctrl)
+	g.prompter = ac.Prompter
+	g.canPrompt = ac.CanPrompt
 	return ac, nil
 }
 

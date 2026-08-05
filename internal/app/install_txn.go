@@ -421,7 +421,7 @@ func runInstallInSession(ctx context.Context, sess *MutationSession, opts Instal
 			linkErr = apperr.Wrap(apperr.IO, "app.install", lockName, err)
 			return res, linkErr
 		}
-	} else if err := writeStagedLock(stage, ac, proj, resolution, opts); err != nil {
+	} else if err := writeStagedLock(ctx, stage, ac, proj, resolution, opts); err != nil {
 		linkErr = err
 		return res, err
 	}
@@ -672,6 +672,21 @@ func buildCommitPlan(in commitPlanInput) []transaction.Op {
 	return ops
 }
 
+// readStagedOrLive reads path from stage if it exists, falling back to live
+// only on os.ErrNotExist. Permission, corruption, and other I/O errors on the
+// staged copy propagate — a snapshot must never silently substitute live bytes
+// when staged bytes were expected but unreadable.
+func readStagedOrLive(stage, live string) ([]byte, error) {
+	data, err := os.ReadFile(stage)
+	if err == nil {
+		return data, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return os.ReadFile(live)
+	}
+	return nil, err
+}
+
 func stageSnapshot(ctx context.Context, stage string, proj *project.Project, res *resolver.Resolution, opts InstallOptions) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -681,11 +696,10 @@ func stageSnapshot(ctx context.Context, stage string, proj *project.Project, res
 	if err != nil {
 		return "", err
 	}
-	manifestPath := filepath.Join(proj.Root, "package.json")
-	if _, statErr := os.Stat(filepath.Join(stage, "package.json")); statErr == nil { // intentional: staged manifest is an optional overlay; fall back to live
-		manifestPath = filepath.Join(stage, "package.json")
-	}
-	manifest, err := os.ReadFile(manifestPath)
+	manifest, err := readStagedOrLive(
+		filepath.Join(stage, "package.json"),
+		filepath.Join(proj.Root, "package.json"),
+	)
 	if err != nil {
 		return "", apperr.Wrap(apperr.IO, "app.snapshot", "package.json", err)
 	}
@@ -818,12 +832,7 @@ func collectSnapshotMemberManifests(stage, projRoot string, id project.Identity,
 			return nil
 		}
 		staged := filepath.Join(stage, filepath.FromSlash(rel))
-		if data, err := os.ReadFile(staged); err == nil { // intentional: staged member manifest is an optional overlay; fall back to live
-			out[rel] = data
-			return nil
-		}
-		live := filepath.Join(projRoot, filepath.FromSlash(rel))
-		data, err := os.ReadFile(live)
+		data, err := readStagedOrLive(staged, filepath.Join(projRoot, filepath.FromSlash(rel)))
 		if err != nil {
 			return apperr.Wrap(apperr.IO, "app.snapshot", rel, err)
 		}
@@ -859,14 +868,14 @@ func collectSnapshotMemberManifests(stage, projRoot string, id project.Identity,
 	return out, nil
 }
 
-func writeStagedLock(stage string, ac *Context, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {
+func writeStagedLock(ctx context.Context, stage string, ac *Context, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {
 	lockName := IncumbentLockBasename(proj)
 	stagePath := filepath.Join(stage, lockName)
 	switch proj.Identity {
 	case project.IdentityMew:
 		return writeStagedMlock(stagePath, ac, proj, res, opts)
 	case project.IdentityNub, project.IdentityPNPM, project.IdentityNPM, project.IdentityBun, project.IdentityYarn:
-		return writeStagedExtLock(stagePath, proj, res, opts)
+		return writeStagedExtLock(ctx, stagePath, proj, res, opts)
 	default:
 		return lockfile.NewUnsupported("app.install", lockName, "lock adapter not implemented for identity")
 	}
@@ -880,7 +889,10 @@ func SetWriteStagedExtLockTestHook(fn func() error) {
 	writeStagedExtLockTestHook = fn
 }
 
-func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {
+func writeStagedExtLock(ctx context.Context, stagePath string, proj *project.Project, res *resolver.Resolution, opts InstallOptions) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if writeStagedExtLockTestHook != nil {
 		if err := writeStagedExtLockTestHook(); err != nil {
 			return err
@@ -896,7 +908,7 @@ func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.R
 	}
 	livePath := LockPath(proj)
 	var extensions lockfile.Extensions
-	if _, extData, readErr := ext.ReadWithExtensions(context.Background(), livePath); readErr != nil {
+	if _, extData, readErr := ext.ReadWithExtensions(ctx, livePath); readErr != nil {
 		// A missing lock is greenfield; anything else means we would silently
 		// drop the incumbent extension payload.
 		if !errors.Is(readErr, os.ErrNotExist) && !isLockNotFound(readErr) {
@@ -938,7 +950,7 @@ func writeStagedExtLock(stagePath string, proj *project.Project, res *resolver.R
 			return err
 		}
 	}
-	out, err := lockfile.EncodePreserving(context.Background(), ext, livePath, res.Graph, prior, extensions, det)
+	out, err := lockfile.EncodePreserving(ctx, ext, livePath, res.Graph, prior, extensions, det)
 	if err != nil {
 		return err
 	}

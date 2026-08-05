@@ -12,7 +12,10 @@ import (
 type Adapter struct{}
 
 // Read decodes m.lock at path into a canonical graph.
-func (Adapter) Read(_ context.Context, path string) (*graph.Graph, error) {
+func (Adapter) Read(ctx context.Context, path string) (*graph.Graph, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, apperr.Wrap(apperr.IO, "mlock.read", path, err)
@@ -25,7 +28,10 @@ func (Adapter) Read(_ context.Context, path string) (*graph.Graph, error) {
 }
 
 // Write encodes graph to m.lock at path (specifiers derived from importer edges).
-func (Adapter) Write(_ context.Context, path string, g *graph.Graph) error {
+func (Adapter) Write(ctx context.Context, path string, g *graph.Graph) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	specs := SpecifiersFromGraph(g)
 	doc, err := FromGraph(g, specs, DefaultSettings())
 	if err != nil {

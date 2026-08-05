@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,6 +16,7 @@ import (
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/presentation"
+	"github.com/mewisme/mew/internal/prompt"
 )
 
 func newConfigCmd(g *globalFlags) *cobra.Command {
@@ -630,50 +629,13 @@ func newConfigEditCmd(g *globalFlags) *cobra.Command {
 				return err
 			}
 			scope := flags.resolvedScope()
-			cwd := g.cwd
-			target, err := resolveConfigWriteTarget(scope, cwd)
+			target, err := resolveConfigWriteTarget(scope, g.cwd)
 			if err != nil {
 				return err
 			}
 
-			// Create file if missing.
-			if _, err := os.Stat(target.Path); os.IsNotExist(err) {
-				if err := os.MkdirAll(filepath.Dir(target.Path), 0o755); err != nil {
-					return apperr.Wrap(apperr.IO, "config.edit", target.Path, err)
-				}
-				if err := os.WriteFile(target.Path, []byte("{}\n"), 0o644); err != nil {
-					return apperr.Wrap(apperr.IO, "config.edit", target.Path, err)
-				}
-			}
-
-			// Read existing content for recovery.
-			orig, err := os.ReadFile(target.Path)
-			if err != nil {
-				return apperr.Wrap(apperr.IO, "config.edit", target.Path, err)
-			}
-
-			editor := resolveEditor()
-			ecmd := exec.Command(editor, target.Path)
-			ecmd.Stdin = os.Stdin
-			ecmd.Stdout = os.Stdout
-			ecmd.Stderr = os.Stderr
-			if err := ecmd.Run(); err != nil {
-				return apperr.Wrap(apperr.IO, "config.edit", editor, err)
-			}
-
-			// Validate after edit.
-			b, err := os.ReadFile(target.Path)
-			if err != nil {
-				return apperr.Wrap(apperr.IO, "config.edit", target.Path, err)
-			}
-			if _, err := config.ParseJSONC(b); err != nil {
-				// Restore original.
-				if writeErr := os.WriteFile(target.Path, orig, 0o644); writeErr != nil {
-					return apperr.Wrap(apperr.IO, "config.edit", target.Path,
-						fmt.Errorf("invalid config (%w) and failed to restore backup (%w)", err, writeErr))
-				}
-				return apperr.Wrap(apperr.Config, "config.edit", target.Path,
-					fmt.Errorf("invalid config, original restored: %w", err))
+			if err := editConfigFile(cmd.Context(), cmd, g, target.Path, configScopeToConfig(scope)); err != nil {
+				return err
 			}
 
 			r := g.mustStaticRenderer(cmd)
@@ -685,16 +647,6 @@ func newConfigEditCmd(g *globalFlags) *cobra.Command {
 	}
 	flags.bind(cmd)
 	return cmd
-}
-
-func resolveEditor() string {
-	if e := os.Getenv("EDITOR"); e != "" {
-		return e
-	}
-	if e := os.Getenv("VISUAL"); e != "" {
-		return e
-	}
-	return "notepad"
 }
 
 // ── path ──────────────────────────────────────────────────────
@@ -709,14 +661,14 @@ func newConfigPathCmd(g *globalFlags) *cobra.Command {
 		Short: "Print config file path (default: user scope)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			scope := flags.resolvedScope()
+			userPath, projPath := resolveEffectivePaths(g.cwd)
+
 			if configOutputStructured(g, cmd) {
-				return writeConfigPathJSON(cmd, g.cwd, flags.resolvedScope(), all)
+				return writeConfigPathJSON(cmd, scope, userPath, projPath, all)
 			}
 
-			cwd := g.cwd
-
 			if all {
-				userPath, projPath := resolveEffectivePaths(cwd)
 				r := g.mustStaticRenderer(cmd)
 				kv := []presentation.KeyValue{
 					{Key: "User", Value: userPath, Style: presentation.ValuePath},
@@ -729,9 +681,7 @@ func newConfigPathCmd(g *globalFlags) *cobra.Command {
 				return writeStaticOut(cmd, r.KeyValues(kv))
 			}
 
-			scope := flags.resolvedScope()
 			if scope == configScopeEffective {
-				userPath, projPath := resolveEffectivePaths(cwd)
 				r := g.mustStaticRenderer(cmd)
 				kv := []presentation.KeyValue{
 					{Key: "User", Value: userPath, Style: presentation.ValuePath},
@@ -742,7 +692,7 @@ func newConfigPathCmd(g *globalFlags) *cobra.Command {
 				return writeStaticOut(cmd, r.KeyValues(kv))
 			}
 
-			target, err := resolveConfigWriteTarget(scope, cwd)
+			target, err := resolveConfigWriteTarget(scope, g.cwd)
 			if err != nil {
 				return err
 			}
@@ -755,16 +705,51 @@ func newConfigPathCmd(g *globalFlags) *cobra.Command {
 	return cmd
 }
 
-func writeConfigPathJSON(cmd *cobra.Command, cwd string, scope configScope, all bool) error {
+// configPathJSON is the stable typed model for structured config path output.
+type configPathJSON struct {
+	Scope    string   `json:"scope"`
+	Selected string   `json:"selected,omitempty"`
+	User     string   `json:"user"`
+	Project  string   `json:"project,omitempty"`
+	Paths    []string `json:"paths,omitempty"`
+}
+
+func writeConfigPathJSON(cmd *cobra.Command, scope configScope, userPath, projPath string, all bool) error {
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetEscapeHTML(false)
-	userPath, projPath := resolveEffectivePaths(cwd)
-	out := map[string]any{
-		"user":    userPath,
-		"project": projPath,
-		"scope":   string(scope),
+
+	out := configPathJSON{
+		Scope: string(scope),
+		User:  userPath,
 	}
-	_ = all
+
+	// --all shows every available raw config path.
+	if all {
+		out.Paths = []string{userPath}
+		if projPath != "" {
+			out.Paths = append(out.Paths, projPath)
+			out.Project = projPath
+		}
+		return enc.Encode(out)
+	}
+
+	// Selected path depends on scope.
+	switch scope {
+	case configScopeUser:
+		out.Selected = userPath
+	case configScopeProject:
+		out.Project = projPath
+		out.Selected = projPath
+	case configScopeEffective:
+		out.Project = projPath
+		// Effective shows both paths, no single "selected".
+	}
+
+	if out.Selected != "" {
+		// Deterministic ordering for the paths list.
+		out.Paths = []string{out.Selected}
+	}
+
 	return enc.Encode(out)
 }
 
@@ -1087,28 +1072,62 @@ func newConfigResetCmd(g *globalFlags) *cobra.Command {
 				return err
 			}
 			scope := flags.resolvedScope()
-			cwd := g.cwd
-			target, err := resolveConfigWriteTarget(scope, cwd)
+			target, err := resolveConfigWriteTarget(scope, g.cwd)
 			if err != nil {
 				return err
 			}
 
-			if _, err := os.Stat(target.Path); os.IsNotExist(err) {
-				return writeStaticOut(cmd,
-					fmt.Sprintf("No %s config file to reset.\n\n%s",
-						scope, target.Path))
+			// Missing file is an idempotent success.
+			if fi, err := os.Lstat(target.Path); err != nil {
+				if os.IsNotExist(err) {
+					r := g.mustStaticRenderer(cmd)
+					return writeStaticOut(cmd,
+						fmt.Sprintf("No %s config file to reset.\n\n%s\n\nEffective: defaults",
+							scope,
+							r.KeyValues([]presentation.KeyValue{
+								{Key: "File", Value: target.Path, Style: presentation.ValuePath},
+							})))
+				}
+				return apperr.Wrap(apperr.IO, "config.reset", target.Path, err)
+			} else if fi.IsDir() {
+				return apperr.New(apperr.IO, "config.reset", target.Path,
+					"unexpected directory at config path")
+			} else if fi.Mode()&os.ModeSymlink != 0 {
+				return apperr.New(apperr.IO, "config.reset", target.Path,
+					"config path is a symlink; refusing to delete")
 			}
 
 			if !yes {
-				return apperr.New(apperr.Usage, "config.reset", string(scope),
-					"use --yes to confirm reset")
+				prompter, canPrompt := g.ensurePrompter(cmd)
+				if !canPrompt {
+					return apperr.New(apperr.Usage, "config.reset", string(scope),
+						"non-interactive session: use --yes to confirm reset")
+				}
+				answer, err := prompter.Prompt(cmd.Context(), prompt.PromptRequest{
+					ID:          "config.reset",
+					Kind:        prompt.PromptConfirm,
+					Title:       fmt.Sprintf("Reset %s configuration?", scope),
+					Description: fmt.Sprintf("This will delete the %s config file so defaults and lower layers become effective.", scope),
+					Fields: []prompt.Field{
+						{Key: "Scope", Value: string(target.Scope)},
+						{Key: "File", Value: target.Path},
+					},
+					DefaultID: prompt.OptionReject,
+					Dangerous: true,
+				})
+				if err != nil {
+					return err
+				}
+				if answer.Cancelled || answer.OptionID != prompt.OptionApprove {
+					return nil // clean exit without deleting
+				}
 			}
 
 			if err := os.Remove(target.Path); err != nil {
 				return apperr.Wrap(apperr.IO, "config.reset", target.Path, err)
 			}
 			r := g.mustStaticRenderer(cmd)
-			return writeStaticOut(cmd, fmt.Sprintf("✓ Reset %s configuration\n\n%s",
+			return writeStaticOut(cmd, fmt.Sprintf("✓ Reset %s configuration\n\n%s\n\nEffective: defaults",
 				scope,
 				r.KeyValues([]presentation.KeyValue{
 					{Key: "File", Value: target.Path, Style: presentation.ValuePath},

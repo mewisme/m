@@ -7,7 +7,6 @@ import (
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/graph"
-	"github.com/mewisme/mew/internal/lifecycle"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/runner/envexec"
 )
@@ -73,9 +72,9 @@ func (m appFrozenMaterializer) Materialize(ctx context.Context, spec envexec.Fro
 	if err := WriteGenerationBinding(finalDir, genBind); err != nil {
 		return err
 	}
-	if spec.LifecyclePolicy != envexec.LifecycleForbidden && lifecycle.Enabled(m.ac.Config) {
-		// intentional: ephemeral env; a failed install script must not abort materialization
-		_ = runLifecyclePhase(ctx, m.ac, proj, InstallOptions{IgnoreScripts: true}, stageNM, g, linkPlan, "", nil)
-	}
+	// intentional: frozen/ephemeral environments are disposable; lifecycle
+	// scripts are not run because there is no persistent project to benefit
+	// from them and running untrusted scripts in a transient context is a
+	// security risk.
 	return nil
 }

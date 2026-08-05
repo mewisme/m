@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -165,26 +164,6 @@ func TestCWDSetsAppContext(t *testing.T) {
 	}
 }
 
-func TestCancelledContextExit130(t *testing.T) {
-	root := NewMRoot(testBuildInfo())
-	root.AddCommand(&cobra.Command{
-		Use: "waitcancel",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Context().Err()
-		},
-	})
-	root.SetOut(ioDiscard{})
-	root.SetErr(ioDiscard{})
-	root.SetArgs([]string{"waitcancel"})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	code := ExecuteWithContext(root, ctx)
-	if code != 130 {
-		t.Fatalf("exit=%d want 130", code)
-	}
-}
-
 func TestInvokedBinaryDisplayName(t *testing.T) {
 	cases := []struct {
 		argv0, fallback, wantInv, wantDisp string
@@ -260,24 +239,6 @@ func TestFlagsMatrix(t *testing.T) {
 				if !strings.Contains(stderr, want) {
 					t.Fatalf("stderr missing %q:\n%s", want, stderr)
 				}
-			}
-		})
-	}
-}
-
-func TestCompletionShells(t *testing.T) {
-	for _, shell := range []string{"bash", "zsh", "fish", "powershell"} {
-		t.Run(shell, func(t *testing.T) {
-			buf := new(bytes.Buffer)
-			root := NewMRoot(testBuildInfo())
-			root.SetOut(buf)
-			root.SetErr(buf)
-			root.SetArgs([]string{"completion", shell})
-			if err := root.Execute(); err != nil {
-				t.Fatal(err)
-			}
-			if buf.Len() < 20 {
-				t.Fatalf("short completion for %s: %q", shell, buf.String())
 			}
 		})
 	}

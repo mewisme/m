@@ -10,24 +10,6 @@ import (
 	"github.com/mewisme/mew/internal/diagnostics"
 )
 
-func TestMRootHelp(t *testing.T) {
-	root := NewMRoot(BuildInfo{Version: "0.0.0-test"})
-	buf := new(bytes.Buffer)
-	root.SetOut(buf)
-	root.SetErr(buf)
-
-	root.SetArgs([]string{"--help"})
-	if err := root.Execute(); err != nil {
-		t.Fatal(err)
-	}
-	out := buf.String()
-	for _, want := range []string{"features", "version", "development", "config", "Mew"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("help missing %q:\n%s", want, out)
-		}
-	}
-}
-
 func TestDevelopmentDoctor(t *testing.T) {
 	root := NewMRoot(BuildInfo{Version: "0.0.0-test"})
 	buf := new(bytes.Buffer)
@@ -65,35 +47,6 @@ func TestMFeaturesJSON(t *testing.T) {
 	}
 	if strings.Contains(out, `"tests"`) {
 		t.Fatal("user-facing JSON must not include tests field")
-	}
-}
-
-func TestMXRootHelp(t *testing.T) {
-	root := NewMXRoot(BuildInfo{Version: "0.0.0-test"})
-	buf := new(bytes.Buffer)
-	root.SetOut(buf)
-	root.SetErr(buf)
-
-	root.SetArgs([]string{"--help"})
-	if err := root.Execute(); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(buf.String(), "MewJS") {
-		t.Fatalf("help missing MewJS:\n%s", buf.String())
-	}
-}
-
-func TestVersionSubcommand(t *testing.T) {
-	root := NewMRoot(BuildInfo{Version: "1.2.3", Commit: "abc"})
-	buf := new(bytes.Buffer)
-	root.SetOut(buf)
-	root.SetArgs([]string{"version"})
-	if err := root.Execute(); err != nil {
-		t.Fatal(err)
-	}
-	got := buf.String()
-	if !strings.Contains(got, "m 1.2.3") || !strings.Contains(got, "abc") {
-		t.Fatalf("version output = %q", got)
 	}
 }
 

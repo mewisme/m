@@ -8,7 +8,6 @@ import (
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
-	"github.com/mewisme/mew/internal/lifecycle"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/runner/dlx"
 )
@@ -57,10 +56,9 @@ func buildDLXEnvironment(ctx context.Context, ac *Context, opts DLXOptions, reso
 	if err := writeResolvedLock(filepath.Join(staging, "m.lock"), ac, resolved.Resolution); err != nil {
 		return err
 	}
-	if lifecycle.Enabled(ac.Config) {
-		// intentional: dlx env is disposable; a failed install script must not abort the run
-		_ = runLifecyclePhase(ctx, ac, proj, InstallOptions{IgnoreScripts: true}, stageNM, resolved.Resolution.Graph, linkPlan, "", nil)
-	}
+	// intentional: dlx environments are disposable; lifecycle scripts are not
+	// run because there is no persistent project to benefit from them and
+	// running untrusted scripts in a transient context is a security risk.
 	if err := validateDLXUsability(stageNM, opts, resolved); err != nil {
 		return err
 	}
