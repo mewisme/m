@@ -373,13 +373,13 @@ jobs:
         shell: bash
         run: >-
           go run ./cmd/m conformance run cli-ux --json
-          > cli-ux-report-${{ matrix.label }}.json
+          > "${{ runner.temp }}/cli-ux-report-${{ matrix.label }}.json"
 
       - name: Runner certification
         shell: bash
         run: >-
           go run ./cmd/m conformance run runner --json
-          --output runner-report-${{ matrix.label }}.json --force
+          --output "${{ runner.temp }}/runner-report-${{ matrix.label }}.json" --force
 
       - name: Upload platform reports
         if: always()
@@ -387,8 +387,8 @@ jobs:
         with:
           name: platform-certification-${{ matrix.label }}
           path: |
-            cli-ux-report-${{ matrix.label }}.json
-            runner-report-${{ matrix.label }}.json
+            ${{ runner.temp }}/cli-ux-report-${{ matrix.label }}.json
+            ${{ runner.temp }}/runner-report-${{ matrix.label }}.json
           if-no-files-found: error
           retention-days: 14
 
