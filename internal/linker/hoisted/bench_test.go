@@ -10,6 +10,7 @@ import (
 
 func BenchmarkHoistedPlan(b *testing.B) {
 	g, err := graph.NewBuilder().
+		Importer(graph.RootImporter, "root-project").
 		Package(graph.PackageID{Name: "pkg-a", Version: "1.0.0"}, "", "").
 		Package(graph.PackageID{Name: "pkg-b", Version: "1.2.0"}, "", "").
 		Package(graph.PackageID{Name: "pkg-c", Version: "1.0.1"}, "", "").

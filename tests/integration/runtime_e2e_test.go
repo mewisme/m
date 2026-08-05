@@ -97,6 +97,9 @@ func TestRuntimeE2EHelloMTS(t *testing.T) {
 
 func TestRuntimeE2EHelloCTS(t *testing.T) {
 	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for .cts loader transform (CJS loader hooks)")
+	}
 	proj := runtimeE2EFixture(t)
 	code, _ := runMWithRuntime(t, proj, "hello.cts")
 	if code != 0 {

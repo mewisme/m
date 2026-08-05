@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"testing"
 
 	"github.com/mewisme/mew/internal/config"
@@ -123,6 +124,12 @@ func TestVerifyCacheCorruptFile(t *testing.T) {
 }
 
 func TestVerifyCacheUnreadableAsset(t *testing.T) {
+	// os.Chmod does not enforce the POSIX owner-read semantics on Windows;
+	// the permission model is ACL-based and the owner can always read.
+	if goruntime.GOOS == "windows" {
+		t.Skip("POSIX chmod 0o200 does not make files unreadable on Windows")
+	}
+
 	dir := t.TempDir()
 	eff := &config.Effective{Values: map[string]config.Value{"cache.dir": {Raw: dir}}}
 
