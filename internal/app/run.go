@@ -75,7 +75,7 @@ func Run(ctx context.Context, ac *Context, opts RunOptions) (runner.RunResult, e
 
 	started := time.Now()
 	result, err := runner.NewDefaultRunner().Run(ctx, runner.RunOptions{
-		ProjectRoot:   ac.CWD,
+		ProjectRoot:   proj.Root,
 		PackageDir:    packageDir,
 		NodeModules:   filepath.Join(packageDir, "node_modules"),
 		PackageName:   pkgName,
