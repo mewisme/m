@@ -39,8 +39,8 @@
       "path": "ts-loader.mjs",
       "role": "loader-support",
       "moduleType": "esm",
-      "size": 21966,
-      "sha256": "435ec89aa60f009770bd26a9fa767442098c0d9f2a0f16ea9ebc9ff8a017a213"
+      "size": 23102,
+      "sha256": "d4e86b1718e30acf276152b60ff5d0616a0ab2727966aff25fc8a1357d5297d6"
     }
   ]
 }

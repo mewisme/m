@@ -211,6 +211,26 @@ function getConn() {
                   false, // non-OK responses are never retryable
                 ));
               }
+            } else if (id != null) {
+              // ID parsed but no pending entry: response arrived after timeout
+              // or cancellation. Drop silently.
+            } else {
+              // Response with no ID — malformed. Fail the oldest pending
+              // request if any exist, so it doesn't wait for timeout.
+              if (pending.size > 0) {
+                const oldestKey = pending.keys().next().value;
+                const oldest = pending.get(oldestKey);
+                if (oldest) {
+                  clearTimeout(oldest.timer);
+                  pending.delete(oldestKey);
+                  oldest.reject(new TransformError(
+                    '',
+                    'malformed response from transform service',
+                    oldestKey,
+                    false,
+                  ));
+                }
+              }
             }
             // Unknown/duplicate IDs: drop silently (timed-out or already resolved).
           } catch (e) { /* drop malformed frame */ }
@@ -289,13 +309,18 @@ function sendFrame(c, obj, timeoutMs) {
 
 // ── Transform orchestration ────────────────────────────────────────
 
-async function sendTransform(path, source) {
+async function sendTransform(path, source, signal) {
   let lastErr;
   const sourceStr = String(source);
   const sourceDigest = createHash('sha256').update(sourceStr).digest('hex');
   const optsDigest = transformOptions ? createHash('sha256').update(transformOptions).digest('hex') : '';
 
   for (let attempt = 0; attempt < 2; attempt++) {
+    // Abort early if caller has cancelled.
+    if (signal?.aborted) {
+      throw new TransformError('ERR_M_CANCELLED', 'transform aborted', '', false);
+    }
+
     try {
       const c = await getConn();
       const id = String(++seq);
@@ -319,6 +344,9 @@ async function sendTransform(path, source) {
       return resp.code;
     } catch (e) {
       lastErr = classifyError(e, '');
+
+      // Never retry if the caller has cancelled.
+      if (signal?.aborted) break;
 
       // Never retry if the error is non-retryable.
       if (!lastErr.retryable) break;
@@ -644,7 +672,7 @@ export async function load(url, context, nextLoad) {
     return nextLoad(url, context);
   }
   const source = await nextLoad(url, { ...context, format: context.format });
-  const code = await sendTransform(pathname, String(source.source));
+  const code = await sendTransform(pathname, String(source.source), context.signal);
   stripPrivateEnv();
   return { format: context.format, source: code, shortCircuit: true };
 }
