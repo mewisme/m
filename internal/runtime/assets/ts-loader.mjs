@@ -330,6 +330,7 @@ async function sendTransform(path, source) {
 function loaderFromPath(p) {
   if (p.endsWith('.mts')) return 'mts';
   if (p.endsWith('.cts')) return 'cts';
+  if (p.endsWith('.tsx')) return 'tsx';
   return 'ts';
 }
 
@@ -353,7 +354,7 @@ export async function resolve(specifier, context, nextResolve) {
     const url = new URL(specifier, context.parentURL || 'file:///');
     if (url.protocol !== 'file:') return nextResolve(specifier, context);
     const path = decodeURIComponent(url.pathname);
-    if (path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.cts')) {
+    if (path.endsWith('.ts') || path.endsWith('.tsx') || path.endsWith('.mts') || path.endsWith('.cts')) {
       return {
         format: path.endsWith('.cts') ? 'commonjs' : 'module',
         url: url.href,
@@ -370,7 +371,7 @@ export async function load(url, context, nextLoad) {
     return nextLoad(url, context);
   }
   const pathname = decodeURIComponent(new URL(url).pathname);
-  if (!pathname.endsWith('.ts') && !pathname.endsWith('.mts') && !pathname.endsWith('.cts')) {
+  if (!pathname.endsWith('.ts') && !pathname.endsWith('.tsx') && !pathname.endsWith('.mts') && !pathname.endsWith('.cts')) {
     return nextLoad(url, context);
   }
   const source = await nextLoad(url, { ...context, format: context.format });

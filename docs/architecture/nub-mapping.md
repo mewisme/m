@@ -26,3 +26,8 @@ semantics where parity is intentional; use idiomatic Go architecture elsewhere.
 | Stock-Node augmentation | parity | Same product model as Nub |
 | OXC native addon | divergence | Go transform + optional IPC instead of N-API OXC |
 | Direct `m <script>` shortcuts | extension | Mew product differentiator (charter) |
+| JSX transforms | parity (0052) | classic + automatic runtimes, jsxFactory/jsxFragmentFactory/jsxImportSource |
+| Decorators | parity (0052) | legacy TS decorators via esbuild; emitDecoratorMetadata carried for cache keys; standard TC39 decorators deferred to esbuild upstream |
+| Source maps | parity (0052) | inline/external, sourceMap/inlineSourceMap tsconfig flags, sourceRoot/mapRoot |
+| TypeScript type-checking | divergence | Mew is a transpiler not a type checker; no semantic diagnostics |
+| Decorator metadata emission | divergence (0052) | Metadata carried in NormalizedOptions and cache keys but emission strategy (Go-native vs embedded JS) deferred |

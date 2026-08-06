@@ -64,7 +64,23 @@ type NormalizedOptions struct {
 	ImportHelpers           bool                `json:"importHelpers,omitempty"`
 	BaseURL                 string              `json:"baseUrl,omitempty"`
 	Paths                   map[string][]string `json:"paths,omitempty"`
-	JSX                     string              `json:"jsx,omitempty"`
+
+	// JSX
+	JSX              string `json:"jsx,omitempty"`
+	JSXFactory       string `json:"jsxFactory,omitempty"`
+	JSXFragmentFactory string `json:"jsxFragmentFactory,omitempty"`
+	JSXImportSource  string `json:"jsxImportSource,omitempty"`
+
+	// Decorators
+	ExperimentalDecorators bool `json:"experimentalDecorators,omitempty"`
+	EmitDecoratorMetadata  bool `json:"emitDecoratorMetadata,omitempty"`
+
+	// Source maps
+	SourceMap     bool `json:"sourceMap,omitempty"`
+	InlineSourceMap bool `json:"inlineSourceMap,omitempty"`
+	InlineSources bool `json:"inlineSources,omitempty"`
+	SourceRoot    string `json:"sourceRoot,omitempty"`
+	MapRoot       string `json:"mapRoot,omitempty"`
 }
 
 // NormalizedOptionsDigest returns a stable SHA-256 of the normalized options.
@@ -271,6 +287,27 @@ func applyCompilerOptions(opts *NormalizedOptions, path string, raw map[string]a
 		}
 		opts.JSX = s
 	}
+	if v, ok := coMap["jsxFactory"]; ok {
+		s, isStr := v.(string)
+		if !isStr {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("jsxFactory must be a string")}
+		}
+		opts.JSXFactory = s
+	}
+	if v, ok := coMap["jsxFragmentFactory"]; ok {
+		s, isStr := v.(string)
+		if !isStr {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("jsxFragmentFactory must be a string")}
+		}
+		opts.JSXFragmentFactory = s
+	}
+	if v, ok := coMap["jsxImportSource"]; ok {
+		s, isStr := v.(string)
+		if !isStr {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("jsxImportSource must be a string")}
+		}
+		opts.JSXImportSource = s
+	}
 
 	// Boolean options: child overrides parent. Distinguish explicit false from absent.
 	if v, ok := coMap["useDefineForClassFields"]; ok {
@@ -293,6 +330,55 @@ func applyCompilerOptions(opts *NormalizedOptions, path string, raw map[string]a
 			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("importHelpers must be a boolean")}
 		}
 		opts.ImportHelpers = b
+	}
+	if v, ok := coMap["experimentalDecorators"]; ok {
+		b, isBool := v.(bool)
+		if !isBool {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("experimentalDecorators must be a boolean")}
+		}
+		opts.ExperimentalDecorators = b
+	}
+	if v, ok := coMap["emitDecoratorMetadata"]; ok {
+		b, isBool := v.(bool)
+		if !isBool {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("emitDecoratorMetadata must be a boolean")}
+		}
+		opts.EmitDecoratorMetadata = b
+	}
+	if v, ok := coMap["sourceMap"]; ok {
+		b, isBool := v.(bool)
+		if !isBool {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("sourceMap must be a boolean")}
+		}
+		opts.SourceMap = b
+	}
+	if v, ok := coMap["inlineSourceMap"]; ok {
+		b, isBool := v.(bool)
+		if !isBool {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("inlineSourceMap must be a boolean")}
+		}
+		opts.InlineSourceMap = b
+	}
+	if v, ok := coMap["inlineSources"]; ok {
+		b, isBool := v.(bool)
+		if !isBool {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("inlineSources must be a boolean")}
+		}
+		opts.InlineSources = b
+	}
+	if v, ok := coMap["sourceRoot"]; ok {
+		s, isStr := v.(string)
+		if !isStr {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("sourceRoot must be a string")}
+		}
+		opts.SourceRoot = s
+	}
+	if v, ok := coMap["mapRoot"]; ok {
+		s, isStr := v.(string)
+		if !isStr {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("mapRoot must be a string")}
+		}
+		opts.MapRoot = s
 	}
 
 	// Paths: child paths replace parent paths for the same key.
@@ -342,6 +428,11 @@ func UnsupportedOptions(raw map[string]any) []string {
 		"jsxImportSource":         true,
 		"sourceMap":               true,
 		"inlineSourceMap":         true,
+		"inlineSources":           true,
+		"sourceRoot":              true,
+		"mapRoot":                 true,
+		"experimentalDecorators":  true,
+		"emitDecoratorMetadata":   true,
 	}
 	var unsupported []string
 	for k := range raw {

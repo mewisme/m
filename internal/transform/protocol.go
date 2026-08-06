@@ -60,7 +60,7 @@ const (
 
 // ValidLoaderKinds lists the loader strings accepted on the wire.
 var ValidLoaderKinds = map[string]bool{
-	"ts": true, "mts": true, "cts": true,
+	"ts": true, "tsx": true, "mts": true, "cts": true,
 }
 
 // ValidFormats lists the format strings accepted on the wire.

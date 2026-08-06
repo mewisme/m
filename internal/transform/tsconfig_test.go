@@ -487,3 +487,137 @@ func TestConfigErrorPathPreserved(t *testing.T) {
 		t.Fatalf("error does not contain path: %s", cfgErr.Error())
 	}
 }
+
+func TestNormalizeJSXOptions(t *testing.T) {
+	dir := t.TempDir()
+	cfg := `{"compilerOptions":{"jsx":"react-jsx","jsxFactory":"h","jsxFragmentFactory":"Fragment","jsxImportSource":"preact"}}`
+	path := writeJSONC(t, dir, "tsconfig.json", cfg)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.JSX != "react-jsx" {
+		t.Fatalf("jsx=%s, want react-jsx", opts.JSX)
+	}
+	if opts.JSXFactory != "h" {
+		t.Fatalf("jsxFactory=%s, want h", opts.JSXFactory)
+	}
+	if opts.JSXFragmentFactory != "Fragment" {
+		t.Fatalf("jsxFragmentFactory=%s, want Fragment", opts.JSXFragmentFactory)
+	}
+	if opts.JSXImportSource != "preact" {
+		t.Fatalf("jsxImportSource=%s, want preact", opts.JSXImportSource)
+	}
+}
+
+func TestNormalizeDecoratorOptions(t *testing.T) {
+	dir := t.TempDir()
+	cfg := `{"compilerOptions":{"experimentalDecorators":true,"emitDecoratorMetadata":true}}`
+	path := writeJSONC(t, dir, "tsconfig.json", cfg)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !opts.ExperimentalDecorators {
+		t.Fatal("experimentalDecorators should be true")
+	}
+	if !opts.EmitDecoratorMetadata {
+		t.Fatal("emitDecoratorMetadata should be true")
+	}
+}
+
+func TestNormalizeSourceMapOptions(t *testing.T) {
+	dir := t.TempDir()
+	cfg := `{"compilerOptions":{"sourceMap":true,"inlineSourceMap":true,"inlineSources":true,"sourceRoot":"/src","mapRoot":"/maps"}}`
+	path := writeJSONC(t, dir, "tsconfig.json", cfg)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !opts.SourceMap {
+		t.Fatal("sourceMap should be true")
+	}
+	if !opts.InlineSourceMap {
+		t.Fatal("inlineSourceMap should be true")
+	}
+	if !opts.InlineSources {
+		t.Fatal("inlineSources should be true")
+	}
+	if opts.SourceRoot != "/src" {
+		t.Fatalf("sourceRoot=%s, want /src", opts.SourceRoot)
+	}
+	if opts.MapRoot != "/maps" {
+		t.Fatalf("mapRoot=%s, want /maps", opts.MapRoot)
+	}
+}
+
+func TestInvalidJSXFactoryType(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"compilerOptions":{"jsxFactory":42}}`)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NormalizeOptions(chain)
+	if err == nil {
+		t.Fatal("expected option error for non-string jsxFactory")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrOptionInvalid {
+		t.Fatalf("expected ConfigErrOptionInvalid, got %s", cfgErr.Kind)
+	}
+}
+
+func TestInvalidExperimentalDecoratorsType(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"compilerOptions":{"experimentalDecorators":"yes"}}`)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NormalizeOptions(chain)
+	if err == nil {
+		t.Fatal("expected option error for non-bool experimentalDecorators")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrOptionInvalid {
+		t.Fatalf("expected ConfigErrOptionInvalid, got %s", cfgErr.Kind)
+	}
+}
+
+func TestNormalizeOptionsDigestIncludesNewFields(t *testing.T) {
+	opts1 := NormalizedOptions{JSX: "react"}
+	opts2 := NormalizedOptions{JSX: "react-jsx"}
+	if opts1.Digest() == opts2.Digest() {
+		t.Fatal("digests must differ when JSX mode differs")
+	}
+
+	opts3 := NormalizedOptions{ExperimentalDecorators: true}
+	opts4 := NormalizedOptions{ExperimentalDecorators: true, EmitDecoratorMetadata: true}
+	if opts3.Digest() == opts4.Digest() {
+		t.Fatal("digests must differ when decorator metadata differs")
+	}
+}

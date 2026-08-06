@@ -17,7 +17,7 @@ import (
 func isTypeScriptFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case ".ts", ".mts", ".cts":
+	case ".ts", ".tsx", ".mts", ".cts":
 		return true
 	}
 	return false

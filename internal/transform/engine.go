@@ -52,6 +52,15 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 		sourceMap = api.SourceMapExternal
 	}
 
+	// If sourceMap mode is none but tsconfig has sourceMap:true, upgrade to external.
+	if sourceMap == api.SourceMapNone && req.NormalizedOpts.SourceMap {
+		sourceMap = api.SourceMapExternal
+	}
+	// tsconfig inlineSourceMap:true can override to inline.
+	if req.NormalizedOpts.InlineSourceMap && sourceMap != api.SourceMapExternal {
+		sourceMap = api.SourceMapInline
+	}
+
 	format := mapFormat(req.Format)
 	// Respect tsconfig module setting for format when not explicit.
 	if req.NormalizedOpts.Module != "" {
@@ -81,12 +90,16 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 		}
 	}
 
+	sourcesContent := api.SourcesContentInclude
+	// ponytail: zero-value bool can't distinguish "absent" from "explicit false".
+	// When inlineSources:false matters, add a tristate pointer type.
+
 	transformOpts := api.TransformOptions{
 		Loader:            loader,
 		Target:            esbuildTarget,
 		Format:            format,
 		Sourcemap:         sourceMap,
-		SourcesContent:    api.SourcesContentInclude,
+		SourcesContent:    sourcesContent,
 		Sourcefile:        req.SourcePath,
 		Define:            nil,
 		Pure:              nil,
@@ -99,6 +112,24 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 	}
 	if jsxSet {
 		transformOpts.JSX = jsxMode
+	}
+
+	// JSX classic runtime: factory and fragment functions.
+	if req.NormalizedOpts.JSXFactory != "" {
+		transformOpts.JSXFactory = req.NormalizedOpts.JSXFactory
+	}
+	if req.NormalizedOpts.JSXFragmentFactory != "" {
+		transformOpts.JSXFragment = req.NormalizedOpts.JSXFragmentFactory
+	}
+
+	// JSX automatic runtime: custom import source (default is "react").
+	if req.NormalizedOpts.JSXImportSource != "" {
+		transformOpts.JSXImportSource = req.NormalizedOpts.JSXImportSource
+	}
+
+	// Source root for external source maps.
+	if req.NormalizedOpts.SourceRoot != "" {
+		transformOpts.SourceRoot = req.NormalizedOpts.SourceRoot
 	}
 
 	result := api.Transform(string(req.SourceBytes), transformOpts)
@@ -133,6 +164,8 @@ func mapLoader(l LoaderKind) api.Loader {
 	switch l {
 	case LoaderTS:
 		return api.LoaderTS
+	case LoaderTSX:
+		return api.LoaderTSX
 	case LoaderMTS:
 		return api.LoaderTS // esbuild handles MTS same as TS
 	case LoaderCTS:

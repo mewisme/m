@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "bundleVersion": "5",
+  "bundleVersion": "6",
   "assets": [
     {
       "name": "credential-grabber.cjs",
@@ -39,8 +39,8 @@
       "path": "ts-loader.mjs",
       "role": "loader-support",
       "moduleType": "esm",
-      "size": 12512,
-      "sha256": "a468e92ee08902500cd5be224aedc10945334110e3287450b7d64ddf41f6e30b"
+      "size": 12607,
+      "sha256": "9b78c5e872b98721ef2951675bc1fdb27ef36579a6d525800ec2291d66e09605"
     }
   ]
 }
