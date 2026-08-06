@@ -41,6 +41,18 @@ type Session struct {
 
 	idleTimeout    time.Duration
 	requestTimeout time.Duration
+
+	// Session-scoped context and cancel, derived from the invocation context.
+	// Cancel is called by Close to initiate coordinated shutdown.
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	// Tracked connections for coordinated shutdown.
+	connsMu sync.Mutex
+	conns   map[net.Conn]struct{}
+
+	// WaitGroup tracks server, connection, and request goroutines.
+	wg sync.WaitGroup
 }
 
 // ServiceOptions configures the transform session.
@@ -50,13 +62,18 @@ type ServiceOptions struct {
 	Workers        int    // max concurrent transforms, default 4
 	IdleTimeout    time.Duration
 	RequestTimeout time.Duration
-	// Context is used for listener creation and health check dial.
-	// When nil, a background context is used (backward compat for tests).
+	// Context is the invocation context. Required for production sessions.
+	// Session-scoped context is derived from this; cancellation propagates
+	// to listener, connections, and active transforms.
 	Context context.Context
 }
 
 // NewSession creates a transform service session bound to a random local port.
+// Requires a non-nil Context in opts for production use.
 func NewSession(opts ServiceOptions) (*Session, error) {
+	if opts.Context == nil {
+		return nil, fmt.Errorf("transform session requires a non-nil context")
+	}
 	if opts.Engine == nil {
 		opts.Engine = NewEsbuildEngine()
 	}
@@ -75,6 +92,8 @@ func NewSession(opts ServiceOptions) (*Session, error) {
 		return nil, fmt.Errorf("token generation: %w", err)
 	}
 
+	ctx, cancel := context.WithCancel(opts.Context)
+
 	s := &Session{
 		Token:          token,
 		engine:         opts.Engine,
@@ -84,16 +103,16 @@ func NewSession(opts ServiceOptions) (*Session, error) {
 		activeIDs:      make(map[string]bool),
 		idleTimeout:    opts.IdleTimeout,
 		requestTimeout: opts.RequestTimeout,
+		ctx:            ctx,
+		cancel:         cancel,
+		conns:          make(map[net.Conn]struct{}),
 	}
 
-	// Listen on localhost random port.
-	listenCtx := opts.Context
-	if listenCtx == nil {
-		listenCtx = context.Background()
-	}
+	// Listen on localhost random port using the session context.
 	lc := net.ListenConfig{}
-	ln, err := lc.Listen(listenCtx, "tcp", "127.0.0.1:0")
+	ln, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("listen: %w", err)
 	}
 	s.listener = ln
@@ -122,20 +141,33 @@ func (s *Session) EnvOverlay() []string {
 // Start begins accepting connections. Returns after the authenticated health
 // check succeeds: it connects to the listener and performs the real protocol
 // hello handshake to verify the service is reachable and authenticated.
-func (s *Session) Start(ctx context.Context) error {
+// The health check aborts promptly when the session context is cancelled.
+func (s *Session) Start() error {
 	if s.listener == nil {
 		return fmt.Errorf("session not initialized")
 	}
 
-	go s.serve(ctx)
+	s.wg.Add(1)
+	go s.serve()
 
-	// Health check: connect and perform real auth handshake.
-	conn, err := net.DialTimeout("tcp", s.Endpoint, 5*time.Second)
+	// Health check: connect and perform real auth handshake using
+	// DialContext so it aborts on session context cancellation.
+	var d net.Dialer
+	conn, err := d.DialContext(s.ctx, "tcp", s.Endpoint)
 	if err != nil {
 		_ = s.listener.Close()
 		return fmt.Errorf("health check dial: %w", err)
 	}
 	defer func() { _ = conn.Close() }()
+
+	// Abort pending I/O when session context is cancelled.
+	go func() {
+		<-s.ctx.Done()
+		_ = conn.Close()
+	}()
+
+	// Set a deadline so encode/decode don't block indefinitely.
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 
 	// Perform real hello handshake.
 	if err := EncodeFrame(conn, HelloRequest{V: ProtocolVersion, Token: s.Token}); err != nil {
@@ -155,15 +187,33 @@ func (s *Session) Start(ctx context.Context) error {
 	return nil
 }
 
-// serve accepts connections on the listener. Exits when ctx is done,
-// the listener is closed, or idle timeout expires with no active requests.
-func (s *Session) serve(ctx context.Context) {
+// serve accepts connections on the listener. Exits when the session context is
+// cancelled, the listener is closed, shutdown has begun, or an idle timeout
+// expires with no active requests.
+func (s *Session) serve() {
+	defer s.wg.Done()
 	defer func() { _ = s.listener.Close() }()
 
+	// Close listener promptly when session context is cancelled.
+	// This unblocks Accept so serve can drain and return.
+	go func() {
+		<-s.ctx.Done()
+		_ = s.listener.Close()
+	}()
+
 	for {
+		if s.closed.Load() {
+			return
+		}
+		if s.ctx.Err() != nil {
+			return
+		}
+
 		if s.idleTimeout > 0 && s.active.Load() == 0 {
 			// Set accept deadline so we can check idle expiry periodically.
-			_ = s.listener.(*net.TCPListener).SetDeadline(time.Now().Add(s.idleTimeout))
+			if tl, ok := s.listener.(*net.TCPListener); ok {
+				_ = tl.SetDeadline(time.Now().Add(s.idleTimeout))
+			}
 		}
 
 		conn, err := s.listener.Accept()
@@ -171,16 +221,38 @@ func (s *Session) serve(ctx context.Context) {
 			if s.closed.Load() {
 				return
 			}
+			if s.ctx.Err() != nil {
+				return
+			}
 			// Idle timeout with no active requests: shut down.
 			if s.active.Load() == 0 && isTimeoutErr(err) {
 				return
 			}
-			// ponytail: transient accept error → continue.
-			continue
+			// Retry genuine transient accept errors while session remains active.
+			if isTemporaryAcceptErr(err) {
+				continue
+			}
+			return
 		}
 		// Clear deadline so active connections aren't affected.
-		_ = s.listener.(*net.TCPListener).SetDeadline(time.Time{})
-		go s.handleConn(ctx, conn)
+		if tl, ok := s.listener.(*net.TCPListener); ok {
+			_ = tl.SetDeadline(time.Time{})
+		}
+
+		// Track connection for coordinated shutdown.
+		s.connsMu.Lock()
+		s.conns[conn] = struct{}{}
+		s.connsMu.Unlock()
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			defer func() {
+				s.connsMu.Lock()
+				delete(s.conns, conn)
+				s.connsMu.Unlock()
+			}()
+			s.handleConn(s.ctx, conn)
+		}()
 	}
 }
 
@@ -192,6 +264,19 @@ func isTimeoutErr(err error) bool {
 	type timeout interface{ Timeout() bool }
 	if t, ok := err.(timeout); ok {
 		return t.Timeout()
+	}
+	return false
+}
+
+// isTemporaryAcceptErr reports whether err is a transient accept error
+// that should be retried.
+func isTemporaryAcceptErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	type temporary interface{ Temporary() bool }
+	if t, ok := err.(temporary); ok {
+		return t.Temporary()
 	}
 	return false
 }
@@ -229,6 +314,9 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 	// Step 2: process requests.
 	for {
 		if s.closed.Load() {
+			return
+		}
+		if ctx.Err() != nil {
 			return
 		}
 
@@ -326,6 +414,16 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 
 // handleTransform processes a single transform request.
 func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *TransformRequestV2) {
+	// Reject new requests after shutdown has begun.
+	if s.closed.Load() {
+		_ = EncodeFrame(conn, TransformResponseV2{
+			V: ProtocolVersion, ID: req.ID, OK: false,
+			ErrCode: string(apperr.TransformUnavailable),
+			Error:   "service shutting down",
+		})
+		return
+	}
+
 	// Reject duplicate active request IDs before any expensive work.
 	s.activeIDsMu.Lock()
 	if s.activeIDs[req.ID] {
@@ -345,7 +443,7 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 		s.activeIDsMu.Unlock()
 	}()
 
-	// Apply request deadline.
+	// Apply request deadline derived from session context.
 	reqCtx, cancel := context.WithTimeout(ctx, s.requestTimeout)
 	defer cancel()
 
@@ -481,6 +579,14 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 			})
 			return
 		}
+		// Check if this is a context cancellation (from session shutdown).
+		if ctx.Err() != nil {
+			_ = EncodeFrame(conn, TransformResponseV2{
+				V: ProtocolVersion, ID: req.ID, OK: false,
+				ErrCode: string(apperr.TransformCancelled), Error: "transform cancelled",
+			})
+			return
+		}
 		_ = EncodeFrame(conn, TransformResponseV2{
 			V: ProtocolVersion, ID: req.ID, OK: false,
 			ErrCode: SanitizeErrorCode(string(apperr.CodeOf(resultErr))),
@@ -508,15 +614,66 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 	})
 }
 
-// Close initiates graceful shutdown.
+// Close initiates coordinated shutdown. It is idempotent and concurrency-safe.
+//
+// Shutdown order:
+//  1. Cancel session context — propagates to all derived contexts.
+//  2. Close listener — stops the accept loop.
+//  3. Cancel active transforms — unblocks workers.
+//  4. Close tracked connections — unblocks reads/writes.
+//  5. Wait for all tracked goroutines to finish.
+//
+// Returns the listener close error, or nil. Connection close errors are
+// not aggregated (they are expected side-effects of listener shutdown).
 func (s *Session) Close() error {
 	if !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
+
+	// 1. Cancel session context.
+	s.cancel()
+
+	// 2. Close listener (may race with serve's deferred close or
+	// ctx-cancellation goroutine — "use of closed network connection"
+	// is benign in that case).
+	var closeErr error
 	if s.listener != nil {
-		return s.listener.Close()
+		closeErr = s.listener.Close()
+		if closeErr != nil && isClosedNetworkErr(closeErr) {
+			closeErr = nil
+		}
 	}
-	return nil
+
+	// 3. Cancel all active transforms.
+	s.activeCancelsMu.Lock()
+	for _, cancel := range s.activeCancels {
+		cancel()
+	}
+	s.activeCancelsMu.Unlock()
+
+	// 4. Close active connections to unblock reads/writes.
+	s.connsMu.Lock()
+	for c := range s.conns {
+		_ = c.Close()
+	}
+	s.connsMu.Unlock()
+
+	// 5. Wait for server, connection, and request goroutines.
+	s.wg.Wait()
+
+	// 6. Clean up remaining active cancel/ID entries.
+	s.activeCancelsMu.Lock()
+	for k := range s.activeCancels {
+		delete(s.activeCancels, k)
+	}
+	s.activeCancelsMu.Unlock()
+	s.activeIDsMu.Lock()
+	for k := range s.activeIDs {
+		delete(s.activeIDs, k)
+	}
+	s.activeIDsMu.Unlock()
+
+	return closeErr
 }
 
 // ActiveRequests returns the current in-flight request count.
@@ -541,6 +698,15 @@ func generateToken(byteLen int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// isClosedNetworkErr reports whether err is "use of closed network connection",
+// which is expected when Close and serve's deferred close race.
+func isClosedNetworkErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "use of closed network connection")
 }
 
 // isCacheCorruption reports whether err is a recoverable cache corruption
