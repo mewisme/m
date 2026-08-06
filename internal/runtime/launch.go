@@ -47,6 +47,20 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 		ZeroAugmentation: req.AugmentationMode == AugmentNone,
 	}
 
+	// Resolve user-specified custom ESM loaders.
+	if len(req.Loaders) > 0 && req.AugmentationMode != AugmentNone {
+		for _, p := range req.Loaders {
+			abs := p
+			if !filepath.IsAbs(p) {
+				abs = filepath.Join(req.WorkingDir, p)
+			}
+			plan.CustomLoaders = append(plan.CustomLoaders, PreloadAsset{
+				Path:       abs,
+				ModuleType: "esm",
+			})
+		}
+	}
+
 	// Apply launch contribution from app-level orchestrator.
 	if req.Contribution != nil {
 		plan.CleanupHook = req.Contribution.CleanupHook
@@ -128,17 +142,20 @@ func isTypeScriptEntrypoint(p string) bool {
 }
 
 // BuildArgv constructs the full Node argument vector.
-// Order: node exe -> credential grabber --require -> user V8 flags -> preload/import flags -> entrypoint -> app args
+// Order: node exe -> credential grabber --require -> user V8 flags
+//
+//	-> custom loader --import flags -> Mew preload flags -> entrypoint -> app args
 //
 // The credential grabber is placed before user V8 flags so it captures and
 // strips transform credentials from process.env before any user --require,
 // user --import, or NODE_OPTIONS preload runs.
 func BuildArgv(plan *LaunchPlan, v8Args []string) []string {
+	customSlots := len(plan.CustomLoaders) * 2
 	credSlots := 0
 	if !plan.ZeroAugmentation && plan.CredentialPreload != nil {
 		credSlots = 2 // --require <path>
 	}
-	argv := make([]string, 0, 4+credSlots+len(v8Args)+len(plan.PreloadAssets)*2+1+len(plan.AppArgs))
+	argv := make([]string, 0, 4+credSlots+len(v8Args)+customSlots+len(plan.PreloadAssets)*2+1+len(plan.AppArgs))
 	argv = append(argv, plan.NodeExe)
 
 	// Credential grabber runs FIRST — before any user preload.
@@ -152,6 +169,18 @@ func BuildArgv(plan *LaunchPlan, v8Args []string) []string {
 	argv = append(argv, v8Args...)
 
 	if !plan.ZeroAugmentation {
+		// Custom ESM loaders (--loader flag) injected BEFORE Mew preloads.
+		// Custom loaders that register hooks via module.register() execute
+		// first → their hooks run first in the chain. ts-loader hooks,
+		// registered last, fill gaps.
+		for _, pa := range plan.CustomLoaders {
+			assetPath := pa.Path
+			if runtime.GOOS == "windows" && filepath.IsAbs(assetPath) {
+				assetPath = fileURL(assetPath)
+			}
+			argv = append(argv, "--import", assetPath)
+		}
+
 		for _, pa := range plan.PreloadAssets {
 			assetPath := pa.Path
 			switch pa.ModuleType {

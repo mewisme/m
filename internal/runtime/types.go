@@ -33,6 +33,9 @@ type LaunchRequest struct {
 	Stdio             LaunchStdio
 	ExperimentalState map[string]string
 	Contribution      *LaunchContribution
+	// Loaders are user-specified ESM loader paths (--loader flag).
+	// They are injected as --import flags before the Mew loader hooks.
+	Loaders []string
 }
 
 // LaunchStdio configures child process I/O.
@@ -49,6 +52,7 @@ type LaunchPlan struct {
 	NodeCapabilities  []string
 	NodeArgv          []string
 	CredentialPreload *PreloadAsset // credential-grabber — always first in argv
+	CustomLoaders     []PreloadAsset // user --loader flags, injected before Mew preloads
 	PreloadAssets     []PreloadAsset
 	Entrypoint        string
 	AppArgs           []string

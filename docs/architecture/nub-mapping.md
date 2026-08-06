@@ -31,3 +31,8 @@ semantics where parity is intentional; use idiomatic Go architecture elsewhere.
 | Source maps | parity (0052) | inline/external, sourceMap/inlineSourceMap tsconfig flags, sourceRoot/mapRoot |
 | TypeScript type-checking | divergence | Mew is a transpiler not a type checker; no semantic diagnostics |
 | Decorator metadata emission | divergence (0052) | Metadata carried in NormalizedOptions and cache keys but emission strategy (Go-native vs embedded JS) deferred |
+| tsconfig paths/baseUrl resolution | parity (0053) | Node loader resolve hook; paths patterns matched against import specifiers, resolved relative to configDir + baseUrl |
+| .js → .ts extension mapping | parity (0053) | Resolved .js files that don't exist on disk probe .ts/.tsx/.mts/.cts siblings |
+| Custom ESM loader chaining | parity (0053) | --loader flag injects --import before Mew preloads; user hooks register before ts-loader |
+| PnP runtime adapter | parity (0053) | .pnp.cjs detection + resolveRequest integration in ts-loader resolve hook |
+| resolve-module command | extension (0053) | Go-side diagnostic showing tsconfig paths, baseUrl, pattern matches |

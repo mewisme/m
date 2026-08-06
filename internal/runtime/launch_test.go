@@ -234,3 +234,69 @@ func contains(s, sub string) bool {
 	}
 	return false
 }
+
+func TestBuildArgvCustomLoadersBeforeMewPreloads(t *testing.T) {
+	cred := &runtime.PreloadAsset{Path: "/c/cred.cjs", ModuleType: "cjs"}
+	plan := &runtime.LaunchPlan{
+		NodeExe:           "node",
+		CredentialPreload: cred,
+		CustomLoaders: []runtime.PreloadAsset{
+			{Path: "/custom/a.mjs", ModuleType: "esm"},
+			{Path: "/custom/b.mjs", ModuleType: "esm"},
+		},
+		PreloadAssets: []runtime.PreloadAsset{
+			{Path: "/cache/loader-register.mjs", ModuleType: "esm"},
+		},
+		Entrypoint: "app.ts",
+	}
+
+	argv := runtime.BuildArgv(plan, nil)
+
+	// Find indices of each asset.
+	customAIdx := -1
+	customBIdx := -1
+	loaderIdx := -1
+	for i, a := range argv {
+		switch a {
+		case "/custom/a.mjs":
+			customAIdx = i
+		case "/custom/b.mjs":
+			customBIdx = i
+		case "/cache/loader-register.mjs":
+			loaderIdx = i
+		}
+	}
+	if customAIdx < 0 || customBIdx < 0 || loaderIdx < 0 {
+		t.Fatalf("could not find expected args in argv: %v", argv)
+	}
+	// Custom loaders must be before Mew preloads.
+	if customAIdx >= loaderIdx {
+		t.Fatalf("custom loader a.mjs (idx %d) before loader-register.mjs (idx %d): %v", customAIdx, loaderIdx, argv)
+	}
+	if customBIdx >= loaderIdx {
+		t.Fatalf("custom loader b.mjs (idx %d) before loader-register.mjs (idx %d): %v", customBIdx, loaderIdx, argv)
+	}
+}
+
+func TestBuildArgvNoCustomLoaders(t *testing.T) {
+	plan := &runtime.LaunchPlan{
+		NodeExe:       "node",
+		CustomLoaders: nil,
+		PreloadAssets: []runtime.PreloadAsset{
+			{Path: "/cache/loader-register.mjs", ModuleType: "esm"},
+		},
+		Entrypoint: "app.ts",
+	}
+	argv := runtime.BuildArgv(plan, nil)
+	// loader-register.mjs should be present, no custom loaders.
+	found := false
+	for _, a := range argv {
+		if a == "/cache/loader-register.mjs" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected loader-register.mjs in argv: %v", argv)
+	}
+}

@@ -31,11 +31,12 @@ if (isMainThread) {
   const token = process.env.MEW_TRANSFORM_TOKEN || null;
   const options = process.env.MEW_TRANSFORM_OPTIONS || '{}';
   const optsDigest = process.env.MEW_TRANSFORM_OPTS_DIGEST || '';
+  const configDir = process.env.MEW_TRANSFORM_CONFIG_DIR || '';
 
   if (endpoint && token) {
     try {
       fs.writeFileSync(credsFile, JSON.stringify({
-        endpoint, token, options, optsDigest,
+        endpoint, token, options, optsDigest, configDir,
       }), { mode: 0o600 });
     } catch (_) {
       // Write failure: exports will be null, ts-loader will fail
@@ -49,9 +50,10 @@ if (isMainThread) {
   delete process.env.MEW_TRANSFORM_TOKEN;
   delete process.env.MEW_TRANSFORM_OPTIONS;
   delete process.env.MEW_TRANSFORM_OPTS_DIGEST;
+  delete process.env.MEW_TRANSFORM_CONFIG_DIR;
 
   // Export for main-thread consumers (if any).
-  module.exports = { endpoint, token, options, optsDigest };
+  module.exports = { endpoint, token, options, optsDigest, configDir };
 } else {
   // ── Loader context (module.register hooks) ─────────────────────
   // The loader context re-evaluates --require modules before loading
@@ -61,6 +63,7 @@ if (isMainThread) {
   let token = null;
   let options = '{}';
   let optsDigest = '';
+  let configDir = '';
 
   try {
     if (fs.existsSync(credsFile)) {
@@ -69,6 +72,7 @@ if (isMainThread) {
       token = data.token || null;
       options = data.options || '{}';
       optsDigest = data.optsDigest || '';
+      configDir = data.configDir || '';
       // Clean up — credentials are now in module.exports.
       fs.unlinkSync(credsFile);
     }
@@ -77,5 +81,5 @@ if (isMainThread) {
     // ts-loader will fail with "no endpoint or token" — safe.
   }
 
-  module.exports = { endpoint, token, options, optsDigest };
+  module.exports = { endpoint, token, options, optsDigest, configDir };
 }

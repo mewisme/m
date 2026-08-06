@@ -42,6 +42,7 @@ The -- separator is required before the Node flags:
 				NodeV8Args:       v8Args,
 				WorkingDir:       ac.CWD,
 				AugmentationMode: runtime.AugmentDefault,
+				Loaders:          nil, // node-args users pass --experimental-loader via -- separator
 				Stdio: runtime.LaunchStdio{
 					Stdin:  cmd.InOrStdin(),
 					Stdout: cmd.OutOrStdout(),

@@ -8,3 +8,4 @@ delete process.env.MEW_TRANSFORM_ENDPOINT;
 delete process.env.MEW_TRANSFORM_TOKEN;
 delete process.env.MEW_TRANSFORM_OPTIONS;
 delete process.env.MEW_TRANSFORM_OPTS_DIGEST;
+delete process.env.MEW_TRANSFORM_CONFIG_DIR;

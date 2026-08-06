@@ -67,6 +67,7 @@ Configuration and development
 
 Other
   node-args      Run a JS file with explicit Node/V8 flags
+  resolve-module Show how Mew resolves a module specifier
 
 Flags:
       --accessible           accessible append-only output

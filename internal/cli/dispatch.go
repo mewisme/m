@@ -71,7 +71,8 @@ type leadingDispatchFlags struct {
 	noWsBail      bool
 	wsOnlyTouched bool
 
-	node bool
+	node    bool
+	loaders []string
 }
 
 // PhaseAResult is the output of the leading-global parser (Phase A).
@@ -277,6 +278,8 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 	case "no-workspace-bail":
 		leading.noWsBail = true
 		leading.wsOnlyTouched = true
+	case "loader":
+		leading.loaders = append(leading.loaders, value)
 	case "node":
 		leading.node = parseBoolValue(value, true)
 	default:
@@ -290,7 +293,7 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 
 func needsValue(name string) bool {
 	switch name {
-	case "output", "log-level", "cwd", "config", "filter", "workspace-concurrency", "workspace-order", "workspace-output":
+	case "output", "log-level", "cwd", "config", "filter", "workspace-concurrency", "workspace-order", "workspace-output", "loader":
 		return true
 	default:
 		return false

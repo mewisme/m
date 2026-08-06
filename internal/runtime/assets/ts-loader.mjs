@@ -2,6 +2,9 @@
 // Communicates with the Go transform service over local TCP.
 import { connect } from 'node:net';
 import { createHash } from 'node:crypto';
+import { accessSync } from 'node:fs';
+import { resolve as pathResolve, parse as pathParse, join as pathJoin, dirname } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Read credentials from credential-grabber.cjs via Node's require cache.
 // The grabber runs as the first --require (before any user preload),
@@ -339,6 +342,183 @@ function formatFromPath(p) {
   return 'esm';
 }
 
+// ── PnP resolution adapter ─────────────────────────────────────────
+
+let pnpApi = null;
+let pnpChecked = false;
+
+function ensurePnp(parentPath) {
+  if (pnpChecked) return;
+  pnpChecked = true;
+  // Walk up from the parent path to find .pnp.cjs.
+  let dir = parentPath ? dirname(parentPath) : resolveBaseDir;
+  if (!dir) return;
+  const root = findProjectRoot(dir);
+  if (!root) return;
+  try {
+    // .pnp.cjs exports the PnP API (resolveRequest, etc.).
+    const pnpPath = pathJoin(root, '.pnp.cjs');
+    accessSync(pnpPath); // throws if missing
+    pnpApi = createRequire(import.meta.url)(pnpPath);
+  } catch (_) { /* PnP not available */ }
+}
+
+// findProjectRoot walks up from dir looking for .pnp.cjs or .pnp.data.json.
+// Returns the directory containing the PnP artifact, or null.
+function findProjectRoot(dir) {
+  let current = pathResolve(dir);
+  const { root } = pathParse(current);
+  while (current !== root) {
+    try {
+      accessSync(pathJoin(current, '.pnp.cjs'));
+      return current;
+    } catch (_) {}
+    try {
+      accessSync(pathJoin(current, '.pnp.data.json'));
+      return current; // PnP project without .pnp.cjs (unplugged) — detected but no API.
+    } catch (_) {}
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return null;
+}
+
+// ── Path alias resolution ──────────────────────────────────────────
+
+let resolveBaseDir = '';
+let resolvePaths = null;
+let pathsParsed = false;
+
+function ensurePathsParsed() {
+  if (pathsParsed) return;
+  pathsParsed = true;
+  try {
+    const opts = JSON.parse(creds.options || '{}');
+    if (opts.paths && typeof opts.paths === 'object') {
+      resolvePaths = opts.paths;
+    }
+    resolveBaseDir = creds.configDir || '';
+    if (opts.baseUrl && resolveBaseDir) {
+      resolveBaseDir = pathResolve(resolveBaseDir, opts.baseUrl);
+    }
+  } catch (_) { /* parse failure: leave disabled */ }
+}
+
+// matchPathPattern returns captured wildcard values, or null on no match.
+// TypeScript paths patterns: "@app/*" matches "@app/helpers" → ["helpers"].
+function matchPathPattern(specifier, pattern) {
+  if (!pattern.includes('*')) {
+    if (specifier === pattern) return [''];
+    return null;
+  }
+  const parts = pattern.split('*');
+  if (parts.length === 2) {
+    const [prefix, suffix] = parts;
+    if (specifier.startsWith(prefix) && specifier.endsWith(suffix) &&
+        specifier.length >= prefix.length + (suffix ? suffix.length : 0)) {
+      const captured = specifier.slice(prefix.length, suffix ? specifier.length - suffix.length : specifier.length);
+      return [captured];
+    }
+    return null;
+  }
+  // Multiple wildcards: sequential match.
+  let remaining = specifier;
+  const captures = [];
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (i === 0) {
+      if (!remaining.startsWith(part)) return null;
+      remaining = remaining.slice(part.length);
+    } else if (i === parts.length - 1) {
+      if (part === '') { captures.push(remaining); break; }
+      if (!remaining.endsWith(part)) return null;
+      captures.push(remaining.slice(0, remaining.length - part.length));
+    } else {
+      const idx = remaining.indexOf(part);
+      if (idx === -1) return null;
+      captures.push(remaining.slice(0, idx));
+      remaining = remaining.slice(idx + part.length);
+    }
+  }
+  return captures;
+}
+
+const TS_EXT_PROBE = ['.ts', '.tsx', '.mts', '.cts'];
+const JS_EXT_PROBE = ['.js', '.mjs', '.cjs'];
+const ALL_EXT_PROBE = [...TS_EXT_PROBE, ...JS_EXT_PROBE];
+
+function tryResolveFile(basePath) {
+  // Exact path exists.
+  try { accessSync(basePath); return basePath; } catch (_) {}
+  // Already has a supported extension — don't probe further.
+  const parsed = pathParse(basePath);
+  if (parsed.ext && (TS_EXT_PROBE.includes(parsed.ext) || JS_EXT_PROBE.includes(parsed.ext))) {
+    return null;
+  }
+  // Probe extensions.
+  for (const ext of ALL_EXT_PROBE) {
+    const candidate = basePath + ext;
+    try { accessSync(candidate); return candidate; } catch (_) {}
+  }
+  // Strip unsupported extension and re-probe (e.g. import './foo.js' → './foo.ts').
+  if (parsed.ext && !TS_EXT_PROBE.includes(parsed.ext) && !JS_EXT_PROBE.includes(parsed.ext)) {
+    return null;
+  }
+  return null;
+}
+
+function resolveViaPaths(specifier, parentURL) {
+  ensurePathsParsed();
+  if (!resolvePaths) return null;
+  for (const [pattern, replacements] of Object.entries(resolvePaths)) {
+    const captures = matchPathPattern(specifier, pattern);
+    if (!captures) continue;
+    for (const replacement of replacements) {
+      // Substitute captured values into replacement.
+      let resolved = replacement;
+      for (let i = 0; i < captures.length; i++) {
+        resolved = resolved.replace('*', captures[i]);
+      }
+      // Resolve relative to baseUrl.
+      const fullPath = resolveBaseDir ? pathResolve(resolveBaseDir, resolved) : pathResolve(resolved);
+      const found = tryResolveFile(fullPath);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// fileExists checks whether an absolute file path exists on disk.
+function fileExists(absPath) {
+  try { accessSync(absPath); return true; } catch (_) { return false; }
+}
+
+// probeTypeScriptExtension checks whether a .js/.mjs/.cjs resolved path
+// has a corresponding .ts/.tsx/.mts/.cts file that should be used instead.
+function probeTypeScriptExtension(resolvedPath) {
+  const parsed = pathParse(resolvedPath);
+  const jsExts = ['.js', '.mjs', '.cjs'];
+  if (!jsExts.includes(parsed.ext)) return null;
+  const baseName = pathJoin(parsed.dir, parsed.name);
+  // Map .js→.ts, .mjs→.mts, .cjs→.cts; also probe .tsx.
+  const probeExts = parsed.ext === '.mjs' ? ['.mts'] :
+                    parsed.ext === '.cjs' ? ['.cts'] :
+                    ['.ts', '.tsx'];
+  for (const ext of probeExts) {
+    const candidate = baseName + ext;
+    try { accessSync(candidate); return candidate; } catch (_) {}
+  }
+  return null;
+}
+
+function formatFromResolvedPath(p) {
+  if (p.endsWith('.mjs') || p.endsWith('.mts')) return 'module';
+  if (p.endsWith('.cjs') || p.endsWith('.cts')) return 'commonjs';
+  if (p.endsWith('.js') || p.endsWith('.ts') || p.endsWith('.tsx')) return 'module';
+  return undefined; // let Node decide
+}
+
 // ── Node loader hooks ──────────────────────────────────────────────
 
 export function stripPrivateEnv() {
@@ -347,22 +527,103 @@ export function stripPrivateEnv() {
   // for the env side because process.env is already clean.
 }
 
-// resolve hook: mark TypeScript files.
+// resolve hook: augment Node resolution with TypeScript paths, extension mapping.
 export async function resolve(specifier, context, nextResolve) {
   if (!specifier) return nextResolve(specifier, context);
+
+  // Try Node's native resolution first.
+  let resolved;
   try {
-    const url = new URL(specifier, context.parentURL || 'file:///');
-    if (url.protocol !== 'file:') return nextResolve(specifier, context);
-    const path = decodeURIComponent(url.pathname);
-    if (path.endsWith('.ts') || path.endsWith('.tsx') || path.endsWith('.mts') || path.endsWith('.cts')) {
-      return {
-        format: path.endsWith('.cts') ? 'commonjs' : 'module',
-        url: url.href,
-        shortCircuit: true,
-      };
+    resolved = await nextResolve(specifier, context);
+  } catch (_) {
+    resolved = null;
+  }
+
+  // Case 1: Node resolved successfully.
+  if (resolved && resolved.url) {
+    try {
+      const url = new URL(resolved.url);
+      if (url.protocol === 'file:') {
+        const absPath = fileURLToPath(resolved.url);
+        // If it's already a TypeScript file, mark format and return.
+        if (absPath.endsWith('.ts') || absPath.endsWith('.tsx') || absPath.endsWith('.mts') || absPath.endsWith('.cts')) {
+          return {
+            format: absPath.endsWith('.cts') ? 'commonjs' : 'module',
+            url: resolved.url,
+            shortCircuit: true,
+          };
+        }
+        // .js→.ts extension mapping: if the resolved .js file doesn't exist,
+        // probe for a .ts variant.
+        if (!fileExists(absPath)) {
+          const tsPath = probeTypeScriptExtension(absPath);
+          if (tsPath) {
+            return {
+              format: formatFromResolvedPath(tsPath),
+              url: pathToFileURL(tsPath).href,
+              shortCircuit: true,
+            };
+          }
+        }
+      }
+      // Not a file we handle; pass through Node's result.
+      return resolved;
+    } catch (_) { /* malformed URL — pass through */ }
+    return resolved;
+  }
+
+  // Case 2: Node failed. Try tsconfig paths, then extension probing.
+  if (specifier.startsWith('.') || specifier.startsWith('/') || (!specifier.includes(':') && !specifier.startsWith('@'))) {
+    // Relative, absolute, or bare specifier — try extension probing first.
+    const parentPath = context.parentURL ? fileURLToPath(context.parentURL) : '/';
+    const parentDir = dirname(parentPath);
+    const candidatePath = specifier.startsWith('.')
+      ? pathResolve(parentDir, specifier)
+      : (specifier.startsWith('/') ? specifier : null);
+    if (candidatePath) {
+      const found = tryResolveFile(candidatePath);
+      if (found) {
+        return {
+          format: formatFromResolvedPath(found),
+          url: pathToFileURL(found).href,
+          shortCircuit: true,
+        };
+      }
     }
-  } catch (_) { /* not a valid URL, delegate */ }
-  return nextResolve(specifier, context);
+  }
+
+  // Try PnP resolution if .pnp.cjs is available.
+  ensurePnp(context.parentURL ? fileURLToPath(context.parentURL) : null);
+  if (pnpApi && typeof pnpApi.resolveRequest === 'function') {
+    try {
+      const issuer = context.parentURL || pathToFileURL('/').href;
+      const pnpResult = pnpApi.resolveRequest(specifier, issuer);
+      if (pnpResult) {
+        return {
+          format: formatFromResolvedPath(pnpResult),
+          url: pathToFileURL(pnpResult).href,
+          shortCircuit: true,
+        };
+      }
+    } catch (_) { /* PnP resolution failed; fall through */ }
+  }
+
+  // Try tsconfig paths matching.
+  const pathsResolved = resolveViaPaths(specifier, context.parentURL);
+  if (pathsResolved) {
+    return {
+      format: formatFromResolvedPath(pathsResolved),
+      url: pathToFileURL(pathsResolved).href,
+      shortCircuit: true,
+    };
+  }
+
+  // All augmentations failed — re-throw the original Node error if we caught one,
+  // or delegate to nextResolve (which will throw).
+  if (resolved === null) {
+    return nextResolve(specifier, context);
+  }
+  return resolved;
 }
 
 // load hook: transform TypeScript to JavaScript.

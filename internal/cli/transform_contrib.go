@@ -95,9 +95,14 @@ func buildTransformContribution(ctx context.Context, cwd, entrypoint string, eff
 
 	// Step 5: Return the launch contribution.
 	extraEnv := sess.EnvOverlay()
+	configDir := ""
+	if configPath != "" {
+		configDir = filepath.Dir(configPath)
+	}
 	extraEnv = append(extraEnv,
 		"MEW_TRANSFORM_OPTIONS="+string(optsJSON),
 		"MEW_TRANSFORM_OPTS_DIGEST="+optsDigest,
+		"MEW_TRANSFORM_CONFIG_DIR="+configDir,
 	)
 
 	return &runtime.LaunchContribution{
