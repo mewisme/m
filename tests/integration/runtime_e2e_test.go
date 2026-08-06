@@ -209,20 +209,24 @@ func TestRuntimeE2EJSXDeferred(t *testing.T) {
 	if code == 0 {
 		t.Fatalf("expected non-zero exit for .jsx, got out=%s", out)
 	}
-	if !strings.Contains(out, "0052") {
-		t.Fatalf("expected 0052 deferral message, got %q", out)
+	if !strings.Contains(out, "0053") {
+		t.Fatalf("expected 0053 deferral message, got %q", out)
 	}
 }
 
-func TestRuntimeE2ETSXDeferred(t *testing.T) {
+func TestRuntimeE2ETSXSuccess(t *testing.T) {
+	skipWithoutNode(t)
 	proj := runtimeE2EFixture(t)
-	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
-	code, out := runMProject(t, proj, "test.tsx")
-	if code == 0 {
-		t.Fatalf("expected non-zero exit for .tsx, got out=%s", out)
+	code, _ := runMWithRuntime(t, proj, "hello.tsx")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
 	}
-	if !strings.Contains(out, "0052") {
-		t.Fatalf("expected 0052 deferral message, got %q", out)
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "hello from tsx") {
+		t.Fatalf("got %q, want output containing 'hello from tsx'", out)
+	}
+	if !strings.Contains(out, `"tag":"div"`) {
+		t.Fatalf("got %q, want JSX transform evidence (tag div)", out)
 	}
 }
 

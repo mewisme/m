@@ -114,7 +114,7 @@ to coalesce rapid saves.`,
 			if err != nil {
 				return apperr.Wrap(apperr.IO, "watch", entrypoint, err)
 			}
-			defer w.Close()
+			defer func() { _ = w.Close() }()
 
 			debounce := watch.DefaultDebounceInterval
 			if debounceMS > 0 {

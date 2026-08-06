@@ -23,8 +23,8 @@ func newFakeWatcher() *fakeWatcher {
 }
 
 func (fw *fakeWatcher) Add(path string) error { return nil }
-func (fw *fakeWatcher) Events() <-chan Event   { return fw.events }
-func (fw *fakeWatcher) Errors() <-chan error   { return fw.errs }
+func (fw *fakeWatcher) Events() <-chan Event  { return fw.events }
+func (fw *fakeWatcher) Errors() <-chan error  { return fw.errs }
 func (fw *fakeWatcher) Close() error {
 	fw.mu.Lock()
 	defer fw.mu.Unlock()
@@ -46,7 +46,7 @@ func (fw *fakeWatcher) emit(op Op, path string) {
 
 func TestSupervisorRestartsOnChange(t *testing.T) {
 	fw := newFakeWatcher()
-	defer fw.Close()
+	defer func() { _ = fw.Close() }()
 
 	restarts := make(chan struct{}, 3)
 	restart := func(ctx context.Context) (int, error) {
@@ -97,7 +97,7 @@ func TestSupervisorRestartsOnChange(t *testing.T) {
 
 func TestSupervisorDrainsOnCancel(t *testing.T) {
 	fw := newFakeWatcher()
-	defer fw.Close()
+	defer func() { _ = fw.Close() }()
 
 	started := make(chan struct{})
 	restart := func(ctx context.Context) (int, error) {
@@ -142,7 +142,7 @@ func TestSupervisorDrainsOnCancel(t *testing.T) {
 
 func TestSupervisorDebounce(t *testing.T) {
 	fw := newFakeWatcher()
-	defer fw.Close()
+	defer func() { _ = fw.Close() }()
 
 	var mu sync.Mutex
 	restartCount := 0
@@ -164,7 +164,10 @@ func TestSupervisorDebounce(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	go func() { sup.Run(ctx) }()
+	go func() {
+		_, err := sup.Run(ctx)
+		_ = err
+	}()
 
 	// Wait for first start to settle.
 	time.Sleep(50 * time.Millisecond)

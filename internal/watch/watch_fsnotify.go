@@ -3,7 +3,6 @@ package watch
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -158,9 +157,4 @@ func (nw *nativeWatcher) AddRecursive(dir string) error {
 		}
 		return nil
 	})
-}
-
-// build constraint: windows needs special handling for drive letters.
-func normalizeWindowsPath(p string) string {
-	return strings.ReplaceAll(p, "/", string(filepath.Separator))
 }

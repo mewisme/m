@@ -41,7 +41,7 @@ func IsRuntimeFile(selector string) bool {
 	if runtimeExts[ext] {
 		return true
 	}
-	// Deferred extensions (0052) are still runtime files — the dispatcher
+	// Deferred extensions are still runtime files — the dispatcher
 	// gives an actionable plan-deferral message instead of "unknown command".
 	if _, ok := nextPlanExts[ext]; ok {
 		return true

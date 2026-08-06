@@ -66,21 +66,21 @@ type NormalizedOptions struct {
 	Paths                   map[string][]string `json:"paths,omitempty"`
 
 	// JSX
-	JSX              string `json:"jsx,omitempty"`
-	JSXFactory       string `json:"jsxFactory,omitempty"`
+	JSX                string `json:"jsx,omitempty"`
+	JSXFactory         string `json:"jsxFactory,omitempty"`
 	JSXFragmentFactory string `json:"jsxFragmentFactory,omitempty"`
-	JSXImportSource  string `json:"jsxImportSource,omitempty"`
+	JSXImportSource    string `json:"jsxImportSource,omitempty"`
 
 	// Decorators
 	ExperimentalDecorators bool `json:"experimentalDecorators,omitempty"`
 	EmitDecoratorMetadata  bool `json:"emitDecoratorMetadata,omitempty"`
 
 	// Source maps
-	SourceMap     bool `json:"sourceMap,omitempty"`
-	InlineSourceMap bool `json:"inlineSourceMap,omitempty"`
-	InlineSources bool `json:"inlineSources,omitempty"`
-	SourceRoot    string `json:"sourceRoot,omitempty"`
-	MapRoot       string `json:"mapRoot,omitempty"`
+	SourceMap       bool   `json:"sourceMap,omitempty"`
+	InlineSourceMap bool   `json:"inlineSourceMap,omitempty"`
+	InlineSources   bool   `json:"inlineSources,omitempty"`
+	SourceRoot      string `json:"sourceRoot,omitempty"`
+	MapRoot         string `json:"mapRoot,omitempty"`
 }
 
 // NormalizedOptionsDigest returns a stable SHA-256 of the normalized options.

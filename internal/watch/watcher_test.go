@@ -14,7 +14,7 @@ func TestNewWatcher(t *testing.T) {
 	if w == nil {
 		t.Fatal("NewWatcher returned nil")
 	}
-	w.Close()
+	_ = w.Close()
 }
 
 func TestNativeWatcherAddFile(t *testing.T) {
@@ -28,7 +28,7 @@ func TestNativeWatcherAddFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewWatcher: %v", err)
 	}
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	if err := w.Add(f); err != nil {
 		t.Fatalf("Add file: %v", err)
@@ -49,7 +49,7 @@ func TestNativeWatcherAddDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewWatcher: %v", err)
 	}
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	if err := w.Add(dir); err != nil {
 		t.Fatalf("Add dir: %v", err)
@@ -67,7 +67,7 @@ func TestNativeWatcherDetectsWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewWatcher: %v", err)
 	}
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	if err := w.Add(dir); err != nil {
 		t.Fatalf("Add dir: %v", err)
@@ -100,7 +100,7 @@ func TestNativeWatcherDetectsCreate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewWatcher: %v", err)
 	}
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	if err := w.Add(dir); err != nil {
 		t.Fatalf("Add dir: %v", err)
@@ -126,7 +126,7 @@ func TestPollingWatcherDetectsWrite(t *testing.T) {
 	}
 
 	pw := newPollingWatcher(50) // 50ms interval for fast test
-	defer pw.Close()
+	defer func() { _ = pw.Close() }()
 
 	if err := pw.Add(dir); err != nil {
 		t.Fatalf("Add dir: %v", err)

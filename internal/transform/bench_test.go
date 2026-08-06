@@ -77,11 +77,11 @@ func BenchmarkEngineTransformJSX(b *testing.B) {
 	engine := transform.NewEsbuildEngine()
 	src := `const el = <div className="app"><h1>Hello</h1><p>World</p></div>;`
 	req := transform.TransformRequest{
-		SourcePath:    "component.tsx",
-		SourceBytes:   []byte(src),
-		Loader:        transform.LoaderTSX,
-		Format:        transform.FormatESM,
-		SourceMapMode: transform.SourceMapNone,
+		SourcePath:     "component.tsx",
+		SourceBytes:    []byte(src),
+		Loader:         transform.LoaderTSX,
+		Format:         transform.FormatESM,
+		SourceMapMode:  transform.SourceMapNone,
 		NormalizedOpts: transform.NormalizedOptions{JSX: "react-jsx"},
 	}
 	ctx := context.Background()
@@ -98,11 +98,11 @@ func BenchmarkEngineTransformDecorator(b *testing.B) {
 	engine := transform.NewEsbuildEngine()
 	src := "function sealed(target: any) {}\n@sealed\nclass MyClass {\n  method() { return 1; }\n}"
 	req := transform.TransformRequest{
-		SourcePath:    "decorator.ts",
-		SourceBytes:   []byte(src),
-		Loader:        transform.LoaderTS,
-		Format:        transform.FormatESM,
-		SourceMapMode: transform.SourceMapNone,
+		SourcePath:     "decorator.ts",
+		SourceBytes:    []byte(src),
+		Loader:         transform.LoaderTS,
+		Format:         transform.FormatESM,
+		SourceMapMode:  transform.SourceMapNone,
 		NormalizedOpts: transform.NormalizedOptions{ExperimentalDecorators: true},
 	}
 	ctx := context.Background()

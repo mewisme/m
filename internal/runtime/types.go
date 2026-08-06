@@ -51,7 +51,7 @@ type LaunchPlan struct {
 	NodeVersion       string
 	NodeCapabilities  []string
 	NodeArgv          []string
-	CredentialPreload *PreloadAsset // credential-grabber — always first in argv
+	CredentialPreload *PreloadAsset  // credential-grabber — always first in argv
 	CustomLoaders     []PreloadAsset // user --loader flags, injected before Mew preloads
 	PreloadAssets     []PreloadAsset
 	Entrypoint        string

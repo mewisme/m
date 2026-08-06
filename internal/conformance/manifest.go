@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	SchemaVersion  = 1
-	CoreMatrix     = "core"
-	CLIUXMatrix    = "cli-ux"
-	RuntimeMatrix  = "runtime"
+	SchemaVersion = 1
+	CoreMatrix    = "core"
+	CLIUXMatrix   = "cli-ux"
+	RuntimeMatrix = "runtime"
 )
 
 // Manifest is a go-test certification matrix definition (core or cli-ux).

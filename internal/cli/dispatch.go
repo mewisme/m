@@ -558,7 +558,7 @@ func ResolveDispatch(root *cobra.Command, phase PhaseAResult, cwd string, eff *c
 	// Detect runtime file selectors for direct execution (after scripts, before bins).
 	// Exact package scripts win over bare file names per documented dispatch precedence.
 	if RuntimeEnabled() && runtime.IsRuntimeFile(selector) {
-		// Deferred extensions (.tsx/.jsx) → actionable plan-0052 deferral message.
+		// Deferred extensions (.jsx) → actionable plan-deferral message.
 		if plan, ok := runtime.IsNextPlanExt(selector); ok {
 			return DispatchResult{
 				Kind:      OutcomeUnknown,

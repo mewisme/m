@@ -241,7 +241,7 @@ func Load(files []string) ([]string, error) {
 			return nil, fmt.Errorf("dotenv: opening %s: %w", f, err)
 		}
 		parsed, err := Parse(fh, f)
-		fh.Close()
+		_ = fh.Close()
 		if err != nil {
 			return nil, err
 		}

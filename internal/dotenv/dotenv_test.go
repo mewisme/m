@@ -296,4 +296,3 @@ func environToMap(env []string) map[string]string {
 	}
 	return m
 }
-
