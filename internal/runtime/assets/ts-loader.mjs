@@ -1,6 +1,7 @@
 // Mew TypeScript loader — transform hook.
 // Communicates with the Go transform service over local TCP.
 import { connect } from 'node:net';
+import { createHash } from 'node:crypto';
 
 // Capture credentials at module load time and strip from process.env
 // immediately, before any user module executes. Credentials are held in
@@ -8,7 +9,6 @@ import { connect } from 'node:net';
 const endpoint = process.env.MEW_TRANSFORM_ENDPOINT || null;
 const token = process.env.MEW_TRANSFORM_TOKEN || null;
 const transformOptions = process.env.MEW_TRANSFORM_OPTIONS || '{}';
-const optsDigest = process.env.MEW_TRANSFORM_OPTS_DIGEST || '';
 
 delete process.env.MEW_TRANSFORM_ENDPOINT;
 delete process.env.MEW_TRANSFORM_TOKEN;
@@ -142,6 +142,9 @@ function sendFrame(c, obj, timeoutMs) {
 
 async function sendTransform(path, source) {
   let lastErr;
+  const sourceStr = String(source);
+  const sourceDigest = createHash('sha256').update(sourceStr).digest('hex');
+  const optsDigest = transformOptions ? createHash('sha256').update(transformOptions).digest('hex') : '';
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const c = await getConn();
@@ -151,8 +154,8 @@ async function sendTransform(path, source) {
         id,
         op: 'transform',
         path,
-        source: String(source),
-        source_digest: '',
+        source: sourceStr,
+        source_digest: sourceDigest,
         loader: loaderFromPath(path),
         format: formatFromPath(path),
         options: transformOptions,

@@ -62,10 +62,10 @@ func buildTransformContribution(ctx context.Context, cwd, entrypoint string, eff
 		if err != nil {
 			return nil, wrapTsconfigErr(err, entrypoint)
 		}
-
-		// Step 3a: Compute chain digest.
-		optsDigest = transform.TsconfigChainDigest(chain)
 	}
+
+	// Step 3a: Compute options digest from canonical JSON.
+	optsDigest = opts.Digest()
 
 	// Step 3b: Serialize options to JSON (even default zero-value options).
 	optsJSON, err := json.Marshal(opts)

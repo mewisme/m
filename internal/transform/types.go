@@ -38,7 +38,7 @@ type TransformRequest struct {
 	Loader          LoaderKind
 	Format          ModuleFormat
 	NormalizedOpts  NormalizedOptions
-	TsconfigDigest  string
+	OptsDigest      string
 	TargetNodeMajor int
 	SourceMapMode   SourceMapMode
 }

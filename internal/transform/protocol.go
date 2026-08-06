@@ -4,10 +4,13 @@
 package transform
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/mewisme/mew/internal/apperr"
@@ -28,6 +31,23 @@ const MaxPathLength = 4096
 
 // MaxIDLength limits request IDs (256 bytes).
 const MaxIDLength = 256
+
+// MaxCancelTokenLength limits cancel tokens (256 bytes).
+const MaxCancelTokenLength = 256
+
+// MaxOptionsLength limits the options JSON string (64 KiB).
+const MaxOptionsLength = 64 << 10
+
+// hexDigestRE matches a valid SHA-256 hex digest (64 hex chars).
+var hexDigestRE = regexp.MustCompile(`^[a-fA-F0-9]{64}$`)
+
+// containsHexDigestRE detects a 64-char hex sequence anywhere in a string.
+var containsHexDigestRE = regexp.MustCompile(`[a-fA-F0-9]{64}`)
+
+// SupportedNodeMajors lists Node.js major versions accepted for transform.
+var SupportedNodeMajors = map[int]bool{
+	18: true, 20: true, 22: true, 24: true,
+}
 
 // Op codes.
 const (
@@ -93,7 +113,7 @@ type TransformRequestV2 struct {
 	CancelToken  string `json:"cancel_token,omitempty"` // ID used by OpCancel to cancel this request
 }
 
-// Validate checks required fields, limits, and enum values.
+// Validate checks required fields, limits, enum values, and digest integrity.
 func (r *TransformRequestV2) Validate() error {
 	if r.V != ProtocolVersion {
 		return apperr.New(apperr.TransformProtocolVersion, "transform.protocol", r.ID,
@@ -120,8 +140,23 @@ func (r *TransformRequestV2) Validate() error {
 		return apperr.New(apperr.TransformFrameSize, "transform.protocol", r.ID,
 			fmt.Sprintf("source too large: %d", len(r.Source)))
 	}
-	if r.Source == "" && r.SourceDigest == "" {
-		return apperr.New(apperr.Usage, "transform.protocol", r.ID, "missing source")
+	if !hexDigestRE.MatchString(r.SourceDigest) {
+		return apperr.New(apperr.Integrity, "transform.protocol", r.ID,
+			"source_digest missing or malformed")
+	}
+	if len(r.Options) > MaxOptionsLength {
+		return apperr.New(apperr.TransformFrameSize, "transform.protocol", r.ID,
+			fmt.Sprintf("options too long: %d", len(r.Options)))
+	}
+	if r.Options != "" {
+		if !hexDigestRE.MatchString(r.OptsDigest) {
+			return apperr.New(apperr.Integrity, "transform.protocol", r.ID,
+				"opts_digest missing or malformed")
+		}
+	}
+	if !SupportedNodeMajors[r.NodeMajor] {
+		return apperr.New(apperr.Usage, "transform.protocol", r.ID,
+			fmt.Sprintf("unsupported node major %d", r.NodeMajor))
 	}
 	if !ValidLoaderKinds[r.Loader] {
 		return apperr.New(apperr.Usage, "transform.protocol", r.ID,
@@ -134,6 +169,9 @@ func (r *TransformRequestV2) Validate() error {
 	if r.SourceMap != "" && !ValidSourceMapModes[r.SourceMap] {
 		return apperr.New(apperr.Usage, "transform.protocol", r.ID,
 			fmt.Sprintf("unknown source-map mode %q", r.SourceMap))
+	}
+	if r.CancelToken != "" && len(r.CancelToken) > MaxCancelTokenLength {
+		return apperr.New(apperr.Usage, "transform.protocol", r.ID, "cancel token too long")
 	}
 	return nil
 }
@@ -153,9 +191,35 @@ type TransformResponseV2 struct {
 
 // CancelRequest cancels an in-flight transform.
 type CancelRequest struct {
-	V  int    `json:"v"`
-	ID string `json:"id"`
-	Op string `json:"op"`
+	V           int    `json:"v"`
+	ID          string `json:"id"`
+	Op          string `json:"op"`
+	CancelToken string `json:"cancel_token"`
+}
+
+// Validate checks required fields for a cancel request.
+func (r *CancelRequest) Validate() error {
+	if r.V != ProtocolVersion {
+		return apperr.New(apperr.TransformProtocolVersion, "transform.protocol", r.ID,
+			fmt.Sprintf("unsupported protocol version %d", r.V))
+	}
+	if r.ID == "" {
+		return apperr.New(apperr.Usage, "transform.protocol", "", "missing request id")
+	}
+	if len(r.ID) > MaxIDLength {
+		return apperr.New(apperr.Usage, "transform.protocol", r.ID, "request id too long")
+	}
+	if r.Op != OpCancel {
+		return apperr.New(apperr.Unsupported, "transform.protocol", r.ID,
+			fmt.Sprintf("unknown op %q", r.Op))
+	}
+	if r.CancelToken == "" {
+		return apperr.New(apperr.Usage, "transform.protocol", r.ID, "missing cancel token")
+	}
+	if len(r.CancelToken) > MaxCancelTokenLength {
+		return apperr.New(apperr.Usage, "transform.protocol", r.ID, "cancel token too long")
+	}
+	return nil
 }
 
 // EncodeFrame writes a u32le length-prefixed JSON payload.
@@ -195,6 +259,62 @@ func DecodeFrame(r io.Reader, dest any) error {
 	return json.Unmarshal(body, dest)
 }
 
+// ValidateRequestHeader checks the fields common to all request types: version, ID, and op.
+// Returns nil when the header is valid for the expected operation.
+func ValidateRequestHeader(v int, id, op, expectedOp string) error {
+	if v != ProtocolVersion {
+		return apperr.New(apperr.TransformProtocolVersion, "transform.protocol", id,
+			fmt.Sprintf("unsupported protocol version %d", v))
+	}
+	if id == "" {
+		return apperr.New(apperr.Usage, "transform.protocol", "", "missing request id")
+	}
+	if len(id) > MaxIDLength {
+		return apperr.New(apperr.Usage, "transform.protocol", id, "request id too long")
+	}
+	if op != expectedOp {
+		return apperr.New(apperr.Unsupported, "transform.protocol", id,
+			fmt.Sprintf("unknown op %q", op))
+	}
+	return nil
+}
+
+// VerifySourceDigest checks that the SHA-256 of source bytes matches the expected hex digest.
+func VerifySourceDigest(source string, digest string) error {
+	if !hexDigestRE.MatchString(digest) {
+		return apperr.New(apperr.Integrity, "transform.protocol", "",
+			"source_digest malformed")
+	}
+	h := sha256.Sum256([]byte(source))
+	actual := hex.EncodeToString(h[:])
+	if !strings.EqualFold(actual, digest) {
+		return apperr.New(apperr.Integrity, "transform.protocol", "",
+			"source_digest mismatch")
+	}
+	return nil
+}
+
+// VerifyOptionsDigest checks that the SHA-256 of the options JSON string matches the expected hex digest.
+func VerifyOptionsDigest(optionsJSON string, digest string) error {
+	if !hexDigestRE.MatchString(digest) {
+		return apperr.New(apperr.Integrity, "transform.protocol", "",
+			"opts_digest malformed")
+	}
+	h := sha256.Sum256([]byte(optionsJSON))
+	actual := hex.EncodeToString(h[:])
+	if !strings.EqualFold(actual, digest) {
+		return apperr.New(apperr.Integrity, "transform.protocol", "",
+			"opts_digest mismatch")
+	}
+	return nil
+}
+
+// DigestString returns the SHA-256 hex digest of s.
+func DigestString(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
+}
+
 // stableErrorCodes lists error codes that are safe to return to clients.
 // Source content, secrets, and internal details must not appear in diagnostics.
 var stableErrorCodes = map[string]bool{
@@ -226,13 +346,26 @@ func SanitizeErrorCode(code string) string {
 	return string(apperr.TransformEngine)
 }
 
-// SanitizeErrorMessage returns msg if it is safe to expose; strips source content.
+// SanitizeErrorMessage returns msg if it is safe to expose; strips source content,
+// endpoint addresses, tokens, and options payloads.
 func SanitizeErrorMessage(msg string) string {
 	if len(msg) > MaxPathLength {
 		msg = msg[:MaxPathLength] + "..."
 	}
 	// Redact source content that may have leaked into error messages.
 	if strings.Contains(msg, "const ") || strings.Contains(msg, "import ") {
+		return "transform error (details redacted)"
+	}
+	// Redact endpoint addresses.
+	if strings.Contains(msg, "127.0.0.1:") || strings.Contains(msg, "localhost:") {
+		return "transform error (details redacted)"
+	}
+	// Redact JSON options payloads.
+	if strings.Contains(msg, `"target"`) || strings.Contains(msg, `"module"`) {
+		return "transform error (details redacted)"
+	}
+	// Redact hex tokens (64-char sequences that look like digests or tokens).
+	if containsHexDigestRE.MatchString(msg) {
 		return "transform error (details redacted)"
 	}
 	return msg

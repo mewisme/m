@@ -31,9 +31,13 @@ type Session struct {
 	active   atomic.Int32
 	closed   atomic.Bool
 
-	// activeCancels tracks per-request cancel functions keyed by request ID.
+	// activeCancels tracks per-request cancel functions keyed by cancel token.
 	activeCancels   map[string]context.CancelFunc
 	activeCancelsMu sync.Mutex
+
+	// activeIDs tracks in-flight request IDs for duplicate detection.
+	activeIDs   map[string]bool
+	activeIDsMu sync.Mutex
 
 	idleTimeout    time.Duration
 	requestTimeout time.Duration
@@ -77,6 +81,7 @@ func NewSession(opts ServiceOptions) (*Session, error) {
 		cacheDir:       opts.CacheDir,
 		workers:        make(chan struct{}, opts.Workers),
 		activeCancels:  make(map[string]context.CancelFunc),
+		activeIDs:      make(map[string]bool),
 		idleTimeout:    opts.IdleTimeout,
 		requestTimeout: opts.RequestTimeout,
 	}
@@ -238,23 +243,57 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 			return // protocol error → close connection
 		}
 
-		// Dispatch.
+		// Dispatch with per-operation validation.
 		switch req.Op {
 		case OpHealth:
+			if err := ValidateRequestHeader(req.V, req.ID, req.Op, OpHealth); err != nil {
+				_ = EncodeFrame(conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
+					Error:   SanitizeErrorMessage(err.Error()),
+				})
+				continue
+			}
 			_ = EncodeFrame(conn, TransformResponseV2{V: ProtocolVersion, ID: req.ID, OK: true})
 
 		case OpTransform:
 			if err := req.Validate(); err != nil {
 				_ = EncodeFrame(conn, TransformResponseV2{
 					V: ProtocolVersion, ID: req.ID, OK: false,
-					ErrCode: string(apperr.Usage), Error: err.Error(),
+					ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
+					Error:   SanitizeErrorMessage(err.Error()),
 				})
 				continue
 			}
 			s.handleTransform(ctx, conn, &req)
 
 		case OpCancel:
+			if err := ValidateRequestHeader(req.V, req.ID, req.Op, OpCancel); err != nil {
+				_ = EncodeFrame(conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
+					Error:   SanitizeErrorMessage(err.Error()),
+				})
+				continue
+			}
+			if req.CancelToken == "" {
+				_ = EncodeFrame(conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: string(apperr.Usage),
+					Error:   "missing cancel token",
+				})
+				continue
+			}
+			if len(req.CancelToken) > MaxCancelTokenLength {
+				_ = EncodeFrame(conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: string(apperr.Usage),
+					Error:   "cancel token too long",
+				})
+				continue
+			}
 			// Cancel the matching active request by its cancel token.
+			// Unknown or already-completed tokens: OK (idempotent cancel).
 			s.activeCancelsMu.Lock()
 			if cancel, ok := s.activeCancels[req.CancelToken]; ok {
 				cancel()
@@ -264,6 +303,14 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 			_ = EncodeFrame(conn, TransformResponseV2{V: ProtocolVersion, ID: req.ID, OK: true})
 
 		case OpShutdown:
+			if err := ValidateRequestHeader(req.V, req.ID, req.Op, OpShutdown); err != nil {
+				_ = EncodeFrame(conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
+					Error:   SanitizeErrorMessage(err.Error()),
+				})
+				continue
+			}
 			_ = EncodeFrame(conn, TransformResponseV2{V: ProtocolVersion, ID: req.ID, OK: true})
 			return
 
@@ -279,6 +326,25 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 
 // handleTransform processes a single transform request.
 func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *TransformRequestV2) {
+	// Reject duplicate active request IDs before any expensive work.
+	s.activeIDsMu.Lock()
+	if s.activeIDs[req.ID] {
+		s.activeIDsMu.Unlock()
+		_ = EncodeFrame(conn, TransformResponseV2{
+			V: ProtocolVersion, ID: req.ID, OK: false,
+			ErrCode: string(apperr.Usage),
+			Error:   "duplicate request id",
+		})
+		return
+	}
+	s.activeIDs[req.ID] = true
+	s.activeIDsMu.Unlock()
+	defer func() {
+		s.activeIDsMu.Lock()
+		delete(s.activeIDs, req.ID)
+		s.activeIDsMu.Unlock()
+	}()
+
 	// Apply request deadline.
 	reqCtx, cancel := context.WithTimeout(ctx, s.requestTimeout)
 	defer cancel()
@@ -286,6 +352,16 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 	// Register cancel for OpCancel tracking.
 	if req.CancelToken != "" {
 		s.activeCancelsMu.Lock()
+		// Reject duplicate cancel tokens (already-active transform).
+		if _, exists := s.activeCancels[req.CancelToken]; exists {
+			s.activeCancelsMu.Unlock()
+			_ = EncodeFrame(conn, TransformResponseV2{
+				V: ProtocolVersion, ID: req.ID, OK: false,
+				ErrCode: string(apperr.Usage),
+				Error:   "duplicate cancel token",
+			})
+			return
+		}
 		s.activeCancels[req.CancelToken] = cancel
 		s.activeCancelsMu.Unlock()
 		defer func() {
@@ -310,13 +386,32 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 	s.active.Add(1)
 	defer s.active.Add(-1)
 
-	// Parse options.
+	// Verify source digest before any processing.
+	if err := VerifySourceDigest(req.Source, req.SourceDigest); err != nil {
+		_ = EncodeFrame(conn, TransformResponseV2{
+			V: ProtocolVersion, ID: req.ID, OK: false,
+			ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
+			Error:   SanitizeErrorMessage(err.Error()),
+		})
+		return
+	}
+
+	// Verify options digest and parse options.
 	var opts NormalizedOptions
 	if req.Options != "" {
+		if err := VerifyOptionsDigest(req.Options, req.OptsDigest); err != nil {
+			_ = EncodeFrame(conn, TransformResponseV2{
+				V: ProtocolVersion, ID: req.ID, OK: false,
+				ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
+				Error:   SanitizeErrorMessage(err.Error()),
+			})
+			return
+		}
 		if err := json.Unmarshal([]byte(req.Options), &opts); err != nil {
 			_ = EncodeFrame(conn, TransformResponseV2{
 				V: ProtocolVersion, ID: req.ID, OK: false,
-				ErrCode: string(apperr.TransformConfigOption), Error: fmt.Sprintf("invalid options: %v", err),
+				ErrCode: string(apperr.TransformConfigOption),
+				Error:   SanitizeErrorMessage(fmt.Sprintf("invalid options: %v", err)),
 			})
 			return
 		}
@@ -338,7 +433,7 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 		Loader:          LoaderKind(req.Loader),
 		Format:          mapFormatString(req.Format),
 		NormalizedOpts:  opts,
-		TsconfigDigest:  req.OptsDigest,
+		OptsDigest:      req.OptsDigest,
 		TargetNodeMajor: req.NodeMajor,
 		SourceMapMode:   sourceMapMode,
 	}
@@ -351,8 +446,6 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 		key := CacheKey(tReq, identity)
 		cached, cerr := TryReadCache(s.cacheDir, key)
 		if cerr != nil {
-			// Corrupt entries are cleaned up by TryReadCache; re-transform below.
-			// Permission/I/O errors propagate as transform failures.
 			if !isCacheCorruption(cerr) {
 				resultErr = cerr
 			}
@@ -364,20 +457,14 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 	// Cache miss, corruption, or cache disabled: run engine.
 	if result == nil && resultErr == nil {
 		engineResult, engineErr := s.engine.Transform(reqCtx, tReq)
-		// Discard late results: if the context expired during transform,
-		// the engine result must not be cached or returned to the client.
 		if reqCtx.Err() != nil {
 			resultErr = reqCtx.Err()
 		} else if engineErr == nil {
 			result = &engineResult
-			// Cache the result on success.
 			if s.cacheDir != "" {
 				identity := s.engine.Identity()
 				key := CacheKey(tReq, identity)
 				if werr := WriteCache(s.cacheDir, key, &engineResult); werr != nil {
-					// Cache write failures are non-fatal for the transform
-					// but indicate a disk issue worth investigating.
-					// ponytail: structured logging hook goes here.
 					_ = werr
 				}
 			}
@@ -387,7 +474,6 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 	}
 
 	if resultErr != nil {
-		// Check for context cancellation/timeout.
 		if reqCtx.Err() != nil {
 			_ = EncodeFrame(conn, TransformResponseV2{
 				V: ProtocolVersion, ID: req.ID, OK: false,
@@ -397,7 +483,8 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 		}
 		_ = EncodeFrame(conn, TransformResponseV2{
 			V: ProtocolVersion, ID: req.ID, OK: false,
-			ErrCode: string(apperr.Integrity), Error: resultErr.Error(),
+			ErrCode: SanitizeErrorCode(string(apperr.CodeOf(resultErr))),
+			Error:   SanitizeErrorMessage(resultErr.Error()),
 		})
 		return
 	}

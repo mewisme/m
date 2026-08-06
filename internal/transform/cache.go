@@ -42,7 +42,7 @@ func CacheKey(req TransformRequest, identity EngineIdentity) string {
 	h.Write([]byte(req.Format))
 	optsData, _ := json.Marshal(req.NormalizedOpts)
 	h.Write(optsData)
-	h.Write([]byte(req.TsconfigDigest))
+	h.Write([]byte(req.OptsDigest))
 	h.Write([]byte(identity.Name))
 	h.Write([]byte(identity.Version))
 	h.Write([]byte(req.SourceMapMode))
