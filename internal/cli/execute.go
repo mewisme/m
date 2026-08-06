@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"reflect"
 	goruntime "runtime"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/diagnostics"
+	"github.com/mewisme/mew/internal/dotenv"
 	"github.com/mewisme/mew/internal/presentation"
 	presprompt "github.com/mewisme/mew/internal/presentation/prompt"
 	"github.com/mewisme/mew/internal/prompt"
@@ -532,11 +534,13 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 		if augMode != runtime.AugmentNone && goruntime.GOOS == "windows" {
 			entrypoint = res.Canonical
 		}
+		envOverlay := buildEnvOverlay(ac.CWD, phase.Leading)
 		req := runtime.LaunchRequest{
 			Entrypoint:       entrypoint,
 			AppArgs:          phase.ForwardedArgs,
 			WorkingDir:       ac.CWD,
 			AugmentationMode: augMode,
+			EnvOverlay:       envOverlay,
 			Loaders:          append([]string(nil), phase.Leading.loaders...),
 			Stdio: runtime.LaunchStdio{
 				Stdin:  os.Stdin,
@@ -740,4 +744,39 @@ func encodeDispatchJSON(res DispatchResult, selector string) ([]byte, error) {
 		return nil, err
 	}
 	return enc, nil
+}
+
+// buildEnvOverlay computes env overlay from .env files per CLI flags.
+// Order: auto-discovered files (if not --no-env-file), then explicit --env-file files.
+// --mode <mode> appends NODE_ENV=<mode> at the end (highest precedence within the overlay).
+func buildEnvOverlay(cwd string, leading leadingDispatchFlags) []string {
+	if leading.noEnvFile && len(leading.envFile) == 0 {
+		if leading.mode != "" {
+			return []string{"NODE_ENV=" + leading.mode}
+		}
+		return nil
+	}
+
+	var files []string
+	if len(leading.envFile) > 0 {
+		for _, f := range leading.envFile {
+			if filepath.IsAbs(f) {
+				files = append(files, f)
+			} else {
+				files = append(files, filepath.Join(cwd, f))
+			}
+		}
+	} else {
+		files = dotenv.Discover(cwd, leading.mode)
+	}
+
+	envVars, err := dotenv.Load(files)
+	if err != nil {
+		envVars = nil
+	}
+
+	if leading.mode != "" {
+		envVars = append(envVars, "NODE_ENV="+leading.mode)
+	}
+	return envVars
 }

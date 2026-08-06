@@ -73,6 +73,10 @@ type leadingDispatchFlags struct {
 
 	node    bool
 	loaders []string
+
+	envFile   []string
+	noEnvFile bool
+	mode      string
 }
 
 // PhaseAResult is the output of the leading-global parser (Phase A).
@@ -182,6 +186,9 @@ func dispatchOnlyFlagNames() []string {
 		"workspace-bail",
 		"no-workspace-bail",
 		"node",
+		"env-file",
+		"no-env-file",
+		"mode",
 	}
 }
 
@@ -282,6 +289,12 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 		leading.loaders = append(leading.loaders, value)
 	case "node":
 		leading.node = parseBoolValue(value, true)
+	case "env-file":
+		leading.envFile = append(leading.envFile, value)
+	case "no-env-file":
+		leading.noEnvFile = parseBoolValue(value, true)
+	case "mode":
+		leading.mode = value
 	default:
 		return 0, apperr.New(apperr.Usage, "dispatch", name, fmt.Sprintf("unknown flag %q", name))
 	}
@@ -293,7 +306,7 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 
 func needsValue(name string) bool {
 	switch name {
-	case "output", "log-level", "cwd", "config", "filter", "workspace-concurrency", "workspace-order", "workspace-output", "loader":
+	case "output", "log-level", "cwd", "config", "filter", "workspace-concurrency", "workspace-order", "workspace-output", "loader", "env-file", "mode":
 		return true
 	default:
 		return false

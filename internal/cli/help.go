@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -188,11 +189,16 @@ func renderGroupedCommands(cmd *cobra.Command) string {
 		}
 	}
 	var other []string
-	for name, c := range byName {
+	var otherNames []string
+	for name := range byName {
 		if _, ok := seen[name]; ok {
 			continue
 		}
-		other = append(other, formatCommandLine(c))
+		otherNames = append(otherNames, name)
+	}
+	sort.Strings(otherNames)
+	for _, name := range otherNames {
+		other = append(other, formatCommandLine(byName[name]))
 	}
 	if len(other) > 0 {
 		if b.Len() > 0 {

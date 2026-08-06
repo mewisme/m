@@ -36,3 +36,8 @@ semantics where parity is intentional; use idiomatic Go architecture elsewhere.
 | Custom ESM loader chaining | parity (0053) | --loader flag injects --import before Mew preloads; user hooks register before ts-loader |
 | PnP runtime adapter | parity (0053) | .pnp.cjs detection + resolveRequest integration in ts-loader resolve hook |
 | resolve-module command | extension (0053) | Go-side diagnostic showing tsconfig paths, baseUrl, pattern matches |
+| .env auto-discovery | parity (0054) | Mode-aware .env* loading with precedence: .env.[mode].local > .env.[mode] > .env.local > .env |
+| .env variable expansion | parity (0054) | ${VAR}, $VAR, ${VAR:-default} expansion in .env files; double/single-quoted values |
+| --env-file / --no-env-file | parity (0054) | Explicit env file loading and auto-discovery kill switch |
+| --mode flag | parity (0054) | Mode-aware .env selection; --mode production sets NODE_ENV=production |
+| Web Storage polyfill | parity (0054) | localStorage and sessionStorage globals via preload; in-memory only (disk persistence deferred) |

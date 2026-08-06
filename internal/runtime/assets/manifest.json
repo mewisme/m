@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "bundleVersion": "7",
+  "bundleVersion": "8",
   "assets": [
     {
       "name": "credential-grabber.cjs",
@@ -23,16 +23,16 @@
       "path": "preload.cjs",
       "role": "preload-cjs",
       "moduleType": "cjs",
-      "size": 402,
-      "sha256": "da8e42eecf039e23a687fcb361c9192a76a707150fc2feda1abde336da0a5fcb"
+      "size": 1174,
+      "sha256": "e15b802bd78984bd437c71a2fceb07f18b55ea8982a97bb42989bef93a19da23"
     },
     {
       "name": "preload.mjs",
       "path": "preload.mjs",
       "role": "preload-esm",
       "moduleType": "esm",
-      "size": 549,
-      "sha256": "efd929ff4acc986aa25cd6f626756711174c6f9e751226b6e9010fd19a17c446"
+      "size": 1321,
+      "sha256": "d066fff51fc570dcce11595340cf1cb2a44595d839e8a9f7ed93e2dff9737c3c"
     },
     {
       "name": "ts-loader.mjs",
