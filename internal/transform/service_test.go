@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -1129,6 +1130,11 @@ func TestErrorCodesAccessible(t *testing.T) {
 // succeeds but WriteCache fails, the response is an error (not OK with cached
 // status silently dropped).
 func TestTransformSuccessButCacheWriteFailure(t *testing.T) {
+	// os.Chmod 0o555 does not prevent file creation inside the directory on
+	// Windows; the Unix permission model the test relies on is unavailable.
+	if runtime.GOOS == "windows" {
+		t.Skip("read-only directory semantics not available on Windows")
+	}
 	ctx := context.Background()
 	dir := t.TempDir()
 
@@ -1206,6 +1212,11 @@ func TestTransformSuccessButCacheWriteFailure(t *testing.T) {
 // transform error responses do not leak tokens, source content, endpoints,
 // or transform options.
 func TestCacheErrorDiagnosticsDoNotExposeCredentials(t *testing.T) {
+	// os.Chmod 0o555 does not prevent file creation inside the directory on
+	// Windows; the Unix permission model the test relies on is unavailable.
+	if runtime.GOOS == "windows" {
+		t.Skip("read-only directory semantics not available on Windows")
+	}
 	ctx := context.Background()
 	dir := t.TempDir()
 

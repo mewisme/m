@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -477,6 +478,11 @@ func TestWriteCacheDirCreationFailure(t *testing.T) {
 }
 
 func TestWriteCacheReadOnlyDir(t *testing.T) {
+	// os.Chmod 0o555 does not prevent file creation inside the directory on
+	// Windows; the Unix permission model the test relies on is unavailable.
+	if runtime.GOOS == "windows" {
+		t.Skip("read-only directory semantics not available on Windows")
+	}
 	dir := t.TempDir()
 	eff := &config.Effective{Values: map[string]config.Value{"cache.dir": {Raw: dir}}}
 	cacheDir := TransformCacheDir(eff)

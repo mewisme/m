@@ -843,6 +843,15 @@ func nodeMeetsMinimum(t *testing.T, major, minor int) bool {
 
 // samePath reports whether two absolute paths refer to the same filesystem location.
 func samePath(a, b string) bool {
+	// Resolve symlinks so paths compare equal when the OS returns
+	// different representations of the same directory (notably macOS
+	// where /var is a symlink to /private/var).
+	if resolved, err := filepath.EvalSymlinks(a); err == nil {
+		a = resolved
+	}
+	if resolved, err := filepath.EvalSymlinks(b); err == nil {
+		b = resolved
+	}
 	ca := filepath.Clean(a)
 	cb := filepath.Clean(b)
 	if runtime.GOOS == "windows" {
