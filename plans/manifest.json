@@ -356,7 +356,7 @@
     {
       "path": "CHECKLIST.md",
       "bytes": 128831,
-      "sha256": "713da1c3d958bd0a399861dd11dc180150aa1788f868ec3f05ccf3d64b4a640a"
+      "sha256": "e9adb72621f2e5c5e81c2bbf2e5bda7410d59640153abd3b9ecb563f6f475a1e"
     },
     {
       "path": "INDEX.md",
@@ -401,7 +401,7 @@
     {
       "path": "status.json",
       "bytes": 981,
-      "sha256": "7206c7ab6c162292e92df50d1a047ecf03dd5514b52d20249a6089e908f6fe88"
+      "sha256": "4b64a25fbc01f0f2a08775081bda04ee07e86e7d7d17ce6fecc9e0d1397ec7ba"
     },
     {
       "path": "ux/accessibility-evidence.md",
