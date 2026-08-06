@@ -122,3 +122,37 @@ func findDoctorCheck(rep DoctorReport, id string) *DoctorCheck {
 	}
 	return nil
 }
+
+func TestDoctorRuntime(t *testing.T) {
+	ac, _ := setupDoctorHealthyProject(t)
+	report, err := DoctorRuntime(context.Background(), ac, DoctorOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.OK {
+		t.Fatalf("expected ok runtime report: %+v", report)
+	}
+	// Should have node-capabilities check.
+	nodeCheck := findDoctorCheck(report, "node-capabilities")
+	if nodeCheck == nil {
+		t.Fatal("missing node-capabilities check")
+	}
+	if nodeCheck.Status != string(DoctorStatusOK) {
+		t.Logf("node-capabilities: %s — %s", nodeCheck.Status, nodeCheck.Message)
+	}
+	// Should have runtime-cache check.
+	cacheCheck := findDoctorCheck(report, "runtime-cache")
+	if cacheCheck == nil {
+		t.Fatal("missing runtime-cache check")
+	}
+}
+
+func TestDoctorRuntimeStrict(t *testing.T) {
+	ac, _ := setupDoctorHealthyProject(t)
+	report, err := DoctorRuntime(context.Background(), ac, DoctorOptions{Strict: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = report
+	// Strict shouldn't cause an error; it just turns warnings into failures.
+}

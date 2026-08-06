@@ -77,6 +77,8 @@ type leadingDispatchFlags struct {
 	envFile   []string
 	noEnvFile bool
 	mode      string
+
+	v8Args []string // collected --inspect, --inspect-brk, and other V8 flags
 }
 
 // PhaseAResult is the output of the leading-global parser (Phase A).
@@ -189,6 +191,8 @@ func dispatchOnlyFlagNames() []string {
 		"env-file",
 		"no-env-file",
 		"mode",
+		"inspect",
+		"inspect-brk",
 	}
 }
 
@@ -295,6 +299,10 @@ func consumeLeadingFlag(arg string, args []string, i int, leading *leadingDispat
 		leading.noEnvFile = parseBoolValue(value, true)
 	case "mode":
 		leading.mode = value
+	case "inspect":
+		leading.v8Args = append(leading.v8Args, argToV8Flag(arg, name, value, inline, hasValue))
+	case "inspect-brk":
+		leading.v8Args = append(leading.v8Args, argToV8Flag(arg, name, value, inline, hasValue))
 	default:
 		return 0, apperr.New(apperr.Usage, "dispatch", name, fmt.Sprintf("unknown flag %q", name))
 	}
@@ -311,6 +319,19 @@ func needsValue(name string) bool {
 	default:
 		return false
 	}
+}
+
+// argToV8Flag reconstructs a V8 flag argument from the split parts for
+// passthrough to Node. Flags like --inspect and --inspect-brk are consumed
+// by Phase A but forwarded verbatim to Node's argument vector.
+func argToV8Flag(arg, name string, value string, inline, hasValue bool) string {
+	if hasValue {
+		if inline {
+			return "--" + name + "=" + value
+		}
+		return "--" + name + " " + value
+	}
+	return "--" + name
 }
 
 // parseBoolValue returns the boolean interpretation of a flag value.

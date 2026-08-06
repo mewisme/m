@@ -538,6 +538,7 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 		req := runtime.LaunchRequest{
 			Entrypoint:       entrypoint,
 			AppArgs:          phase.ForwardedArgs,
+			NodeV8Args:       append([]string(nil), phase.Leading.v8Args...),
 			WorkingDir:       ac.CWD,
 			AugmentationMode: augMode,
 			EnvOverlay:       envOverlay,

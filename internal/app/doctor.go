@@ -12,6 +12,8 @@ import (
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/linker/planner"
+	"github.com/mewisme/mew/internal/node"
+	runtimepkg "github.com/mewisme/mew/internal/runtime"
 	"github.com/mewisme/mew/internal/transaction"
 )
 
@@ -276,6 +278,90 @@ func DoctorExitError(rep DoctorReport) error {
 		return nil
 	}
 	return apperr.New(apperr.Integrity, "doctor", "", "health check failed")
+}
+
+// DoctorRuntime runs runtime-specific health checks: Node installation,
+// capabilities, transform cache, and runtime asset integrity.
+func DoctorRuntime(ctx context.Context, ac *Context, opts DoctorOptions) (DoctorReport, error) {
+	var rep DoctorReport
+	if err := ctx.Err(); err != nil {
+		return rep, err
+	}
+	rep.SchemaVersion = DoctorReportSchemaVersion
+	rep.CheckedAt = time.Now().UTC().Format(time.RFC3339)
+
+	rep.Checks = append(rep.Checks, doctorCheckNodeCapabilities(ctx))
+	if ac != nil && ac.Config != nil {
+		rep.Checks = append(rep.Checks, doctorCheckRuntimeCache(ctx, ac))
+	}
+
+	rep.OK = !reportHasStatus(rep, DoctorStatusFail)
+	if opts.Strict && reportHasStatus(rep, DoctorStatusWarn) {
+		rep.OK = false
+	}
+	return rep, nil
+}
+
+func doctorCheckNodeCapabilities(ctx context.Context) DoctorCheck {
+	check := DoctorCheck{ID: "node-capabilities"}
+	inst, err := node.Discover(ctx, node.Request{})
+	if err != nil {
+		check.Status = string(DoctorStatusFail)
+		check.Message = fmt.Sprintf("node discovery failed: %v", err)
+		check.Remediation = "install Node.js 18+ (m requires module-register, import-preload, require-preload)"
+		return check
+	}
+	if inst == nil {
+		check.Status = string(DoctorStatusFail)
+		check.Message = "node not found"
+		check.Remediation = "install Node.js 18+"
+		return check
+	}
+	capSet := make(map[string]bool, len(inst.Capabilities))
+	for _, c := range inst.Capabilities {
+		capSet[c] = true
+	}
+	required := []string{"require-preload", "import-preload", "module-register"}
+	var missing []string
+	for _, c := range required {
+		if !capSet[c] {
+			missing = append(missing, c)
+		}
+	}
+	if len(missing) > 0 {
+		check.Status = string(DoctorStatusFail)
+		check.Message = fmt.Sprintf("Node %s at %s missing capabilities: %s", inst.NormalizedVersion, inst.ExePath, strings.Join(missing, ", "))
+		check.Remediation = "install Node.js 18+ or a newer LTS release"
+		return check
+	}
+	check.Status = string(DoctorStatusOK)
+	check.Message = fmt.Sprintf("Node %s at %s (capabilities: %s)", inst.NormalizedVersion, inst.ExePath, strings.Join(inst.Capabilities, ", "))
+	return check
+}
+
+func doctorCheckRuntimeCache(ctx context.Context, ac *Context) DoctorCheck {
+	check := DoctorCheck{ID: "runtime-cache"}
+	cacheDir, err := runtimepkg.CacheDir(ac.Config)
+	if err != nil {
+		check.Status = string(DoctorStatusFail)
+		check.Message = fmt.Sprintf("cache dir resolution failed: %v", err)
+		return check
+	}
+	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+		check.Status = string(DoctorStatusWarn)
+		check.Message = fmt.Sprintf("runtime cache not populated at %s", cacheDir)
+		check.Remediation = "run any TypeScript file with m to populate the cache"
+		return check
+	}
+	if err := runtimepkg.VerifyCache(ac.Config); err != nil {
+		check.Status = string(DoctorStatusFail)
+		check.Message = fmt.Sprintf("runtime cache verification failed: %v", err)
+		check.Remediation = "run m cache explain for details; delete the cache directory to force re-extraction"
+		return check
+	}
+	check.Status = string(DoctorStatusOK)
+	check.Message = fmt.Sprintf("runtime cache valid at %s", cacheDir)
+	return check
 }
 
 // FormatDoctorReport renders human-readable doctor output.
