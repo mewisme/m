@@ -127,10 +127,6 @@ Follow **Conventional Commits**: `type(scope): description`. Common types: `feat
 
 ## Tool preferences
 
-### CodeGraph
-
-This project has a CodeGraph MCP server. Reach for `codegraph_explore` before grep/find or Read for any structural question. One call usually answers the whole question — do not delegate exploration to sub-agents. **Always pass `projectPath`** set to the workspace root. Trust codegraph results; do not re-verify with grep. If the staleness banner lists files, Read those specific files directly.
-
 ### Serena
 
 Prefer Serena for symbol lookup, cross-file relationships, refactoring, and replacing whole function/class/method bodies. Prefer built-in tools for small known-file edits, config/docs/JSON/YAML/Markdown, plain text searches, shell commands, Git, builds, and tests.
