@@ -1640,15 +1640,8 @@ func (e *selectiveBlockEngine) Identity() transform.EngineIdentity {
 }
 
 func (e *selectiveBlockEngine) Transform(ctx context.Context, req transform.TransformRequest) (transform.TransformResult, error) {
-	if req.RequestID == "" {
-		// Check by cancel token. The engine doesn't receive cancel token directly;
-		// we match by request ID pattern instead. The test uses "tok-conc-1" as
-		// cancel token and "conc-1" as request ID.
-	}
-	// Use a proxy: the cancelToken check is done by the caller via the
-	// TransformRequest. We match via the request's stored info.
-	// The engine doesn't have access to cancel token directly.
-	// Instead, we use a known request ID prefix.
+	// The engine matches by request ID. The test uses "conc-1" as the
+	// request ID that should block until cancelled.
 	if req.RequestID == "conc-1" {
 		select {
 		case e.called <- struct{}{}:
