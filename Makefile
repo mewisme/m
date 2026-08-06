@@ -3,7 +3,7 @@
 GO ?= go
 BIN_DIR := bin
 
-.PHONY: test vet lint race fuzz-smoke conformance core-cert core-cert-fast core-cert-security core-cert-crash core-cert-performance vuln build allowlist install-dev uninstall-dev
+.PHONY: test vet lint race fuzz-smoke conformance core-cert core-cert-fast core-cert-security core-cert-crash core-cert-performance vuln build allowlist install-dev uninstall-dev update-runtime-assets check-runtime-assets
 
 test:
 	$(GO) test ./... -count=1
@@ -68,6 +68,12 @@ uninstall-dev:
 allowlist:
 	$(GO) run ./tools/check-license
 	$(GO) run ./tools/check-deps
+
+update-runtime-assets:
+	python3 tools/update-runtime-assets.py --write
+
+check-runtime-assets:
+	python3 tools/update-runtime-assets.py --check
 
 # EXE is .exe on Windows when set by the caller; empty elsewhere.
 EXE ?=

@@ -74,6 +74,7 @@ All executable or tool-like sources in this repository, including: Go `package m
 - [`tools/gen_archives.go`](#tools-gen_archives-go)
 - [`tools/gen_fixture_tarballs.go`](#tools-gen_fixture_tarballs-go)
 - [`tools/gen_help_golden.go`](#tools-gen_help_golden-go)
+- [`tools/update-runtime-assets.py`](#tools-update-runtime-assets-py)
 
 ### Plans and documentation tools
 - [`plans/scripts/enrich-and-generate.ps1`](#plans-scripts-enrich-and-generate-ps1)
@@ -594,6 +595,20 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Used by**: manual one-shot; output consumed by `internal/cli/help_test.go:62` and `internal/cli/foundation_test.go:45`.
 - **Status**: active (manual; downstream tests depend on its output).
 
+#### `tools/update-runtime-assets.py`
+- **Path**: `tools/update-runtime-assets.py`
+- **Type**: Python
+- **Category**: code generation / validation
+- **Platforms**: any with Python 3
+- **Purpose**: Regenerates `internal/runtime/assets/manifest.json` from the asset files on disk (`preload.cjs`, `preload.mjs`, `loader-register.mjs`, `ts-loader.mjs`). Hashes every asset with SHA-256, records byte size, auto-detects `moduleType` from file extension (`.cjs` → `cjs`, otherwise `esm`). Validates manifest schema, duplicate detection, path-traversal rejection, case-collision detection on case-insensitive filesystems. Atomic write via temp file + rename.
+- **CLI**: `--write` (regenerate and update), `--check` (fail if stale, default), `--manifest <path>` / `--assets-dir <path>` (overrides for tests), `--verbose` (print changes), `--help`. Exit codes: 0 (ok), 1 (stale), 2 (usage), 3 (invalid manifest), 4 (scan/hash failure), 5 (write failure).
+- **Invocation**: `python3 tools/update-runtime-assets.py --write` (canonical). Makefile: `make update-runtime-assets` / `make check-runtime-assets`. Wrappers: `tools/update-runtime-assets.sh` (POSIX sh, execs `.py`), `tools/update-runtime-assets.ps1` (PowerShell, invokes `.py`).
+- **Outputs**: writes `internal/runtime/assets/manifest.json`.
+- **Dependencies**: Python 3 stdlib only.
+- **Derived vs manual fields**: `size` and `sha256` are derived from file bytes. `schemaVersion`, `bundleVersion`, `name`, `path`, `role`, `moduleType` are preserved from existing manifest entries. For newly discovered assets, `moduleType` is derived from file extension and `role` defaults to `preload-cjs`/`preload-esm` based on module type.
+- **Tests**: `python3 -m unittest tools/test_update-runtime-assets.py` (29 tests).
+- **Status**: active (generator + CI gate).
+
 ### Plans and documentation tools
 
 #### `plans/scripts/enrich-and-generate.ps1`
@@ -730,6 +745,8 @@ These are not executable tools but configure or drive the tools above.
 | `tools/bench/check_regression.ps1` | `tools/bench/check_regression.py` | PowerShell invoke |
 | `tools/ci/verify-plan-generation.ps1` | `tools/ci/verify_plan_generation.py` | PowerShell invoke |
 | `tools/soak/install-loop.ps1` | `tools/soak/install_loop.py` | PowerShell invoke |
+| `tools/update-runtime-assets.sh` | `tools/update-runtime-assets.py` | POSIX sh exec |
+| `tools/update-runtime-assets.ps1` | `tools/update-runtime-assets.py` | PowerShell invoke |
 
 ### Library sourcing
 
@@ -752,6 +769,8 @@ These are not executable tools but configure or drive the tools above.
 | `install-dev` | `scripts/install-dev.ps1` (Windows) or `scripts/install-dev.sh` (Unix) | Direct |
 | `uninstall-dev` | `scripts/uninstall-dev.ps1` (Windows) or `scripts/uninstall-dev.sh` (Unix) | Direct |
 | `allowlist` | `go run ./tools/check-license; go run ./tools/check-deps` | Direct |
+| `update-runtime-assets` | `python3 tools/update-runtime-assets.py --write` | Direct |
+| `check-runtime-assets` | `python3 tools/update-runtime-assets.py --check` | Direct |
 
 ---
 
