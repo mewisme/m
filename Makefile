@@ -289,7 +289,7 @@ diff-check: ## Detect whitespace errors and formatting drift
 staticcheck: lint ## Alias: staticcheck runs inside golangci-lint
 
 .PHONY: quality
-quality: fmt-check generate-check vet lint diff-check arch-check allowlist ## Run all quality gates
+quality: fmt-check generate-check vet lint diff-check arch-check docs-check allowlist ## Run all quality gates
 
 .PHONY: ci
 ci: ci-normal ## Mirror normal PR CI locally (alias)
@@ -415,6 +415,10 @@ clean-all: clean-build clean-cache clean-reports ## Remove all build artifacts, 
 .PHONY: arch-check
 arch-check: ## Verify production import architecture
 	$(GO) test ./internal/archcheck/... -count=1 -run TestProduction
+
+.PHONY: docs-check
+docs-check: ## Verify AI instruction files reference TOOLS.md
+	$(GO) test ./internal/archcheck/... -count=1 -run TestDocsConsistency
 
 .PHONY: fixtures-check
 fixtures-check: ## Verify generated fixtures are current
@@ -563,7 +567,7 @@ check-runtime-assets: assets-check ## [alias] Verify runtime asset manifest
 .PHONY: test test-short test-unit test-integration test-e2e
 .PHONY: test-runtime test-transform test-cli test-runner test-workspace
 .PHONY: test-race test-all
-.PHONY: vet lint diff-check staticcheck quality arch-check fixtures-check crash-shards-check
+.PHONY: vet lint diff-check staticcheck quality arch-check docs-check fixtures-check crash-shards-check
 .PHONY: ci ci-normal ci-full-local pre-commit pre-push
 .PHONY: cert-runtime cert-runtime-local cert-runtime-report cert-check
 .PHONY: core-cert core-cert-fast core-cert-security core-cert-crash core-cert-performance

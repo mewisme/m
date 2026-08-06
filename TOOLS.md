@@ -1,6 +1,59 @@
 # MewJS — Repository Tools Inventory
 
+**Canonical tool inventory.** This file is the single source of truth for every repository-local developer tool. AI agents and contributors must consult it before creating or modifying tooling.
+
 Complete inventory of every developer, build, test, CI, release, maintenance, generation, validation, migration, benchmark, and debugging tool present in the source tree.
+
+## Quick command routing
+
+Map common intents to canonical commands. Use these; do not compose ad hoc sequences when a documented command exists.
+
+| Intent | Command | See |
+|---|---|---|
+| Build | `make build` | [build](#build-makefile-target) |
+| Format | `make fmt` | Makefile |
+| Format check | `make fmt-check` | Makefile |
+| Unit tests | `make test-short` | [test](#test-makefile-target) |
+| Integration tests | `make test-integration` | Makefile |
+| Runtime tests | `make test-runtime` | Makefile |
+| Race tests | `make test-race` | [race](#race-makefile-target) |
+| Lint | `make lint` | [lint](#lint-makefile-target) |
+| Quality (all gates) | `make quality` | Makefile |
+| Normal local CI | `make ci` | Makefile |
+| Generated-file update | `make generate` | Makefile |
+| Generated-file check | `make generate-check` | Makefile |
+| Runtime asset manifest update | `make assets` | [update-runtime-assets.py](#tools-update-runtime-assets-py) |
+| Runtime asset manifest check | `make assets-check` | [update-runtime-assets.py](#tools-update-runtime-assets-py) |
+| Plan/checklist generation | `make plans` | [enrich_and_generate.py](#plans-scripts-enrich_and_generate-py) |
+| Cleanup | `make clean` | Makefile |
+| Release readiness | `make release-check` | Makefile |
+
+## Agent synchronization rules
+
+**Must read.** Before any of these actions, read this file in full:
+
+- Creating a new script or tool
+- Composing a multi-command maintenance workflow
+- Changing build, test, generation, validation, certification, benchmark, install, uninstall, or release tooling
+- Modifying the Makefile or CI command paths
+- Claiming that no existing repository command supports a task
+
+**Must update.** Any change that adds, removes, renames, merges, or changes the behavior of a repository tool must update this file in the same change. This applies to:
+
+- Python, shell, PowerShell, batch, JavaScript, TypeScript, and Go tools
+- Make targets
+- `go:generate` commands
+- Package scripts
+- CI-only helper commands
+- Report generators, validators, benchmark tools, install/uninstall scripts, release/certification tooling
+
+Updates must cover changed paths, invocations, flags, inputs, outputs, dependencies, callers, platform support, status, and limitations. Removing a tool must remove or update its entry. Renaming or converting a tool must document the old-to-new relationship.
+
+**Precedence.** This file documents commands and tooling behavior. It does not override repository architecture, security, contribution, or release policies. When this file and an instruction file disagree about a command, verify current source and update the stale documentation — do not silently pick one.
+
+## Validation
+
+Run `make docs-check` to verify that AI instruction files reference this file and that all quick-command targets exist. The check also runs as part of `make quality`.
 
 ## Scope
 

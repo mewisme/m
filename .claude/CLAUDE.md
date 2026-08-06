@@ -160,6 +160,20 @@ Module: `github.com/mewisme/mew` — Go 1.26.5+. Product: **MewJS** (short: **Me
 
 Authoritative architecture: [`docs/architecture/package-map.md`](docs/architecture/package-map.md). Key docs: `docs/charter.md`, `docs/engineering.md`, `docs/errors.md`, `docs/testing.md`, `docs/architecture/forbidden-imports.md`.
 
+### Repository tools
+
+[`TOOLS.md`](TOOLS.md) is the canonical inventory and usage guide for every repository-local tool. Read it before creating a script, composing a multi-command workflow, changing build/test/generation/validation tooling, modifying the Makefile or CI command paths, or claiming no existing command covers a task.
+
+Prefer, in order:
+1. Documented Make targets (`make help` lists them all)
+2. Documented canonical Python or shell tools
+3. Repository-native Go commands
+4. Direct low-level command sequences only when no canonical tool exists
+
+Do not reimplement behavior a documented tool already provides. Do not bypass repository wrappers when they add validation, portability, or deterministic output. Use documented check modes (`make generate-check`, `make assets-check`) before manually inspecting or rewriting generated files.
+
+Any change that adds, removes, renames, or changes the behavior of a repository tool must update [`TOOLS.md`](TOOLS.md) in the same change.
+
 ### Build, test, lint
 
 ```powershell

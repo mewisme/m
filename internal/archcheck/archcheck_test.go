@@ -372,3 +372,101 @@ func TestNodeAugmentationJSSurfaceDocumented(t *testing.T) {
 		}
 	}
 }
+
+func TestDocsConsistency(t *testing.T) {
+	root := repoRoot(t)
+
+	// 1. CLAUDE.md must reference TOOLS.md.
+	claudePath := filepath.Join(root, ".claude", "CLAUDE.md")
+	claude, err := os.ReadFile(claudePath)
+	if err != nil {
+		t.Fatalf("cannot read .claude/CLAUDE.md: %v", err)
+	}
+	claudeText := string(claude)
+	if !strings.Contains(claudeText, "TOOLS.md") {
+		t.Error(".claude/CLAUDE.md does not reference TOOLS.md")
+	}
+
+	// 2. TOOLS.md must contain a "Quick command routing" section.
+	toolsPath := filepath.Join(root, "TOOLS.md")
+	tools, err := os.ReadFile(toolsPath)
+	if err != nil {
+		t.Fatalf("cannot read TOOLS.md: %v", err)
+	}
+	toolsText := string(tools)
+	if !strings.Contains(toolsText, "Quick command routing") {
+		t.Error("TOOLS.md missing 'Quick command routing' section")
+	}
+
+	// 3. TOOLS.md must contain the canonical-source statement.
+	if !strings.Contains(toolsText, "Canonical tool inventory") {
+		t.Error("TOOLS.md missing 'Canonical tool inventory' statement")
+	}
+
+	// 4. Makefile must have the docs-check target.
+	makePath := filepath.Join(root, "Makefile")
+	makefile, err := os.ReadFile(makePath)
+	if err != nil {
+		t.Fatalf("cannot read Makefile: %v", err)
+	}
+	makeText := string(makefile)
+	if !strings.Contains(makeText, "docs-check") {
+		t.Error("Makefile missing docs-check target")
+	}
+
+	// 5. docs-check must be included in the quality target's dependencies.
+	// Target lines start at column 0: "quality:".
+	found := false
+	for _, line := range strings.Split(makeText, "\n") {
+		if strings.HasPrefix(line, "quality:") {
+			if !strings.Contains(line, "docs-check") {
+				t.Error("Makefile quality target does not include docs-check")
+			}
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Makefile missing quality target")
+	}
+
+	// 6. Quick-command entries in TOOLS.md must reference real Makefile targets
+	// or tool paths.  Extract every `make X` from the quick-command table and
+	// verify X exists in the Makefile as a target.
+	qcStart := strings.Index(toolsText, "## Quick command routing")
+	if qcStart < 0 {
+		t.Fatal("cannot find quick-command routing section")
+	}
+	// Scan until the next "## " heading.
+	qcEnd := strings.Index(toolsText[qcStart+1:], "\n## ")
+	if qcEnd < 0 {
+		qcEnd = len(toolsText) - qcStart - 1
+	}
+	qcSection := toolsText[qcStart : qcStart+1+qcEnd]
+
+	for _, line := range strings.Split(qcSection, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "| ") {
+			continue
+		}
+		// Third column is the command.
+		parts := strings.Split(line, "|")
+		if len(parts) < 3 {
+			continue
+		}
+		cmd := strings.TrimSpace(parts[2])
+		if cmd == "Command" || cmd == "" {
+			continue
+		}
+		if strings.HasPrefix(cmd, "`make ") {
+			target := strings.TrimPrefix(cmd, "`make ")
+			target = strings.TrimSuffix(target, "`")
+			target = strings.TrimSpace(target)
+			// Check target exists in Makefile.
+			needle := "\n" + target + ":"
+			if !strings.Contains(makeText, needle) {
+				t.Errorf("TOOLS.md quick-command references 'make %s' but Makefile has no '%s:' target", target, target)
+			}
+		}
+	}
+}
