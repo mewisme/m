@@ -1,18 +1,6 @@
 // Mew runtime — loader registration preload.
-// Registers the TypeScript loader hook via module.register()
-// before any user code executes.
-
-// Load MEW_TRANSFORM_ENDPOINT and MEW_TRANSFORM_TOKEN from env
-// (set by Go parent). These are consumed by ts-loader.mjs.
-// The loader will strip them before user code sees process.env.
-
-import { register } from 'node:module';
-
-const tsLoader = new URL('./ts-loader.mjs', import.meta.url).href;
-
-// Register our loader hooks. Node calls these for every module load.
-register(tsLoader, import.meta.url, {
-  parentURL: import.meta.url,
-  data: {},
-  transferList: [],
-});
+// Registration moved to credential-grabber.cjs (runs as first --require).
+// credential-grabber captures env vars, strips them, and calls
+// module.register() with credential data via the data option.
+// This file is kept as a non-injected loader-support asset in the
+// manifest; it is no longer injected into Node argv.

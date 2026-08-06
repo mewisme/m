@@ -6,16 +6,24 @@ import { accessSync } from 'node:fs';
 import { resolve as pathResolve, parse as pathParse, join as pathJoin, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-// Read credentials from credential-grabber.cjs via Node's require cache.
-// The grabber runs as the first --require (before any user preload),
-// capturing process.env values into module.exports and deleting them
-// from the environment. Workers and child processes never see these values.
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-const creds = require('./credential-grabber.cjs');
-const endpoint = creds.endpoint || null;
-const token = creds.token || null;
-const transformOptions = creds.options || '{}';
+// Credentials are received via the initialize hook, passed from
+// credential-grabber.cjs through module.register()'s data option.
+// No filesystem artifact, no env var, no module cache snooping.
+let endpoint = null;
+let token = null;
+let transformOptions = '{}';
+let optsDigest = '';
+let configDir = '';
+
+export function initialize(data) {
+  if (data && data.endpoint && data.token) {
+    endpoint = data.endpoint;
+    token = data.token;
+    transformOptions = data.options || '{}';
+    optsDigest = data.optsDigest || '';
+    configDir = data.configDir || '';
+  }
+}
 
 let conn = null;
 let seq = 0;
@@ -394,11 +402,11 @@ function ensurePathsParsed() {
   if (pathsParsed) return;
   pathsParsed = true;
   try {
-    const opts = JSON.parse(creds.options || '{}');
+    const opts = JSON.parse(transformOptions || '{}');
     if (opts.paths && typeof opts.paths === 'object') {
       resolvePaths = opts.paths;
     }
-    resolveBaseDir = creds.configDir || '';
+    resolveBaseDir = configDir || '';
     if (opts.baseUrl && resolveBaseDir) {
       resolveBaseDir = pathResolve(resolveBaseDir, opts.baseUrl);
     }

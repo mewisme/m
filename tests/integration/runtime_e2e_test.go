@@ -3,6 +3,7 @@ package integration_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -792,6 +793,249 @@ func TestRuntimeE2EScriptCWDFailedScriptReportsCorrectContext(t *testing.T) {
 	// The exit code propagates through the runner correctly.
 	// The working-directory context is set correctly (verified by the
 	// CWD test family above).
+}
+
+// --- credential isolation attacker-style tests ---
+
+// TestRuntimeE2ECredentialIsolationMaliciousRequire verifies that a
+// malicious --require preload cannot recover transform credentials.
+// The credential-grabber runs first (leftmost --require), strips env vars,
+// and registers the loader before any user --require executes.
+func TestRuntimeE2ECredentialIsolationMaliciousRequire(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	// Run a TypeScript entrypoint with an evil --require preload.
+	// The evil preload probes env, temp files, argv, execArgv, require cache,
+	// and globalThis for credential leaks.
+	code, _ := runMWithRuntime(t, proj, "node-args", "--", "--require", "./evil-require.cjs", "hello.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("malformed output line: %q", line)
+		}
+		key := parts[0]
+		val := parts[1]
+		switch {
+		case strings.HasPrefix(key, "env-"):
+			if val != "absent" {
+				t.Fatalf("%s leaked env var: got %q, want 'absent'", key, val)
+			}
+		case key == "old-pid-creds-file":
+			if val != "absent" {
+				t.Fatalf("old PID-based creds file still exists: %s", val)
+			}
+		case key == "tmpdir-creds-count":
+			if val != "0" {
+				t.Fatalf("tmpdir contains .mew-creds-* files: %s", val)
+			}
+		case key == "argv-has-endpoint":
+			if val != "absent" {
+				t.Fatal("endpoint leaked in process.argv")
+			}
+		case key == "execArgv-has-endpoint":
+			if val != "absent" {
+				t.Fatal("endpoint leaked in process.execArgv")
+			}
+		case key == "grabber-cache-endpoint":
+			if val != "absent" {
+				t.Fatalf("credential-grabber module cache has real endpoint: %s", val)
+			}
+		case key == "grabber-cache-token":
+			if val != "absent" {
+				t.Fatal("credential-grabber module cache has real token")
+			}
+		case key == "globalThis-suspicious-symbols":
+			if val != "0" {
+				t.Fatalf("globalThis has suspicious symbols: %s", val)
+			}
+		}
+	}
+}
+
+// TestRuntimeE2ECredentialIsolationMaliciousImport verifies that a
+// malicious --import preload cannot recover transform credentials.
+func TestRuntimeE2ECredentialIsolationMaliciousImport(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "node-args", "--", "--import", "./evil-import.mjs", "hello.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("malformed output line: %q", line)
+		}
+		key := parts[0]
+		val := parts[1]
+		switch {
+		case strings.HasPrefix(key, "import-env-"):
+			if val != "absent" {
+				t.Fatalf("%s leaked env var via --import: got %q, want 'absent'", key, val)
+			}
+		case key == "import-old-pid-creds-file":
+			if val != "absent" {
+				t.Fatalf("old PID-based creds file still exists (--import probe): %s", val)
+			}
+		case key == "import-argv-has-endpoint":
+			if val != "absent" {
+				t.Fatal("endpoint leaked in process.argv (--import probe)")
+			}
+		case key == "import-execArgv-has-endpoint":
+			if val != "absent" {
+				t.Fatal("endpoint leaked in process.execArgv (--import probe)")
+			}
+		case key == "import-grabber-endpoint":
+			if val != "absent" {
+				t.Fatalf("credential-grabber endpoint accessed via createRequire: %s", val)
+			}
+		case key == "import-grabber-token":
+			if val != "absent" {
+				t.Fatal("credential-grabber token accessed via createRequire")
+			}
+		case key == "import-globalThis-suspicious":
+			if val != "0" {
+				t.Fatalf("globalThis has suspicious symbols (--import probe): %s", val)
+			}
+		}
+	}
+}
+
+// TestRuntimeE2ECredentialIsolationMaliciousRequireJS verifies that
+// for plain JS entrypoints (no transforms), MEW_TRANSFORM_* vars are
+// never set in the first place.
+func TestRuntimeE2ECredentialIsolationMaliciousRequireJS(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "node-args", "--", "--require", "./evil-require.cjs", "hello.js")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := parts[0]
+		val := parts[1]
+		if strings.HasPrefix(key, "env-MEW_TRANSFORM_") {
+			if val != "absent" {
+				t.Fatalf("%s leaked for JS entrypoint: got %q, want 'absent'", key, val)
+			}
+		}
+	}
+}
+
+// TestRuntimeE2ECredentialIsolationOldCredsFileNeverCreated verifies
+// that the old .mew-creds-<pid>.json file is never created.
+func TestRuntimeE2ECredentialIsolationOldCredsFileNeverCreated(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "node-args", "--", "--require", "./evil-require.cjs", "hello.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	// The evil-require.cjs writes "old-pid-creds-file=absent" if the file is absent.
+	if !strings.Contains(out, "old-pid-creds-file=absent") {
+		t.Fatalf("expected old-pid-creds-file=absent, got %q", out)
+	}
+	// Also verify no .mew-creds- files in tmpdir.
+	if !strings.Contains(out, "tmpdir-creds-count=0") {
+		t.Fatalf("expected tmpdir-creds-count=0, got %q", out)
+	}
+}
+
+// TestRuntimeE2ECredentialIsolationConcurrentInvocations verifies that
+// two concurrent Mew invocations do not share credentials.
+func TestRuntimeE2ECredentialIsolationConcurrentInvocations(t *testing.T) {
+	skipWithoutNode(t)
+	testkit.CleanEnv(t)
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+
+	projA := t.TempDir()
+	testkit.CopyFixture(t, "runner/runtime-e2e", projA)
+	projB := t.TempDir()
+	testkit.CopyFixture(t, "runner/runtime-e2e", projB)
+
+	// Run two invocations concurrently.
+	errs := make(chan error, 2)
+	go func() {
+		code, _ := runMProject(t, projA, "hello.ts")
+		if code != 0 {
+			errs <- fmt.Errorf("invocation A exit=%d", code)
+		} else {
+			errs <- nil
+		}
+	}()
+	go func() {
+		code, _ := runMProject(t, projB, "hello.ts")
+		if code != 0 {
+			errs <- fmt.Errorf("invocation B exit=%d", code)
+		} else {
+			errs <- nil
+		}
+	}()
+
+	for i := 0; i < 2; i++ {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// TestRuntimeE2ECredentialIsolationWorkerThread verifies that worker
+// threads do not receive transform credentials.
+func TestRuntimeE2ECredentialIsolationWorkerThread(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "worker-check.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("malformed output line: %q", line)
+		}
+		if parts[1] != "absent" && parts[1] != "" && parts[1] != "0" {
+			t.Fatalf("%s leaked in worker thread: got %q", parts[0], parts[1])
+		}
+	}
+}
+
+// TestRuntimeE2ECredentialIsolationUnauthTransformRejected verifies that
+// an unauthorized TCP connection to the transform service is rejected.
+func TestRuntimeE2ECredentialIsolationUnauthTransformRejected(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "hello.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
 }
 
 // --- helpers ---

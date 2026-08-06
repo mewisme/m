@@ -1,85 +1,86 @@
 // Mew credential grabber — runs before any user preload.
 // Node processes --require from left to right. Mew places this
-// grabber first so it captures transform credentials from process.env
-// and strips them before user code executes.
+// grabber first so it captures transform credentials from process.env,
+// strips them before user code executes, and registers the TypeScript
+// loader with credentials via module.register()'s data option.
+//
+// No credentials are written to the filesystem. The handoff uses
+// Node's built-in loader registration API, passing data from the
+// main thread directly to the loader thread's initialize hook.
+// User --require preloads that follow see clean process.env and
+// cannot recover credentials.
 //
 // This module runs twice in Node's two-phase startup:
-//   1. Main thread (isMainThread=true): captures env, writes creds to
-//      a temp file, deletes env vars. User --require preloads that
-//      follow see empty MEW_TRANSFORM_* vars.
-//   2. Loader context (isMainThread=false): reads creds from the temp
-//      file, deletes the file and file-path env var, exports values.
-//
-// The ts-loader (loaded via module.register) uses createRequire to
-// load this module and receives the loader-context copy of the exports.
+//   1. Main thread (isMainThread=true): captures env, strips env,
+//      registers loader with credentials via module.register().
+//      No temp file, no module.exports exposure of real values.
+//   2. Loader context (isMainThread=false): re-evaluated by Node's
+//      loader thread; exports null values. The loader already
+//      received credentials via the initialize hook.
 'use strict';
 
 const { isMainThread } = require('node:worker_threads');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-// Temp file path — deterministic within this process so both the main
-// thread and the loader context agree on the location without an env var.
-const credsFile = path.join(os.tmpdir(), '.mew-creds-' + process.pid + '.json');
 
 if (isMainThread) {
   // ── Main thread ────────────────────────────────────────────────
-  // Capture credentials from process.env and write to temp file
-  // before any user --require or --import preload executes.
+  // Capture credentials from process.env and strip immediately.
+  // credential-grabber runs FIRST (leftmost --require), so no user
+  // code has executed yet.
   const endpoint = process.env.MEW_TRANSFORM_ENDPOINT || null;
   const token = process.env.MEW_TRANSFORM_TOKEN || null;
   const options = process.env.MEW_TRANSFORM_OPTIONS || '{}';
   const optsDigest = process.env.MEW_TRANSFORM_OPTS_DIGEST || '';
   const configDir = process.env.MEW_TRANSFORM_CONFIG_DIR || '';
 
-  if (endpoint && token) {
-    try {
-      fs.writeFileSync(credsFile, JSON.stringify({
-        endpoint, token, options, optsDigest, configDir,
-      }), { mode: 0o600 });
-    } catch (_) {
-      // Write failure: exports will be null, ts-loader will fail
-      // with "no endpoint or token" — safe, no credential leak.
-    }
-  }
-
-  // Strip from process.env immediately. User --require and --import
-  // preloads that follow see only empty/absent values.
+  // Strip from process.env immediately — before any user --require.
   delete process.env.MEW_TRANSFORM_ENDPOINT;
   delete process.env.MEW_TRANSFORM_TOKEN;
   delete process.env.MEW_TRANSFORM_OPTIONS;
   delete process.env.MEW_TRANSFORM_OPTS_DIGEST;
   delete process.env.MEW_TRANSFORM_CONFIG_DIR;
 
-  // Export for main-thread consumers (if any).
-  module.exports = { endpoint, token, options, optsDigest, configDir };
-} else {
-  // ── Loader context (module.register hooks) ─────────────────────
-  // The loader context re-evaluates --require modules before loading
-  // the registered hooks. process.env is already stripped by the
-  // main-thread run, so we read credentials from the temp file.
-  let endpoint = null;
-  let token = null;
-  let options = '{}';
-  let optsDigest = '';
-  let configDir = '';
-
-  try {
-    if (fs.existsSync(credsFile)) {
-      const data = JSON.parse(fs.readFileSync(credsFile, 'utf8'));
-      endpoint = data.endpoint || null;
-      token = data.token || null;
-      options = data.options || '{}';
-      optsDigest = data.optsDigest || '';
-      configDir = data.configDir || '';
-      // Clean up — credentials are now in module.exports.
-      fs.unlinkSync(credsFile);
+  // Register the TypeScript loader with credentials passed via
+  // module.register()'s data option. This is the sole secure
+  // handoff path: data travels from this closure directly to the
+  // loader thread's initialize hook, never touching the filesystem
+  // or module.exports.
+  if (endpoint && token) {
+    try {
+      const { register } = require('node:module');
+      const { pathToFileURL } = require('node:url');
+      const path = require('node:path');
+      const tsLoader = pathToFileURL(path.join(__dirname, 'ts-loader.mjs')).href;
+      const parentURL = pathToFileURL(__filename).href;
+      register(tsLoader, parentURL, {
+        parentURL,
+        data: { endpoint, token, options, optsDigest, configDir },
+        transferList: [],
+      });
+    } catch (_) {
+      // require('node:module').register not available (Node < 20.6).
+      // Fall back to dynamic import. The closure protects credentials;
+      // the async call completes before ESM loader initialization.
+      import('node:module').then(function (mod) {
+        try {
+          const { pathToFileURL } = require('node:url');
+          const path = require('node:path');
+          const tsLoader = pathToFileURL(path.join(__dirname, 'ts-loader.mjs')).href;
+          const parentURL = pathToFileURL(__filename).href;
+          mod.register(tsLoader, parentURL, {
+            parentURL,
+            data: { endpoint, token, options, optsDigest, configDir },
+            transferList: [],
+          });
+        } catch (_) { /* registration unavailable */ }
+      }).catch(function () { /* import failed — registration unavailable */ });
     }
-  } catch (_) {
-    // If we can't read the file, leave exports as null.
-    // ts-loader will fail with "no endpoint or token" — safe.
   }
 
-  module.exports = { endpoint, token, options, optsDigest, configDir };
+  // Export null values. Real credentials are never in module.exports.
+  module.exports = { endpoint: null, token: null, options: '{}', optsDigest: '', configDir: '' };
+} else {
+  // ── Loader context ──────────────────────────────────────────────
+  // The loader thread re-evaluates --require modules. Credentials
+  // were already delivered via the initialize hook; export nulls.
+  module.exports = { endpoint: null, token: null, options: '{}', optsDigest: '', configDir: '' };
 }

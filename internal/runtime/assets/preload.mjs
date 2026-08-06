@@ -1,9 +1,10 @@
 // Mew runtime preload (ESM).
-// Runs before every user module (--import). This runs AFTER
-// loader-register.mjs, which creates the loader thread. The loader
-// thread already captured MEW_TRANSFORM_* into its process.env copy
-// at creation time. We strip the main-thread copy now so user code
-// can never read these credentials.
+// Runs before every user module (--import).
+//
+// Transform credentials (MEW_TRANSFORM_*) are already stripped by
+// credential-grabber.cjs, which runs as the first --require.
+// The deletions below are defense-in-depth: in the unlikely event
+// credential-grabber did not run, user code still sees clean env.
 delete process.env.MEW_TRANSFORM_ENDPOINT;
 delete process.env.MEW_TRANSFORM_TOKEN;
 delete process.env.MEW_TRANSFORM_OPTIONS;

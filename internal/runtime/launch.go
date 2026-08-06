@@ -83,13 +83,14 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 		if err != nil {
 			return nil, err
 		}
-		needsTransform := isTypeScriptEntrypoint(req.Entrypoint)
 		for _, entry := range m.AssetsSorted() {
 			if !entry.Role.Injected() {
 				continue
 			}
-			// Only inject transform-related assets for TypeScript entrypoints.
-			if entry.Role == assets.RoleLoaderRegistration && !needsTransform {
+			// Loader registration is now handled by credential-grabber.cjs,
+			// which calls module.register() with credential data inline.
+			// The loader-register asset is no longer injected.
+			if entry.Role == assets.RoleLoaderRegistration {
 				continue
 			}
 			p, ok := assetPaths[entry.Name]
