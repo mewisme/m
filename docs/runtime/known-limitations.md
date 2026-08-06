@@ -1,6 +1,6 @@
 # Runtime Known Limitations
 
-Documented as of 0057 (runtime stabilization gate). Each entry includes the limitation, impact, and planned resolution path.
+Documented as of 0052 development (0057 runtime stabilization pending). Each entry includes the limitation, impact, and planned resolution path.
 
 ## Transformer
 
@@ -119,7 +119,7 @@ Node 16.x and earlier are unsupported. The minimum supported Node version is 18.
 
 ## Gated Features
 
-Features behind experimental flags as of 0057:
+Features behind experimental flags (current as of 0052 development):
 
 | Feature | Gate | Status |
 |---|---|---|

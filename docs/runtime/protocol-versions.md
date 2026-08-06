@@ -1,6 +1,6 @@
 # Runtime Protocol Versions
 
-Frozen as of 0057 (runtime stabilization gate). All versions below are stable and must not change without a migration path.
+Current as of 0052 development. Subject to change until 0057 runtime stabilization gate is complete. Once frozen, all versions will require a migration path for changes.
 
 ## Transform IPC
 
@@ -84,6 +84,6 @@ Versions of formats the runtime stabilization gate depends on (defined in their 
 
 ## Change Policy
 
-- Versions in this document are frozen as of the 0057 stabilization gate.
+- Versions in this document are not yet frozen. Freeze will occur when the 0057 stabilization gate is complete.
 - Bumping a version requires: (1) a migration path for existing data, (2) a backward-compat window or explicit break notice, (3) an update to this document in the same commit.
 - New persistent formats must be versioned from their first commit.
