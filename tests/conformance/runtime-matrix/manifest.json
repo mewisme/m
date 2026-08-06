@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "matrix": "runtime",
+  "suites": [
+    {
+      "id": "runtime-transform-cache",
+      "title": "Transform cache integrity",
+      "package": "./internal/transform",
+      "run": "TestCache",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "runtime-transform-engine",
+      "title": "Transform engine correctness",
+      "package": "./internal/transform",
+      "run": "TestEngine",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "runtime-transform-sourcemaps",
+      "title": "Source map integrity",
+      "package": "./internal/transform",
+      "run": "TestSourceMap|TestMap",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "runtime-transform-protocol",
+      "title": "IPC protocol correctness",
+      "package": "./internal/transform",
+      "run": "TestProtocol",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "runtime-cache-assets",
+      "title": "Runtime asset cache and verification",
+      "package": "./internal/runtime",
+      "run": "TestCache|TestVerify",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "runtime-launch-argv",
+      "title": "Launch argv building",
+      "package": "./internal/runtime",
+      "run": "TestBuildArgv|TestLaunch",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "runtime-entrypoint",
+      "title": "Entrypoint detection",
+      "package": "./internal/runtime",
+      "run": "TestEntrypoint|TestResolve",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    },
+    {
+      "id": "runtime-conformance-cache",
+      "title": "Runtime conformance: cache integrity",
+      "package": "./tests/conformance/runtime",
+      "run": "TestTransformCacheRoundTrip|TestCacheKeyStability|TestCacheSchemaVersion|TestSourceMapRoundTrip",
+      "required": true,
+      "platforms": ["linux", "darwin", "windows"]
+    }
+  ]
+}

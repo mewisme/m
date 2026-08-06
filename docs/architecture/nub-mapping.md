@@ -42,3 +42,5 @@ semantics where parity is intentional; use idiomatic Go architecture elsewhere.
 | --mode flag | parity (0054) | Mode-aware .env selection; --mode production sets NODE_ENV=production |
 | Web Storage polyfill | parity (0054) | localStorage and sessionStorage globals via preload; in-memory only (disk persistence deferred) |
 | Watch mode | parity (0055) | Long-lived supervisor with fsnotify watcher; debounce, clear-screen, and graceful restart; polling fallback |
+| Debugging and inspection | parity (0056) | Node inspector passthrough (--inspect/--inspect-brk); doctor runtime checks; cache explain; runtime diagnostics |
+| Runtime stabilization | parity (0057) | Conformance matrix; benchmark runtime; frozen protocol versions; known limitations; support matrix |

@@ -137,6 +137,7 @@ func newBenchCmd() *cobra.Command {
 	}
 	cmd.AddCommand(install)
 	cmd.AddCommand(runner)
+	cmd.AddCommand(newBenchRuntimeCmd())
 	return cmd
 }
 

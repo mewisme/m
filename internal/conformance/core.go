@@ -25,6 +25,11 @@ func RunCLIUX(ctx context.Context, opts RunOptions) (Report, error) {
 	return runGoTestMatrix(ctx, opts, CLIUXManifestPath, "cli-ux certification failed")
 }
 
+// RunRuntime executes the runtime stabilization certification matrix and returns a report.
+func RunRuntime(ctx context.Context, opts RunOptions) (Report, error) {
+	return runGoTestMatrix(ctx, opts, RuntimeManifestPath, "runtime certification failed")
+}
+
 func runGoTestMatrix(ctx context.Context, opts RunOptions, manifestPath func(string) string, failMsg string) (Report, error) {
 	repoRoot := opts.RepoRoot
 	if repoRoot == "" {
@@ -147,6 +152,11 @@ func ListCore(repoRoot, filter string) ([]Suite, error) {
 // ListCLIUX returns suite definitions from the cli-ux manifest, optionally filtered.
 func ListCLIUX(repoRoot, filter string) ([]Suite, error) {
 	return listGoTestMatrix(repoRoot, filter, CLIUXManifestPath)
+}
+
+// ListRuntime returns suite definitions from the runtime manifest, optionally filtered.
+func ListRuntime(repoRoot, filter string) ([]Suite, error) {
+	return listGoTestMatrix(repoRoot, filter, RuntimeManifestPath)
 }
 
 func listGoTestMatrix(repoRoot, filter string, manifestPath func(string) string) ([]Suite, error) {
