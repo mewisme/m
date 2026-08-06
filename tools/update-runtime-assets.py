@@ -38,6 +38,7 @@ VALID_ROLES = frozenset({
     "preload-esm",
     "loader-registration",
     "loader-support",
+    "credential-grabber",
 })
 
 # Exit codes.

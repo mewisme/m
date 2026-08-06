@@ -81,6 +81,7 @@ All executable or tool-like sources in this repository, including: Go `package m
 - [`tools/sbom/validate.py`](#tools-sbom-validate-py)
 
 ### Runtime assets
+- [`credential-grabber.cjs`](#credential-grabber-cjs)
 - [`loader-register.mjs`](#loader-register-mjs)
 - [`preload.cjs`](#preload-cjs)
 - [`preload.mjs`](#preload-mjs)
@@ -567,7 +568,7 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Type**: Python
 - **Category**: code generation / validation
 - **Platforms**: any with Python 3
-- **Purpose**: Regenerates `internal/runtime/assets/manifest.json` from the asset files on disk (`preload.cjs`, `preload.mjs`, `loader-register.mjs`, `ts-loader.mjs`). Hashes every asset with SHA-256, records byte size, auto-detects `moduleType` from file extension (`.cjs` → `cjs`, otherwise `esm`). Validates manifest schema, duplicate detection, path-traversal rejection, case-collision detection on case-insensitive filesystems. Atomic write via temp file + rename.
+- **Purpose**: Regenerates `internal/runtime/assets/manifest.json` from the asset files on disk (`credential-grabber.cjs`, `preload.cjs`, `preload.mjs`, `loader-register.mjs`, `ts-loader.mjs`). Hashes every asset with SHA-256, records byte size, auto-detects `moduleType` from file extension (`.cjs` → `cjs`, otherwise `esm`). Validates manifest schema, duplicate detection, path-traversal rejection, case-collision detection on case-insensitive filesystems. Atomic write via temp file + rename.
 - **CLI**: `--write` (regenerate and update), `--check` (fail if stale, default), `--manifest <path>` / `--assets-dir <path>` (overrides for tests), `--verbose` (print changes), `--help`. Exit codes: 0 (ok), 1 (stale), 2 (usage), 3 (invalid manifest), 4 (scan/hash failure), 5 (write failure).
 - **Outputs**: writes `internal/runtime/assets/manifest.json`.
 - **Dependencies**: Python 3 stdlib only.
@@ -701,6 +702,7 @@ Excluded from normal builds; run manually when fixture data needs regeneration:
 
 ### Runtime assets (bundled, not development tools)
 
+- `internal/runtime/assets/credential-grabber.cjs`
 - `internal/runtime/assets/loader-register.mjs`
 - `internal/runtime/assets/preload.cjs`
 - `internal/runtime/assets/preload.mjs`
