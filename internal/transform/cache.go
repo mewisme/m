@@ -6,10 +6,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/mewisme/mew/internal/apperr"
@@ -160,7 +162,7 @@ func TryReadCache(cacheDir, key string) (*TransformResult, error) {
 
 // WriteCache writes a transform result to cache atomically.
 // Code and map are written first; metadata (the commit record) is written last.
-// Permission and I/O errors are propagated.
+// Permission, disk, and I/O errors are classified and propagated.
 func WriteCache(cacheDir, key string, result *TransformResult) error {
 	if result == nil {
 		return apperr.New(apperr.TransformCacheCorrupt, "transform.cache", key, "nil result")
@@ -175,7 +177,7 @@ func WriteCache(cacheDir, key string, result *TransformResult) error {
 	metaPath := entryPath + ".meta"
 
 	if err := os.MkdirAll(filepath.Dir(entryPath), 0o755); err != nil {
-		return fmt.Errorf("mkdir cache: %w", err)
+		return classifyCacheIOError(err, "mkdir", key)
 	}
 
 	// Canonical output digest: SHA-256(code || map), same as engine.Transform.
@@ -189,23 +191,26 @@ func WriteCache(cacheDir, key string, result *TransformResult) error {
 
 	// Write code atomically.
 	if err := writeAtomic(codePath, result.Code); err != nil {
-		return err
+		return classifyCacheIOError(err, "write-code", key)
 	}
 
 	// Write source map if present.
 	if len(result.SourceMap) > 0 {
 		entry.MapDigest = digestBytes(result.SourceMap)
 		if err := writeAtomic(mapPath, result.SourceMap); err != nil {
-			return err
+			return classifyCacheIOError(err, "write-map", key)
 		}
 	}
 
 	// Write metadata last (acts as a commit record).
 	metaData, err := json.Marshal(entry)
 	if err != nil {
-		return err
+		return classifyCacheIOError(err, "marshal-meta", key)
 	}
-	return writeAtomic(metaPath, metaData)
+	if err := writeAtomic(metaPath, metaData); err != nil {
+		return classifyCacheIOError(err, "write-meta", key)
+	}
+	return nil
 }
 
 // computeOutputDigest returns SHA-256(code || map), matching engine.Transform.
@@ -217,6 +222,7 @@ func computeOutputDigest(code, srcMap []byte) string {
 }
 
 // writeAtomic writes data to a file using temp + rename for atomicity.
+// Returns raw os errors; callers classify via classifyCacheIOError.
 func writeAtomic(path string, data []byte) error {
 	tmp := path + ".tmp-" + randomHexSuffix()
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
@@ -227,6 +233,38 @@ func writeAtomic(path string, data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// classifyCacheIOError wraps a cache I/O error with a stable typed error.
+// It distinguishes permission denied, read-only filesystem, disk full,
+// cross-device rename, and unexpected I/O failures.
+func classifyCacheIOError(err error, op, key string) error {
+	if err == nil {
+		return nil
+	}
+	var pathErr *os.PathError
+	switch {
+	case errors.As(err, &pathErr):
+		errMsg := pathErr.Err.Error()
+		switch {
+		case strings.Contains(errMsg, "permission denied"):
+			return apperr.Wrap(apperr.IO, "transform.cache."+op, key, err)
+		case strings.Contains(errMsg, "read-only file system"):
+			return apperr.Wrap(apperr.IO, "transform.cache."+op, key, err)
+		case strings.Contains(errMsg, "no space left on device") ||
+			strings.Contains(errMsg, "disk quota exceeded"):
+			return apperr.Wrap(apperr.IO, "transform.cache."+op, key, err)
+		}
+	case errors.Is(err, os.ErrPermission):
+		return apperr.Wrap(apperr.IO, "transform.cache."+op, key, err)
+	case errors.Is(err, os.ErrExist):
+		return apperr.Wrap(apperr.IO, "transform.cache."+op, key, err)
+	case strings.Contains(err.Error(), "rename"):
+		// Cross-device rename or other rename failure.
+		return apperr.Wrap(apperr.IO, "transform.cache."+op, key, err)
+	}
+	// Unexpected I/O: always propagate.
+	return apperr.Wrap(apperr.IO, "transform.cache."+op, key, err)
 }
 
 // digestBytes returns the hex SHA-256 of data.

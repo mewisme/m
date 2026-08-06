@@ -3,9 +3,11 @@ package transform
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
 )
 
@@ -438,5 +440,178 @@ func TestCacheEntryRoundTripWithMap(t *testing.T) {
 	}
 	if !VerifyCachedResult(cached, &result) {
 		t.Fatal("source map not preserved in cache")
+	}
+}
+
+// --- Cache failure classification ---
+
+func TestWriteCacheDirCreationFailure(t *testing.T) {
+	dir := t.TempDir()
+	// Create a regular file where the cache prefix directory should be.
+	eff := &config.Effective{Values: map[string]config.Value{"cache.dir": {Raw: dir}}}
+	cacheDir := TransformCacheDir(eff)
+	key := "aaaa" + strings.Repeat("00", 30)
+	prefixDir := filepath.Dir(CacheKeyPath(cacheDir, key))
+	// Place a file at the prefix directory path so MkdirAll fails.
+	if err := os.MkdirAll(filepath.Dir(prefixDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(prefixDir, []byte("block"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	engine := testEngine()
+	req := testRequest()
+	result, err := engine.Transform(t.Context(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = WriteCache(cacheDir, key, &result)
+	if err == nil {
+		t.Fatal("expected error when cache dir creation fails")
+	}
+	if apperr.CodeOf(err) != apperr.IO {
+		t.Fatalf("expected IO code, got %s", apperr.CodeOf(err))
+	}
+}
+
+func TestWriteCacheReadOnlyDir(t *testing.T) {
+	dir := t.TempDir()
+	eff := &config.Effective{Values: map[string]config.Value{"cache.dir": {Raw: dir}}}
+	cacheDir := TransformCacheDir(eff)
+	key := "aaaa" + strings.Repeat("00", 30)
+	entryDir := filepath.Dir(CacheKeyPath(cacheDir, key))
+	// Create the entry dir with write permission first.
+	if err := os.MkdirAll(entryDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Make it read-only so WriteCache fails on writeAtomic.
+	if err := os.Chmod(entryDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	// Restore write permission at the end so TempDir cleanup works.
+	defer func() { _ = os.Chmod(entryDir, 0o755) }()
+
+	engine := testEngine()
+	req := testRequest()
+	result, err := engine.Transform(t.Context(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = WriteCache(cacheDir, key, &result)
+	if err == nil {
+		t.Fatal("expected error when cache dir is read-only")
+	}
+}
+
+func TestClassifyCacheIOErrorPermission(t *testing.T) {
+	err := classifyCacheIOError(os.ErrPermission, "write-code", "testkey")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if apperr.CodeOf(err) != apperr.IO {
+		t.Fatalf("expected IO code, got %s", apperr.CodeOf(err))
+	}
+}
+
+func TestClassifyCacheIOErrorPathPermission(t *testing.T) {
+	pathErr := &os.PathError{Op: "write", Path: "/cache/test", Err: os.ErrPermission}
+	err := classifyCacheIOError(pathErr, "write-code", "testkey")
+	if apperr.CodeOf(err) != apperr.IO {
+		t.Fatalf("expected IO code, got %s", apperr.CodeOf(err))
+	}
+}
+
+func TestClassifyCacheIOErrorDiskFull(t *testing.T) {
+	// Simulate a "no space left on device" path error.
+	pathErr := &os.PathError{Op: "write", Path: "/cache/test", Err: os.NewSyscallError("write", syscallENOSPC())}
+	err := classifyCacheIOError(pathErr, "write-code", "testkey")
+	if apperr.CodeOf(err) != apperr.IO {
+		t.Fatalf("expected IO code, got %s", apperr.CodeOf(err))
+	}
+}
+
+// syscallENOSPC returns a fake no-space error without importing syscall directly.
+func syscallENOSPC() error {
+	return fakeErr("no space left on device")
+}
+
+type fakeErr string
+
+func (e fakeErr) Error() string { return string(e) }
+func (e fakeErr) Timeout() bool { return false }
+
+func TestClassifyCacheIOErrorNil(t *testing.T) {
+	err := classifyCacheIOError(nil, "write", "k")
+	if err != nil {
+		t.Fatalf("expected nil, got %v", err)
+	}
+}
+
+// --- Recoverable corruption still regenerates ---
+
+func TestWriteCacheFailureDoesNotAffectCorruptionRecovery(t *testing.T) {
+	dir := t.TempDir()
+	eff := &config.Effective{Values: map[string]config.Value{"cache.dir": {Raw: dir}}}
+	cacheDir := TransformCacheDir(eff)
+
+	engine := testEngine()
+	req := testRequest()
+	key := CacheKey(req, engine.Identity())
+
+	result, err := engine.Transform(t.Context(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// First: write cache successfully.
+	if err := WriteCache(cacheDir, key, &result); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify it's readable.
+	cached, err := TryReadCache(cacheDir, key)
+	if err != nil {
+		t.Fatalf("TryReadCache after write: %v", err)
+	}
+	if cached == nil {
+		t.Fatal("expected cache hit")
+	}
+	if !VerifyCachedResult(cached, &result) {
+		t.Fatal("cache result mismatch")
+	}
+
+	// Now corrupt the code (digest mismatch).
+	codePath := CacheKeyPath(cacheDir, key) + ".code"
+	if err := os.WriteFile(codePath, []byte("corrupt"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// TryReadCache should detect corruption, clean up, and return an error.
+	_, err = TryReadCache(cacheDir, key)
+	if err == nil {
+		t.Fatal("expected corruption error")
+	}
+
+	// After corruption cleanup, a fresh WriteCache + TryReadCache should work.
+	result2, err := engine.Transform(t.Context(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteCache(cacheDir, key, &result2); err != nil {
+		t.Fatal(err)
+	}
+
+	cached2, err := TryReadCache(cacheDir, key)
+	if err != nil {
+		t.Fatalf("TryReadCache after corruption recovery: %v", err)
+	}
+	if cached2 == nil {
+		t.Fatal("expected cache hit after recovery")
+	}
+	if !VerifyCachedResult(cached2, &result2) {
+		t.Fatal("recovered cache result mismatch")
 	}
 }

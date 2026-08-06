@@ -563,7 +563,7 @@ func (s *Session) handleTransform(ctx context.Context, conn net.Conn, req *Trans
 				identity := s.engine.Identity()
 				key := CacheKey(tReq, identity)
 				if werr := WriteCache(s.cacheDir, key, &engineResult); werr != nil {
-					_ = werr
+					resultErr = werr
 				}
 			}
 		} else {

@@ -165,7 +165,13 @@ func fileURL(p string) string {
 	return u.String()
 }
 
-// Launch starts a Node process from a fully resolved plan.
+// MergeCleanupError merges launch and cleanup errors preserving primary type.
+// When launch succeeds and cleanup fails: returns cleanup error.
+// When both fail: preserves launch as primary, attaches cleanup.
+// Child exit codes, cancellation, and timeout classification are preserved.
+func MergeCleanupError(launchErr, cleanupErr error) error {
+	return apperr.JoinCleanup(launchErr, cleanupErr)
+}
 func Launch(ctx context.Context, plan *LaunchPlan, req LaunchRequest) error {
 	if plan == nil {
 		return apperr.New(apperr.RuntimeInvocation, "runtime.launch", "", "nil plan")

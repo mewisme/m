@@ -3,8 +3,10 @@ package transform_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1123,6 +1125,167 @@ func TestErrorCodesAccessible(t *testing.T) {
 	_ = transform.MaxFrameSize
 }
 
+// TestTransformSuccessButCacheWriteFailure verifies that when a transform
+// succeeds but WriteCache fails, the response is an error (not OK with cached
+// status silently dropped).
+func TestTransformSuccessButCacheWriteFailure(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	// Create cache dir and make it read-only so writes fail.
+	cacheDir := filepath.Join(dir, "transform", "v1")
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// WriteCache writes into <cacheDir>/<prefix>/<key>.{code,map,meta}.
+	// Making the entire cacheDir read-only causes the prefix dir MkdirAll
+	// or file writes to fail.
+	if err := os.Chmod(cacheDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(cacheDir, 0o755) }()
+
+	sess, err := transform.NewSession(transform.ServiceOptions{
+		Context:  ctx,
+		CacheDir: cacheDir,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := sess.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sess.Close() }()
+
+	conn, err := net.Dial("tcp", sess.Endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	// Authenticate.
+	authReq := transform.HelloRequest{V: transform.ProtocolVersion, Token: sess.Token}
+	if err := transform.EncodeFrame(conn, authReq); err != nil {
+		t.Fatal(err)
+	}
+	var authResp transform.HelloResponse
+	if err := transform.DecodeFrame(conn, &authResp); err != nil {
+		t.Fatal(err)
+	}
+	if !authResp.OK {
+		t.Fatalf("auth failed: %s", authResp.Reason)
+	}
+
+	src := "const x: number = 1;"
+	req := transform.TransformRequestV2{
+		V: transform.ProtocolVersion, ID: "cache-fail", Op: "transform",
+		Path: "test.ts", Source: src, SourceDigest: transform.DigestString(src),
+		Loader: "ts", Format: "esm", NodeMajor: 20,
+	}
+	if err := transform.EncodeFrame(conn, req); err != nil {
+		t.Fatal(err)
+	}
+
+	var resp transform.TransformResponseV2
+	if err := transform.DecodeFrame(conn, &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.OK {
+		t.Fatal("expected error response when cache write fails")
+	}
+	if resp.ErrCode == "" {
+		t.Fatal("expected non-empty err_code")
+	}
+	if resp.Code != "" {
+		t.Fatal("expected empty code on failure, got transformed code")
+	}
+}
+
+// TestCacheErrorDiagnosticsDoNotExposeCredentials verifies that cache and
+// transform error responses do not leak tokens, source content, endpoints,
+// or transform options.
+func TestCacheErrorDiagnosticsDoNotExposeCredentials(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	cacheDir := filepath.Join(dir, "transform", "v1")
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(cacheDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(cacheDir, 0o755) }()
+
+	sess, err := transform.NewSession(transform.ServiceOptions{
+		Context:  ctx,
+		CacheDir: cacheDir,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := sess.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sess.Close() }()
+
+	conn, err := net.Dial("tcp", sess.Endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	// Authenticate.
+	authReq := transform.HelloRequest{V: transform.ProtocolVersion, Token: sess.Token}
+	if err := transform.EncodeFrame(conn, authReq); err != nil {
+		t.Fatal(err)
+	}
+	var authResp transform.HelloResponse
+	if err := transform.DecodeFrame(conn, &authResp); err != nil {
+		t.Fatal(err)
+	}
+	if !authResp.OK {
+		t.Fatalf("auth failed: %s", authResp.Reason)
+	}
+
+	src := "const x: number = 1;"
+	req := transform.TransformRequestV2{
+		V: transform.ProtocolVersion, ID: "no-leak", Op: "transform",
+		Path: "test.ts", Source: src, SourceDigest: transform.DigestString(src),
+		Loader: "ts", Format: "esm", NodeMajor: 20,
+		Options: `{"target":"ES2022"}`, OptsDigest: transform.DigestString(`{"target":"ES2022"}`),
+	}
+	if err := transform.EncodeFrame(conn, req); err != nil {
+		t.Fatal(err)
+	}
+
+	var resp transform.TransformResponseV2
+	if err := transform.DecodeFrame(conn, &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.OK {
+		t.Fatal("expected error response when cache write fails")
+	}
+
+	// Error response must not contain the session token.
+	if strings.Contains(resp.Error, sess.Token) {
+		t.Fatal("error response contains session token")
+	}
+	// Error response must not contain the source content.
+	if strings.Contains(resp.Error, src) {
+		t.Fatal("error response contains source content")
+	}
+	// Error response must not contain the endpoint.
+	if strings.Contains(resp.Error, sess.Endpoint) {
+		t.Fatal("error response contains endpoint")
+	}
+	// Error response must not contain transform options.
+	if strings.Contains(resp.Error, `"target"`) || strings.Contains(resp.Error, "ES2022") {
+		t.Fatal("error response contains transform options")
+	}
+}
+
 // verifyErrorCode helper — unused, kept for documentation of the pattern
 // that callers should use to check error codes.
-var _ = fmt.Sprintf
