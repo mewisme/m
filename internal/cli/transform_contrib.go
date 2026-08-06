@@ -26,7 +26,55 @@ func isTypeScriptFile(path string) bool {
 // buildTransformContribution creates a transform session and returns
 // a LaunchContribution with the service endpoint, token, loader preload,
 // and cleanup hook.
+//
+// Setup order:
+//  1. Discover and load tsconfig.
+//  2. Normalize and validate transform options.
+//  3. Serialize options and compute the chain digest.
+//  4. Create and start the transform session.
+//  5. Return the launch contribution.
+//
+// Tsconfig failures are fail-closed: if a tsconfig is discovered but invalid
+// or unreadable, the function returns an error. Only when discovery cleanly
+// finds no config file are default options used.
 func buildTransformContribution(ctx context.Context, cwd, entrypoint string, eff *config.Effective) (*runtime.LaunchContribution, error) {
+	entryDir := filepath.Dir(entrypoint)
+
+	// Step 1: Discover and load tsconfig.
+	configPath, err := transform.DiscoverTsconfig(entryDir)
+	if err != nil {
+		return nil, wrapTsconfigErr(err, entrypoint)
+	}
+	var opts transform.NormalizedOptions
+	var optsDigest string
+	if configPath != "" {
+		chain, err := transform.LoadTsconfigChain(configPath)
+		if err != nil {
+			return nil, wrapTsconfigErr(err, entrypoint)
+		}
+		if len(chain) == 0 {
+			return nil, apperr.New(apperr.TransformConfigParse, "cli.transform", entrypoint,
+				"tsconfig chain is empty after loading")
+		}
+
+		// Step 2: Normalize and validate transform options.
+		opts, err = transform.NormalizeOptions(chain)
+		if err != nil {
+			return nil, wrapTsconfigErr(err, entrypoint)
+		}
+
+		// Step 3a: Compute chain digest.
+		optsDigest = transform.TsconfigChainDigest(chain)
+	}
+
+	// Step 3b: Serialize options to JSON (even default zero-value options).
+	optsJSON, err := json.Marshal(opts)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.Internal, "cli.transform", entrypoint,
+			fmt.Errorf("serializing transform options: %w", err))
+	}
+
+	// Step 4: Create and start the transform session.
 	cacheDir := transform.TransformCacheDir(eff)
 	sess, err := transform.NewSession(transform.ServiceOptions{
 		Engine:   transform.NewEsbuildEngine(),
@@ -39,29 +87,13 @@ func buildTransformContribution(ctx context.Context, cwd, entrypoint string, eff
 			fmt.Errorf("starting transform service: %w", err))
 	}
 
-	// Start the listener using the invocation context for proper cancellation.
 	if err := sess.Start(ctx); err != nil {
 		_ = sess.Close()
 		return nil, apperr.Wrap(apperr.RuntimeNodeStart, "cli.transform", entrypoint,
 			fmt.Errorf("transform service health check: %w", err))
 	}
 
-	// Discover tsconfig chain for the entrypoint directory.
-	entryDir := filepath.Dir(entrypoint)
-	configPath, tsconfigErr := transform.DiscoverTsconfig(entryDir)
-	var opts transform.NormalizedOptions
-	var optsDigest string
-	if tsconfigErr == nil && configPath != "" {
-		chain, loadErr := transform.LoadTsconfigChain(configPath)
-		if loadErr == nil && len(chain) > 0 {
-			opts = transform.NormalizeOptions(chain)
-			optsDigest = transform.TsconfigChainDigest(chain)
-		}
-	}
-	// tsconfig errors are non-fatal; transforms proceed with default options.
-	optsJSON, _ := json.Marshal(opts)
-
-	// Pass tsconfig options through environment for the Node loader.
+	// Step 5: Return the launch contribution.
 	extraEnv := sess.EnvOverlay()
 	extraEnv = append(extraEnv,
 		"MEW_TRANSFORM_OPTIONS="+string(optsJSON),
@@ -72,4 +104,49 @@ func buildTransformContribution(ctx context.Context, cwd, entrypoint string, eff
 		ExtraEnv:    extraEnv,
 		CleanupHook: func() error { return sess.Close() },
 	}, nil
+}
+
+// wrapTsconfigErr maps a transform.ConfigError to the appropriate apperr code.
+func wrapTsconfigErr(err error, subject string) error {
+	var cfgErr *transform.ConfigError
+	if !asConfigError(err, &cfgErr) {
+		return apperr.Wrap(apperr.Internal, "cli.transform", subject, err)
+	}
+	code := configErrToCode(cfgErr.Kind)
+	return apperr.Wrap(code, "cli.transform", subject, err)
+}
+
+// asConfigError reports whether err is or wraps a ConfigError.
+func asConfigError(err error, target **transform.ConfigError) bool {
+	if err == nil {
+		return false
+	}
+	if ce, ok := err.(*transform.ConfigError); ok {
+		*target = ce
+		return true
+	}
+	if u, ok := err.(interface{ Unwrap() error }); ok {
+		return asConfigError(u.Unwrap(), target)
+	}
+	return false
+}
+
+// configErrToCode maps ConfigErrorKind to an apperr.Code.
+func configErrToCode(kind transform.ConfigErrorKind) apperr.Code {
+	switch kind {
+	case transform.ConfigErrIO:
+		return apperr.IO
+	case transform.ConfigErrParse:
+		return apperr.TransformConfigParse
+	case transform.ConfigErrExtendsMissing,
+		transform.ConfigErrExtendsCycle,
+		transform.ConfigErrExtendsDepth,
+		transform.ConfigErrExtendsPackage,
+		transform.ConfigErrExtendsInvalid:
+		return apperr.TransformConfigExtends
+	case transform.ConfigErrOptionInvalid:
+		return apperr.TransformConfigOption
+	default:
+		return apperr.Internal
+	}
 }

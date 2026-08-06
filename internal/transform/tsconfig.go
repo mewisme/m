@@ -4,12 +4,52 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 )
+
+// ConfigErrorKind classifies tsconfig failures for stable error mapping.
+type ConfigErrorKind string
+
+const (
+	ConfigErrIO             ConfigErrorKind = "io"
+	ConfigErrParse          ConfigErrorKind = "parse"
+	ConfigErrExtendsMissing ConfigErrorKind = "extends_missing"
+	ConfigErrExtendsCycle   ConfigErrorKind = "extends_cycle"
+	ConfigErrExtendsDepth   ConfigErrorKind = "extends_depth"
+	ConfigErrExtendsPackage ConfigErrorKind = "extends_package"
+	ConfigErrExtendsInvalid ConfigErrorKind = "extends_invalid"
+	ConfigErrOptionInvalid  ConfigErrorKind = "option_invalid"
+)
+
+// ConfigError is a typed tsconfig failure that preserves the config path
+// without exposing file contents.
+type ConfigError struct {
+	Kind ConfigErrorKind
+	Path string
+	Err  error
+}
+
+func (e *ConfigError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.Err != nil {
+		return fmt.Sprintf("tsconfig %s: %s: %v", e.Path, e.Kind, e.Err)
+	}
+	return fmt.Sprintf("tsconfig %s: %s", e.Path, e.Kind)
+}
+
+func (e *ConfigError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
 
 // NormalizedOptions collects transform-relevant tsconfig options.
 // Only options that affect transform output are included; options that
@@ -38,7 +78,7 @@ func (o NormalizedOptions) Digest() string {
 const maxTsconfigDepth = 20
 
 // DiscoverTsconfig searches upward from sourceDir to find the nearest tsconfig.json.
-// Permission and I/O errors during discovery are propagated.
+// Permission and I/O errors during discovery are propagated as ConfigError.
 func DiscoverTsconfig(sourceDir string) (string, error) {
 	dir := filepath.Clean(sourceDir)
 	for {
@@ -46,13 +86,12 @@ func DiscoverTsconfig(sourceDir string) (string, error) {
 		info, err := os.Stat(candidate)
 		if err == nil {
 			if info.IsDir() {
-				return "", fmt.Errorf("tsconfig path is a directory: %s", candidate)
+				return "", &ConfigError{Kind: ConfigErrIO, Path: candidate, Err: fmt.Errorf("tsconfig path is a directory")}
 			}
 			return candidate, nil
 		}
 		if !os.IsNotExist(err) {
-			// Permission or I/O error: propagate.
-			return "", fmt.Errorf("cannot stat %s: %w", candidate, err)
+			return "", &ConfigError{Kind: ConfigErrIO, Path: candidate, Err: err}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -78,17 +117,17 @@ type TsconfigFile struct {
 // resolveExtends recursively loads the extends chain.
 func resolveExtends(path string, visited map[string]bool, depth int) ([]TsconfigFile, error) {
 	if depth > maxTsconfigDepth {
-		return nil, fmt.Errorf("tsconfig extends chain exceeds maximum depth %d (possible cycle)", maxTsconfigDepth)
+		return nil, &ConfigError{Kind: ConfigErrExtendsDepth, Path: path, Err: fmt.Errorf("extends chain exceeds maximum depth %d", maxTsconfigDepth)}
 	}
 	if visited == nil {
 		visited = make(map[string]bool)
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return nil, fmt.Errorf("tsconfig %s: %w", path, err)
+		return nil, &ConfigError{Kind: ConfigErrIO, Path: path, Err: err}
 	}
 	if visited[abs] {
-		return nil, fmt.Errorf("tsconfig extends cycle detected at %s", abs)
+		return nil, &ConfigError{Kind: ConfigErrExtendsCycle, Path: abs, Err: fmt.Errorf("cycle detected")}
 	}
 	visited[abs] = true
 
@@ -106,7 +145,7 @@ func resolveExtends(path string, visited map[string]bool, depth int) ([]Tsconfig
 	}
 	parentPath, ok := extends.(string)
 	if !ok || parentPath == "" {
-		return []TsconfigFile{tsc}, nil
+		return nil, &ConfigError{Kind: ConfigErrExtendsInvalid, Path: abs, Err: fmt.Errorf("extends must be a non-empty string")}
 	}
 
 	// relative extends
@@ -116,14 +155,27 @@ func resolveExtends(path string, visited map[string]bool, depth int) ([]Tsconfig
 	}
 	parents, err := resolveExtends(resolved, visited, depth+1)
 	if err != nil {
+		// If the extends target doesn't exist on disk, classify as extends_missing.
+		if isExtendsFileNotFound(err) {
+			return nil, &ConfigError{Kind: ConfigErrExtendsMissing, Path: resolved, Err: err}
+		}
 		return nil, err
 	}
 	tsc.Parent = &parents[len(parents)-1]
 	return append(parents, tsc), nil
 }
 
+// isExtendsFileNotFound reports whether err is caused by a missing extends target file.
+func isExtendsFileNotFound(err error) bool {
+	var cfgErr *ConfigError
+	if errors.As(err, &cfgErr) && cfgErr.Kind == ConfigErrIO && cfgErr.Err != nil {
+		return os.IsNotExist(cfgErr.Err)
+	}
+	return os.IsNotExist(err)
+}
+
 // resolveExtendsPath resolves an extends path relative to the config file.
-// Package-style extends (e.g. "@scope/tsconfig") return an actionable error.
+// Package-style extends (e.g. "@scope/tsconfig") return ConfigErrExtendsPackage.
 func resolveExtendsPath(configPath, extends string) (string, error) {
 	if strings.HasPrefix(extends, ".") {
 		base := filepath.Dir(configPath)
@@ -133,21 +185,20 @@ func resolveExtendsPath(configPath, extends string) (string, error) {
 		}
 		return resolved, nil
 	}
-	// Package-style extends are not supported yet.
-	return "", fmt.Errorf("tsconfig extends %q: package-style extends are not yet supported (config %s)", extends, configPath)
+	return "", &ConfigError{Kind: ConfigErrExtendsPackage, Path: configPath, Err: fmt.Errorf("package-style extends %q not yet supported", extends)}
 }
 
 // parseTsconfigFile reads and JSONC-parses a tsconfig.json file.
 func parseTsconfigFile(path string) (map[string]any, string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, "", fmt.Errorf("reading %s: %w", path, err)
+		return nil, "", &ConfigError{Kind: ConfigErrIO, Path: path, Err: err}
 	}
 	cleaned := stripJSONC(data)
 
 	var raw map[string]any
 	if err := json.Unmarshal(cleaned, &raw); err != nil {
-		return nil, "", fmt.Errorf("parsing %s: %w", path, err)
+		return nil, "", &ConfigError{Kind: ConfigErrParse, Path: path, Err: err}
 	}
 
 	// Extract compilerOptions for normalization; keep extends at top level.
@@ -167,57 +218,93 @@ func TsconfigChainDigest(chain []TsconfigFile) string {
 }
 
 // NormalizeOptions extracts and normalizes transform-relevant options from a chain.
-func NormalizeOptions(chain []TsconfigFile) NormalizedOptions {
+// Returns ConfigErrOptionInvalid when a compiler option has an unexpected type.
+func NormalizeOptions(chain []TsconfigFile) (NormalizedOptions, error) {
 	opts := NormalizedOptions{}
 	for _, tsc := range chain {
-		applyCompilerOptions(&opts, tsc.Raw)
+		if err := applyCompilerOptions(&opts, tsc.Path, tsc.Raw); err != nil {
+			return NormalizedOptions{}, err
+		}
 	}
-	return opts
+	return opts, nil
 }
 
 // applyCompilerOptions applies compilerOptions from a tsconfig raw document.
 // Options later in the chain (child configs) override earlier ones (parent configs).
 // A child key that is absent does not clear the parent value.
-func applyCompilerOptions(opts *NormalizedOptions, raw map[string]any) {
-	co, _ := raw["compilerOptions"].(map[string]any)
-	if co == nil {
-		return
+func applyCompilerOptions(opts *NormalizedOptions, path string, raw map[string]any) error {
+	co, ok := raw["compilerOptions"]
+	if !ok {
+		return nil
 	}
+	coMap, ok := co.(map[string]any)
+	if !ok {
+		return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("compilerOptions must be an object")}
+	}
+
 	// String options: child overwrites parent.
-	if v, ok := co["target"].(string); ok {
-		opts.Target = v
+	if v, ok := coMap["target"]; ok {
+		s, isStr := v.(string)
+		if !isStr {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("target must be a string")}
+		}
+		opts.Target = s
 	}
-	if v, ok := co["module"].(string); ok {
-		opts.Module = v
+	if v, ok := coMap["module"]; ok {
+		s, isStr := v.(string)
+		if !isStr {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("module must be a string")}
+		}
+		opts.Module = s
 	}
-	if v, ok := co["baseUrl"].(string); ok {
-		opts.BaseURL = v
+	if v, ok := coMap["baseUrl"]; ok {
+		s, isStr := v.(string)
+		if !isStr {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("baseUrl must be a string")}
+		}
+		opts.BaseURL = s
 	}
-	if v, ok := co["jsx"].(string); ok {
-		opts.JSX = v
+	if v, ok := coMap["jsx"]; ok {
+		s, isStr := v.(string)
+		if !isStr {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("jsx must be a string")}
+		}
+		opts.JSX = s
 	}
+
 	// Boolean options: child overrides parent. Distinguish explicit false from absent.
-	if v, ok := co["useDefineForClassFields"]; ok {
-		if b, isBool := v.(bool); isBool {
-			opts.UseDefineForClassFields = b
+	if v, ok := coMap["useDefineForClassFields"]; ok {
+		b, isBool := v.(bool)
+		if !isBool {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("useDefineForClassFields must be a boolean")}
 		}
+		opts.UseDefineForClassFields = b
 	}
-	if v, ok := co["verbatimModuleSyntax"]; ok {
-		if b, isBool := v.(bool); isBool {
-			opts.VerbatimModuleSyntax = b
+	if v, ok := coMap["verbatimModuleSyntax"]; ok {
+		b, isBool := v.(bool)
+		if !isBool {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("verbatimModuleSyntax must be a boolean")}
 		}
+		opts.VerbatimModuleSyntax = b
 	}
-	if v, ok := co["importHelpers"]; ok {
-		if b, isBool := v.(bool); isBool {
-			opts.ImportHelpers = b
+	if v, ok := coMap["importHelpers"]; ok {
+		b, isBool := v.(bool)
+		if !isBool {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("importHelpers must be a boolean")}
 		}
+		opts.ImportHelpers = b
 	}
+
 	// Paths: child paths replace parent paths for the same key.
-	if v, ok := co["paths"].(map[string]any); ok {
+	if v, ok := coMap["paths"]; ok {
+		pathsMap, ok := v.(map[string]any)
+		if !ok {
+			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("paths must be an object")}
+		}
 		if opts.Paths == nil {
 			opts.Paths = make(map[string][]string)
 		}
-		for k, pv := range v {
+		for k, pv := range pathsMap {
 			switch pvs := pv.(type) {
 			case []any:
 				vals := make([]string, 0, len(pvs))
@@ -229,9 +316,13 @@ func applyCompilerOptions(opts *NormalizedOptions, raw map[string]any) {
 				opts.Paths[k] = vals
 			case []string:
 				opts.Paths[k] = append([]string(nil), pvs...)
+			default:
+				return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("paths.%s must be an array of strings", k)}
 			}
 		}
 	}
+
+	return nil
 }
 
 // UnsupportedOptions returns tsconfig option names that are unsupported.

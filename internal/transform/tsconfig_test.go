@@ -2,6 +2,7 @@ package transform
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,12 +23,12 @@ func writeJSONC(t *testing.T, dir, name, content string) string {
 
 func TestStripJSONCComments(t *testing.T) {
 	input := `{
-		// single-line comment
-		"compilerOptions": {
-			"target": "ES2022", /* block comment */
-			"strict": true
-		}
-	}`
+			// single-line comment
+			"compilerOptions": {
+				"target": "ES2022", /* block comment */
+				"strict": true
+			}
+		}`
 	cleaned := stripJSONC([]byte(input))
 	var m map[string]any
 	if err := json.Unmarshal(cleaned, &m); err != nil {
@@ -44,11 +45,11 @@ func TestStripJSONCComments(t *testing.T) {
 
 func TestStripJSONCTrailingCommas(t *testing.T) {
 	input := `{
-		"compilerOptions": {
-			"target": "ES2022",
-			"module": "ESNext",
-		},
-	}`
+			"compilerOptions": {
+				"target": "ES2022",
+				"module": "ESNext",
+			},
+		}`
 	cleaned := stripJSONC([]byte(input))
 	var m map[string]any
 	if err := json.Unmarshal(cleaned, &m); err != nil {
@@ -87,7 +88,6 @@ func TestLoadTsconfigChainExtends(t *testing.T) {
 	if len(chain) != 2 {
 		t.Fatalf("chain len=%d, want 2", len(chain))
 	}
-	// First element is parent, second is child.
 	if chain[0].Path != filepath.Join(dir, "base.json") {
 		t.Fatalf("parent path=%s", chain[0].Path)
 	}
@@ -107,7 +107,10 @@ func TestNormalizeOptionsChildOverridesParent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := NormalizeOptions(chain)
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.Target != "ES2022" {
 		t.Fatalf("target=%s, want ES2022 (child should override parent)", opts.Target)
 	}
@@ -130,19 +133,23 @@ func TestNormalizeOptionsParentOnlyAppliesWhenChildAbsent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := NormalizeOptions(chain)
-	// target comes from parent (child doesn't override it).
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.Target != "ES2020" {
 		t.Fatalf("target=%s, want ES2020 (parent value when child absent)", opts.Target)
 	}
-	// module comes from child override.
 	if opts.Module != "ESNext" {
 		t.Fatalf("module=%s, want ESNext (child override)", opts.Module)
 	}
 }
 
 func TestNormalizeOptionsEmptyChain(t *testing.T) {
-	opts := NormalizeOptions(nil)
+	opts, err := NormalizeOptions(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if opts.Target != "" {
 		t.Fatalf("target=%s, want empty", opts.Target)
 	}
@@ -159,8 +166,12 @@ func TestTsconfigCycleDetection(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected cycle error")
 	}
-	if err.Error() == "" || !strings.Contains(err.Error(), "cycle") {
-		t.Fatalf("expected cycle error, got: %v", err)
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrExtendsCycle {
+		t.Fatalf("expected ConfigErrExtendsCycle, got %s", cfgErr.Kind)
 	}
 }
 
@@ -173,12 +184,10 @@ func TestTsconfigChainDigest(t *testing.T) {
 	if d1 == "" {
 		t.Fatal("empty digest")
 	}
-	// Same digests → same chain digest.
 	d2 := TsconfigChainDigest(chain)
 	if d1 != d2 {
 		t.Fatalf("same chain different digests: %s vs %s", d1, d2)
 	}
-	// Different child → different chain digest.
 	chain2 := []TsconfigFile{
 		{Digest: "aaa"},
 		{Digest: "ccc"},
@@ -211,5 +220,270 @@ func TestDiscoverTsconfigNotFound(t *testing.T) {
 	}
 	if path != "" {
 		t.Fatalf("found tsconfig at %s, want empty", path)
+	}
+}
+
+// --- New fail-closed error tests ---
+
+func TestMalformedJSONC(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{invalid`)
+
+	_, err := LoadTsconfigChain(path)
+	if err == nil {
+		t.Fatal("expected parse error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrParse {
+		t.Fatalf("expected ConfigErrParse, got %s", cfgErr.Kind)
+	}
+	if cfgErr.Path != path {
+		t.Fatalf("path=%s, want %s", cfgErr.Path, path)
+	}
+}
+
+func TestUnreadableConfig(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tsconfig.json")
+	// Create a directory with the same name so os.ReadFile fails.
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := LoadTsconfigChain(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrIO {
+		t.Fatalf("expected ConfigErrIO, got %s", cfgErr.Kind)
+	}
+}
+
+func TestConfigPathIsDirectory(t *testing.T) {
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "sub")
+	// Create tsconfig.json as a directory.
+	cfgDir := filepath.Join(sub, "tsconfig.json")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := DiscoverTsconfig(sub)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrIO {
+		t.Fatalf("expected ConfigErrIO, got %s", cfgErr.Kind)
+	}
+}
+
+func TestMissingRelativeExtendsFile(t *testing.T) {
+	dir := t.TempDir()
+	child := `{"extends":"./nonexistent.json"}`
+	path := writeJSONC(t, dir, "tsconfig.json", child)
+
+	_, err := LoadTsconfigChain(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrExtendsMissing {
+		t.Fatalf("expected ConfigErrExtendsMissing, got %s", cfgErr.Kind)
+	}
+}
+
+func TestExtendsDepthOverflow(t *testing.T) {
+	dir := t.TempDir()
+	// Create a chain that exceeds maxTsconfigDepth (20).
+	// base0 is the root, and each level extends the previous.
+	writeJSONC(t, dir, "base0.json", `{"compilerOptions":{}}`)
+	prev := "base0.json"
+	for i := 1; i <= maxTsconfigDepth+1; i++ {
+		name := "cfg" + strings.Repeat("x", i) + ".json"
+		writeJSONC(t, dir, name, `{"extends":"./`+prev+`"}`)
+		prev = name
+	}
+
+	_, err := LoadTsconfigChain(filepath.Join(dir, prev))
+	if err == nil {
+		t.Fatal("expected depth overflow error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrExtendsDepth {
+		t.Fatalf("expected ConfigErrExtendsDepth, got %s", cfgErr.Kind)
+	}
+}
+
+func TestNonStringExtends(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"extends":42}`)
+
+	_, err := LoadTsconfigChain(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrExtendsInvalid {
+		t.Fatalf("expected ConfigErrExtendsInvalid, got %s", cfgErr.Kind)
+	}
+}
+
+func TestEmptyExtends(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"extends":""}`)
+
+	_, err := LoadTsconfigChain(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrExtendsInvalid {
+		t.Fatalf("expected ConfigErrExtendsInvalid, got %s", cfgErr.Kind)
+	}
+}
+
+func TestUnsupportedPackageExtends(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"extends":"@scope/tsconfig"}`)
+
+	_, err := LoadTsconfigChain(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrExtendsPackage {
+		t.Fatalf("expected ConfigErrExtendsPackage, got %s", cfgErr.Kind)
+	}
+}
+
+func TestInvalidCompilerOptionShape(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"compilerOptions":{"target":42}}`)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NormalizeOptions(chain)
+	if err == nil {
+		t.Fatal("expected option error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrOptionInvalid {
+		t.Fatalf("expected ConfigErrOptionInvalid, got %s", cfgErr.Kind)
+	}
+}
+
+func TestCompilerOptionsNotAnObject(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"compilerOptions":"strict"}`)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NormalizeOptions(chain)
+	if err == nil {
+		t.Fatal("expected option error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrOptionInvalid {
+		t.Fatalf("expected ConfigErrOptionInvalid, got %s", cfgErr.Kind)
+	}
+}
+
+func TestInvalidBooleanOption(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"compilerOptions":{"useDefineForClassFields":"yes"}}`)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NormalizeOptions(chain)
+	if err == nil {
+		t.Fatal("expected option error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrOptionInvalid {
+		t.Fatalf("expected ConfigErrOptionInvalid, got %s", cfgErr.Kind)
+	}
+}
+
+func TestInvalidPathsOption(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"compilerOptions":{"paths":"bad"}}`)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NormalizeOptions(chain)
+	if err == nil {
+		t.Fatal("expected option error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrOptionInvalid {
+		t.Fatalf("expected ConfigErrOptionInvalid, got %s", cfgErr.Kind)
+	}
+}
+
+func TestConfigErrorPathPreserved(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{invalid`)
+
+	_, err := LoadTsconfigChain(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Path != path {
+		t.Fatalf("path=%s, want %s", cfgErr.Path, path)
+	}
+	// Error message must contain the path but not expose raw file contents.
+	// The json parse error may reference character position but not the file bytes.
+	if !strings.Contains(cfgErr.Error(), path) {
+		t.Fatalf("error does not contain path: %s", cfgErr.Error())
 	}
 }
