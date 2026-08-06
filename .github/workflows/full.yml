@@ -497,7 +497,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: ["18", "20", "22"]
+        node-version: ["18", "20", "22", "24"]
         include:
           - os: ubuntu-latest
             os-label: ubuntu
@@ -616,12 +616,15 @@ jobs:
             "runtime-certification-ubuntu-node-18"
             "runtime-certification-ubuntu-node-20"
             "runtime-certification-ubuntu-node-22"
+            "runtime-certification-ubuntu-node-24"
             "runtime-certification-macos-node-18"
             "runtime-certification-macos-node-20"
             "runtime-certification-macos-node-22"
+            "runtime-certification-macos-node-24"
             "runtime-certification-windows-node-18"
             "runtime-certification-windows-node-20"
             "runtime-certification-windows-node-22"
+            "runtime-certification-windows-node-24"
           )
 
           declare -A found
@@ -686,7 +689,7 @@ jobs:
         run: |
           cd runtime-reports
           count=$(find . -name '*.json' | wc -l)
-          echo "{\"schemaVersion\":1,\"totalReports\":$count,\"expected\":9,\"commit\":\"${{ github.sha }}\",\"verified\":$([[ $? -eq 0 ]] && echo true || echo false)}" > ../runtime-certification-summary.json
+          echo "{\"schemaVersion\":1,\"totalReports\":$count,\"expected\":12,\"commit\":\"${{ github.sha }}\",\"verified\":$([[ $? -eq 0 ]] && echo true || echo false)}" > ../runtime-certification-summary.json
 
       - name: Upload aggregate summary
         if: always()
