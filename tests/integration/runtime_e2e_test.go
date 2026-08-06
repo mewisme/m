@@ -377,6 +377,243 @@ func TestRuntimeE2ETSNoTransformEndpoint(t *testing.T) {
 	}
 }
 
+func TestRuntimeE2EAllCredsStrippedJS(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "env-dump-all.js")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("malformed output line: %q", line)
+		}
+		if parts[1] != "absent" {
+			t.Fatalf("%s leaked: got %q, want 'absent'", parts[0], parts[1])
+		}
+	}
+}
+
+func TestRuntimeE2EAllCredsStrippedTS(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	writeFile(t, filepath.Join(proj, "check.ts"),
+		"import { writeFileSync } from \"node:fs\";"+"\n"+
+			"var vars = [\"MEW_TRANSFORM_ENDPOINT\",\"MEW_TRANSFORM_TOKEN\",\"MEW_TRANSFORM_OPTIONS\",\"MEW_TRANSFORM_OPTS_DIGEST\"];"+"\n"+
+			"var out = vars.map(function(v) { return v + \"=\" + (process.env[v] || \"absent\"); });"+"\n"+
+			"writeFileSync(\"output.txt\", out.join(String.fromCharCode(10)));"+"\n")
+	code, _ := runMWithRuntime(t, proj, "check.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("malformed output line: %q", line)
+		}
+		if parts[1] != "absent" {
+			t.Fatalf("%s leaked into TS entrypoint: got %q, want 'absent'", parts[0], parts[1])
+		}
+	}
+}
+
+func TestRuntimeE2ENoCredsInWorker(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "worker-check.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "worker-error:") {
+			t.Fatalf("worker error: %s", line)
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("malformed output line: %q", line)
+		}
+		if parts[1] != "absent" {
+			t.Fatalf("%s leaked into worker: got %q, want 'absent'", parts[0], parts[1])
+		}
+	}
+}
+
+func TestRuntimeE2ENoCredsInChildProcess(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "child-check.js")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "child-error:") {
+			t.Fatalf("child process error: %s", line)
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("malformed output line: %q", line)
+		}
+		if parts[1] != "absent" {
+			t.Fatalf("%s leaked into child process: got %q, want 'absent'", parts[0], parts[1])
+		}
+	}
+}
+
+func TestRuntimeE2ENodeOptionsRequireRejected(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	t.Setenv("NODE_OPTIONS", "--require ./evil.cjs")
+	code, out := runMWithRuntime(t, proj, "hello.ts")
+	if code == 0 {
+		t.Fatalf("expected non-zero exit for NODE_OPTIONS with --require, got out=%s", out)
+	}
+	if !strings.Contains(out, "NODE_OPTIONS") && !strings.Contains(out, "credential") {
+		t.Fatalf("expected NODE_OPTIONS rejection message, got %q", out)
+	}
+}
+
+func TestRuntimeE2ENodeOptionsImportRejected(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	t.Setenv("NODE_OPTIONS", "--import ./evil.mjs")
+	code, out := runMWithRuntime(t, proj, "hello.js")
+	if code == 0 {
+		t.Fatalf("expected non-zero exit for NODE_OPTIONS with --import, got out=%s", out)
+	}
+	if !strings.Contains(out, "NODE_OPTIONS") && !strings.Contains(out, "credential") {
+		t.Fatalf("expected NODE_OPTIONS rejection message, got %q", out)
+	}
+}
+
+func TestRuntimeE2ENodeArgsRequireStillWorks(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	writeFile(t, filepath.Join(proj, "preload-check.cjs"),
+		"var fs = require(\"fs\");"+"\n"+
+			"var vars = [\"MEW_TRANSFORM_ENDPOINT\",\"MEW_TRANSFORM_TOKEN\",\"MEW_TRANSFORM_OPTIONS\"];"+"\n"+
+			"var results = vars.map(function(v){return v+\"=\"+(process.env[v]||\"absent\")});"+"\n"+
+			"fs.writeFileSync(\"output.txt\", results.join(\"\\n\"));"+"\n")
+	code, _ := runMWithRuntime(t, proj, "node-args", "--", "--require", "./preload-check.cjs", "hello.js")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("malformed output line: %q", line)
+		}
+		if parts[1] != "absent" {
+			t.Fatalf("%s leaked through user --require preload: got %q, want 'absent'", parts[0], parts[1])
+		}
+	}
+}
+
+func TestRuntimeE2ENodeArgsTypeScriptStillWorks(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "node-args", "--", "--no-warnings", "hello.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+}
+
+func TestRuntimeE2ETSLoaderAuthenticates(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "hello.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+}
+
+func TestRuntimeE2ETSLoaderMTS(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "hello.mts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+}
+
+func TestRuntimeE2ETSLoaderCTS(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for .cts loader transform (CJS loader hooks)")
+	}
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "hello.cts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+}
+
+func TestRuntimeE2ENodeModeZeroAugmentation(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "--node", "env-dump-all.js")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("malformed output line: %q", line)
+		}
+		if parts[1] != "absent" {
+			t.Fatalf("%s leaked in --node mode: got %q, want 'absent'", parts[0], parts[1])
+		}
+	}
+}
+
+func TestRuntimeE2EErrorOutputNoEndpointOrToken(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, out := runMWithRuntime(t, proj, "syntax-error.ts")
+	if code == 0 {
+		t.Fatal("expected non-zero exit for syntax error")
+	}
+	if strings.Contains(out, "127.0.0.1:") {
+		t.Fatalf("error output contains endpoint address: %q", out)
+	}
+	if strings.Contains(out, "MEW_TRANSFORM_TOKEN=") {
+		t.Fatalf("error output contains token env: %q", out)
+	}
+	if strings.Contains(out, "MEW_TRANSFORM_ENDPOINT=") {
+		t.Fatalf("error output contains endpoint env: %q", out)
+	}
+}
+
 // --- helpers ---
 
 func writeFile(t *testing.T, path, content string) {

@@ -3,17 +3,16 @@
 import { connect } from 'node:net';
 import { createHash } from 'node:crypto';
 
-// Capture credentials at module load time and strip from process.env
-// immediately, before any user module executes. Credentials are held in
-// closure variables reachable only by this loader, never by user code.
-const endpoint = process.env.MEW_TRANSFORM_ENDPOINT || null;
-const token = process.env.MEW_TRANSFORM_TOKEN || null;
-const transformOptions = process.env.MEW_TRANSFORM_OPTIONS || '{}';
-
-delete process.env.MEW_TRANSFORM_ENDPOINT;
-delete process.env.MEW_TRANSFORM_TOKEN;
-delete process.env.MEW_TRANSFORM_OPTIONS;
-delete process.env.MEW_TRANSFORM_OPTS_DIGEST;
+// Read credentials from credential-grabber.cjs via Node's require cache.
+// The grabber runs as the first --require (before any user preload),
+// capturing process.env values into module.exports and deleting them
+// from the environment. Workers and child processes never see these values.
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const creds = require('./credential-grabber.cjs');
+const endpoint = creds.endpoint || null;
+const token = creds.token || null;
+const transformOptions = creds.options || '{}';
 
 let conn = null;
 let seq = 0;

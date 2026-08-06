@@ -82,10 +82,15 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 			if !ok {
 				continue
 			}
-			plan.PreloadAssets = append(plan.PreloadAssets, PreloadAsset{
+			pa := PreloadAsset{
 				Path:       p,
 				ModuleType: entry.ModuleType,
-			})
+			}
+			if entry.Role == assets.RoleCredentialGrabber {
+				plan.CredentialPreload = &pa
+			} else {
+				plan.PreloadAssets = append(plan.PreloadAssets, pa)
+			}
 		}
 	}
 
@@ -123,10 +128,25 @@ func isTypeScriptEntrypoint(p string) bool {
 }
 
 // BuildArgv constructs the full Node argument vector.
-// Order: node exe -> user V8 flags -> preload/import flags -> entrypoint -> app args
+// Order: node exe -> credential grabber --require -> user V8 flags -> preload/import flags -> entrypoint -> app args
+//
+// The credential grabber is placed before user V8 flags so it captures and
+// strips transform credentials from process.env before any user --require,
+// user --import, or NODE_OPTIONS preload runs.
 func BuildArgv(plan *LaunchPlan, v8Args []string) []string {
-	argv := make([]string, 0, 4+len(v8Args)+len(plan.PreloadAssets)*2+1+len(plan.AppArgs))
+	credSlots := 0
+	if !plan.ZeroAugmentation && plan.CredentialPreload != nil {
+		credSlots = 2 // --require <path>
+	}
+	argv := make([]string, 0, 4+credSlots+len(v8Args)+len(plan.PreloadAssets)*2+1+len(plan.AppArgs))
 	argv = append(argv, plan.NodeExe)
+
+	// Credential grabber runs FIRST — before any user preload.
+	// Node processes --require from left to right; this must be the
+	// first preload so credentials are stripped before user code.
+	if !plan.ZeroAugmentation && plan.CredentialPreload != nil {
+		argv = append(argv, "--require", plan.CredentialPreload.Path)
+	}
 
 	// user V8/Node flags
 	argv = append(argv, v8Args...)
@@ -177,12 +197,21 @@ func Launch(ctx context.Context, plan *LaunchPlan, req LaunchRequest) error {
 		return apperr.New(apperr.RuntimeInvocation, "runtime.launch", "", "nil plan")
 	}
 
+	childEnv := buildEnv(req.EnvOverlay, plan.EnvChanges)
+
+	// Reject unsafe NODE_OPTIONS that would execute before credential isolation.
+	if !plan.ZeroAugmentation {
+		if err := ValidateNodeEnv(childEnv); err != nil {
+			return err
+		}
+	}
+
 	supervisor := process.NewExecSupervisor()
 	spec := process.Spec{
 		Path:   plan.NodeArgv[0],
 		Args:   plan.NodeArgv[1:],
 		Dir:    req.WorkingDir,
-		Env:    buildEnv(req.EnvOverlay, plan.EnvChanges),
+		Env:    childEnv,
 		Stdin:  req.Stdio.Stdin,
 		Stdout: req.Stdio.Stdout,
 		Stderr: req.Stdio.Stderr,
@@ -202,6 +231,25 @@ func Launch(ctx context.Context, plan *LaunchPlan, req LaunchRequest) error {
 			return apperr.Wrap(apperr.Cancelled, "runtime.launch", plan.Entrypoint, context.Canceled)
 		}
 		return apperr.Wrap(apperr.RuntimeInvocation, "runtime.launch", plan.Entrypoint, err)
+	}
+	return nil
+}
+
+// ValidateNodeEnv rejects NODE_OPTIONS containing --require or --import.
+// Node processes NODE_OPTIONS before CLI args, so user --require in
+// NODE_OPTIONS would run before the credential grabber and could read
+// transform credentials from process.env.
+func ValidateNodeEnv(env []string) error {
+	for _, kv := range env {
+		const prefix = "NODE_OPTIONS="
+		if !strings.HasPrefix(kv, prefix) {
+			continue
+		}
+		val := kv[len(prefix):]
+		if strings.Contains(val, "--require") || strings.Contains(val, "--import") {
+			return apperr.New(apperr.Usage, "runtime.launch", "",
+				"NODE_OPTIONS contains --require or --import, which would execute before credential isolation; pass these flags as CLI arguments instead")
+		}
 	}
 	return nil
 }

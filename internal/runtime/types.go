@@ -44,16 +44,17 @@ type LaunchStdio struct {
 
 // LaunchPlan is a fully resolved Node launch.
 type LaunchPlan struct {
-	NodeExe          string
-	NodeVersion      string
-	NodeCapabilities []string
-	NodeArgv         []string
-	PreloadAssets    []PreloadAsset
-	Entrypoint       string
-	AppArgs          []string
-	EnvChanges       []string
-	ZeroAugmentation bool
-	CleanupHook      func() error
+	NodeExe           string
+	NodeVersion       string
+	NodeCapabilities  []string
+	NodeArgv          []string
+	CredentialPreload *PreloadAsset // credential-grabber — always first in argv
+	PreloadAssets     []PreloadAsset
+	Entrypoint        string
+	AppArgs           []string
+	EnvChanges        []string
+	ZeroAugmentation  bool
+	CleanupHook       func() error
 }
 
 // PreloadAsset describes a resolved preload path for Node argv.
