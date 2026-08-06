@@ -24,7 +24,7 @@ type cmdHelpMeta struct {
 var helpGroups = []helpGroup{
 	{title: "Common workflows", names: []string{"install", "add", "run", "exec", "ci", "update"}},
 	{title: "Project and dependencies", names: []string{"init", "remove", "link", "dedupe", "prune", "resolve", "fetch", "lock", "patch", "publish", "pkg", "project"}},
-	{title: "Run and execute", names: []string{"env", "view"}},
+	{title: "Run and execute", names: []string{"env", "view", "watch"}},
 	{title: "Inspect and diagnose", names: []string{"ls", "outdated", "explain", "plan", "history", "snapshot", "doctor", "features", "diff", "recover", "rollback"}},
 	{title: "Security and policy", names: []string{"audit", "policy", "verify", "sbom", "builds", "trust", "approve-builds"}},
 	{title: "Cache, store, and artifacts", names: []string{"cache", "store", "pack", "capsule"}},

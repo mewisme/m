@@ -85,6 +85,7 @@ func NewMRoot(info BuildInfo) *cobra.Command {
 	root.AddCommand(newEnvCmd())
 	root.AddCommand(newNodeArgsCmd())
 	root.AddCommand(newResolveModuleCmd())
+	root.AddCommand(newWatchCmd())
 	registerStubs(root)
 	root.ValidArgsFunction = rootScriptCompletion
 	configureGroupedHelp(root)

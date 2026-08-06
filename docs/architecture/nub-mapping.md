@@ -41,3 +41,4 @@ semantics where parity is intentional; use idiomatic Go architecture elsewhere.
 | --env-file / --no-env-file | parity (0054) | Explicit env file loading and auto-discovery kill switch |
 | --mode flag | parity (0054) | Mode-aware .env selection; --mode production sets NODE_ENV=production |
 | Web Storage polyfill | parity (0054) | localStorage and sessionStorage globals via preload; in-memory only (disk persistence deferred) |
+| Watch mode | parity (0055) | Long-lived supervisor with fsnotify watcher; debounce, clear-screen, and graceful restart; polling fallback |
