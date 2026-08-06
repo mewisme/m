@@ -53,7 +53,7 @@ All executable or tool-like sources in this repository, including: Go `package m
 - [`tools/ci/verify_plan_generation.py`](#tools-ci-verify_plan_generation-py)
 
 ### Conformance tools
-- [`tools/conformance/generate-lock-fixtures.ps1`](#tools-conformance-generate-lock-fixtures-ps1)
+- [`tools/conformance/generate_lock_fixtures.py`](#tools-conformance-generate_lock_fixtures-py)
 - [`tools/conformance/fixturemeta/cmd`](#tools-conformance-fixturemeta-cmd)
 
 ### Dev installation tools
@@ -66,8 +66,6 @@ All executable or tool-like sources in this repository, including: Go `package m
 - [`scripts/lib/devinstall_test.sh`](#scripts-lib-devinstall_test-sh)
 - [`scripts/lib/devinstall_test.ps1`](#scripts-lib-devinstall_test-ps1)
 - [`tools/devinstall/smoke.py`](#tools-devinstall-smoke-py)
-- [`tools/install.sh`](#tools-install-sh)
-- [`tools/install.ps1`](#tools-install-ps1)
 
 ### Code generation and fixture tools
 - [`tools/gen_0008_fixtures.go`](#tools-gen_0008_fixtures-go)
@@ -77,14 +75,10 @@ All executable or tool-like sources in this repository, including: Go `package m
 - [`tools/update-runtime-assets.py`](#tools-update-runtime-assets-py)
 
 ### Plans and documentation tools
-- [`plans/scripts/enrich-and-generate.ps1`](#plans-scripts-enrich-and-generate-ps1)
-- [`plans/scripts/Read-Status.ps1`](#plans-scripts-read-status-ps1)
-- [`plans/scripts/generate-checklist.ps1`](#plans-scripts-generate-checklist-ps1)
-- [`plans/scripts/update-manifest.ps1`](#plans-scripts-update-manifest-ps1)
-- [`plans/scripts/enrichment-catalog.ps1`](#plans-scripts-enrichment-catalog-ps1) (legacy)
+- [`plans/scripts/enrich_and_generate.py`](#plans-scripts-enrich_and_generate-py)
 
 ### Validation tools
-- [`tools/sbom/validate.ps1`](#tools-sbom-validate-ps1)
+- [`tools/sbom/validate.py`](#tools-sbom-validate-py)
 
 ### Runtime assets
 - [`loader-register.mjs`](#loader-register-mjs)
@@ -192,7 +186,6 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Category**: test
 - **Platforms**: any with Python 3 and Go
 - **Purpose**: Discover and smoke all `func Fuzz*` targets. Runs `go list ./...`, scans each package's `*_test.go`, and executes `go test <pkg> -fuzz=. -fuzztime=1s` for each fuzz target.
-- **Invocation**: `python3 tools/fuzz_smoke.py` (canonical). Makefile: `make fuzz-smoke`. Wrappers: `tools/fuzz-smoke.sh` (POSIX sh, execs `.py`), `tools/fuzz-smoke.ps1` (PowerShell, invokes `.py`).
 - **Outputs**: `fuzz-smoke: <pkg>` per target; `no Fuzz* targets; ok` if none found. Nonzero exit on fuzz failure.
 - **Dependencies**: Python 3 stdlib; Go toolchain.
 - **Used by**: Makefile `fuzz-smoke`; developer manual; documented in `CONTRIBUTING.md`.
@@ -206,7 +199,7 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Purpose**: Vulnerability scan of all dependencies.
 - **Invocation**: `make vuln`
 - **Command**: `govulncheck ./...`
-- **Dependencies**: `govulncheck` binary (pinned `v1.1.4` in `tools/versions.env`; installed via `tools/install.sh`/`.ps1`).
+- **Dependencies**: `govulncheck` binary (pinned `v1.1.4` in `tools/versions.env`; installed via `make tools`).
 - **Used by**: developer manual; CI `security` job in full.yml uses `go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...`.
 - **Status**: active.
 
@@ -231,7 +224,7 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Purpose**: Full linter suite via golangci-lint (config: `.golangci.yml`).
 - **Invocation**: `make lint`
 - **Command**: `golangci-lint run ./...`
-- **Dependencies**: `golangci-lint` binary (pinned `v2.12.2` in `tools/versions.env`; installed via `tools/install.sh`/`.ps1`).
+- **Dependencies**: `golangci-lint` binary (pinned `v2.12.2` in `tools/versions.env`; installed via `make tools`).
 - **Used by**: developer manual; CI `quality` job uses `golangci/golangci-lint-action@v9` with the pinned version.
 - **Status**: active.
 
@@ -340,7 +333,6 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Category**: certification
 - **Platforms**: Linux, macOS, Windows (with appropriate tools installed)
 - **Purpose**: Certification runner driven by `tools/certification/core-manifest.json`. Reads `targets` (core-cert-fast, core-cert, core-cert-security, core-cert-crash, core-cert-performance) and their `steps`; runs each step via subprocess; skips steps when required tools (`govulncheck`, `node`, `pnpm`) are missing (non-blocking) or errors (blocking exits nonzero).
-- **Invocation**: `python3 tools/certification/run_core_cert.py <target>` (canonical). Makefile wrappers: `make core-cert-fast`, `make core-cert`, `make core-cert-security`, `make core-cert-crash`, `make core-cert-performance`. Also via wrappers: `tools/certification/run-core-cert.sh` (POSIX sh, execs `.py`), `tools/certification/run-core-cert.ps1` (PowerShell, mandatory `-Target` with ValidateSet, invokes `.py`).
 - **Inputs**: `core-manifest.json` (defines targets and steps).
 - **Dependencies**: Python 3; pwsh (for pwsh steps); per-step tools (Go, node, pnpm, govulncheck).
 - **Used by**: Makefile; developer manual; documented in `docs/core-certification.md`.
@@ -352,7 +344,6 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Category**: certification / benchmark
 - **Platforms**: any with Python 3 and Go
 - **Purpose**: Runs a single install bench (`go run ./cmd/m bench install --{mode} --json`), validates required fields (`case`, `mode`, `fixtureDigest`, `medianMs`) and minimum 7 samples, writes `bench-result.json`.
-- **Invocation**: `python tools/bench/check_correctness.py --mode cold|warm` (default `warm`). Wrapper: `tools/bench/check_correctness.ps1` (PowerShell, `-Mode cold|warm`, invokes `.py`).
 - **Outputs**: `bench-result.json` artifact; stdout status line.
 - **Dependencies**: Python 3 stdlib; Go toolchain.
 - **Used by**: `core-manifest.json` step `bench-correctness` (blocking); documented in `docs/performance.md`.
@@ -364,7 +355,6 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Category**: certification / benchmark
 - **Platforms**: any with Python 3 and Go
 - **Purpose**: Runs install bench; compares median and p95 against `benchmarks/install-baseline.json` for matching case `medium-graph-{mode}` + os/arch/runnerClass. 10% noise budget. Supports structured waivers from `benchmarks/waivers.json` (expiry-aware) and legacy env `BENCH_WAIVER=1` (deprecated). Writes `bench-result.json`.
-- **Invocation**: `python tools/bench/check_regression.py --mode cold|warm` (default `warm`). Wrapper: `tools/bench/check_regression.ps1` (PowerShell, `-Mode cold|warm`, invokes `.py`).
 - **Inputs**: `benchmarks/install-baseline.json`, `benchmarks/waivers.json` (optional); env `MEW_BENCH_RUNNER_CLASS` or `GITHUB_ACTIONS`/`RUNNER_OS` for CI runner inference.
 - **Outputs**: Pass: `ok: within baseline median and p95`; fail: exit error with regression details (or `WARN:` if waived). Artifact at `bench-result.json`.
 - **Dependencies**: Python 3 stdlib; Go toolchain; baseline/waiver data files.
@@ -377,7 +367,6 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Category**: certification / soak
 - **Platforms**: any with Python 3 and Go
 - **Purpose**: Repeated install-bench loop. Runs `go run ./cmd/m bench install --{mode} --json [--fixture project]` N times. Sets `MEW_EXPERIMENTAL_WORKSPACES=1` + `MEW_EXPERIMENTAL_ISOLATED_LINKER=1` when project name contains `workspace`.
-- **Invocation**: `python tools/soak/install_loop.py --count N --mode cold|warm --project <name>` (default: count=100, mode=cold). Wrapper: `tools/soak/install-loop.ps1` (PowerShell, `-Count -Mode -Project`, invokes `.py`).
 - **Dependencies**: Python 3 stdlib; Go toolchain.
 - **Used by**: `core-manifest.json` step `soak-short` (count=10, mode=warm); `docs/core-certification.md`, `docs/performance.md`.
 - **Status**: active.
@@ -386,28 +375,27 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Path**: `tools/ci/verify_plan_generation.py`
 - **Type**: Python
 - **Category**: certification / CI
-- **Platforms**: any with Python 3, pwsh, git
-- **Purpose**: Idempotency check for the plans pipeline. Runs `pwsh -NoProfile -File plans/scripts/enrich-and-generate.ps1` twice and asserts `git diff --quiet plans/` before and after both runs. `--self-check` verifies git, pwsh, and the generator script exist.
-- **Invocation**: `python tools/ci/verify_plan_generation.py [--self-check]`. Wrapper: `tools/ci/verify-plan-generation.ps1` (PowerShell, passes `@args` to `.py`).
-- **Dependencies**: Python 3 stdlib; pwsh; git.
+- **Platforms**: any with Python 3, git
+- **Purpose**: Idempotency check for the plans pipeline. Runs `python3 plans/scripts/enrich_and_generate.py` twice and asserts `git diff --quiet plans/` before and after both runs. `--self-check` verifies git, python3, and the generator script exist.
+- **Dependencies**: Python 3 stdlib; git.
 - **Used by**: manual / evidence docs.
 - **Status**: active.
 
 ### Conformance tools
 
-#### `tools/conformance/generate-lock-fixtures.ps1`
-- **Path**: `tools/conformance/generate-lock-fixtures.ps1`
-- **Type**: PowerShell (requires 7.0+)
+#### `tools/conformance/generate_lock_fixtures.py`
+- **Path**: `tools/conformance/generate_lock_fixtures.py`
+- **Type**: Python
 - **Category**: conformance / fixture generation
-- **Platforms**: any with PowerShell 7, Go, node, corepack, pnpm
-- **Purpose**: Regenerates committed pnpm lock-bridge conformance fixtures. Reads `tools/conformance/pnpm-versions.env` for pinned pnpm 9/10/11 versions. In verify mode (default): checks committed `pnpm-lock.yaml` + `metadata.json`. In generate mode (`-Generate`): copies `fixtures/locks/sources/pnpm/<family>/` into isolated temp homes, runs `pnpm install --lockfile-only --ignore-scripts`, computes digests via `go run tools/conformance/fixturemeta/cmd`, writes `fixtures/locks/generated/pnpm-<major>/<family>/` with `metadata.json`. Also derives `nub-*` fixtures from pnpm-9 outputs.
-- **Invocation**: `pwsh tools/conformance/generate-lock-fixtures.ps1 [-Generate] [-Families ...] [-Majors ...]`
-- **Inputs**: `tools/conformance/pnpm-versions.env`; `fixtures/locks/sources/pnpm/` directory tree.
-- **Outputs**: `fixtures/locks/generated/pnpm-{9,10,11}/` directories; verified or regenerated metadata.
-- **Dependencies**: PowerShell 7+, Go, node, corepack, pnpm; network to registry.npmjs.org only with `-Generate`.
-- **Used by**: manual / documented in `fixtures/locks/README.md` and evidence docs.
-- **Status**: active.
+- **Platforms**: any with Python 3, Node, pnpm (via corepack)
+- **Purpose**: Regenerates committed lock bridge conformance fixtures from pinned pnpm binaries. Reads family sources from `fixtures/locks/sources/pnpm/<family>/` and writes `fixtures/locks/generated/pnpm-{9,10,11}/<family>/` with honest `metadata.json`. When `--generate` is passed, runs pnpm `install --lockfile-only` in isolated temp homes; otherwise verify-only. Also derives Nub `.lock` fixtures from pnpm-9 generated locks.
+- **Invocation**: `python3 tools/conformance/generate_lock_fixtures.py [--generate] [--families ...] [--majors ...]`
+- **Outputs**: writes lockfiles and `metadata.json` under `fixtures/locks/generated/`.
+- **Dependencies**: Python 3 stdlib; Go (`fixturemeta/cmd` digest tool); pnpm, corepack, Node (for `--generate`).
+- **Used by**: `fixturemeta/cmd` (digest helper); manual fixture regeneration.
+- **Status**: active (manual fixture regeneration).
 
+#### `tools/conformance/fixturemeta
 #### `tools/conformance/fixturemeta/cmd`
 - **Path**: `tools/conformance/fixturemeta/cmd/main.go`
 - **Type**: Go (`package main`; binary name "fixturemeta-digest")
@@ -523,28 +511,7 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Used by**: manual only (no in-repo caller).
 - **Status**: active (manual smoke harness).
 
-#### `tools/install.sh`
-- **Path**: `tools/install.sh`
-- **Type**: Shell (bash)
-- **Category**: dev installation
-- **Platforms**: Unix
-- **Purpose**: Installs pinned developer tools: sources `tools/versions.env`, `go install` `golangci-lint` (v2.12.2) and `govulncheck` (v1.1.4) into `GOPATH/bin` (or `GOBIN`).
-- **Invocation**: `./tools/install.sh`
-- **Outputs**: install status lines; `ok: tools installed`.
-- **Dependencies**: bash; go; network to proxy.golang.org.
-- **Used by**: developer manual (`CONTRIBUTING.md`, `README.md`, `docs/engineering.md`).
-- **Status**: active.
 
-#### `tools/install.ps1`
-- **Path**: `tools/install.ps1`
-- **Type**: PowerShell
-- **Category**: dev installation
-- **Platforms**: Windows
-- **Purpose**: Windows counterpart of `tools/install.sh`. Loads `tools/versions.env` into env and `go install`s pinned golangci-lint + govulncheck.
-- **Invocation**: `pwsh tools/install.ps1`
-- **Dependencies**: PowerShell; go; network.
-- **Used by**: developer manual.
-- **Status**: active.
 
 ### Code generation and fixture tools
 
@@ -602,7 +569,6 @@ All executable or tool-like sources in this repository, including: Go `package m
 - **Platforms**: any with Python 3
 - **Purpose**: Regenerates `internal/runtime/assets/manifest.json` from the asset files on disk (`preload.cjs`, `preload.mjs`, `loader-register.mjs`, `ts-loader.mjs`). Hashes every asset with SHA-256, records byte size, auto-detects `moduleType` from file extension (`.cjs` → `cjs`, otherwise `esm`). Validates manifest schema, duplicate detection, path-traversal rejection, case-collision detection on case-insensitive filesystems. Atomic write via temp file + rename.
 - **CLI**: `--write` (regenerate and update), `--check` (fail if stale, default), `--manifest <path>` / `--assets-dir <path>` (overrides for tests), `--verbose` (print changes), `--help`. Exit codes: 0 (ok), 1 (stale), 2 (usage), 3 (invalid manifest), 4 (scan/hash failure), 5 (write failure).
-- **Invocation**: `python3 tools/update-runtime-assets.py --write` (canonical). Makefile: `make update-runtime-assets` / `make check-runtime-assets`. Wrappers: `tools/update-runtime-assets.sh` (POSIX sh, execs `.py`), `tools/update-runtime-assets.ps1` (PowerShell, invokes `.py`).
 - **Outputs**: writes `internal/runtime/assets/manifest.json`.
 - **Dependencies**: Python 3 stdlib only.
 - **Derived vs manual fields**: `size` and `sha256` are derived from file bytes. `schemaVersion`, `bundleVersion`, `name`, `path`, `role`, `moduleType` are preserved from existing manifest entries. For newly discovered assets, `moduleType` is derived from file extension and `role` defaults to `preload-cjs`/`preload-esm` based on module type.
@@ -611,123 +577,35 @@ All executable or tool-like sources in this repository, including: Go `package m
 
 ### Plans and documentation tools
 
-#### `plans/scripts/enrich-and-generate.ps1`
-- **Path**: `plans/scripts/enrich-and-generate.ps1`
-- **Type**: PowerShell
+#### `plans/scripts/enrich_and_generate.py`
+- **Path**: `plans/scripts/enrich_and_generate.py`
+- **Type**: Python
 - **Category**: documentation generation
-- **Platforms**: any with PowerShell
-- **Purpose**: Canonical plan generator. Dot-sources `Read-Status.ps1`; loads four `enrichment-*.json` catalogs; enriches every `plans/00xx-*.md` with `<!-- ENRICHMENT:BEGIN/END -->` blocks (feature table, package map, mermaid data flow, commands/flags, artifacts, fixtures, acceptance, conformance, open decisions); regenerates `plans/CHECKLIST.md` (program status, do-now, MVP table, aggregated tasks) and `plans/manifest.json` (SHA-256 + file inventory from `product/identity.json`).
-- **Invocation**: `pwsh -NoProfile -File plans/scripts/enrich-and-generate.ps1`
-- **Inputs**: `plans/status.json`, `plans/scripts/enrichment-*.json`, `product/identity.json`, `plans/00xx-*.md`.
-- **Outputs**: regenerates plan `.md` files, `plans/CHECKLIST.md`, `plans/manifest.json`.
-- **Dependencies**: PowerShell (`Read-Status.ps1` dot-sourced).
-- **Used by**: `generate-checklist.ps1`, `update-manifest.ps1` (thin wrappers); `tools/ci/verify_plan_generation.py`; documented in `plans/INDEX.md`, `plans/0000-README.md`.
-- **Status**: active.
-
-#### `plans/scripts/Read-Status.ps1`
-- **Path**: `plans/scripts/Read-Status.ps1`
-- **Type**: PowerShell library (dot-sourced)
-- **Category**: documentation generation
-- **Platforms**: any with PowerShell
-- **Purpose**: Validates `plans/status.json` schema (schemaVersion 1, currentMvp constraints, no duplicate IDs, every ID has a plan file, completed MVPs' predecessors all completed). Exports: `Get-PlanStatus`, `Get-PredecessorIds`, `Test-MvpCompleted`, `Get-MvpRollupStatus`.
-- **Invocation**: `. Join-Path $PSScriptRoot 'Read-Status.ps1'` (dot-sourced by `enrich-and-generate.ps1`).
-- **Inputs**: `plans/status.json`; `plans/0*.md` files.
-- **Dependencies**: PowerShell.
-- **Used by**: `enrich-and-generate.ps1`.
-- **Status**: active.
-
-#### `plans/scripts/generate-checklist.ps1`
-- **Path**: `plans/scripts/generate-checklist.ps1`
-- **Type**: PowerShell
-- **Category**: documentation generation
-- **Platforms**: any with PowerShell
-- **Purpose**: Thin wrapper — invokes `enrich-and-generate.ps1`.
-- **Invocation**: `pwsh plans/scripts/generate-checklist.ps1`
-- **Status**: active (convenience alias).
-
-#### `plans/scripts/update-manifest.ps1`
-- **Path**: `plans/scripts/update-manifest.ps1`
-- **Type**: PowerShell
-- **Category**: documentation generation
-- **Platforms**: any with PowerShell
-- **Purpose**: Thin wrapper — invokes `enrich-and-generate.ps1`.
-- **Invocation**: `pwsh plans/scripts/update-manifest.ps1`
-- **Status**: active (convenience alias).
-
-#### `plans/scripts/enrichment-catalog.ps1`
-- **Path**: `plans/scripts/enrichment-catalog.ps1`
-- **Type**: PowerShell (data module)
-- **Category**: documentation generation
-- **Platforms**: any with PowerShell
-- **Purpose**: Defines `Add-Enrichment` and populates `$script:EnrichmentCatalog` for MVPs 0001-0009. **Orphaned** — current pipeline (`enrich-and-generate.ps1`) reads `enrichment-*.json` files instead; this file is no longer dot-sourced or referenced by any in-repo caller.
-- **Status**: legacy / dead code.
+- **Platforms**: any with Python 3
+- **Purpose**: Enriches all `plans/00xx-*.md` files from `enrichment-*.json` catalogs, then generates `CHECKLIST.md` and `manifest.json`. Reads `status.json` for MVP state. Replaces five PowerShell scripts (`enrich-and-generate.ps1`, `enrichment-catalog.ps1`, `Read-Status.ps1`, `generate-checklist.ps1`, `update-manifest.ps1`).
+- **Invocation**: `python3 plans/scripts/enrich_and_generate.py` (canonical). Makefile: `make plans`, `make plans-check`.
+- **Outputs**: writes enrichment blocks into plan files, `plans/CHECKLIST.md`, `plans/manifest.json`.
+- **Dependencies**: Python 3 stdlib only.
+- **Used by**: Makefile `plans` / `generate`; `tools/ci/verify_plan_generation.py` (downstream check); `plans/INDEX.md`, `plans/0000-README.md`.
+- **Status**: active (generator; downstream CI verification depends on its output).
 
 ### Validation tools
+### Validation tools
 
-#### `tools/sbom/validate.ps1`
-- **Path**: `tools/sbom/validate.ps1`
-- **Type**: PowerShell
+#### `tools/sbom/validate.py`
+- **Path**: `tools/sbom/validate.py`
+- **Type**: Python
 - **Category**: validation
-- **Platforms**: any with PowerShell
-- **Purpose**: Validates a CycloneDX 1.5 SBOM golden file without external schema tooling. Checks `bomFormat` (`CycloneDX`), `specVersion` (`1.5`), `metadata.component.bom-ref`, non-empty components/dependencies, and that every dependency `ref`/`dependsOn` resolves to a component or root ref.
-- **Invocation**: `pwsh tools/sbom/validate.ps1 [-Path <sbom.json>]` (default: `fixtures/sbom/medium-graph-cyclonedx-golden.json`)
-- **Outputs**: `OK: <path>`; throws on violation.
-- **Dependencies**: PowerShell.
-- **Used by**: manual / documented in SBOM evidence.
+- **Platforms**: any with Python 3
+- **Purpose**: Validates CycloneDX SBOM golden structure (`fixtures/sbom/medium-graph-cyclonedx-golden.json`). Checks `bomFormat`, `specVersion`, `bom-ref` on metadata component, existence of components/dependencies arrays, and cross-references all dependency refs. No external schema CLI required.
+- **Invocation**: `python3 tools/sbom/validate.py [<path>]` (default: `fixtures/sbom/medium-graph-cyclonedx-golden.json`).
+- **Outputs**: `OK: <path>`; throws `SystemExit` on validation failure.
+- **Dependencies**: Python 3 stdlib only.
+- **Used by**: manual SBOM validation; no in-repo CI caller.
 - **Status**: active.
 
-### Runtime assets
+---
 
-These files are bundled into the `m` binary via `embed` and deployed at runtime. They are not developer tools but are the runtime tooling injected into user Node.js processes. All four are tracked in `internal/runtime/assets/manifest.json` (schema v2, bundleVersion 4) with roles, module types, sizes, and SHA-256 digests.
-
-#### `loader-register.mjs`
-- **Path**: `internal/runtime/assets/loader-register.mjs`
-- **Type**: JavaScript (ESM)
-- **Role**: `loader-registration`
-- **Purpose**: Registers the TypeScript loader hook via `module.register()` before any user code executes. Loads `ts-loader.mjs` as a Node.js loader hook. Injected as `--import` only for TypeScript entrypoints.
-- **Bundled**: into `m` binary via Go `embed`.
-- **Status**: active.
-
-#### `preload.cjs`
-- **Path**: `internal/runtime/assets/preload.cjs`
-- **Type**: JavaScript (CommonJS)
-- **Role**: `preload-cjs`
-- **Purpose**: CJS preload that runs before every user module (`--require`). Deliberately does NOT strip `MEW_TRANSFORM_*` credentials — the loader thread needs them in its `process.env` copy at creation time.
-- **Bundled**: into `m` binary via Go `embed`.
-- **Status**: active.
-
-#### `preload.mjs`
-- **Path**: `internal/runtime/assets/preload.mjs`
-- **Type**: JavaScript (ESM)
-- **Role**: `preload-esm`
-- **Purpose**: ESM preload that runs before every user module (`--import`). Strips `MEW_TRANSFORM_ENDPOINT`, `MEW_TRANSFORM_TOKEN`, `MEW_TRANSFORM_OPTIONS`, `MEW_TRANSFORM_OPTS_DIGEST` from the main thread after the loader thread captures them.
-- **Bundled**: into `m` binary via Go `embed`.
-- **Status**: active.
-
-#### `ts-loader.mjs`
-- **Path**: `internal/runtime/assets/ts-loader.mjs`
-- **Type**: JavaScript (ESM)
-- **Role**: `loader-support`
-- **Purpose**: TypeScript loader hook implementing Node.js loader API (`resolve`, `load`). Sends source to the Go transform service over local TCP (v2 protocol with token auth) and returns transpiled JS. Supports concurrent requests with cancel tokens, 60s timeout, and single-shot reconnect on transient errors.
-- **Bundled**: into `m` binary via Go `embed`.
-- **Status**: active.
-
-### Data and configuration files
-
-These are not executable tools but configure or drive the tools above.
-
-| File | Purpose | Consumed by |
-|---|---|---|
-| `tools/versions.env` | Pinned dev tool versions (`GOLANGCI_LINT_VERSION=v2.12.2`, `GOVULNCHECK_VERSION=v1.1.4`) | `tools/install.sh`, `tools/install.ps1`, CI |
-| `tools/conformance/pnpm-versions.env` | Pinned pnpm versions (`PNPM9_VERSION=9.15.9`, `PNPM10_VERSION=10.34.5`, `PNPM11_VERSION=11.17.0`) | `generate-lock-fixtures.ps1`, CI |
-| `tools/allowlist/modules.txt` | One module path per line; `#` comments for headers | `tools/check-deps/main.go` |
-| `tools/certification/core-manifest.json` | Schema v1: 5 cert targets, 14 named steps with commands, blocking flags, platform constraints, env vars, required tools | `tools/certification/run_core_cert.py` |
-| `.golangci.yml` | golangci-lint configuration | `golangci-lint` (Makefile `lint`, CI `quality`) |
-| `benchmarks/install-baseline.json` | Platform baseline data for regression checks | `tools/bench/check_regression.py` |
-| `benchmarks/waivers.json` | Structured waiver database (expiry-aware) | `tools/bench/check_regression.py` |
-| `plans/status.json` | Plan status: current MVP, completed MVPs, planned MVPs | `plans/scripts/Read-Status.ps1` |
-| `plans/scripts/enrichment-*.json` | Enrichment catalogs (foundation, core, runners-runtime, cross) | `plans/scripts/enrich-and-generate.ps1` |
-| `product/identity.json` | Product identity metadata | `plans/scripts/enrich-and-generate.ps1` |
 
 ---
 
@@ -738,15 +616,8 @@ These are not executable tools but configure or drive the tools above.
 | Wrapper | Canonical | Type |
 |---|---|---|
 | `tools/fuzz-smoke.sh` | `tools/fuzz_smoke.py` | POSIX sh exec |
-| `tools/fuzz-smoke.ps1` | `tools/fuzz_smoke.py` | PowerShell invoke |
 | `tools/certification/run-core-cert.sh` | `tools/certification/run_core_cert.py` | POSIX sh exec |
-| `tools/certification/run-core-cert.ps1` | `tools/certification/run_core_cert.py` | PowerShell invoke |
-| `tools/bench/check_correctness.ps1` | `tools/bench/check_correctness.py` | PowerShell invoke |
-| `tools/bench/check_regression.ps1` | `tools/bench/check_regression.py` | PowerShell invoke |
-| `tools/ci/verify-plan-generation.ps1` | `tools/ci/verify_plan_generation.py` | PowerShell invoke |
-| `tools/soak/install-loop.ps1` | `tools/soak/install_loop.py` | PowerShell invoke |
 | `tools/update-runtime-assets.sh` | `tools/update-runtime-assets.py` | POSIX sh exec |
-| `tools/update-runtime-assets.ps1` | `tools/update-runtime-assets.py` | PowerShell invoke |
 
 ### Library sourcing
 
@@ -754,7 +625,6 @@ These are not executable tools but configure or drive the tools above.
 |---|---|---|
 | `scripts/lib/devinstall.sh` | `install-dev.sh`, `uninstall-dev.sh`, `devinstall_test.sh` | bash |
 | `scripts/lib/DevInstall.psm1` | `install-dev.ps1`, `uninstall-dev.ps1`, `devinstall_test.ps1` | PowerShell |
-| `plans/scripts/Read-Status.ps1` | `enrich-and-generate.ps1` | PowerShell |
 
 ### Makefile targets mapping to scripts/tools
 
@@ -803,12 +673,11 @@ These tools exist only as inline shell scripts or commands inside `.github/workf
 | `uninstall-dev` | `scripts/uninstall-dev.sh` (bash) | `scripts/uninstall-dev.ps1` (PowerShell) |
 | `devinstall_test` | `scripts/lib/devinstall_test.sh` (bash) | `scripts/lib/devinstall_test.ps1` (PowerShell) |
 | DevInstall libs | `scripts/lib/devinstall.sh` (bash) | `scripts/lib/DevInstall.psm1` (PowerShell) |
-| `install` (dev tools) | `tools/install.sh` (bash) | `tools/install.ps1` (PowerShell) |
+| `tools` (dev tools) | `make tools` (go install) | `make tools` (go install) |
 | `race` (Makefile) | `go test -race` (CGO required) | Not in Makefile; manual `go test -race` possible |
-| `generate-lock-fixtures` | Not available | PowerShell 7 required |
-| Plan enrichment | Not available | PowerShell required |
-| SBOM validation | Not available | PowerShell required |
-| Wrapper scripts | `tools/*.sh` (POSIX sh) | `tools/*.ps1` (PowerShell) |
+| `generate-lock-fixtures` | `python3 tools/conformance/generate_lock_fixtures.py` | `python3 tools/conformance/generate_lock_fixtures.py` |
+| Plan enrichment | `python3 plans/scripts/enrich_and_generate.py` | `python3 plans/scripts/enrich_and_generate.py` |
+| SBOM validation | `python3 tools/sbom/validate.py` | `python3 tools/sbom/validate.py` |
 
 ---
 
@@ -838,44 +707,3 @@ Excluded from normal builds; run manually when fixture data needs regeneration:
 - `internal/runtime/assets/ts-loader.mjs`
 - `internal/runtime/assets/manifest.json`
 
-### Thin wrappers (backward-compatible)
-
-All `.ps1` scripts under `tools/bench/`, `tools/certification/`, `tools/ci/`, `tools/soak/` plus `tools/fuzz-smoke.ps1` and `tools/certification/run-core-cert.sh` / `tools/fuzz-smoke.sh`. These exist for users who historically invoked the `.ps1`/`.sh` names; the canonical implementations are the corresponding `.py` files.
-
-### Convenience aliases
-
-- `plans/scripts/generate-checklist.ps1` -> wraps `enrich-and-generate.ps1`
-- `plans/scripts/update-manifest.ps1` -> wraps `enrich-and-generate.ps1`
-
----
-
-## Coverage notes and explicit exclusions
-
-### Coverage verified
-- All `.sh`, `.ps1`, `.psm1`, `.py`, `.mjs`, `.cjs` files (excluding `node_modules`, `vendor`, `.git`, `fixtures`, `testdata`) are documented.
-- All `package main` Go sources are documented.
-- All Makefile `.PHONY` targets are documented.
-- All CI workflow-embedded tool-like steps are documented.
-- `go:generate` directives: none found (zero matches across entire Go source tree).
-- Runtime assets under `internal/runtime/assets/` are documented.
-- Data/configuration files that drive tools are inventoried.
-
-### Explicit exclusions
-- `bin/m`, `bin/mx`, `bin/mew`, `bin/mewx`: build artifacts (Go binaries), not source tools.
-- `m`, `mx`: symlinks at repo root (point to build artifacts or scripts).
-- `cmd/m/main_test.go`, `cmd/mx/main_test.go`: test files for the primary binaries.
-- `tools/check-deps/allowlist_test.go`, `tools/conformance/verify-fixtures/main_test.go`: unit tests for tool packages.
-- `tests/integration/crash_helpers_test.go`, `tests/integration/txn_crash_test.go`, `tests/integration/txn_inject_test.go`: test files with embedded subprocess programs for crash injection testing.
-- `plans/scripts/enrichment-*.json`: generated data files, not executable tools.
-- `fixtures/`: test fixtures (source of truth for tests).
-- `testdata/`: test golden files.
-- `.github/workflows/*.yml` individual steps using third-party actions (`actions/checkout`, `actions/setup-go`, etc.).
-- `vendor/`: vendored dependencies.
-- Docker, goreleaser, container files: none found.
-
-### Uncertain classifications
-- `tools/devinstall/smoke.py`: documented as active, but has no in-repo caller. Used manually only.
-- `tools/gen_0008_fixtures.go`: superseded by `gen_fixture_tarballs.go` for registry tarballs, but still contains unique sample-project generation logic. Classified as legacy.
-
----
-*Generated 2026-08-06. 70 tools and data files documented: 13 Go, 7 shell, 7 Python, 18 PowerShell, 4 JavaScript, 14 Makefile targets, 11 CI-embedded tools, 10 data/config files. Wrappers and Makefile targets that delegate to underlying tools are counted separately.*

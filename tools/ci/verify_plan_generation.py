@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-GEN_SCRIPT = ROOT / "plans" / "scripts" / "enrich-and-generate.ps1"
+GEN_SCRIPT = ROOT / "plans" / "scripts" / "enrich_and_generate.py"
 
 
 def run(cmd: list[str], *, cwd: Path = ROOT) -> None:
@@ -45,7 +45,7 @@ def _git_diff(path: str = "plans/") -> None:
 def invoke_plan_generation() -> None:
     if not GEN_SCRIPT.is_file():
         raise SystemExit(f"missing plan generator: {GEN_SCRIPT}")
-    run(["pwsh", "-NoProfile", "-File", str(GEN_SCRIPT)])
+    run([sys.executable, str(GEN_SCRIPT)])
 
 
 def verify_idempotency() -> None:
@@ -74,7 +74,7 @@ def verify_idempotency() -> None:
 
 def self_check() -> None:
     missing: list[str] = []
-    for tool in ("git", "pwsh"):
+    for tool in ("git", "python3"):
         if shutil.which(tool) is None:
             missing.append(tool)
     if not GEN_SCRIPT.is_file():

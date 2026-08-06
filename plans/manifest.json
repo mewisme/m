@@ -19,11 +19,6 @@
   "validation_errors": [],
   "files": [
     {
-      "path": "_ENRICHED_TEMPLATE.md",
-      "bytes": 2046,
-      "sha256": "134c6c789baa3acd08e381a8b75cb20fd86c36648368b1b90de95153e559bbab"
-    },
-    {
       "path": "0000-README.md",
       "bytes": 3536,
       "sha256": "288e6b16149040e74b104f5d59942f4aa69dff328de7027221cbabc09ab8cd7c"
@@ -354,9 +349,14 @@
       "sha256": "79b2124f47e6d30287e8ebdee577d89aedaf4a66625e89aafef07467bd178514"
     },
     {
+      "path": "_ENRICHED_TEMPLATE.md",
+      "bytes": 2046,
+      "sha256": "134c6c789baa3acd08e381a8b75cb20fd86c36648368b1b90de95153e559bbab"
+    },
+    {
       "path": "CHECKLIST.md",
-      "bytes": 128846,
-      "sha256": "2dcfd9285e49ea8ae69fb9054a56c4573721267a00787b43611bc716a6e3b2bc"
+      "bytes": 128831,
+      "sha256": "713da1c3d958bd0a399861dd11dc180150aa1788f868ec3f05ccf3d64b4a640a"
     },
     {
       "path": "INDEX.md",
@@ -364,14 +364,9 @@
       "sha256": "52ce9de32326afec30afc26c314534887ade4bd27b294260faa19cd2065b3d67"
     },
     {
-      "path": "scripts/enrich-and-generate.ps1",
-      "bytes": 14847,
-      "sha256": "992052bb9e5e18b68d9562b9f28cd3863674b73127a282e3f3637e6762b6b83f"
-    },
-    {
-      "path": "scripts/enrichment-catalog.ps1",
-      "bytes": 29762,
-      "sha256": "7984901287ee755a679d6dab0d683ca804580e53c7991c51dceac969b130408e"
+      "path": "scripts/enrich_and_generate.py",
+      "bytes": 18430,
+      "sha256": "5d49a0928f223ab1151fd39e931e8f44ce377fbb60e28b976f75713eb312eae2"
     },
     {
       "path": "scripts/enrichment-core.json",
@@ -394,21 +389,6 @@
       "sha256": "823d7adad7c25915e0328850c2eadf66ffa5bc617361aba09a1462e01bb71620"
     },
     {
-      "path": "scripts/generate-checklist.ps1",
-      "bytes": 122,
-      "sha256": "285677fe0ae1bd5cf12da172a207d41e3f044298d3a91eb8246661f8a960c5d3"
-    },
-    {
-      "path": "scripts/Read-Status.ps1",
-      "bytes": 3454,
-      "sha256": "50d23f578fb8bcbf248b1914c78e7e8c0022aea5d0b97cd3349688630ed22b8a"
-    },
-    {
-      "path": "scripts/update-manifest.ps1",
-      "bytes": 122,
-      "sha256": "285677fe0ae1bd5cf12da172a207d41e3f044298d3a91eb8246661f8a960c5d3"
-    },
-    {
       "path": "sources/compatibility-targets.md",
       "bytes": 675,
       "sha256": "0c50ac338cf3faacf804ca41286419bae363ab0690efa446f6abe06d4686358d"
@@ -421,7 +401,7 @@
     {
       "path": "status.json",
       "bytes": 981,
-      "sha256": "86542d397079ea736d12a6821e04a4d1605df23c03f4f0bf8387cc53621ebaf9"
+      "sha256": "7206c7ab6c162292e92df50d1a047ecf03dd5514b52d20249a6089e908f6fe88"
     },
     {
       "path": "ux/accessibility-evidence.md",

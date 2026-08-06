@@ -3,9 +3,9 @@
 ## Program status
 
 - Current MVP: **0052** — Runtime MVP 3 — JSX, Decorators, and Source-Map Parity
-- Last updated: 2026-08-02
+- Last updated: 2026-08-06
 - Source of truth: per-MVP files under `plans/00xx-*.md`
-- Regenerate: `.\plans\scripts\enrich-and-generate.ps1`
+- Regenerate: `python3 plans/scripts/enrich_and_generate.py`
 - Last certified core commit: `49b19a9125df705008bf3bced6756943b3a30446`
 
 ## Do now
@@ -1099,7 +1099,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0040 - Runner MVP 1 — Package Script Runner
 
-- status: planned
+- status: done
 - plan: [0040-script-runner.md](0040-script-runner.md)
 
 - [x] Define ScriptRunner interface with context cancellation and stable error codes
@@ -1132,7 +1132,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0041 - Runner MVP 2 — Workspace Script Orchestration
 
-- status: planned
+- status: done
 - plan: [0041-workspace-runner.md](0041-workspace-runner.md)
 
 - [x] Integrate workspace filter from 0022 into script runner dispatch
@@ -1165,7 +1165,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0042 - Runner MVP 3 — Direct `m <script>` Shortcuts
 
-- status: planned
+- status: done
 - plan: [0042-direct-script-shortcuts.md](0042-direct-script-shortcuts.md)
 
 - [x] Implement two-pass CLI dispatch after built-in and alias resolution
@@ -1198,7 +1198,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0043 - Runner MVP 4 — Local Package Binary Execution
 
-- status: planned
+- status: done
 - plan: [0043-local-exec.md](0043-local-exec.md)
 
 - [x] Implement bin index and lookup for current importer
@@ -1231,7 +1231,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0044 - Runner MVP 5 — `mx` Remote Fetch and Execution
 
-- status: planned
+- status: done
 - plan: [0044-mx-dlx.md](0044-mx-dlx.md)
 
 - [x] Implement mx argument parser and top-level dispatch
@@ -1264,7 +1264,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0045 - Runner MVP 6 — Unified Execution and Snapshot Environments
 
-- status: planned
+- status: done
 - plan: [0045-unified-execution.md](0045-unified-execution.md)
 
 - [x] Define ExecutionRequest and PreparedEnvironment interfaces
@@ -1297,7 +1297,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0046 - Runner Stabilization Gate
 
-- status: planned
+- status: done
 - plan: [0046-runner-stabilization.md](0046-runner-stabilization.md)
 
 - [x] Assemble real-world script corpus across npm/pnpm/Yarn/Bun layouts
@@ -1330,7 +1330,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0050 - Runtime MVP 1 — Node Launch and Compatibility Boundary
 
-- status: completed
+- status: done
 - plan: [0050-node-launch-compat.md](0050-node-launch-compat.md)
 
 - [x] Implement file-run dispatch without colliding with built-ins and scripts
@@ -1363,7 +1363,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0051 - Runtime MVP 2 — Go Transform Service and TypeScript Execution
 
-- status: completed
+- status: done
 - plan: [0051-go-transform-service.md](0051-go-transform-service.md)
 
 - [x] Benchmark candidate Go transformers (e.g. esbuild) against Nub/OXC corpus
@@ -1396,7 +1396,7 @@ Stabilization pass 8 complete 2026-07-28: merged `fae9b48`.
 
 ### 0052 - Runtime MVP 3 — JSX, Decorators, and Source-Map Parity
 
-- status: planned
+- status: in-progress
 - plan: [0052-jsx-decorators-sourcemaps.md](0052-jsx-decorators-sourcemaps.md)
 
 - [ ] Implement JSX option normalization (classic, automatic, importSource, dev)

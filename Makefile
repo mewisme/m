@@ -189,24 +189,16 @@ assets-check: ## Verify runtime asset manifest is current
 
 .PHONY: plans
 plans: ## Regenerate plans and checklists
-	@if command -v pwsh >/dev/null 2>&1; then \
-	  pwsh -NoProfile -File plans/scripts/enrich-and-generate.ps1; \
-	else \
-	  echo "plans: pwsh not found — skipping (plans generation requires PowerShell)"; \
-	fi
+	$(PYTHON) plans/scripts/enrich_and_generate.py
 
 .PHONY: plans-check
 plans-check: ## Verify plans and checklists are current
-	@if command -v pwsh >/dev/null 2>&1; then \
-	  pwsh -NoProfile -File plans/scripts/enrich-and-generate.ps1; \
-	  if ! $(GIT) diff --exit-code -- plans/ >/dev/null 2>&1; then \
-	    echo "Plans are stale. Run 'make plans'." >&2; \
-	    $(GIT) diff --stat -- plans/; \
-	    $(GIT) checkout -- plans/; \
-	    exit 1; \
-	  fi; \
-	else \
-	  echo "plans-check: pwsh not found — skipping"; \
+	@$(PYTHON) plans/scripts/enrich_and_generate.py && \
+	if ! $(GIT) diff --exit-code -- plans/ >/dev/null 2>&1; then \
+	  echo "Plans are stale. Run 'make plans'." >&2; \
+	  $(GIT) diff --stat -- plans/; \
+	  $(GIT) checkout -- plans/; \
+	  exit 1; \
 	fi
 
 .PHONY: build
