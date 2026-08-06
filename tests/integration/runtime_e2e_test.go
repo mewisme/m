@@ -190,7 +190,9 @@ func TestRuntimeE2EZeroAugmentation(t *testing.T) {
 func TestRuntimeE2EScriptWinsOverFile(t *testing.T) {
 	skipWithoutNode(t)
 	proj := runtimeE2EFixture(t)
-	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"hello": "node -e \"require('fs').writeFileSync('output.txt','script-wins\\n')\""}}`)
+	// Use a .js file: inline node -e is mangled by cmd.exe on Windows.
+	writeFile(t, filepath.Join(proj, "hello-script.js"), `require("fs").writeFileSync("output.txt", "script-wins\n")`)
+	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"hello": "node hello-script.js"}}`)
 	code, _ := runMProject(t, proj, "run", "hello")
 	if code != 0 {
 		t.Fatalf("exit=%d", code)
@@ -616,7 +618,10 @@ func TestRuntimeE2EErrorOutputNoEndpointOrToken(t *testing.T) {
 func TestRuntimeE2EScriptCWDIsProjectRoot(t *testing.T) {
 	skipWithoutNode(t)
 	proj := runtimeE2EFixture(t)
-	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"cwdcheck": "node -e \"require('fs').writeFileSync('cwd.txt',process.cwd())\""}}`)
+	// Use a separate .js file so the script works cross-platform: inline
+	// node -e with double quotes is mangled by cmd.exe on Windows.
+	writeFile(t, filepath.Join(proj, "cwdcheck.js"), `require("fs").writeFileSync("cwd.txt", process.cwd())`)
+	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"cwdcheck": "node cwdcheck.js"}}`)
 	code, _ := runMProject(t, proj, "run", "cwdcheck")
 	if code != 0 {
 		t.Fatalf("exit=%d", code)
@@ -644,7 +649,10 @@ func TestRuntimeE2EScriptCWDIsProjectRoot(t *testing.T) {
 func TestRuntimeE2EScriptCWDWithCWD(t *testing.T) {
 	skipWithoutNode(t)
 	proj := runtimeE2EFixture(t)
-	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"cwdcheck": "node -e \"require('fs').writeFileSync('cwd.txt',process.cwd())\""}}`)
+	// Use a separate .js file: inline node -e with double quotes is
+	// mangled by cmd.exe on Windows.
+	writeFile(t, filepath.Join(proj, "cwdcheck.js"), `require("fs").writeFileSync("cwd.txt", process.cwd())`)
+	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"cwdcheck": "node cwdcheck.js"}}`)
 	// Run from parent directory; --cwd selects the project.
 	parent := filepath.Dir(proj)
 	code, _ := runMProjectWithCWD(t, parent, proj, "run", "cwdcheck")
@@ -668,7 +676,10 @@ func TestRuntimeE2EScriptCWDFromSubdir(t *testing.T) {
 	if err := os.MkdirAll(subdir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"cwdcheck": "node -e \"require('fs').writeFileSync('cwd.txt',process.cwd())\""}}`)
+	// Use a separate .js file: inline node -e with double quotes is
+	// mangled by cmd.exe on Windows.
+	writeFile(t, filepath.Join(proj, "cwdcheck.js"), `require("fs").writeFileSync("cwd.txt", process.cwd())`)
+	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"cwdcheck": "node cwdcheck.js"}}`)
 	// Invoke with --cwd pointing to a subdirectory; the project root is
 	// discovered by walking up, and scripts still run from the project root.
 	code, _ := runMProjectWithCWD(t, "", subdir, "run", "cwdcheck")
@@ -688,10 +699,15 @@ func TestRuntimeE2EScriptCWDFromSubdir(t *testing.T) {
 func TestRuntimeE2EScriptCWDLifecycleScript(t *testing.T) {
 	skipWithoutNode(t)
 	proj := runtimeE2EFixture(t)
+	// Use separate .js files: inline node -e with double quotes is
+	// mangled by cmd.exe on Windows.
+	writeFile(t, filepath.Join(proj, "pre-cwdcheck.js"), `require("fs").writeFileSync("pre-cwd.txt", process.cwd())`)
+	writeFile(t, filepath.Join(proj, "build-cwdcheck.js"), `require("fs").writeFileSync("build-cwd.txt", process.cwd())`)
+	writeFile(t, filepath.Join(proj, "post-cwdcheck.js"), `require("fs").writeFileSync("post-cwd.txt", process.cwd())`)
 	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {
-		"prebuild": "node -e \"require('fs').writeFileSync('pre-cwd.txt',process.cwd())\"",
-		"build": "node -e \"require('fs').writeFileSync('build-cwd.txt',process.cwd())\"",
-		"postbuild": "node -e \"require('fs').writeFileSync('post-cwd.txt',process.cwd())\""
+		"prebuild": "node pre-cwdcheck.js",
+		"build": "node build-cwdcheck.js",
+		"postbuild": "node post-cwdcheck.js"
 	}}`)
 	code, _ := runMProject(t, proj, "run", "build")
 	if code != 0 {
@@ -762,7 +778,9 @@ func TestRuntimeE2EScriptCWDUnicodePath(t *testing.T) {
 func TestRuntimeE2EScriptCWDFailedScriptReportsCorrectContext(t *testing.T) {
 	skipWithoutNode(t)
 	proj := runtimeE2EFixture(t)
-	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"fail": "node -e \"process.exit(1)\""}}`)
+	// Use a .js file: inline node -e is mangled by cmd.exe on Windows.
+	writeFile(t, filepath.Join(proj, "fail.js"), `process.exit(1)`)
+	writeFile(t, filepath.Join(proj, "package.json"), `{"scripts": {"fail": "node fail.js"}}`)
 	code, _ := runMProject(t, proj, "run", "fail")
 	if code == 0 {
 		t.Fatal("expected non-zero exit")
