@@ -6,7 +6,7 @@ import (
 )
 
 type config struct {
-	workers     string   // "auto", "1", or explicit N
+	workers     string // "auto", "1", or explicit N
 	short       bool
 	race        bool
 	tags        string

@@ -13,8 +13,8 @@ import (
 
 // runner manages test execution across workers.
 type runner struct {
-	cfg       config
-	workDir   string   // temp dir for compiled test binaries
+	cfg         config
+	workDir     string // temp dir for compiled test binaries
 	logicalCPUs int
 }
 
