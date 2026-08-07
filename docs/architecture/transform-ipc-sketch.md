@@ -18,7 +18,10 @@ Length-prefixed JSON frames over local TCP (127.0.0.1):
 [u32 little-endian payload length][utf-8 JSON body]
 ```
 
-Maximum frame size: 48 MiB (MaxFrameSize).
+Maximum frame size: 48 MiB (MaxFrameSize). Every frame (except the initial
+hello) uses strict JSON decoding: unknown fields are rejected,
+trailing data after the first JSON value is rejected, and each operation
+type is decoded into its dedicated Go struct before validation.
 
 ### Op codes
 
@@ -29,6 +32,33 @@ Maximum frame size: 48 MiB (MaxFrameSize).
 | `transform` | Request a file transform |
 | `cancel` | Cancel an in-flight transform by cancel token |
 | `shutdown` | Close the connection gracefully |
+
+Every frame must decode into exactly one valid operation schema. Unknown JSON
+fields, trailing JSON data, and cross-operation fields are rejected. Validation
+is centralized: each operation type has a dedicated Go struct with strict
+`DisallowUnknownFields` decoding plus per-field validation in `Validate()`.
+
+### Validation rules
+
+Every inbound request frame is validated in this order:
+
+1. **Frame size** — payload must not exceed MaxFrameSize (48 MiB). Checked
+   before allocation.
+2. **Strict JSON decode** — unknown fields rejected (`DisallowUnknownFields`).
+   Trailing data after the first complete JSON value rejected.
+3. **Per-operation decode** — the frame is decoded into the dedicated struct
+   for its `op` value: `HealthRequest`, `TransformRequestV2`, `CancelRequest`,
+   or `ShutdownRequest`. A struct for one op naturally rejects fields that
+   belong to another op.
+4. **Field validation** — `Validate()` checks protocol version, required
+   fields, enum values, digest format, and field length limits.
+5. **Digest verification** (transform only) — SHA-256 of source and options
+   are verified against their digests synchronously in the read loop, before
+   the request is dispatched to a worker goroutine.
+
+Invalid requests never reach the transform engine or cache. Validation errors
+return stable error codes; error messages are sanitized to remove source
+content, tokens, endpoints, and options payloads.
 
 ### Hello (auth)
 
@@ -50,7 +80,27 @@ Failure:
 {"v": 2, "ok": false, "err_code": "ERR_M_TRANSFORM_AUTH", "reason": "unauthorized"}
 ```
 
+### Health request
+
+No-op health check. Only `v`, `id`, and `op` are accepted. Extra fields
+(source, loader, etc.) are rejected.
+
+```json
+{"v": 2, "id": "<request id>", "op": "health"}
+```
+
+Response:
+```json
+{"v": 2, "id": "<request id>", "ok": true}
+```
+
 ### Transform request
+
+All fields are required. `options` may be `""` or `"{}"` for no options;
+`opts_digest` must always be present (SHA-256 of the options string).
+`source_map` must be one of `none`, `inline`, or `external` (no default).
+`cancel_token` is always required — it is the token used by `OpCancel` to
+cancel this request.
 
 ```json
 {
@@ -69,6 +119,10 @@ Failure:
   "cancel_token": "<opaque token for OpCancel>"
 }
 ```
+
+Source and options digests are verified synchronously in the read loop before
+the request is dispatched to a worker goroutine. Invalid requests never reach
+the transform engine or cache.
 
 ### Transform response
 
@@ -97,6 +151,9 @@ Error:
 
 ### Cancel request
 
+Only `v`, `id`, `op`, and `cancel_token` are accepted. Extra fields (path,
+source, loader, etc.) are rejected.
+
 ```json
 {
   "v": 2,
@@ -114,6 +171,8 @@ Cancel is acknowledged with a separate response frame:
 The cancelled transform receives its own terminal error response.
 
 ### Shutdown
+
+Only `v`, `id`, and `op` are accepted. Extra fields are rejected.
 
 ```json
 {"v": 2, "id": "<request id>", "op": "shutdown"}

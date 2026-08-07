@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -144,7 +145,9 @@ func TestCloseConcurrent(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "cc-1", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "cc-tok",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -267,7 +270,9 @@ func TestCloseWaitsForGoroutines(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "1", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-1",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -409,7 +414,9 @@ func TestActiveCancelsCleanedAfterCompletion(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "cleanup-1", Op: "transform",
 		Path: "a.ts", Source: "const x = 1;", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-cleanup",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -426,9 +433,8 @@ func TestActiveCancelsCleanedAfterCompletion(t *testing.T) {
 	}
 
 	// Send a cancel for the same token — should be idempotent (no crash, no panic).
-	cancelReq := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "cancel-1", Op: "cancel",
-		CancelToken: "tok-cleanup",
+	cancelReq := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "cancel-1", Op: "cancel", CancelToken: "tok-cleanup",
 	}
 	if err := transform.EncodeFrame(conn, cancelReq); err != nil {
 		t.Fatal(err)
@@ -529,7 +535,9 @@ func TestBlockedWorkerExitsOnCancellation(t *testing.T) {
 	req1 := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "blk-1", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "blk-tok-1",
 	}
 	if err := transform.EncodeFrame(conn, req1); err != nil {
@@ -562,7 +570,9 @@ func TestBlockedWorkerExitsOnCancellation(t *testing.T) {
 	req2 := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "blk-2", Op: "transform",
 		Path: "b.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "blk-tok-2",
 	}
 
@@ -672,7 +682,9 @@ func TestInvocationContextCancelsActiveTransforms(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "ctx-cancel-1", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "ctx-tok",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -746,7 +758,9 @@ func TestSessionCloseReleasesActiveCancels(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "close-cleanup", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "close-tok",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -867,7 +881,10 @@ func TestDuplicateRequestIDRejected(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "dup-id", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
+		CancelToken: "dup-id",
 	}
 
 	// Connection 1: send request that blocks on engine.
@@ -944,8 +961,8 @@ func TestCancelTokenValidation(t *testing.T) {
 	}
 
 	// Missing cancel token.
-	req := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "ct-1", Op: "cancel",
+	req := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "ct-1", Op: "cancel", CancelToken: "",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
 		t.Fatal(err)
@@ -993,9 +1010,8 @@ func TestIdempotentCancel(t *testing.T) {
 	}
 
 	// Cancel a non-existent request — should succeed (idempotent).
-	req := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "ic-1", Op: "cancel",
-		CancelToken: "nonexistent",
+	req := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "ic-1", Op: "cancel", CancelToken: "nonexistent",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
 		t.Fatal(err)
@@ -1043,7 +1059,7 @@ func TestShutdownRequest(t *testing.T) {
 	}
 
 	// Send shutdown.
-	req := transform.TransformRequestV2{
+	req := transform.ShutdownRequest{
 		V: transform.ProtocolVersion, ID: "sd-1", Op: "shutdown",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -1281,7 +1297,10 @@ func TestTransformSuccessButCacheWriteFailure(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "cache-fail", Op: "transform",
 		Path: "test.ts", Source: src, SourceDigest: transform.DigestString(src),
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
+		CancelToken: "cache-fail",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
 		t.Fatal(err)
@@ -1360,7 +1379,9 @@ func TestCacheErrorDiagnosticsDoNotExposeCredentials(t *testing.T) {
 		V: transform.ProtocolVersion, ID: "no-leak", Op: "transform",
 		Path: "test.ts", Source: src, SourceDigest: transform.DigestString(src),
 		Loader: "ts", Format: "esm", NodeMajor: 20,
-		Options: `{"target":"ES2022"}`, OptsDigest: transform.DigestString(`{"target":"ES2022"}`),
+		SourceMap:   "none",
+		CancelToken: "no-leak",
+		Options:     `{"target":"ES2022"}`, OptsDigest: transform.DigestString(`{"target":"ES2022"}`),
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
 		t.Fatal(err)
@@ -1472,7 +1493,9 @@ func TestOpCancelProcessedWhileTransformInFlight(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "in-flight-1", Op: "transform",
 		Path: "a.ts", Source: "const x: number = 1;", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-inflight",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -1487,9 +1510,8 @@ func TestOpCancelProcessedWhileTransformInFlight(t *testing.T) {
 	}
 
 	// Now send OpCancel on the same connection.
-	cancelReq := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "cancel-inflight", Op: "cancel",
-		CancelToken: "tok-inflight",
+	cancelReq := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "cancel-inflight", Op: "cancel", CancelToken: "tok-inflight",
 	}
 	if err := transform.EncodeFrame(conn, cancelReq); err != nil {
 		t.Fatal(err)
@@ -1560,7 +1582,9 @@ func TestCancelProducesSingleTerminalResponse(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "single-1", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-single",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -1574,9 +1598,8 @@ func TestCancelProducesSingleTerminalResponse(t *testing.T) {
 	}
 
 	// Send cancel.
-	cancelReq := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "cancel-single", Op: "cancel",
-		CancelToken: "tok-single",
+	cancelReq := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "cancel-single", Op: "cancel", CancelToken: "tok-single",
 	}
 	if err := transform.EncodeFrame(conn, cancelReq); err != nil {
 		t.Fatal(err)
@@ -1645,7 +1668,9 @@ func TestCancelOneDoesNotAffectOther(t *testing.T) {
 	req1 := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "conc-1", Op: "transform",
 		Path: "a.ts", Source: "const x: number = 1;", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-conc-1",
 	}
 	if err := transform.EncodeFrame(conn, req1); err != nil {
@@ -1663,7 +1688,9 @@ func TestCancelOneDoesNotAffectOther(t *testing.T) {
 	req2 := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "conc-2", Op: "transform",
 		Path: "b.ts", Source: "const x: number = 1;", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-conc-2",
 	}
 	if err := transform.EncodeFrame(conn, req2); err != nil {
@@ -1671,9 +1698,8 @@ func TestCancelOneDoesNotAffectOther(t *testing.T) {
 	}
 
 	// Cancel request 1.
-	cancelReq := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "cancel-conc", Op: "cancel",
-		CancelToken: "tok-conc-1",
+	cancelReq := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "cancel-conc", Op: "cancel", CancelToken: "tok-conc-1",
 	}
 	if err := transform.EncodeFrame(conn, cancelReq); err != nil {
 		t.Fatal(err)
@@ -1790,7 +1816,9 @@ func TestDuplicateCancelIdempotent(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "dup-cancel-1", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-dup-cancel",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -1804,18 +1832,16 @@ func TestDuplicateCancelIdempotent(t *testing.T) {
 	}
 
 	// First cancel.
-	c1 := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "cancel-dup-1", Op: "cancel",
-		CancelToken: "tok-dup-cancel",
+	c1 := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "cancel-dup-1", Op: "cancel", CancelToken: "tok-dup-cancel",
 	}
 	if err := transform.EncodeFrame(conn, c1); err != nil {
 		t.Fatal(err)
 	}
 
 	// Second cancel — same token, should still be OK.
-	c2 := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "cancel-dup-2", Op: "cancel",
-		CancelToken: "tok-dup-cancel",
+	c2 := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "cancel-dup-2", Op: "cancel", CancelToken: "tok-dup-cancel",
 	}
 	if err := transform.EncodeFrame(conn, c2); err != nil {
 		t.Fatal(err)
@@ -1868,9 +1894,8 @@ func TestUnknownCancelTokenIdempotent(t *testing.T) {
 	}
 
 	// Cancel a never-registered token.
-	req := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "unknown-tok", Op: "cancel",
-		CancelToken: "never-existed",
+	req := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "unknown-tok", Op: "cancel", CancelToken: "never-existed",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
 		t.Fatal(err)
@@ -1925,7 +1950,9 @@ func TestCancelAlreadyCompletedToken(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "fast-1", Op: "transform",
 		Path: "a.ts", Source: "const x: number = 1;", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-fast",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -1942,9 +1969,8 @@ func TestCancelAlreadyCompletedToken(t *testing.T) {
 	}
 
 	// Now cancel the already-completed token.
-	cancelReq := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "cancel-fast", Op: "cancel",
-		CancelToken: "tok-fast",
+	cancelReq := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "cancel-fast", Op: "cancel", CancelToken: "tok-fast",
 	}
 	if err := transform.EncodeFrame(conn, cancelReq); err != nil {
 		t.Fatal(err)
@@ -2004,7 +2030,9 @@ func TestCancelWhileWaitingForWorkerSlot(t *testing.T) {
 	req1 := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "slot-1", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-slot-1",
 	}
 	if err := transform.EncodeFrame(conn, req1); err != nil {
@@ -2018,7 +2046,9 @@ func TestCancelWhileWaitingForWorkerSlot(t *testing.T) {
 	req2 := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "slot-2", Op: "transform",
 		Path: "b.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-slot-2",
 	}
 	if err := transform.EncodeFrame(conn, req2); err != nil {
@@ -2029,9 +2059,8 @@ func TestCancelWhileWaitingForWorkerSlot(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Cancel the second request while it's waiting for a worker slot.
-	cancelReq := transform.TransformRequestV2{
-		V: transform.ProtocolVersion, ID: "cancel-slot", Op: "cancel",
-		CancelToken: "tok-slot-2",
+	cancelReq := transform.CancelRequest{
+		V: transform.ProtocolVersion, ID: "cancel-slot", Op: "cancel", CancelToken: "tok-slot-2",
 	}
 	if err := transform.EncodeFrame(conn, cancelReq); err != nil {
 		t.Fatal(err)
@@ -2105,7 +2134,9 @@ func TestResponseWriteFailureCleanup(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "conn-fail", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-conn-fail",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -2179,7 +2210,9 @@ func TestShutdownCancelsMultipleActiveTransforms(t *testing.T) {
 			V:  transform.ProtocolVersion,
 			ID: fmt.Sprintf("shutdown-%d", i), Op: "transform",
 			Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-			Loader: "ts", Format: "esm", NodeMajor: 20,
+			OptsDigest: transform.DigestString(""),
+			Loader:     "ts", Format: "esm", NodeMajor: 20,
+			SourceMap:   "none",
 			CancelToken: fmt.Sprintf("tok-shutdown-%d", i),
 		}
 		if err := transform.EncodeFrame(conn, req); err != nil {
@@ -2255,7 +2288,9 @@ func TestDuplicateActiveRequestIDRejected(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "dup-on-same", Op: "transform",
 		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-dup-id",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -2273,7 +2308,9 @@ func TestDuplicateActiveRequestIDRejected(t *testing.T) {
 	dupReq := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "dup-on-same", Op: "transform",
 		Path: "b.ts", Source: "x", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-dup-id-2",
 	}
 	if err := transform.EncodeFrame(conn, dupReq); err != nil {
@@ -2333,7 +2370,9 @@ func TestRequestTimeoutSendsCancellation(t *testing.T) {
 	req := transform.TransformRequestV2{
 		V: transform.ProtocolVersion, ID: "timeout-1", Op: "transform",
 		Path: "a.ts", Source: "const x: number = 1;", SourceDigest: srcDigest,
-		Loader: "ts", Format: "esm", NodeMajor: 20,
+		OptsDigest: transform.DigestString(""),
+		Loader:     "ts", Format: "esm", NodeMajor: 20,
+		SourceMap:   "none",
 		CancelToken: "tok-timeout",
 	}
 	if err := transform.EncodeFrame(conn, req); err != nil {
@@ -2358,5 +2397,293 @@ func TestRequestTimeoutSendsCancellation(t *testing.T) {
 	}
 	if resp.ErrCode != "ERR_M_TRANSFORM_TIMEOUT" {
 		t.Errorf("expected ERR_M_TRANSFORM_TIMEOUT, got %q", resp.ErrCode)
+	}
+}
+
+// ── Strict validation service-level tests ───────────────────────────
+
+// recordingEngine records whether Transform was ever called.
+type recordingEngine struct {
+	called atomic.Bool
+	transform.EngineIdentity
+}
+
+func (e *recordingEngine) Identity() transform.EngineIdentity { return e.EngineIdentity }
+
+func (e *recordingEngine) Transform(_ context.Context, _ transform.TransformRequest) (transform.TransformResult, error) {
+	e.called.Store(true)
+	return transform.TransformResult{
+		Code: []byte("ok"), OutputDigest: "abc", CacheStatus: transform.CacheStatusMiss,
+	}, nil
+}
+
+func (e *recordingEngine) wasCalled() bool { return e.called.Load() }
+
+func TestInvalidRequestNeverReachesEngine(t *testing.T) {
+	// Proves that requests with bad digests are rejected synchronously in the
+	// read loop and never acquire a worker slot or reach the engine.
+	eng := &recordingEngine{EngineIdentity: transform.EngineIdentity{Name: "record", Version: "1"}}
+	sess, err := transform.NewSession(transform.ServiceOptions{
+		Context: context.Background(),
+		Engine:  eng,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sess.Close() }()
+
+	if err := sess.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := net.Dial("tcp", sess.Endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	// Auth.
+	authReq := transform.HelloRequest{V: transform.ProtocolVersion, Token: sess.Token}
+	if err := transform.EncodeFrame(conn, authReq); err != nil {
+		t.Fatal(err)
+	}
+	var authResp transform.HelloResponse
+	if err := transform.DecodeFrame(conn, &authResp); err != nil {
+		t.Fatal(err)
+	}
+	if !authResp.OK {
+		t.Fatalf("auth failed: %s", authResp.Reason)
+	}
+
+	src := "const x: number = 1;"
+
+	// Send transform with mismatched source digest — structurally valid,
+	// but digest verification must reject it before engine work.
+	badDigest := transform.DigestString("wrong content")
+	req := transform.TransformRequestV2{
+		V: transform.ProtocolVersion, ID: "bad-digest", Op: "transform",
+		Path: "a.ts", Source: src, SourceDigest: badDigest,
+		Loader: "ts", Format: "esm", OptsDigest: transform.DigestString(""),
+		NodeMajor: 20, SourceMap: "none", CancelToken: "bad-digest",
+	}
+	if err := transform.EncodeFrame(conn, req); err != nil {
+		t.Fatal(err)
+	}
+
+	var resp transform.TransformResponseV2
+	if err := transform.DecodeFrame(conn, &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.OK {
+		t.Fatal("expected digest mismatch error, got success")
+	}
+
+	// Engine must never have been called.
+	if eng.wasCalled() {
+		t.Fatal("engine was called for a request with bad source digest")
+	}
+}
+
+func TestInvalidRequestNeverReachesEngine_BadOptsDigest(t *testing.T) {
+	eng := &recordingEngine{EngineIdentity: transform.EngineIdentity{Name: "record", Version: "1"}}
+	sess, err := transform.NewSession(transform.ServiceOptions{
+		Context: context.Background(),
+		Engine:  eng,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sess.Close() }()
+
+	if err := sess.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := net.Dial("tcp", sess.Endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	authReq := transform.HelloRequest{V: transform.ProtocolVersion, Token: sess.Token}
+	if err := transform.EncodeFrame(conn, authReq); err != nil {
+		t.Fatal(err)
+	}
+	var authResp transform.HelloResponse
+	if err := transform.DecodeFrame(conn, &authResp); err != nil {
+		t.Fatal(err)
+	}
+	if !authResp.OK {
+		t.Fatalf("auth failed: %s", authResp.Reason)
+	}
+
+	src := "const x: number = 1;"
+	srcDigest := transform.DigestString(src)
+	badOptsDigest := transform.DigestString("wrong options")
+
+	req := transform.TransformRequestV2{
+		V: transform.ProtocolVersion, ID: "bad-opts", Op: "transform",
+		Path: "a.ts", Source: src, SourceDigest: srcDigest,
+		Loader: "ts", Format: "esm", Options: `{"target":"ES2022"}`,
+		OptsDigest: badOptsDigest,
+		NodeMajor:  20, SourceMap: "none", CancelToken: "bad-opts",
+	}
+	if err := transform.EncodeFrame(conn, req); err != nil {
+		t.Fatal(err)
+	}
+
+	var resp transform.TransformResponseV2
+	if err := transform.DecodeFrame(conn, &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.OK {
+		t.Fatal("expected opts digest mismatch error, got success")
+	}
+	if eng.wasCalled() {
+		t.Fatal("engine was called for a request with bad options digest")
+	}
+}
+
+func TestRejectTransformFieldsOnCancel(t *testing.T) {
+	sess, err := transform.NewSession(transform.ServiceOptions{
+		Context: context.Background(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sess.Close() }()
+
+	if err := sess.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := net.Dial("tcp", sess.Endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	authReq := transform.HelloRequest{V: transform.ProtocolVersion, Token: sess.Token}
+	if err := transform.EncodeFrame(conn, authReq); err != nil {
+		t.Fatal(err)
+	}
+	var authResp transform.HelloResponse
+	if err := transform.DecodeFrame(conn, &authResp); err != nil {
+		t.Fatal(err)
+	}
+	if !authResp.OK {
+		t.Fatalf("auth failed: %s", authResp.Reason)
+	}
+
+	// Send a cancel with transform-specific fields — strict decoding must reject.
+	body := []byte(`{"v":2,"id":"c1","op":"cancel","cancel_token":"tok","path":"/evil.ts","source":"malicious"}`)
+	hdr := [4]byte{}
+	hdr[0] = byte(len(body))
+	_, _ = conn.Write(hdr[:])
+	_, _ = conn.Write(body)
+
+	var resp transform.TransformResponseV2
+	if err := transform.DecodeFrame(conn, &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.OK {
+		t.Fatal("expected rejection of cancel with transform fields")
+	}
+}
+
+func TestRejectTransformFieldsOnShutdown(t *testing.T) {
+	sess, err := transform.NewSession(transform.ServiceOptions{
+		Context: context.Background(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sess.Close() }()
+
+	if err := sess.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := net.Dial("tcp", sess.Endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	authReq := transform.HelloRequest{V: transform.ProtocolVersion, Token: sess.Token}
+	if err := transform.EncodeFrame(conn, authReq); err != nil {
+		t.Fatal(err)
+	}
+	var authResp transform.HelloResponse
+	if err := transform.DecodeFrame(conn, &authResp); err != nil {
+		t.Fatal(err)
+	}
+	if !authResp.OK {
+		t.Fatalf("auth failed: %s", authResp.Reason)
+	}
+
+	// Shutdown with transform-specific fields — must be rejected.
+	body := []byte(`{"v":2,"id":"s1","op":"shutdown","loader":"ts"}`)
+	hdr := [4]byte{}
+	hdr[0] = byte(len(body))
+	_, _ = conn.Write(hdr[:])
+	_, _ = conn.Write(body)
+
+	var resp transform.TransformResponseV2
+	if err := transform.DecodeFrame(conn, &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.OK {
+		t.Fatal("expected rejection of shutdown with transform fields")
+	}
+}
+
+func TestRejectUnknownOp(t *testing.T) {
+	sess, err := transform.NewSession(transform.ServiceOptions{
+		Context: context.Background(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sess.Close() }()
+
+	if err := sess.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := net.Dial("tcp", sess.Endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	authReq := transform.HelloRequest{V: transform.ProtocolVersion, Token: sess.Token}
+	if err := transform.EncodeFrame(conn, authReq); err != nil {
+		t.Fatal(err)
+	}
+	var authResp transform.HelloResponse
+	if err := transform.DecodeFrame(conn, &authResp); err != nil {
+		t.Fatal(err)
+	}
+	if !authResp.OK {
+		t.Fatalf("auth failed: %s", authResp.Reason)
+	}
+
+	// Unknown operation.
+	body := []byte(`{"v":2,"id":"u1","op":"bundle"}`)
+	hdr := [4]byte{}
+	hdr[0] = byte(len(body))
+	_, _ = conn.Write(hdr[:])
+	_, _ = conn.Write(body)
+
+	var resp transform.TransformResponseV2
+	if err := transform.DecodeFrame(conn, &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.OK {
+		t.Fatal("expected rejection of unknown op")
+	}
+	if resp.ErrCode != "ERR_M_UNSUPPORTED" {
+		t.Errorf("expected ERR_M_UNSUPPORTED, got %q", resp.ErrCode)
 	}
 }

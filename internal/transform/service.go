@@ -324,7 +324,7 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 	// don't interleave frames on the same TCP connection.
 	var writeMu sync.Mutex
 
-	// Step 2: process requests.
+	// Step 2: process requests with strict per-operation decoding.
 	for {
 		if s.closed.Load() {
 			return
@@ -336,8 +336,8 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 		// Set read deadline for idle detection.
 		_ = conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
 
-		var req TransformRequestV2
-		if err := DecodeFrame(conn, &req); err != nil {
+		body, err := ReadFrameBody(conn)
+		if err != nil {
 			if err == io.EOF {
 				return // clean disconnect
 			}
@@ -349,10 +349,28 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 		// idle detection, not active work).
 		_ = conn.SetReadDeadline(time.Time{})
 
-		// Dispatch with per-operation validation.
-		switch req.Op {
+		op, err := PeekOp(body)
+		if err != nil || op == "" {
+			writeResponseLocked(&writeMu, conn, TransformResponseV2{
+				V: ProtocolVersion, ID: "", OK: false,
+				ErrCode: string(apperr.Unsupported),
+				Error:   "missing or malformed op",
+			})
+			continue
+		}
+
+		switch op {
 		case OpHealth:
-			if err := ValidateRequestHeader(req.V, req.ID, req.Op, OpHealth); err != nil {
+			var req HealthRequest
+			if err := StrictUnmarshal(body, &req); err != nil {
+				writeResponseLocked(&writeMu, conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: string(apperr.Usage),
+					Error:   SanitizeErrorMessage(fmt.Sprintf("invalid health request: %v", err)),
+				})
+				continue
+			}
+			if err := req.Validate(); err != nil {
 				writeResponseLocked(&writeMu, conn, TransformResponseV2{
 					V: ProtocolVersion, ID: req.ID, OK: false,
 					ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
@@ -363,6 +381,15 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 			writeResponseLocked(&writeMu, conn, TransformResponseV2{V: ProtocolVersion, ID: req.ID, OK: true})
 
 		case OpTransform:
+			var req TransformRequestV2
+			if err := StrictUnmarshal(body, &req); err != nil {
+				writeResponseLocked(&writeMu, conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: string(apperr.Usage),
+					Error:   SanitizeErrorMessage(fmt.Sprintf("invalid transform request: %v", err)),
+				})
+				continue
+			}
 			if err := req.Validate(); err != nil {
 				writeResponseLocked(&writeMu, conn, TransformResponseV2{
 					V: ProtocolVersion, ID: req.ID, OK: false,
@@ -378,6 +405,25 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 					V: ProtocolVersion, ID: req.ID, OK: false,
 					ErrCode: string(apperr.TransformUnavailable),
 					Error:   "service shutting down",
+				})
+				continue
+			}
+
+			// --- Verify digests synchronously before any resource allocation.
+			// This ensures invalid requests never reach cache or engine.
+			if err := VerifySourceDigest(req.Source, req.SourceDigest); err != nil {
+				writeResponseLocked(&writeMu, conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
+					Error:   SanitizeErrorMessage(err.Error()),
+				})
+				continue
+			}
+			if err := VerifyOptionsDigest(req.Options, req.OptsDigest); err != nil {
+				writeResponseLocked(&writeMu, conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
+					Error:   SanitizeErrorMessage(err.Error()),
 				})
 				continue
 			}
@@ -404,26 +450,25 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 			reqCtx, reqCancel := context.WithTimeout(ctx, s.requestTimeout)
 
 			// Register cancel token for OpCancel tracking.
-			if req.CancelToken != "" {
-				s.activeCancelsMu.Lock()
-				if _, exists := s.activeCancels[req.CancelToken]; exists {
-					s.activeCancelsMu.Unlock()
-					reqCancel()
-					s.activeIDsMu.Lock()
-					delete(s.activeIDs, req.ID)
-					s.activeIDsMu.Unlock()
-					writeResponseLocked(&writeMu, conn, TransformResponseV2{
-						V: ProtocolVersion, ID: req.ID, OK: false,
-						ErrCode: string(apperr.Usage),
-						Error:   "duplicate cancel token",
-					})
-					continue
-				}
-				s.activeCancels[req.CancelToken] = reqCancel
+			s.activeCancelsMu.Lock()
+			if _, exists := s.activeCancels[req.CancelToken]; exists {
 				s.activeCancelsMu.Unlock()
+				reqCancel()
+				s.activeIDsMu.Lock()
+				delete(s.activeIDs, req.ID)
+				s.activeIDsMu.Unlock()
+				writeResponseLocked(&writeMu, conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: string(apperr.Usage),
+					Error:   "duplicate cancel token",
+				})
+				continue
 			}
+			s.activeCancels[req.CancelToken] = reqCancel
+			s.activeCancelsMu.Unlock()
 
 			// --- Dispatch work to a goroutine so the read loop stays responsive.
+			// Digests were already verified above; the goroutine skips re-verification.
 			s.wg.Add(1)
 			go func() {
 				defer s.wg.Done()
@@ -432,20 +477,36 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 					s.activeIDsMu.Lock()
 					delete(s.activeIDs, req.ID)
 					s.activeIDsMu.Unlock()
-					if req.CancelToken != "" {
-						s.activeCancelsMu.Lock()
-						delete(s.activeCancels, req.CancelToken)
-						s.activeCancelsMu.Unlock()
-					}
+					s.activeCancelsMu.Lock()
+					delete(s.activeCancels, req.CancelToken)
+					s.activeCancelsMu.Unlock()
 				}()
 				s.handleTransformWork(reqCtx, conn, &req, &writeMu)
 			}()
 
 		case OpCancel:
+			var req CancelRequest
+			if err := StrictUnmarshal(body, &req); err != nil {
+				writeResponseLocked(&writeMu, conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: string(apperr.Usage),
+					Error:   SanitizeErrorMessage(fmt.Sprintf("invalid cancel request: %v", err)),
+				})
+				continue
+			}
 			s.processCancel(conn, &req, &writeMu)
 
 		case OpShutdown:
-			if err := ValidateRequestHeader(req.V, req.ID, req.Op, OpShutdown); err != nil {
+			var req ShutdownRequest
+			if err := StrictUnmarshal(body, &req); err != nil {
+				writeResponseLocked(&writeMu, conn, TransformResponseV2{
+					V: ProtocolVersion, ID: req.ID, OK: false,
+					ErrCode: string(apperr.Usage),
+					Error:   SanitizeErrorMessage(fmt.Sprintf("invalid shutdown request: %v", err)),
+				})
+				continue
+			}
+			if err := req.Validate(); err != nil {
 				writeResponseLocked(&writeMu, conn, TransformResponseV2{
 					V: ProtocolVersion, ID: req.ID, OK: false,
 					ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
@@ -457,10 +518,15 @@ func (s *Session) handleConn(ctx context.Context, conn net.Conn) {
 			return
 
 		default:
+			// Extract ID for error response if available.
+			var probe struct {
+				ID string `json:"id"`
+			}
+			_ = json.Unmarshal(body, &probe)
 			writeResponseLocked(&writeMu, conn, TransformResponseV2{
-				V: ProtocolVersion, ID: req.ID, OK: false,
+				V: ProtocolVersion, ID: probe.ID, OK: false,
 				ErrCode: string(apperr.Unsupported),
-				Error:   fmt.Sprintf("unknown op %q", req.Op),
+				Error:   fmt.Sprintf("unknown op %q", op),
 			})
 		}
 	}
@@ -477,29 +543,14 @@ func writeResponseLocked(mu *sync.Mutex, conn net.Conn, resp TransformResponseV2
 
 // processCancel handles an OpCancel frame inline in the read loop.
 // The lookup and cancel call are fast (mutex + function call); no I/O
-// except the final acknowledgment write.
-func (s *Session) processCancel(conn net.Conn, req *TransformRequestV2, writeMu *sync.Mutex) {
-	if err := ValidateRequestHeader(req.V, req.ID, req.Op, OpCancel); err != nil {
+// except the final acknowledgment write. Validation and strict decoding
+// were already performed by the caller.
+func (s *Session) processCancel(conn net.Conn, req *CancelRequest, writeMu *sync.Mutex) {
+	if err := req.Validate(); err != nil {
 		writeResponseLocked(writeMu, conn, TransformResponseV2{
 			V: ProtocolVersion, ID: req.ID, OK: false,
 			ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
 			Error:   SanitizeErrorMessage(err.Error()),
-		})
-		return
-	}
-	if req.CancelToken == "" {
-		writeResponseLocked(writeMu, conn, TransformResponseV2{
-			V: ProtocolVersion, ID: req.ID, OK: false,
-			ErrCode: string(apperr.Usage),
-			Error:   "missing cancel token",
-		})
-		return
-	}
-	if len(req.CancelToken) > MaxCancelTokenLength {
-		writeResponseLocked(writeMu, conn, TransformResponseV2{
-			V: ProtocolVersion, ID: req.ID, OK: false,
-			ErrCode: string(apperr.Usage),
-			Error:   "cancel token too long",
 		})
 		return
 	}
@@ -518,10 +569,10 @@ func (s *Session) processCancel(conn net.Conn, req *TransformRequestV2, writeMu 
 }
 
 // handleTransformWork runs the transform pipeline for a single request.
-// Pre-flight (ID registration, context creation, cancel-token registration)
-// is already done synchronously in handleConn before this goroutine starts.
-// The reqCtx carries both the session-scoped cancellation and a per-request
-// timeout.
+// Pre-flight (ID registration, context creation, cancel-token registration,
+// digest verification) is already done synchronously in handleConn before
+// this goroutine starts. The reqCtx carries both the session-scoped
+// cancellation and a per-request timeout.
 func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req *TransformRequestV2, writeMu *sync.Mutex) {
 	// Acquire worker slot (context-aware — respects cancellation while waiting).
 	select {
@@ -538,27 +589,9 @@ func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req
 	s.active.Add(1)
 	defer s.active.Add(-1)
 
-	// Verify source digest before any processing.
-	if err := VerifySourceDigest(req.Source, req.SourceDigest); err != nil {
-		writeResponseLocked(writeMu, conn, TransformResponseV2{
-			V: ProtocolVersion, ID: req.ID, OK: false,
-			ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
-			Error:   SanitizeErrorMessage(err.Error()),
-		})
-		return
-	}
-
-	// Verify options digest and parse options.
+	// Parse options (digests were already verified in the read loop).
 	var opts NormalizedOptions
 	if req.Options != "" {
-		if err := VerifyOptionsDigest(req.Options, req.OptsDigest); err != nil {
-			writeResponseLocked(writeMu, conn, TransformResponseV2{
-				V: ProtocolVersion, ID: req.ID, OK: false,
-				ErrCode: SanitizeErrorCode(string(apperr.CodeOf(err))),
-				Error:   SanitizeErrorMessage(err.Error()),
-			})
-			return
-		}
 		if err := json.Unmarshal([]byte(req.Options), &opts); err != nil {
 			writeResponseLocked(writeMu, conn, TransformResponseV2{
 				V: ProtocolVersion, ID: req.ID, OK: false,
@@ -638,9 +671,7 @@ func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req
 	cancelled := reqCtx.Err() != nil
 	if stillActive && !cancelled {
 		// Commit to success: remove token so late cancel is a no-op.
-		if req.CancelToken != "" {
-			delete(s.activeCancels, req.CancelToken)
-		}
+		delete(s.activeCancels, req.CancelToken)
 	}
 	s.activeCancelsMu.Unlock()
 
