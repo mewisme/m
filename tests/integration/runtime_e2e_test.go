@@ -1134,6 +1134,397 @@ func TestRuntimeE2ECredentialIsolationUnauthTransformRejected(t *testing.T) {
 	}
 }
 
+// --- Issue 13: CJS/ESM format semantics for TypeScript ---
+
+// TestRuntimeE2ETSInCJSPackage runs a .ts file inside a "type": "commonjs"
+// package and verifies it executes with CommonJS semantics (require available).
+func TestRuntimeE2ETSInCJSPackage(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for CJS loader hooks")
+	}
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "commonjs"}`)
+	writeFile(t, filepath.Join(projDir, "cjs-hello.ts"),
+		"const msg: string = 'hello from cjs ts';\n"+
+			"const fs = require('node:fs');\n"+
+			"fs.writeFileSync('output.txt', msg + '\\n');\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "cjs-hello.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "hello from cjs ts" {
+		t.Fatalf("got %q, want 'hello from cjs ts'", out)
+	}
+}
+
+// TestRuntimeE2ETSInESMPackage runs a .ts file inside a "type": "module"
+// package and verifies it executes with ESM semantics.
+func TestRuntimeE2ETSInESMPackage(t *testing.T) {
+	skipWithoutNode(t)
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "module"}`)
+	writeFile(t, filepath.Join(projDir, "esm-hello.ts"),
+		"import { writeFileSync } from 'node:fs';\n"+
+			"const msg: string = 'hello from esm ts';\n"+
+			"writeFileSync('output.txt', msg + '\\n');\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "esm-hello.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "hello from esm ts" {
+		t.Fatalf("got %q, want 'hello from esm ts'", out)
+	}
+}
+
+// TestRuntimeE2EMTSInsideCJSPackage verifies .mts is always ESM regardless
+// of surrounding "type": "commonjs" package.
+func TestRuntimeE2EMTSInsideCJSPackage(t *testing.T) {
+	skipWithoutNode(t)
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "commonjs"}`)
+	writeFile(t, filepath.Join(projDir, "always-esm.mts"),
+		"import { writeFileSync } from 'node:fs';\n"+
+			"const msg: string = 'mts always esm';\n"+
+			"writeFileSync('output.txt', msg + '\\n');\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "always-esm.mts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "mts always esm" {
+		t.Fatalf("got %q, want 'mts always esm'", out)
+	}
+}
+
+// TestRuntimeE2ECTSInsideESMPackage verifies .cts is always CommonJS
+// regardless of surrounding "type": "module" package.
+func TestRuntimeE2ECTSInsideESMPackage(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for CJS loader hooks")
+	}
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "module"}`)
+	writeFile(t, filepath.Join(projDir, "always-cjs.cts"),
+		"const msg: string = 'cts always cjs';\n"+
+			"const fs = require('node:fs');\n"+
+			"fs.writeFileSync('output.txt', msg + '\\n');\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "always-cjs.cts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "cts always cjs" {
+		t.Fatalf("got %q, want 'cts always cjs'", out)
+	}
+}
+
+// TestRuntimeE2ETSNoPackageJSON verifies .ts defaults to CommonJS when no
+// package.json exists (Node default behavior).
+func TestRuntimeE2ETSNoPackageJSON(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for CJS loader hooks")
+	}
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "default-cjs.ts"),
+		"const msg: string = 'default cjs';\n"+
+			"const fs = require('node:fs');\n"+
+			"fs.writeFileSync('output.txt', msg + '\\n');\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "default-cjs.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "default cjs" {
+		t.Fatalf("got %q, want 'default cjs'", out)
+	}
+}
+
+// TestRuntimeE2ENestedPackageBoundary verifies that a nested package.json
+// with a different "type" overrides the parent package type.
+func TestRuntimeE2ENestedPackageBoundary(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for CJS loader hooks")
+	}
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	// Parent: ESM package.
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "module"}`)
+	// Child subdirectory: CJS package (overrides parent).
+	subDir := filepath.Join(projDir, "cjs-child")
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(subDir, "package.json"), `{"type": "commonjs"}`)
+	writeFile(t, filepath.Join(subDir, "nested-cjs.ts"),
+		"const msg: string = 'nested cjs';\n"+
+			"const fs = require('node:fs');\n"+
+			"fs.writeFileSync('output.txt', msg + '\\n');\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	// Run from parent dir; file is in child subdirectory.
+	code, _ := runMProject(t, projDir, filepath.Join("cjs-child", "nested-cjs.ts"))
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "nested cjs" {
+		t.Fatalf("got %q, want 'nested cjs'", out)
+	}
+}
+
+// TestRuntimeE2EExtensionSubstitutionCJSPackage verifies extension
+// substitution (./lib.js -> ./lib.ts) preserves CJS format when inside a
+// CommonJS package.
+func TestRuntimeE2EExtensionSubstitutionCJSPackage(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for CJS loader hooks")
+	}
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "commonjs"}`)
+	// The actual .ts file that will be loaded via extension substitution.
+	writeFile(t, filepath.Join(projDir, "lib-cjs.ts"),
+		"const msg: string = 'ext-sub-cjs';\n"+
+			"const fs = require('node:fs');\n"+
+			"fs.writeFileSync('output.txt', msg + '\\n');\n")
+	// Import specifier uses .ts directly — CJS require() bypasses ESM loader
+	// hooks (including extension substitution). Use actual extension.
+	writeFile(t, filepath.Join(projDir, "import-ext-cjs.ts"),
+		"const lib = require('./lib-cjs.ts');\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "import-ext-cjs.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "ext-sub-cjs" {
+		t.Fatalf("got %q, want 'ext-sub-cjs'", out)
+	}
+}
+
+// TestRuntimeE2EExtensionSubstitutionESMPackage verifies extension
+// substitution (./lib.js -> ./lib.ts) preserves ESM format when inside
+// an ESM package.
+func TestRuntimeE2EExtensionSubstitutionESMPackage(t *testing.T) {
+	skipWithoutNode(t)
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "module"}`)
+	writeFile(t, filepath.Join(projDir, "lib-esm.ts"),
+		"import { writeFileSync } from 'node:fs';\n"+
+			"const msg: string = 'ext-sub-esm';\n"+
+			"writeFileSync('output.txt', msg + '\\n');\n")
+	// Import specifier uses .js but resolves to .ts via extension substitution.
+	writeFile(t, filepath.Join(projDir, "import-ext-esm.ts"),
+		"import './lib-esm.js';\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "import-ext-esm.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "ext-sub-esm" {
+		t.Fatalf("got %q, want 'ext-sub-esm'", out)
+	}
+}
+
+// TestRuntimeE2ETSModuleExportsCJS verifies that a CommonJS .ts file can
+// use module.exports and be required by another CommonJS .ts file.
+func TestRuntimeE2ETSModuleExportsCJS(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for CJS loader hooks")
+	}
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "commonjs"}`)
+	writeFile(t, filepath.Join(projDir, "math-lib.ts"),
+		"module.exports.add = function add(a: number, b: number): number {\n"+
+			"  return a + b;\n"+
+			"};\n")
+	writeFile(t, filepath.Join(projDir, "use-math.ts"),
+		"const math = require('./math-lib.ts');\n"+
+			"const fs = require('node:fs');\n"+
+			"const result: number = math.add(2, 3);\n"+
+			"fs.writeFileSync('output.txt', String(result) + '\\n');\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "use-math.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "5" {
+		t.Fatalf("got %q, want '5'", out)
+	}
+}
+
+// TestRuntimeE2ETSDynamicImportFromCJS verifies dynamic import() works from
+// a CJS .ts file importing an ESM .mts file.
+func TestRuntimeE2ETSDynamicImportFromCJS(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for CJS loader hooks")
+	}
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "commonjs"}`)
+	// ESM module that exports a value.
+	writeFile(t, filepath.Join(projDir, "esm-export.mts"),
+		"export const msg: string = 'dynamic-import-works';\n")
+	// CJS file that dynamically imports the ESM module.
+	writeFile(t, filepath.Join(projDir, "dyn-import.ts"),
+		"const fs = require('node:fs');\n"+
+			"async function main() {\n"+
+			"  const mod = await import('./esm-export.mjs');\n"+
+			"  fs.writeFileSync('output.txt', mod.msg + '\\n');\n"+
+			"}\n"+
+			"main().catch(function(e) { fs.writeFileSync('output.txt', 'error: ' + e.message + '\\n'); process.exit(1); });\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "dyn-import.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "dynamic-import-works" {
+		t.Fatalf("got %q, want 'dynamic-import-works'", out)
+	}
+}
+
+// TestRuntimeE2ETSXInCJSPackage verifies .tsx inside a "type": "commonjs"
+// package uses CommonJS semantics.
+func TestRuntimeE2ETSXInCJSPackage(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for CJS loader hooks")
+	}
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "commonjs"}`)
+	writeFile(t, filepath.Join(projDir, "cjs-tsx.tsx"),
+		"const fs = require('node:fs');\n"+
+			"const msg: string = 'tsx in cjs';\n"+
+			"fs.writeFileSync('output.txt', msg + '\\n');\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "cjs-tsx.tsx")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "tsx in cjs" {
+		t.Fatalf("got %q, want 'tsx in cjs'", out)
+	}
+}
+
+// TestRuntimeE2EMJSToMTSSubstitutionPreservesESM verifies .mjs -> .mts
+// extension substitution preserves ESM format (always ESM, regardless of
+// package type). Runs the .mts file directly after confirming extension
+// substitution via an ESM entrypoint.
+func TestRuntimeE2EMJSToMTSSubstitutionPreservesESM(t *testing.T) {
+	skipWithoutNode(t)
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "commonjs"}`)
+	writeFile(t, filepath.Join(projDir, "target.mts"),
+		"import { writeFileSync } from 'node:fs';\n"+
+			"const msg: string = 'mjs-to-mts-esm';\n"+
+			"writeFileSync('output.txt', msg + '\\n');\n")
+	// ESM entrypoint imports .mjs specifier → resolves to .mts.
+	writeFile(t, filepath.Join(projDir, "import-target.mts"),
+		"import './target.mjs';\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "import-target.mts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "mjs-to-mts-esm" {
+		t.Fatalf("got %q, want 'mjs-to-mts-esm'", out)
+	}
+}
+
+// TestRuntimeE2ECJSToCTSSubstitutionPreservesCJS verifies .cjs -> .cts
+// extension substitution preserves CJS format (always CJS, regardless of
+// package type).
+func TestRuntimeE2ECJSToCTSSubstitutionPreservesCJS(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for CJS loader hooks")
+	}
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	writeFile(t, filepath.Join(projDir, "package.json"), `{"type": "module"}`)
+	writeFile(t, filepath.Join(projDir, "target.cts"),
+		"const msg: string = 'cjs-to-cts-cjs';\n"+
+			"const fs = require('node:fs');\n"+
+			"fs.writeFileSync('output.txt', msg + '\\n');\n")
+	writeFile(t, filepath.Join(projDir, "import-target.ts"),
+		"import './target.cjs';\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, projDir, "import-target.ts")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, projDir); out != "cjs-to-cts-cjs" {
+		t.Fatalf("got %q, want 'cjs-to-cts-cjs'", out)
+	}
+}
+
+// TestRuntimeE2ETSModuleFormatCacheKeyRegression verifies that the same
+// TypeScript source in different module-format contexts cannot collide in
+// cache. Runs the same file twice — once as CJS, once as ESM — and verifies
+// both produce correct output.
+func TestRuntimeE2ETSModuleFormatCacheKeyRegression(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for CJS loader hooks")
+	}
+	testkit.CleanEnv(t)
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+	t.Setenv("USERPROFILE", homeDir)
+
+	// CJS project.
+	cjsDir := filepath.Join(homeDir, "cjs-proj")
+	if err := os.MkdirAll(cjsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(cjsDir, "package.json"), `{"type": "commonjs"}`)
+	writeFile(t, filepath.Join(cjsDir, "dual.ts"),
+		"const fs = require('node:fs');\n"+
+			"const msg: string = 'cjs-output';\n"+
+			"fs.writeFileSync('output.txt', msg + '\\n');\n")
+	t.Setenv("MEW_EXPERIMENTAL_RUNTIME", "1")
+	code, _ := runMProject(t, cjsDir, "dual.ts")
+	if code != 0 {
+		t.Fatalf("cjs run: exit=%d", code)
+	}
+	if out := readOutput(t, cjsDir); out != "cjs-output" {
+		t.Fatalf("cjs run got %q, want 'cjs-output'", out)
+	}
+
+	// ESM project (same source file name, different format context).
+	esmDir := filepath.Join(homeDir, "esm-proj")
+	if err := os.MkdirAll(esmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(esmDir, "package.json"), `{"type": "module"}`)
+	writeFile(t, filepath.Join(esmDir, "dual.ts"),
+		"import { writeFileSync } from 'node:fs';\n"+
+			"const msg: string = 'esm-output';\n"+
+			"writeFileSync('output.txt', msg + '\\n');\n")
+	code, _ = runMProject(t, esmDir, "dual.ts")
+	if code != 0 {
+		t.Fatalf("esm run: exit=%d", code)
+	}
+	if out := readOutput(t, esmDir); out != "esm-output" {
+		t.Fatalf("esm run got %q, want 'esm-output'", out)
+	}
+}
+
 // --- helpers ---
 
 func writeFile(t *testing.T, path, content string) {

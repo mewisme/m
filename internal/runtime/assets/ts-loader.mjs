@@ -2,7 +2,7 @@
 // Communicates with the Go transform service over local TCP.
 import { connect } from 'node:net';
 import { createHash } from 'node:crypto';
-import { accessSync } from 'node:fs';
+import { accessSync, readFileSync } from 'node:fs';
 import { resolve as pathResolve, parse as pathParse, join as pathJoin, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -374,8 +374,62 @@ function loaderFromPath(p) {
 }
 
 function formatFromPath(p) {
+  if (p.endsWith('.mts')) return 'esm';
   if (p.endsWith('.cts')) return 'cjs';
+  if (p.endsWith('.ts') || p.endsWith('.tsx')) {
+    const pkgType = getPackageType(p);
+    return pkgType === 'module' ? 'esm' : 'cjs';
+  }
   return 'esm';
+}
+
+// ── Package type detection ──────────────────────────────────────────
+
+// packageTypeCache maps a package.json directory to its "type" value.
+// Lifetime: session-scoped (loader module lifetime). Invalidated on restart.
+const packageTypeCache = new Map();
+
+// getPackageType returns "module" or "commonjs" for a file at the given path,
+// determined by the "type" field of the nearest package.json. Defaults to
+// "commonjs" (Node default) when no package.json exists, no "type" is set,
+// or the value is invalid/unreadable.
+function getPackageType(filePath) {
+  const dir = dirname(pathResolve(filePath));
+  const { root } = pathParse(dir);
+  let scan = dir;
+
+  while (true) {
+    // Cache hit: return cached type for this package boundary.
+    if (packageTypeCache.has(scan)) {
+      return packageTypeCache.get(scan);
+    }
+
+    const pkgPath = pathJoin(scan, 'package.json');
+    try {
+      accessSync(pkgPath);
+      // Found a package.json — parse, cache, and return.
+      let pkgType = 'commonjs'; // Node default
+      try {
+        const raw = readFileSync(pkgPath, 'utf8');
+        const pkg = JSON.parse(raw);
+        if (pkg.type === 'module') {
+          pkgType = 'module';
+        }
+      } catch (_) {
+        // Unreadable/malformed package.json: default to commonjs.
+      }
+      packageTypeCache.set(scan, pkgType);
+      return pkgType;
+    } catch (_) {}
+
+    if (scan === root) break;
+    const parent = dirname(scan);
+    if (parent === scan) break;
+    scan = parent;
+  }
+
+  // Reached root without finding package.json. Default to commonjs.
+  return 'commonjs';
 }
 
 // ── PnP resolution adapter ─────────────────────────────────────────
@@ -586,7 +640,10 @@ function probeTypeScriptExtension(resolvedPath) {
 function formatFromResolvedPath(p) {
   if (p.endsWith('.mjs') || p.endsWith('.mts')) return 'module';
   if (p.endsWith('.cjs') || p.endsWith('.cts')) return 'commonjs';
-  if (p.endsWith('.js') || p.endsWith('.ts') || p.endsWith('.tsx')) return 'module';
+  if (p.endsWith('.js') || p.endsWith('.ts') || p.endsWith('.tsx')) {
+    const pkgType = getPackageType(p);
+    return pkgType === 'module' ? 'module' : 'commonjs';
+  }
   return undefined; // let Node decide
 }
 
@@ -621,7 +678,7 @@ export async function resolve(specifier, context, nextResolve) {
         // If it's already a TypeScript file, mark format and return.
         if (absPath.endsWith('.ts') || absPath.endsWith('.tsx') || absPath.endsWith('.mts') || absPath.endsWith('.cts')) {
           return {
-            format: absPath.endsWith('.cts') ? 'commonjs' : 'module',
+            format: formatFromResolvedPath(absPath),
             url: resolved.url,
             shortCircuit: true,
           };
@@ -709,8 +766,17 @@ export async function load(url, context, nextLoad) {
   if (!pathname.endsWith('.ts') && !pathname.endsWith('.tsx') && !pathname.endsWith('.mts') && !pathname.endsWith('.cts')) {
     return nextLoad(url, context);
   }
-  const source = await nextLoad(url, { ...context, format: context.format });
-  const code = await sendTransform(pathname, String(source.source), context.signal);
+  let sourceStr;
+  // For commonjs format, Node's default load hook does not return source
+  // in nextLoad — read the file directly.
+  if (context.format === 'commonjs') {
+    sourceStr = readFileSync(pathname, 'utf8');
+  } else {
+    const source = await nextLoad(url, { ...context, format: context.format });
+    // Normalize: nextLoad may return Buffer/Uint8Array or string.
+    sourceStr = typeof source.source === 'string' ? source.source : new TextDecoder().decode(source.source);
+  }
+  const code = await sendTransform(pathname, sourceStr, context.signal);
   stripPrivateEnv();
   return { format: context.format, source: code, shortCircuit: true };
 }

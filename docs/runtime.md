@@ -96,6 +96,43 @@ Max frame size 48 MiB. Protocol version 2. Auth via bearer token.
 publication. Metadata is commit record. Missing code/map with committed
 metadata → corruption → cleaned up for re-transform.
 
+### Module format determination
+
+The loader determines the Node module format (`"module"` for ESM, `"commonjs"`
+for CJS) based on file extension and the nearest `package.json` `"type"` field,
+matching Node.js semantics:
+
+| Extension | Package `"type"` | Format | Rationale |
+|---|---|---|---|
+| `.mts` | any | `module` (ESM) | `.mts` is always ESM |
+| `.cts` | any | `commonjs` (CJS) | `.cts` is always CommonJS |
+| `.ts`, `.tsx` | `"module"` | `module` (ESM) | Package type overrides |
+| `.ts`, `.tsx` | `"commonjs"` or absent | `commonjs` (CJS) | Node default is CJS |
+| `.ts`, `.tsx` | no `package.json` found | `commonjs` (CJS) | Node default is CJS |
+
+The same rules apply after extension substitution (Issue 12): if a `.js`
+specifier resolves to a `.ts` file, the format of the resolved `.ts` file
+governs.
+
+Format is included in the transform cache key. The same TypeScript source
+transformed with different module formats produces separate cache entries
+and cannot collide.
+
+**Boundary lookup**: The loader walks up the directory tree from the resolved
+file to find the nearest `package.json`. A nested `package.json` (e.g. in a
+subdirectory with a different `"type"`) overrides the parent. Results are
+cached per `package.json` directory for the lifetime of the Node process.
+
+**Invalid `"type"` values**: Treated as `"commonjs"` (Node default). Malformed
+or unreadable `package.json` files default to `"commonjs"`.
+
+**Limitations**:
+- Format determination applies to files resolved through the ESM loader hooks.
+  CJS `require()` calls inside transformed modules bypass the loader hooks and
+  use Node's native CJS resolution (no TypeScript extension mapping).
+- Full Node16/NodeNext resolver parity (package `exports`/`imports`, custom
+  loaders) belongs to Issues 14–16.
+
 ## Augmentation
 
 ### Default (full)
