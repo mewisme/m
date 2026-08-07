@@ -80,13 +80,21 @@ Documented as of 0052 development (0057 runtime stabilization pending). Each ent
 
 **Resolution**: Configurable polling interval planned for 0060+.
 
+### Source map runtime consumption
+
+**Limitation**: Mew automatically passes `--enable-source-maps` to Node (>= 20.6) so that error stack traces map back to original TypeScript source. However, the runtime loader always requests inline source maps; external source maps (`.map` files) are only written to the transform cache and never to the user project directory.
+
+**Impact**: Stack traces from transformed TypeScript modules show original source file names and line numbers when Node >= 20.6. Debugger breakpoint mapping requires inspector protocol integration (see below).
+
+**Resolution**: External `.map` file writing to user project directories is not planned. Mew's transform cache retains maps for all generated code; inline maps are embedded directly in the emitted JavaScript.
+
 ### Inspector passthrough
 
-**Limitation**: `--inspect` and `--inspect-brk` flags are passed through to Node's V8 inspector verbatim. Mew does not integrate with the inspector protocol for source-map-aware debugging or breakpoint resolution in original TypeScript source.
+**Limitation**: `--inspect` and `--inspect-brk` flags are passed through to Node's V8 inspector verbatim. Mew does not integrate with the inspector protocol for source-map-aware debugging or breakpoint resolution in original TypeScript source. While stack traces are mapped via `--enable-source-maps`, the debugger does not translate breakpoints from TypeScript line numbers.
 
-**Impact**: Debugging TypeScript in Chrome DevTools or VS Code shows transformed JavaScript, not original TypeScript source. Source maps are emitted but not automatically consumed by the debugger.
+**Impact**: Debugging TypeScript in Chrome DevTools or VS Code shows transformed JavaScript. Breakpoints set in TypeScript source may not resolve correctly. Stack traces in the debugger console DO show mapped source locations (via `--enable-source-maps`).
 
-**Resolution**: Source-map-aware debugging via inspector integration planned for 0060+.
+**Resolution**: Source-map-aware debugging via inspector integration planned for Issue 26 (0060+).
 
 ## Transform Service
 
@@ -128,3 +136,4 @@ Features behind experimental flags (current as of 0052 development):
 | Watch mode | `MEW_EXPERIMENTAL_RUNTIME=1` | Experimental |
 | Web Storage | `MEW_EXPERIMENTAL_RUNTIME=1` | Experimental |
 | Debug inspection | `--inspect`/`--inspect-brk` | Passthrough only |
+| Source maps | `--enable-source-maps` | Auto-injected (Node >= 20.6) |

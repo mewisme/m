@@ -2,6 +2,7 @@ package transform
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -855,6 +856,246 @@ func TestEsbuildEngine_InlineSourceMapOverride(t *testing.T) {
 	}
 }
 
+// ── Extended source map structure tests ─────────────────────────────
+
+func TestEsbuildEngine_SourceMapNoMap(t *testing.T) {
+	// SourceMapNone: Code has no sourceMappingURL, SourceMap bytes empty.
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	req := TransformRequest{
+		RequestID: "sm-none", SourcePath: "app.ts",
+		SourceBytes:  []byte("const x: number = 1;\n"),
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	if strings.Contains(string(res.Code), "sourceMappingURL") {
+		t.Fatal("SourceMapNone must not emit sourceMappingURL")
+	}
+	if len(res.SourceMap) > 0 {
+		t.Fatal("SourceMapNone must not return SourceMap bytes")
+	}
+}
+
+func TestEsbuildEngine_SourceMapInlineSourcesTrue(t *testing.T) {
+	// inlineSources: explicit true → source content included in map.
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	src := "const x: number = 1;\nexport default x;\n"
+	req := TransformRequest{
+		RequestID: "sm-is-true", SourcePath: "mod.ts",
+		SourceBytes: []byte(src), SourceDigest: "fake",
+		Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapExternal, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{InlineSources: boolPtr(true)},
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	srcMap := parseSourceMap(t, res.SourceMap)
+	if len(srcMap.SourcesContent) == 0 {
+		t.Fatal("inlineSources:true must include source content")
+	}
+}
+
+func TestEsbuildEngine_SourceMapInlineSourcesFalse(t *testing.T) {
+	// inlineSources: explicit false → source content excluded from map.
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	src := "const x: number = 1;\nexport default x;\n"
+	req := TransformRequest{
+		RequestID: "sm-is-false", SourcePath: "mod.ts",
+		SourceBytes: []byte(src), SourceDigest: "fake",
+		Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapExternal, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{InlineSources: boolPtr(false)},
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	srcMap := parseSourceMap(t, res.SourceMap)
+	if len(srcMap.SourcesContent) > 0 {
+		t.Fatal("inlineSources:false must exclude source content")
+	}
+}
+
+func TestEsbuildEngine_SourceMapInlineSourcesAbsent(t *testing.T) {
+	// inlineSources not set → default include source content (tsc default).
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	src := "const x: number = 1;\nexport default x;\n"
+	req := TransformRequest{
+		RequestID: "sm-is-absent", SourcePath: "mod.ts",
+		SourceBytes: []byte(src), SourceDigest: "fake",
+		Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapExternal, TargetNodeMajor: 20,
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	srcMap := parseSourceMap(t, res.SourceMap)
+	if len(srcMap.SourcesContent) == 0 {
+		t.Fatal("absent inlineSources must default to include source content")
+	}
+}
+
+func TestEsbuildEngine_SourceMapSourceRoot(t *testing.T) {
+	// sourceRoot set → appears in map's sourceRoot field.
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	src := "const x: number = 1;\n"
+	req := TransformRequest{
+		RequestID: "sm-sr", SourcePath: "src/app.ts",
+		SourceBytes: []byte(src), SourceDigest: "fake",
+		Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapExternal, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{SourceRoot: "/project/src"},
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	srcMap := parseSourceMap(t, res.SourceMap)
+	if srcMap.SourceRoot == nil || *srcMap.SourceRoot != "/project/src" {
+		t.Fatalf("sourceRoot: got %v, want /project/src", srcMap.SourceRoot)
+	}
+}
+
+func TestEsbuildEngine_SourceMapDeterministic(t *testing.T) {
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	src := []byte("const x: number = 1;\nexport default x;\n")
+	req := TransformRequest{
+		RequestID: "sm-det", SourcePath: "det.ts",
+		SourceBytes: src, SourceDigest: "fake",
+		Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapExternal, TargetNodeMajor: 20,
+	}
+
+	res1, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("first transform: %v", err)
+	}
+	res2, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("second transform: %v", err)
+	}
+	if string(res1.SourceMap) != string(res2.SourceMap) {
+		t.Fatal("non-deterministic source map output")
+	}
+}
+
+func TestEsbuildEngine_SourceMapLineColumn(t *testing.T) {
+	// Verify that a generated location maps back to the original source
+	// with correct line and column.
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	// Multi-line source with distinctive content on line 3.
+	src := "const a: number = 1;\nconst b: number = 2;\nconst c: number = 3;\n"
+	req := TransformRequest{
+		RequestID: "sm-lc", SourcePath: "orig.ts",
+		SourceBytes: []byte(src), SourceDigest: "fake",
+		Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapExternal, TargetNodeMajor: 20,
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	srcMap := parseSourceMap(t, res.SourceMap)
+
+	if srcMap.Version != 3 {
+		t.Fatalf("source map version: got %d, want 3", srcMap.Version)
+	}
+	if len(srcMap.Sources) == 0 {
+		t.Fatal("map must have sources")
+	}
+	// All generated lines should map back to the original source.
+	if !strings.Contains(srcMap.Sources[0], "orig.ts") {
+		t.Fatalf("sources[0]=%q, must reference orig.ts", srcMap.Sources[0])
+	}
+	if len(srcMap.Mappings) == 0 {
+		t.Fatal("map must have mappings")
+	}
+}
+
+func TestEsbuildEngine_SourceMapTSX(t *testing.T) {
+	// TSX files produce valid source maps with correct source reference.
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	src := "const el = <div className=\"box\">hello</div>;\n"
+	req := TransformRequest{
+		RequestID: "sm-tsx", SourcePath: "component.tsx",
+		SourceBytes: []byte(src), SourceDigest: "fake",
+		Loader: LoaderTSX, Format: FormatESM,
+		SourceMapMode: SourceMapExternal, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{JSX: "react-jsx"},
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	srcMap := parseSourceMap(t, res.SourceMap)
+
+	if srcMap.Version != 3 {
+		t.Fatalf("TSX source map version: got %d, want 3", srcMap.Version)
+	}
+	if len(srcMap.Sources) == 0 {
+		t.Fatal("TSX map must have sources")
+	}
+	if !strings.Contains(srcMap.Sources[0], "component.tsx") {
+		t.Fatalf("TSX sources[0]=%q, must reference component.tsx", srcMap.Sources[0])
+	}
+	if len(srcMap.Mappings) == 0 {
+		t.Fatal("TSX map must have mappings")
+	}
+	// TSX code should contain transformed JSX (react/jsx-runtime import).
+	code := string(res.Code)
+	if !strings.Contains(code, "jsx") {
+		t.Fatalf("JSX not transformed in TSX: %s", code)
+	}
+}
+
+// sourceMapJSON is the minimal structure for validating generated maps.
+type sourceMapJSON struct {
+	Version        int      `json:"version"`
+	File           string   `json:"file"`
+	Sources        []string `json:"sources"`
+	SourcesContent []string `json:"sourcesContent"`
+	Mappings       string   `json:"mappings"`
+	SourceRoot     *string  `json:"sourceRoot,omitempty"`
+}
+
+func parseSourceMap(t *testing.T, data []byte) sourceMapJSON {
+	t.Helper()
+	var m sourceMapJSON
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatalf("parse source map: %v", err)
+	}
+	return m
+}
+
 // ── Cache key includes new options ────────────────────────────────
 
 func TestCacheKeyVariesByJSXOptions(t *testing.T) {
@@ -964,5 +1205,126 @@ func TestCacheKeyVariesByJSXDevelopmentMode(t *testing.T) {
 	k2 := CacheKey(req2, id)
 	if k1 == k2 {
 		t.Fatal("cache keys must differ when JSX development mode differs from production")
+	}
+}
+
+func TestCacheKeyVariesBySourceMapMode(t *testing.T) {
+	src := []byte("const x = 1;")
+	id := EngineIdentity{Name: "esbuild", Version: "1.0"}
+	reqNone := TransformRequest{
+		RequestID: "ck-sm-none", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+	}
+	reqInline := TransformRequest{
+		RequestID: "ck-sm-inline", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapInline, TargetNodeMajor: 20,
+	}
+	reqExternal := TransformRequest{
+		RequestID: "ck-sm-ext", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapExternal, TargetNodeMajor: 20,
+	}
+	kn := CacheKey(reqNone, id)
+	ki := CacheKey(reqInline, id)
+	ke := CacheKey(reqExternal, id)
+	if kn == ki || kn == ke || ki == ke {
+		t.Fatal("cache keys must differ across none/inline/external source map modes")
+	}
+}
+
+func TestCacheKeyVariesBySourceMapOption(t *testing.T) {
+	src := []byte("const x = 1;")
+	id := EngineIdentity{Name: "esbuild", Version: "1.0"}
+	req1 := TransformRequest{
+		RequestID: "ck-sm1", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+	}
+	req2 := TransformRequest{
+		RequestID: "ck-sm2", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{SourceMap: true},
+	}
+	if CacheKey(req1, id) == CacheKey(req2, id) {
+		t.Fatal("cache keys must differ when tsconfig sourceMap differs")
+	}
+}
+
+func TestCacheKeyVariesByInlineSourceMap(t *testing.T) {
+	src := []byte("const x = 1;")
+	id := EngineIdentity{Name: "esbuild", Version: "1.0"}
+	req1 := TransformRequest{
+		RequestID: "ck-ism1", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+	}
+	req2 := TransformRequest{
+		RequestID: "ck-ism2", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{InlineSourceMap: true},
+	}
+	if CacheKey(req1, id) == CacheKey(req2, id) {
+		t.Fatal("cache keys must differ when tsconfig inlineSourceMap differs")
+	}
+}
+
+func TestCacheKeyVariesByInlineSourcesFalse(t *testing.T) {
+	src := []byte("const x = 1;")
+	id := EngineIdentity{Name: "esbuild", Version: "1.0"}
+	req1 := TransformRequest{
+		RequestID: "ck-is1", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+	}
+	req2 := TransformRequest{
+		RequestID: "ck-is2", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{InlineSources: boolPtr(false)},
+	}
+	if CacheKey(req1, id) == CacheKey(req2, id) {
+		t.Fatal("cache keys must differ when inlineSources:false differs from absent")
+	}
+}
+
+func TestCacheKeyVariesBySourceRoot(t *testing.T) {
+	src := []byte("const x = 1;")
+	id := EngineIdentity{Name: "esbuild", Version: "1.0"}
+	req1 := TransformRequest{
+		RequestID: "ck-sr1", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+	}
+	req2 := TransformRequest{
+		RequestID: "ck-sr2", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{SourceRoot: "/src"},
+	}
+	if CacheKey(req1, id) == CacheKey(req2, id) {
+		t.Fatal("cache keys must differ when sourceRoot differs")
+	}
+}
+
+func TestCacheKeyVariesByMapRoot(t *testing.T) {
+	src := []byte("const x = 1;")
+	id := EngineIdentity{Name: "esbuild", Version: "1.0"}
+	req1 := TransformRequest{
+		RequestID: "ck-mr1", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+	}
+	req2 := TransformRequest{
+		RequestID: "ck-mr2", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{MapRoot: "/maps"},
+	}
+	if CacheKey(req1, id) == CacheKey(req2, id) {
+		t.Fatal("cache keys must differ when mapRoot differs")
 	}
 }

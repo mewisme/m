@@ -59,7 +59,7 @@ After discovery, the Node version is parsed and capability flags are assigned:
 | `require-preload` | ≥ 12 | All entrypoints |
 | `import-preload` | ≥ 16 | All entrypoints |
 | `module-register` | ≥ 18.19 | TypeScript entrypoints |
-| `source-maps` | ≥ 20.6 | `--enable-source-maps` |
+| `source-maps` | ≥ 20.6 | `--enable-source-maps` (auto-injected) |
 
 ### Supported Node versions
 

@@ -45,6 +45,7 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 		Entrypoint:       req.Entrypoint,
 		AppArgs:          append([]string(nil), req.AppArgs...),
 		ZeroAugmentation: req.AugmentationMode == AugmentNone,
+		EnableSourceMaps: hasCap(nodeInst.Capabilities, "source-maps"),
 	}
 
 	// Resolve user-specified custom ESM loaders.
@@ -114,6 +115,16 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 	return plan, nil
 }
 
+// hasCap reports whether caps contains the named capability.
+func hasCap(caps []string, name string) bool {
+	for _, c := range caps {
+		if c == name {
+			return true
+		}
+	}
+	return false
+}
+
 // enforceCapabilities verifies the Node installation supports required features.
 func enforceCapabilities(inst *node.Installation, entrypoint string) error {
 	capSet := make(map[string]bool, len(inst.Capabilities))
@@ -158,6 +169,14 @@ func BuildArgv(plan *LaunchPlan, v8Args []string) []string {
 	}
 	argv := make([]string, 0, 4+credSlots+len(v8Args)+customSlots+len(plan.PreloadAssets)*2+1+len(plan.AppArgs))
 	argv = append(argv, plan.NodeExe)
+
+	// Enable Node source-map support for stack trace mapping when available
+	// (Node >= 20.6). This tells Node to read sourceMappingURL from module
+	// source and resolve .map files for error stack traces. It has no effect
+	// when no source maps are present in the module graph.
+	if plan.EnableSourceMaps {
+		argv = append(argv, "--enable-source-maps")
+	}
 
 	// Credential grabber runs FIRST — before any user preload.
 	// Node processes --require from left to right; this must be the

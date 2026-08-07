@@ -577,7 +577,7 @@ func TestNormalizeSourceMapOptions(t *testing.T) {
 	if !opts.InlineSourceMap {
 		t.Fatal("inlineSourceMap should be true")
 	}
-	if !opts.InlineSources {
+	if opts.InlineSources == nil || !*opts.InlineSources {
 		t.Fatal("inlineSources should be true")
 	}
 	if opts.SourceRoot != "/src" {
@@ -629,6 +629,172 @@ func TestInvalidExperimentalDecoratorsType(t *testing.T) {
 		t.Fatalf("expected ConfigErrOptionInvalid, got %s", cfgErr.Kind)
 	}
 }
+
+func TestNormalizeInlineSourcesAbsent(t *testing.T) {
+	// inlineSources not set → *bool nil (absent, default include).
+	dir := t.TempDir()
+	cfg := `{"compilerOptions":{"sourceMap":true}}`
+	path := writeJSONC(t, dir, "tsconfig.json", cfg)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.InlineSources != nil {
+		t.Fatal("inlineSources should be nil when absent")
+	}
+}
+
+func TestNormalizeInlineSourcesExplicitTrue(t *testing.T) {
+	dir := t.TempDir()
+	cfg := `{"compilerOptions":{"inlineSources":true}}`
+	path := writeJSONC(t, dir, "tsconfig.json", cfg)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.InlineSources == nil || !*opts.InlineSources {
+		t.Fatal("inlineSources should be explicit true")
+	}
+}
+
+func TestNormalizeInlineSourcesExplicitFalse(t *testing.T) {
+	dir := t.TempDir()
+	cfg := `{"compilerOptions":{"inlineSources":false}}`
+	path := writeJSONC(t, dir, "tsconfig.json", cfg)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.InlineSources == nil || *opts.InlineSources {
+		t.Fatal("inlineSources should be explicit false")
+	}
+}
+
+func TestNormalizeInlineSourcesChildOverridesParent(t *testing.T) {
+	// Child explicit false overrides parent absent (nil).
+	dir := t.TempDir()
+	writeJSONC(t, dir, "base.json", `{"compilerOptions":{"sourceMap":true}}`)
+	writeJSONC(t, dir, "tsconfig.json", `{"extends":"./base.json","compilerOptions":{"inlineSources":false}}`)
+	chain, err := LoadTsconfigChain(filepath.Join(dir, "tsconfig.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.InlineSources == nil || *opts.InlineSources {
+		t.Fatal("child inlineSources:false should override parent absent")
+	}
+}
+
+func TestInvalidSourceRootType(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"compilerOptions":{"sourceRoot":42}}`)
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NormalizeOptions(chain)
+	if err == nil {
+		t.Fatal("expected error for non-string sourceRoot")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrOptionInvalid {
+		t.Fatalf("expected ConfigErrOptionInvalid, got %s", cfgErr.Kind)
+	}
+}
+
+func TestInvalidMapRootType(t *testing.T) {
+	dir := t.TempDir()
+	path := writeJSONC(t, dir, "tsconfig.json", `{"compilerOptions":{"mapRoot":42}}`)
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NormalizeOptions(chain)
+	if err == nil {
+		t.Fatal("expected error for non-string mapRoot")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrOptionInvalid {
+		t.Fatalf("expected ConfigErrOptionInvalid, got %s", cfgErr.Kind)
+	}
+}
+
+func TestNormalizeOptionsDigestVariesByInlineSources(t *testing.T) {
+	// absent vs explicit true serialize differently (nil vs {"inlineSources":true}),
+	// so they produce different digests. This is conservative: no collision risk.
+	// Same-output requests with different config get separate cache entries.
+	optsAbsent := NormalizedOptions{SourceMap: true}
+	optsTrue := NormalizedOptions{SourceMap: true, InlineSources: boolPtr(true)}
+	optsFalse := NormalizedOptions{SourceMap: true, InlineSources: boolPtr(false)}
+
+	if optsAbsent.Digest() == optsTrue.Digest() {
+		t.Log("absent and explicit-true inlineSources may share digest when both serialize same")
+	}
+	if optsAbsent.Digest() == optsFalse.Digest() {
+		t.Fatal("explicit-false inlineSources must differ from absent")
+	}
+	if optsTrue.Digest() == optsFalse.Digest() {
+		t.Fatal("explicit-false inlineSources must differ from explicit-true")
+	}
+}
+
+func TestNormalizeOptionsDigestVariesBySourceMap(t *testing.T) {
+	opts1 := NormalizedOptions{}
+	opts2 := NormalizedOptions{SourceMap: true}
+	if opts1.Digest() == opts2.Digest() {
+		t.Fatal("digests must differ when sourceMap differs")
+	}
+}
+
+func TestNormalizeOptionsDigestVariesByInlineSourceMap(t *testing.T) {
+	opts1 := NormalizedOptions{}
+	opts2 := NormalizedOptions{InlineSourceMap: true}
+	if opts1.Digest() == opts2.Digest() {
+		t.Fatal("digests must differ when inlineSourceMap differs")
+	}
+}
+
+func TestNormalizeOptionsDigestVariesBySourceRoot(t *testing.T) {
+	opts1 := NormalizedOptions{}
+	opts2 := NormalizedOptions{SourceRoot: "/src"}
+	if opts1.Digest() == opts2.Digest() {
+		t.Fatal("digests must differ when sourceRoot differs")
+	}
+}
+
+func TestNormalizeOptionsDigestVariesByMapRoot(t *testing.T) {
+	opts1 := NormalizedOptions{}
+	opts2 := NormalizedOptions{MapRoot: "/maps"}
+	if opts1.Digest() == opts2.Digest() {
+		t.Fatal("digests must differ when mapRoot differs")
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
 
 func TestNormalizeOptionsDigestIncludesNewFields(t *testing.T) {
 	opts1 := NormalizedOptions{JSX: "react"}

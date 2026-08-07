@@ -96,8 +96,11 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 	}
 
 	sourcesContent := api.SourcesContentInclude
-	// ponytail: zero-value bool can't distinguish "absent" from "explicit false".
-	// When inlineSources:false matters, add a tristate pointer type.
+	// inlineSources: nil (absent) or true → include source content (tsc default).
+	// Explicit false → exclude source content.
+	if req.NormalizedOpts.InlineSources != nil && !*req.NormalizedOpts.InlineSources {
+		sourcesContent = api.SourcesContentExclude
+	}
 
 	transformOpts := api.TransformOptions{
 		Loader:            loader,

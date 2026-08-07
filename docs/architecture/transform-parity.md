@@ -52,13 +52,49 @@ diagnostic rather than silently producing incomplete output.
 
 | Feature | Support | Notes |
 |---|---|---|
-| No source map (`sourceMap: false`) | Default | |
+| No source map (`sourceMap: false`) | Default | Engine defaults to no map when no mode requested and no tsconfig flags are set |
 | Inline source maps (`inlineSourceMap: true`) | Full | `sourceMappingURL` data URL in output |
-| External source maps (`sourceMap: true`) | Full | Separate `.map` returned in TransformResult |
-| Source content inclusion (`inlineSources`) | Default include | esbuild default includes sources; zero-value bool ambiguity noted |
-| Source root (`sourceRoot`) | Full | Passed through to esbuild |
-| Map root (`mapRoot`) | Carried | In NormalizedOptions for cache keys; esbuild does not use mapRoot directly |
-| Stack trace mapping | Via Node `--enable-source-maps` | |
+| External source maps (`sourceMap: true`) | Full (protocol) | Separate `.map` in TransformResult; engine supports external, loader requests inline by default |
+| Source content inclusion (`inlineSources`) | Full | Tri-state `*bool`: nil/absent → include (tsc default), `true` → include, `false` → exclude |
+| Source root (`sourceRoot`) | Full | Passed through to esbuild `sourceRoot` field |
+| Map root (`mapRoot`) | Carried | In NormalizedOptions for cache keys; esbuild does not use mapRoot directly; informational only |
+| Stack trace mapping | Via Node `--enable-source-maps` | Automatically injected when Node >= 20.6; maps original sources in stack traces |
+
+### Source map mode precedence
+
+The effective source map mode is determined by combining the request-level
+mode with tsconfig options:
+
+1. Request `SourceMapMode` sets the baseline (none/inline/external)
+2. tsconfig `sourceMap: true` upgrades `none` to `external`
+3. tsconfig `inlineSourceMap: true` upgrades `none` to `inline` (but
+   does not override an explicit `external` request)
+
+The Node loader (ts-loader.mjs) requests `inline` by default, so the
+runtime path produces inline source maps for every transformed module.
+
+### Inline sources tri-state
+
+`inlineSources` uses `*bool` to distinguish three states:
+
+- **Absent** (nil): default behavior — sources are included in the map
+  (matching tsc's default)
+- **Explicit true**: sources are included
+- **Explicit false**: sources are excluded
+
+Absent and explicit `true` may produce different cache keys (they
+serialize differently) but identical transform output. This is
+conservative for cache safety — no collision risk.
+
+### Stack trace mapping
+
+Mew automatically passes `--enable-source-maps` to Node when the Node
+installation supports it (>= 20.6). Node's `--enable-source-maps` flag
+reads `sourceMappingURL` directives from module source and resolves
+`.map` files for error stack traces. When source maps are present
+(determined by tsconfig `sourceMap: true` or `inlineSourceMap: true`),
+error stack traces show original TypeScript source file names and line
+numbers rather than transformed JavaScript locations.
 
 ## Module Format
 
@@ -102,10 +138,15 @@ diagnostic rather than silently producing incomplete output.
    fails with an `ERR_M_TRANSFORM_UNSUPPORTED` diagnostic. Mew is a transpiler
    and cannot emit `design:*` metadata without type-checker information.
 
-7. **Source map content always included by default.** esbuild includes source
-   content in source maps; explicit `inlineSources: false` is not distinguished
-   from absent (zero-value bool). If this matters, a tristate option type is
-   needed.
+7. **Source map content controlled by `inlineSources`.** The tri-state
+   `*bool` option distinguishes absent (default include) from explicit
+   false (exclude). esbuild does not have a direct `inlineSources` flag;
+   instead `SourcesContent` is set to `Include` (absent/true) or
+   `Exclude` (false).
+
+8. **`mapRoot` is carried but not applied.** esbuild has no `mapRoot`
+   option. The value is parsed from tsconfig, included in cache keys,
+   and available programmatically, but does not affect emitted maps.
 
 ## Cache key coverage
 

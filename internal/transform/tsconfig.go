@@ -76,12 +76,20 @@ type NormalizedOptions struct {
 	ExperimentalDecorators bool `json:"experimentalDecorators,omitempty"`
 	EmitDecoratorMetadata  bool `json:"emitDecoratorMetadata,omitempty"`
 
-	// Source maps
+	// Source maps.
+	// InlineSources uses *bool to distinguish:
+	//   nil (absent)      → default (include source content, matching tsc default)
+	//   &true (explicit)  → include source content
+	//   &false (explicit) → exclude source content
 	SourceMap       bool   `json:"sourceMap,omitempty"`
 	InlineSourceMap bool   `json:"inlineSourceMap,omitempty"`
-	InlineSources   bool   `json:"inlineSources,omitempty"`
+	InlineSources   *bool  `json:"inlineSources,omitempty"`
 	SourceRoot      string `json:"sourceRoot,omitempty"`
 	MapRoot         string `json:"mapRoot,omitempty"`
+	// mapRoot is parsed and included in cache keys but NOT forwarded to esbuild.
+	// esbuild has no MapRoot option. mapRoot specifies where external tooling
+	// expects to find .map files; Mew manages map lifecycle through the cache,
+	// so mapRoot is informational (cache-keyed) only.
 }
 
 // NormalizedOptionsDigest returns a stable SHA-256 of the normalized options.
@@ -375,7 +383,8 @@ func applyCompilerOptions(opts *NormalizedOptions, path string, raw map[string]a
 		if !isBool {
 			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("inlineSources must be a boolean")}
 		}
-		opts.InlineSources = b
+		val := b
+		opts.InlineSources = &val
 	}
 	if v, ok := coMap["sourceRoot"]; ok {
 		s, isStr := v.(string)
