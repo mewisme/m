@@ -93,10 +93,10 @@ func registry() []Entry {
 
 		// JSX.
 		{
-			Option:   "jsx",
-			Status:   StatusSupported,
-			Category: CategoryJSX,
-			Values:   []string{"react", "react-jsx", "react-jsxdev", "preserve"},
+			Option:     "jsx",
+			Status:     StatusSupported,
+			Category:   CategoryJSX,
+			Values:     []string{"react", "react-jsx", "react-jsxdev", "preserve"},
 			Limitation: "Unrecognized values silently fall back to classic (react) transform",
 		},
 		{
@@ -128,31 +128,31 @@ func registry() []Entry {
 				"absent or false enables TC39 standard decorators (__decorateElement)",
 		},
 		{
-			Option:     "emitDecoratorMetadata",
-			Status:     StatusUnsupported,
-			Category:   CategoryDecorators,
+			Option:   "emitDecoratorMetadata",
+			Status:   StatusUnsupported,
+			Category: CategoryDecorators,
 			Limitation: "Metadata emission requires type-checker information unavailable to a transpiler; " +
 				"set to true produces ERR_M_TRANSFORM_UNSUPPORTED diagnostic",
 		},
 
 		// Source maps.
 		{
-			Option:   "sourceMap",
-			Status:   StatusSupported,
-			Category: CategorySourceMaps,
+			Option:     "sourceMap",
+			Status:     StatusSupported,
+			Category:   CategorySourceMaps,
 			Limitation: "Upgrades no-map to external map; inlineSourceMap can further upgrade to inline",
 		},
 		{
-			Option:   "inlineSourceMap",
-			Status:   StatusSupported,
-			Category: CategorySourceMaps,
+			Option:     "inlineSourceMap",
+			Status:     StatusSupported,
+			Category:   CategorySourceMaps,
 			Limitation: "Upgrades no-map to inline; does not override explicit external request",
 		},
 		{
-			Option:   "inlineSources",
-			Status:   StatusSupported,
-			Category: CategorySourceMaps,
-			Values:   []string{"true", "false"},
+			Option:     "inlineSources",
+			Status:     StatusSupported,
+			Category:   CategorySourceMaps,
+			Values:     []string{"true", "false"},
 			Limitation: "Tri-state *bool: nil/absent → include (tsc default), true → include, false → exclude",
 		},
 		{
