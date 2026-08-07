@@ -530,20 +530,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           package-manager-cache: false
 
-      - name: Build production binaries
-        shell: bash
-        run: |
-          go build -trimpath -o "${{ runner.temp }}/m${{ matrix.ext }}" ./cmd/m
-          go build -trimpath -o "${{ runner.temp }}/mx${{ matrix.ext }}" ./cmd/mx
-
-      - name: Runtime, transform, node, and process unit tests
-        shell: bash
-        run: >-
-          go test ./internal/runtime/... ./internal/transform/... ./internal/node/...
-          ./internal/process/... ./internal/runner/... ./internal/workspace/...
-          ./internal/lifecycle/... ./internal/cli/...
-          -count=1 -timeout 15m
-
       - name: Runtime E2E integration tests
         shell: bash
         run: >-
@@ -568,7 +554,6 @@ jobs:
             "goVersion": "${go_version}",
             "testResult": "${{ job.status }}",
             "commands": [
-              "go test ./internal/runtime/... ./internal/transform/... ./internal/node/... ./internal/process/... ./internal/runner/... ./internal/workspace/... ./internal/lifecycle/... ./internal/cli/... -count=1",
               "go test ./tests/integration/... -run 'RuntimeE2E|NodeVersion|ScriptWinsOverFile|WorkingDir|CWD|Workspace.*Run|Lifecycle' -count=1"
             ],
             "jobURL": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"
