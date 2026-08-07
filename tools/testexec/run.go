@@ -210,7 +210,7 @@ func (r *runner) runShard(ctx context.Context, pkg, binPath string, s shard, gom
 	if err != nil {
 		return runResult{Package: pkg, Worker: s.Worker, Pass: false, Err: fmt.Errorf("creating home: %w", err)}
 	}
-	defer os.RemoveAll(homeDir)
+	defer func() { _ = os.RemoveAll(homeDir) }()
 
 	cacheDir := filepath.Join(homeDir, ".cache", "mew")
 	storeDir := filepath.Join(homeDir, ".local", "share", "github.com", "mewisme", "mew", "store")
@@ -260,7 +260,7 @@ func (r *runner) runShard(ctx context.Context, pkg, binPath string, s shard, gom
 
 // splitMultiPackageOutput splits combined "go test pkg1 pkg2 ..." output
 // into per-package results.
-func (r *runner) splitMultiPackageOutput(pkgs []string, output string, execErr error) []runResult {
+func (r *runner) splitMultiPackageOutput(pkgs []string, output string, _ error) []runResult {
 	var results []runResult
 	for _, pkg := range pkgs {
 		rr := runResult{
@@ -277,11 +277,8 @@ func (r *runner) splitMultiPackageOutput(pkgs []string, output string, execErr e
 		}
 		results = append(results, rr)
 	}
-	if execErr != nil && len(results) > 0 {
-		// Mark all as failed if the command itself failed.
-		// Actually, go test with multiple packages exits non-zero if any fail,
-		// so individual PASS/FAIL is already in output. Keep as-is.
-	}
+	// go test with multiple packages exits non-zero if any fail;
+	// individual PASS/FAIL is already detected from output above.
 	return results
 }
 
