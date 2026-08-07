@@ -140,6 +140,13 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 		transformOpts.SourceRoot = req.NormalizedOpts.SourceRoot
 	}
 
+	// Decorators: pass experimentalDecorators through TsconfigRaw so esbuild
+	// uses legacy TypeScript decorator mode (__decorateClass). When unset,
+	// esbuild defaults to standard TC39 decorator mode (__decorateElement).
+	if req.NormalizedOpts.ExperimentalDecorators {
+		transformOpts.TsconfigRaw = `{"compilerOptions":{"experimentalDecorators":true}}`
+	}
+
 	result := api.Transform(string(req.SourceBytes), transformOpts)
 
 	if len(result.Errors) > 0 {

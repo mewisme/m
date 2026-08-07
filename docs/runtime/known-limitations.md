@@ -14,19 +14,19 @@ Documented as of 0052 development (0057 runtime stabilization pending). Each ent
 
 ### Decorator metadata emission
 
-**Limitation**: `emitDecoratorMetadata` tsconfig flag is parsed and carried in `NormalizedOptions` and cache keys, but actual metadata emission strategy (Go-native vs embedded JS) is deferred.
+**Limitation**: `emitDecoratorMetadata` tsconfig flag is explicitly rejected during normalization with an `ERR_M_TRANSFORM_UNSUPPORTED` diagnostic. Mew is a transpiler, not a type checker, and lacks the type information required to emit `design:type`, `design:paramtypes`, and `design:returntype` metadata.
 
-**Impact**: TypeScript projects using `emitDecoratorMetadata` with reflection metadata (`reflect-metadata` package) will not receive type metadata at runtime.
+**Impact**: TypeScript projects using `emitDecoratorMetadata` with reflection metadata (`reflect-metadata` package) must remove the flag from tsconfig. The transform will not proceed with this option set.
 
-**Resolution**: Planned for 0060+ (Node manager integration). Decision between Go-native metadata emission and embedded JS bridge pending.
+**Resolution**: No current plan to support. Metadata emission requires compiler type information unavailable to a transpiler-only architecture.
 
 ### TC39 decorators (stage 3)
 
-**Limitation**: Standard TC39 decorators are not supported. Only legacy TypeScript experimental decorators work (via esbuild).
+**Limitation**: Standard TC39 decorators are transformed via esbuild (default mode when `experimentalDecorators` is not set). This works for TypeScript sources (`.ts`/`.tsx`). Standard decorators in `.js`/`.mjs` files are not yet supported because Mew's JS loader is deferred to 0053.
 
-**Impact**: Projects using `@decorator` syntax in `.js`/`.mjs` files (not TypeScript) will fail to transform.
+**Impact**: Projects using `@decorator` syntax in `.ts`/`.tsx` files work correctly. JS/JSX decorator support pending JS loader.
 
-**Resolution**: Deferred to esbuild upstream. Will be enabled when esbuild supports TC39 decorators natively.
+**Resolution**: JS loader planned for 0053. Standard decorator transform via esbuild is already operational for TS sources.
 
 ## Loader Bridge
 

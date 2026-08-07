@@ -575,6 +575,7 @@ func TestEsbuildEngine_TSXLoader(t *testing.T) {
 // ── Decorator tests ────────────────────────────────────────────────
 
 func TestEsbuildEngine_DecoratorLegacy(t *testing.T) {
+	// experimentalDecorators: true → esbuild uses legacy helper __decorateClass.
 	e := NewEsbuildEngine()
 	ctx := context.Background()
 
@@ -598,18 +599,93 @@ func TestEsbuildEngine_DecoratorLegacy(t *testing.T) {
 		t.Fatalf("Transform: %v", err)
 	}
 	code := string(res.Code)
-	if !strings.Contains(code, "__decorate") {
-		t.Fatalf("legacy decorator helper not emitted: %s", code)
+	if !strings.Contains(code, "__decorateClass") {
+		t.Fatalf("legacy decorator helper __decorateClass not emitted: %s", code)
+	}
+	if strings.Contains(code, "__decorateElement") {
+		t.Fatal("legacy mode must not emit standard helper __decorateElement")
 	}
 }
 
-func TestEsbuildEngine_DecoratorMetadata(t *testing.T) {
+func TestEsbuildEngine_StandardDecorator(t *testing.T) {
+	// Without experimentalDecorators, esbuild uses standard TC39 helpers.
 	e := NewEsbuildEngine()
 	ctx := context.Background()
 
-	src := "function log(target: any, key: string) {}\nclass Example {\n  @log\n  method() {}\n}"
+	src := "function sealed(target: any, ctx: ClassDecoratorContext) {}\n@sealed\nclass MyClass {}"
 	req := TransformRequest{
-		RequestID:       "decorator-meta",
+		RequestID:       "decorator-standard",
+		SourcePath:      "decorator.ts",
+		SourceBytes:     []byte(src),
+		SourceDigest:    "fake",
+		Loader:          LoaderTS,
+		Format:          FormatESM,
+		SourceMapMode:   SourceMapNone,
+		TargetNodeMajor: 20,
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	code := string(res.Code)
+	if !strings.Contains(code, "__decorateElement") {
+		t.Fatalf("standard decorator helper __decorateElement not emitted: %s", code)
+	}
+	if strings.Contains(code, "__decorateClass") {
+		t.Fatal("standard mode must not emit legacy helper __decorateClass")
+	}
+}
+
+func TestEsbuildEngine_DecoratorLegacyVsStandardDifferentOutput(t *testing.T) {
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	src := []byte("function seal<T extends new(...args: any[]) => any>(target: T) { return class extends target {}; }\n@seal\nclass MyClass {}")
+
+	legacyReq := TransformRequest{
+		RequestID: "legacy", SourcePath: "d.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{ExperimentalDecorators: true},
+	}
+	stdReq := TransformRequest{
+		RequestID: "std", SourcePath: "d.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+	}
+
+	legacyRes, err := e.Transform(ctx, legacyReq)
+	if err != nil {
+		t.Fatalf("legacy Transform: %v", err)
+	}
+	stdRes, err := e.Transform(ctx, stdReq)
+	if err != nil {
+		t.Fatalf("standard Transform: %v", err)
+	}
+
+	legacyCode := string(legacyRes.Code)
+	stdCode := string(stdRes.Code)
+
+	if legacyCode == stdCode {
+		t.Fatal("legacy and standard decorator output must differ")
+	}
+	if !strings.Contains(legacyCode, "__decorateClass") {
+		t.Fatalf("legacy must emit __decorateClass: %s", legacyCode)
+	}
+	if !strings.Contains(stdCode, "__decorateElement") {
+		t.Fatalf("standard must emit __decorateElement: %s", stdCode)
+	}
+}
+
+func TestEsbuildEngine_DecoratorLegacyMethod(t *testing.T) {
+	// Legacy method decorator: decorator receives (target, key, descriptor).
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	src := "function log(target: any, key: string, descriptor: PropertyDescriptor) {}\nclass Example {\n  @log\n  method() { return 1; }\n}"
+	req := TransformRequest{
+		RequestID:       "decorator-legacy-method",
 		SourcePath:      "decorator.ts",
 		SourceBytes:     []byte(src),
 		SourceDigest:    "fake",
@@ -619,7 +695,6 @@ func TestEsbuildEngine_DecoratorMetadata(t *testing.T) {
 		TargetNodeMajor: 20,
 		NormalizedOpts: NormalizedOptions{
 			ExperimentalDecorators: true,
-			EmitDecoratorMetadata:  true,
 		},
 	}
 
@@ -628,20 +703,23 @@ func TestEsbuildEngine_DecoratorMetadata(t *testing.T) {
 		t.Fatalf("Transform: %v", err)
 	}
 	code := string(res.Code)
-	if !strings.Contains(code, "__decorate") {
-		t.Fatalf("decorator helper not emitted: %s", code)
+	if !strings.Contains(code, "__decorateClass") {
+		t.Fatalf("legacy method decorator helper not emitted: %s", code)
+	}
+	// Method decorators on prototype use kind=1.
+	if !strings.Contains(code, `"method", 1`) && !strings.Contains(code, `"method",1`) {
+		t.Fatalf("legacy method decorator must target prototype method: %s", code)
 	}
 }
 
-func TestEsbuildEngine_DecoratorWorksWithoutFlag(t *testing.T) {
-	// esbuild always accepts decorators; the experimentalDecorators tsconfig
-	// flag gates the TypeScript type-checker, not the transpiler.
+func TestEsbuildEngine_DecoratorStandardMethod(t *testing.T) {
+	// Standard method decorator: receives (value, context) where context.kind === "method".
 	e := NewEsbuildEngine()
 	ctx := context.Background()
 
-	src := "function sealed(target: any) {}\n@sealed\nclass MyClass {}"
+	src := "function log(value: any, ctx: ClassMethodDecoratorContext) {}\nclass Example {\n  @log\n  method() { return 1; }\n}"
 	req := TransformRequest{
-		RequestID:       "decorator-no-flag",
+		RequestID:       "decorator-std-method",
 		SourcePath:      "decorator.ts",
 		SourceBytes:     []byte(src),
 		SourceDigest:    "fake",
@@ -656,8 +734,41 @@ func TestEsbuildEngine_DecoratorWorksWithoutFlag(t *testing.T) {
 		t.Fatalf("Transform: %v", err)
 	}
 	code := string(res.Code)
-	if !strings.Contains(code, "__decorate") {
-		t.Fatalf("decorator helper not emitted: %s", code)
+	if !strings.Contains(code, "__decorateElement") {
+		t.Fatalf("standard method decorator helper not emitted: %s", code)
+	}
+}
+
+func TestEsbuildEngine_TSXWithDecorator(t *testing.T) {
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	src := "function logged<T extends new(...args: any[]) => any>(target: T) { return class extends target {}; }\n@logged\nclass Component {\n  render() { return <div>hello</div>; }\n}"
+	req := TransformRequest{
+		RequestID:       "decorator-tsx",
+		SourcePath:      "component.tsx",
+		SourceBytes:     []byte(src),
+		SourceDigest:    "fake",
+		Loader:          LoaderTSX,
+		Format:          FormatESM,
+		SourceMapMode:   SourceMapNone,
+		TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{
+			ExperimentalDecorators: true,
+			JSX:                    "react-jsx",
+		},
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	code := string(res.Code)
+	if !strings.Contains(code, "__decorateClass") {
+		t.Fatalf("decorator helper not emitted in TSX: %s", code)
+	}
+	if !strings.Contains(code, "jsx") {
+		t.Fatalf("JSX not transformed in decorator+TSX: %s", code)
 	}
 }
 
@@ -787,6 +898,28 @@ func TestCacheKeyVariesByDecoratorOptions(t *testing.T) {
 	k2 := CacheKey(req2, id)
 	if k1 == k2 {
 		t.Fatal("cache keys must differ when decorator metadata differs")
+	}
+}
+
+func TestCacheKeyVariesByDecoratorMode(t *testing.T) {
+	// Legacy vs standard decorator mode must produce different cache keys.
+	src := []byte("const x = 1; @sealed class Foo {}")
+	req1 := TransformRequest{
+		RequestID: "ck-decor-legacy", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{ExperimentalDecorators: true},
+	}
+	req2 := TransformRequest{
+		RequestID: "ck-decor-std", SourcePath: "a.ts", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTS, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+	}
+	id := EngineIdentity{Name: "esbuild", Version: "1.0"}
+	k1 := CacheKey(req1, id)
+	k2 := CacheKey(req2, id)
+	if k1 == k2 {
+		t.Fatal("cache keys must differ when decorator mode differs (legacy vs standard)")
 	}
 }
 

@@ -517,7 +517,7 @@ func TestNormalizeJSXOptions(t *testing.T) {
 
 func TestNormalizeDecoratorOptions(t *testing.T) {
 	dir := t.TempDir()
-	cfg := `{"compilerOptions":{"experimentalDecorators":true,"emitDecoratorMetadata":true}}`
+	cfg := `{"compilerOptions":{"experimentalDecorators":true}}`
 	path := writeJSONC(t, dir, "tsconfig.json", cfg)
 
 	chain, err := LoadTsconfigChain(path)
@@ -531,8 +531,30 @@ func TestNormalizeDecoratorOptions(t *testing.T) {
 	if !opts.ExperimentalDecorators {
 		t.Fatal("experimentalDecorators should be true")
 	}
-	if !opts.EmitDecoratorMetadata {
-		t.Fatal("emitDecoratorMetadata should be true")
+	if opts.EmitDecoratorMetadata {
+		t.Fatal("emitDecoratorMetadata should be false when not set")
+	}
+}
+
+func TestEmitDecoratorMetadataUnsupported(t *testing.T) {
+	dir := t.TempDir()
+	cfg := `{"compilerOptions":{"emitDecoratorMetadata":true}}`
+	path := writeJSONC(t, dir, "tsconfig.json", cfg)
+
+	chain, err := LoadTsconfigChain(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NormalizeOptions(chain)
+	if err == nil {
+		t.Fatal("expected error for emitDecoratorMetadata, got nil")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrOptionUnsupported {
+		t.Fatalf("expected ConfigErrOptionUnsupported, got %s", cfgErr.Kind)
 	}
 }
 

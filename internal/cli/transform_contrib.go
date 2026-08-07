@@ -151,6 +151,8 @@ func configErrToCode(kind transform.ConfigErrorKind) apperr.Code {
 		return apperr.TransformConfigExtends
 	case transform.ConfigErrOptionInvalid:
 		return apperr.TransformConfigOption
+	case transform.ConfigErrOptionUnsupported:
+		return apperr.TransformUnsupported
 	default:
 		return apperr.Internal
 	}

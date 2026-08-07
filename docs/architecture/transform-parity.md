@@ -26,16 +26,27 @@ When `jsx: "react-jsx"` is set without `jsxImportSource`, Mew defaults to
 
 | Feature | Support | Notes |
 |---|---|---|
-| Legacy TypeScript decorators | Full | Via esbuild; enabled by tsconfig `experimentalDecorators` |
-| `emitDecoratorMetadata` | Parity | Carried in NormalizedOptions and cache keys; esbuild does not emit metadata — Mew carries the flag for future metadata emission |
-| TC39 standard decorators | Deferred | Pending esbuild upstream support |
+| Legacy TypeScript decorators | Full | Via esbuild; enabled by tsconfig `experimentalDecorators`; uses `__decorateClass` helper |
+| TC39 standard decorators | Full | Via esbuild; default when `experimentalDecorators` is not set; uses `__decorateElement` helper |
+| `emitDecoratorMetadata` | Unsupported | Fails with `ERR_M_TRANSFORM_UNSUPPORTED` diagnostic; metadata emission requires type-checker information unavailable to a transpiler |
+
+### Decorator mode selection
+
+Mew passes `experimentalDecorators` from tsconfig through `TsconfigRaw` to
+esbuild, which selects the decorator transform mode:
+
+- `experimentalDecorators: true` → legacy TypeScript decorators (`__decorateClass`)
+- `experimentalDecorators` absent or `false` → TC39 standard decorators (`__decorateElement`)
+
+Both modes are included in cache keys via `NormalizedOptions`.
 
 ### Decorator metadata strategy
 
-Mew carries `emitDecoratorMetadata` in NormalizedOptions and includes it in
-cache keys. Actual metadata emission is not yet implemented. The decision
-between Go-native metadata reflection and embedded JS helpers is deferred to
-a later MVP. Nub parity for metadata is separately certified.
+`emitDecoratorMetadata` is explicitly rejected during tsconfig normalization.
+Mew is a transpiler, not a type checker; it lacks the type information
+required to emit `design:type`, `design:paramtypes`, and `design:returntype`
+metadata. Setting `emitDecoratorMetadata: true` produces an actionable
+diagnostic rather than silently producing incomplete output.
 
 ## Source Maps
 
@@ -82,12 +93,14 @@ a later MVP. Nub parity for metadata is separately certified.
 4. **No path alias resolution.** `baseUrl` and `paths` are carried for cache
    key stability but not yet resolved (0053).
 
-5. **Decorators always transpiled.** esbuild does not gate decorator syntax on
-   `experimentalDecorators` (the flag only affects the type checker in tsc).
-   Mew always transforms decorators when present.
+5. **Decorator mode controlled by tsconfig.** `experimentalDecorators: true`
+   selects legacy decorator helpers (`__decorateClass`); absent selects
+   TC39 standard helpers (`__decorateElement`). Decorators are always
+   transpiled when present regardless of the flag.
 
-6. **No `emitDecoratorMetadata` emission.** The flag is recognized and included
-   in cache keys but no metadata is emitted.
+6. **No `emitDecoratorMetadata` emission.** Setting `emitDecoratorMetadata: true`
+   fails with an `ERR_M_TRANSFORM_UNSUPPORTED` diagnostic. Mew is a transpiler
+   and cannot emit `design:*` metadata without type-checker information.
 
 7. **Source map content always included by default.** esbuild includes source
    content in source maps; explicit `inlineSources: false` is not distinguished

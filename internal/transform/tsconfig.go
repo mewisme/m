@@ -16,14 +16,15 @@ import (
 type ConfigErrorKind string
 
 const (
-	ConfigErrIO             ConfigErrorKind = "io"
-	ConfigErrParse          ConfigErrorKind = "parse"
-	ConfigErrExtendsMissing ConfigErrorKind = "extends_missing"
-	ConfigErrExtendsCycle   ConfigErrorKind = "extends_cycle"
-	ConfigErrExtendsDepth   ConfigErrorKind = "extends_depth"
-	ConfigErrExtendsPackage ConfigErrorKind = "extends_package"
-	ConfigErrExtendsInvalid ConfigErrorKind = "extends_invalid"
-	ConfigErrOptionInvalid  ConfigErrorKind = "option_invalid"
+	ConfigErrIO                ConfigErrorKind = "io"
+	ConfigErrParse             ConfigErrorKind = "parse"
+	ConfigErrExtendsMissing    ConfigErrorKind = "extends_missing"
+	ConfigErrExtendsCycle      ConfigErrorKind = "extends_cycle"
+	ConfigErrExtendsDepth      ConfigErrorKind = "extends_depth"
+	ConfigErrExtendsPackage    ConfigErrorKind = "extends_package"
+	ConfigErrExtendsInvalid    ConfigErrorKind = "extends_invalid"
+	ConfigErrOptionInvalid     ConfigErrorKind = "option_invalid"
+	ConfigErrOptionUnsupported ConfigErrorKind = "option_unsupported"
 )
 
 // ConfigError is a typed tsconfig failure that preserves the config path
@@ -240,6 +241,16 @@ func NormalizeOptions(chain []TsconfigFile) (NormalizedOptions, error) {
 	for _, tsc := range chain {
 		if err := applyCompilerOptions(&opts, tsc.Path, tsc.Raw); err != nil {
 			return NormalizedOptions{}, err
+		}
+	}
+	// emitDecoratorMetadata requires type information only available to a
+	// type checker. Mew is a transpiler; reject it explicitly rather than
+	// silently ignoring it.
+	if opts.EmitDecoratorMetadata {
+		return NormalizedOptions{}, &ConfigError{
+			Kind: ConfigErrOptionUnsupported,
+			Path: chain[len(chain)-1].Path,
+			Err:  fmt.Errorf("emitDecoratorMetadata is not supported: Mew is a transpiler, not a type checker; metadata emission requires compiler type information"),
 		}
 	}
 	return opts, nil
