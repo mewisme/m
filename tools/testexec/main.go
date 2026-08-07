@@ -40,6 +40,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -97,7 +98,9 @@ func run(ctx context.Context, cfg config) error {
 		fmt.Fprintf(os.Stderr, "testexec: %d packages, %d tests\n", len(discovered), totalTests)
 	}
 
+	start := time.Now()
 	results := r.runAll(ctx, discovered)
+	elapsed := time.Since(start)
 
 	// Summary.
 	var passed, failed int
@@ -111,7 +114,7 @@ func run(ctx context.Context, cfg config) error {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "\ntestexec: %d passed, %d failed\n", passed, failed)
+	fmt.Fprintf(os.Stderr, "\ntestexec: %d passed, %d failed (%.1fs)\n", passed, failed, elapsed.Seconds())
 	if len(failures) > 0 {
 		fmt.Fprintf(os.Stderr, "Failures:\n")
 		for _, f := range failures {

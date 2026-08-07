@@ -46,16 +46,21 @@ Full docs: [`docs/architecture/transaction-boundary.md`](docs/architecture/trans
 
 Prefer `make` targets. `make help` lists them all.
 
+Test execution uses `tools/testexec`, the canonical adaptive test orchestrator.
+Override worker count: `make test TESTEXEC_WORKERS=1` (serial) or `TESTEXEC_WORKERS=4`.
+Direct use: `go run ./tools/testexec [-workers N] [-short] [-race] [-tags TAGS] [packages...]`.
+
 ```sh
 # Build
 make build
 
 # Test
-make test              # full suite
+make test              # full suite (adaptive parallel)
 make test-short        # fast suite (skips soak)
 make test-unit         # unit tests only
-make test-integration  # integration tests
+make test-integration  # integration tests (process-level sharding)
 make test-e2e          # runtime E2E + Node version tests
+make test-crash        # crash recovery suite (build tag: crash)
 make test-race         # race detector (requires CGO)
 
 # Single package
@@ -85,6 +90,8 @@ make vuln              # vulnerability scan
 ## Repository tools
 
 [`TOOLS.md`](TOOLS.md) is the canonical inventory of every repository-local tool. Read it before creating scripts, changing build/test/generation tooling, or claiming no existing command covers a task.
+
+Testing quick reference: [`TESTING.md`](TESTING.md). Test strategy and architecture: [`docs/testing.md`](docs/testing.md).
 
 Prefer, in order:
 1. Documented Make targets (`make help` lists them all)
