@@ -33,7 +33,7 @@ semantics where parity is intentional; use idiomatic Go architecture elsewhere.
 | Decorator metadata emission | divergence | emitDecoratorMetadata explicitly rejected during tsconfig normalization (ERR_M_TRANSFORM_UNSUPPORTED diagnostic) |
 | tsconfig paths/baseUrl resolution | parity (0052/0053) | Deterministic specificity-ordered path pattern matching in Node loader resolve hook; exact before wildcard, longest prefix wins; Node fallback errors preserved; remaining 0053 work: directory/index resolution |
 | .js → .ts extension mapping | parity (0053) | Implemented: .js→.ts/.tsx, .jsx→.tsx, .mjs→.mts, .cjs→.cts with deterministic candidate ordering; existing JS files take precedence; loader active for all entrypoints |
-| Custom ESM loader chaining | parity (0053) | --loader flag injects --import before Mew preloads; user hooks register before ts-loader |
+| Custom ESM loader chaining | parity (0053) | `--loader` flag registers via `module.register()`; user hooks outermost, ts-loader innermost |
 | PnP runtime adapter | parity (0053) | .pnp.cjs detection + resolveRequest integration in ts-loader resolve hook |
 | resolve-module command | extension (0053) | Go-side diagnostic showing tsconfig paths, baseUrl, pattern matches |
 | .env auto-discovery | parity (0054) | Mode-aware .env* loading with precedence: .env.[mode].local > .env.[mode] > .env.local > .env |

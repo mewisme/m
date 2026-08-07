@@ -7,16 +7,16 @@
       "path": "credential-grabber.cjs",
       "role": "credential-grabber",
       "moduleType": "cjs",
-      "size": 4313,
-      "sha256": "d53a9c05a6e32feb9f625acdd96fe91524c6dce67dc2147189b7f5622856bb1f"
+      "size": 6690,
+      "sha256": "0957bbea180db1fe6617fb70195a031b1ac805c56e7f769c9ca2fe0126df0986"
     },
     {
       "name": "loader-register.mjs",
       "path": "loader-register.mjs",
       "role": "loader-registration",
       "moduleType": "esm",
-      "size": 371,
-      "sha256": "6d3aee56c63c452366f5bbf7a754a23447420c15e1ae9aba14f9503c794dfd8a"
+      "size": 1134,
+      "sha256": "84cb72d9aebce960973b63af86da05c1c9cfc7966ed94fc872b1c8673a4b0193"
     },
     {
       "name": "preload.cjs",

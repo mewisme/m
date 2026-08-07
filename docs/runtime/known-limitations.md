@@ -48,9 +48,9 @@ Documented as of 0052 development (0057 runtime stabilization pending). Each ent
 
 ### Custom loader ordering
 
-**Limitation**: Custom loaders specified via `--loader` are injected before Mew's ts-loader in the hook chain. This means custom loaders run first and can claim resolutions that ts-loader would otherwise handle. This is the correct ordering for hook chaining, but may surprise users expecting Mew's loader to run first.
+**Behavior**: Custom loaders specified via `--loader` are registered via `module.register()` by Mew's credential-grabber (augmented mode) or loader-register shim (`--node` mode). They sit *outside* ts-loader in the hook chain: user loader 1 (outermost) → user loader 2 → ... → ts-loader → Node default. A user loader that short-circuits (returns without calling `nextResolve`/`nextLoad`) skips ts-loader entirely.
 
-**Impact**: A custom loader that claims all `.ts` resolutions will prevent Mew's ts-loader from running, breaking path alias resolution and extension mapping.
+**Impact**: A custom loader that claims all `.ts` resolutions will prevent Mew's ts-loader from running, breaking path alias resolution and extension mapping. This is by design: user loaders are authoritative.
 
 **Resolution**: Documented behavior. Add `m resolve-module` diagnostics (0053) for debugging loader chains.
 

@@ -1525,6 +1525,159 @@ func TestRuntimeE2ETSModuleFormatCacheKeyRegression(t *testing.T) {
 	}
 }
 
+// --- custom loaders (Issue 14) ---
+
+func TestRuntimeE2ELoaderOrdinaryInvoked(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "--loader", "./loader-log.mjs", "app-with-import.mjs")
+	if code != 0 {
+		t.Logf("exit=%d (loader may have failed)", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "loader-log:resolve:") {
+		t.Fatalf("loader not invoked; output:\n%s", out)
+	}
+}
+
+func TestRuntimeE2ELoaderDelegating(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "--loader", "./loader-delegate.mjs", "app-with-import.mjs")
+	if code != 0 {
+		t.Logf("exit=%d (loader may have failed)", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "loader-delegate:resolve:") {
+		t.Fatalf("delegating loader not invoked; output:\n%s", out)
+	}
+	if !strings.Contains(out, "entrypoint:done") {
+		t.Fatalf("entrypoint did not complete; output:\n%s", out)
+	}
+}
+
+func TestRuntimeE2ELoaderOrdering(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "--loader", "./loader-order-a.mjs", "--loader", "./loader-order-b.mjs", "app-with-import.mjs")
+	if code != 0 {
+		t.Logf("exit=%d (loader may have failed)", code)
+	}
+	out := readOutput(t, proj)
+	// Both loaders should be invoked. Verify the specifier that the entrypoint
+	// imports (.lib-import.js) is resolved by both.
+	if !strings.Contains(out, "A") || !strings.Contains(out, "B") {
+		t.Fatalf("expected A and B markers; output:\n%s", out)
+	}
+}
+
+func TestRuntimeE2ELoaderErrorPropagation(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "--loader", "./loader-error.mjs", "app-with-import.mjs")
+	if code == 0 {
+		t.Fatal("expected non-zero exit for loader error")
+	}
+}
+
+func TestRuntimeE2ELoaderContextFields(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "--loader", "./loader-context.mjs", "app-with-import.mjs")
+	if code != 0 {
+		t.Logf("exit=%d (loader may have failed)", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "loader-context:resolve:") {
+		t.Fatalf("context loader not invoked; output:\n%s", out)
+	}
+	if !strings.Contains(out, "\"conditions\":true") {
+		t.Fatalf("expected conditions:true in context; output:\n%s", out)
+	}
+	if !strings.Contains(out, "\"parentURL\":true") {
+		t.Fatalf("expected parentURL field in context; output:\n%s", out)
+	}
+}
+
+func TestRuntimeE2ELoaderTSPlusCustomLoader(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("TS execution requires Node >= 20")
+	}
+	proj := runtimeE2EFixture(t)
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "--loader", "./loader-log.mjs", "app-ts-with-loader.ts")
+	if code != 0 {
+		t.Logf("exit=%d (TS+loader may have failed)", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "loader-log:resolve:") {
+		t.Fatalf("custom loader not invoked alongside ts-loader; output:\n%s", out)
+	}
+	if !strings.Contains(out, "ts-entrypoint:Hello, world") {
+		t.Fatalf("TS entrypoint did not produce expected output; output:\n%s", out)
+	}
+}
+
+func TestRuntimeE2ELoaderNodeMode(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "--node", "--loader", "./loader-log.mjs", "app-with-import.mjs")
+	if code != 0 {
+		t.Logf("exit=%d (--node --loader may have failed)", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "loader-log:resolve:") {
+		t.Fatalf("loader not invoked in --node mode; output:\n%s", out)
+	}
+	if !strings.Contains(out, "entrypoint:done") {
+		t.Fatalf("entrypoint did not complete; output:\n%s", out)
+	}
+}
+
+func TestRuntimeE2ELoaderInvalidPath(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, out := runMWithRuntime(t, proj, "--loader", "./nonexistent-loader.mjs", "hello.js")
+	if code == 0 {
+		t.Fatalf("expected non-zero exit for missing loader; got:\n%s", out)
+	}
+	if !strings.Contains(out, "loader not found") && !strings.Contains(out, "nonexistent") {
+		t.Fatalf("expected loader-not-found error; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2ELoaderRepeatedOrder(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj,
+		"--loader", "./loader-log.mjs",
+		"--loader", "./loader-delegate.mjs",
+		"app-with-import.mjs")
+	if code != 0 {
+		t.Logf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	// Check both loaders were invoked for the same specifier.
+	// Within one resolution, loader-log fires before loader-delegate (LIFO chain:
+	// loader-log registered last = outermost, fires first).
+	// Find the .lib-import.js resolution specifically.
+	idxLog := strings.Index(out, "loader-log:resolve:./lib-import.js")
+	idxDel := strings.Index(out, "loader-delegate:resolve:./lib-import.js")
+	if idxLog < 0 || idxDel < 0 {
+		t.Fatalf("both loaders should resolve ./lib-import.js; output:\n%s", out)
+	}
+	if idxLog >= idxDel {
+		t.Fatalf("loader-log should fire before loader-delegate for ./lib-import.js; output:\n%s", out)
+	}
+}
+
 // --- helpers ---
 
 func writeFile(t *testing.T, path, content string) {

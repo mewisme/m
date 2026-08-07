@@ -34,7 +34,9 @@ type LaunchRequest struct {
 	ExperimentalState map[string]string
 	Contribution      *LaunchContribution
 	// Loaders are user-specified ESM loader paths (--loader flag).
-	// They are injected as --import flags before the Mew loader hooks.
+	// They are registered via module.register() by credential-grabber.cjs
+	// (augmented mode) or loader-register.mjs (--node mode) through the
+	// MEW_USER_LOADERS env var. No longer injected as bare --import.
 	Loaders []string
 }
 
@@ -51,8 +53,9 @@ type LaunchPlan struct {
 	NodeVersion       string
 	NodeCapabilities  []string
 	NodeArgv          []string
-	CredentialPreload *PreloadAsset  // credential-grabber — always first in argv
-	CustomLoaders     []PreloadAsset // user --loader flags, injected before Mew preloads
+	CredentialPreload *PreloadAsset
+	CustomLoaders     []PreloadAsset // user --loader file:// URLs for env passthrough (no longer injected as --import)
+	LoaderShimPath    string         // loader-register.mjs path for --node mode with loaders
 	PreloadAssets     []PreloadAsset
 	Entrypoint        string
 	AppArgs           []string

@@ -79,15 +79,18 @@ with the Node loader bridge over a length-prefixed JSON frame protocol.
 ```
 m app.ts
   → Go starts esbuild transform service on 127.0.0.1:<random>
-  → Node launches with loader hooks (--import loader-register.mjs)
-  → loader-register.mjs registers ts-loader.mjs via module.register()
+  → Node launches with credential-grabber preload (--require credential-grabber.cjs)
+  → credential-grabber.cjs strips credentials from env, registers ts-loader.mjs
+    via module.register() with credential data, registers user --loader modules
   → Node loads app.ts → loader hook fires → source sent to transform service
   → Transformed JS returned → Node executes
 ```
 
 Transform credentials (`MEW_TRANSFORM_ENDPOINT`, `MEW_TRANSFORM_TOKEN`) are
-captured by the Node loader thread at its creation time. The main-thread
-preload (`preload.mjs`) strips them before any user module executes.
+captured by the credential grabber at its invocation time (first `--require`
+preload). The grabber strips them from the environment before any user module
+executes and passes them to `ts-loader.mjs` via `module.register()`'s `data`
+option — no filesystem artifact, no env leak.
 
 **Protocol**: JSON length-prefixed frames (u32le header + JSON body) over TCP.
 Max frame size 48 MiB. Protocol version 2. Auth via bearer token.
@@ -130,8 +133,59 @@ or unreadable `package.json` files default to `"commonjs"`.
 - Format determination applies to files resolved through the ESM loader hooks.
   CJS `require()` calls inside transformed modules bypass the loader hooks and
   use Node's native CJS resolution (no TypeScript extension mapping).
-- Full Node16/NodeNext resolver parity (package `exports`/`imports`, custom
-  loaders) belongs to Issues 14–16.
+- Full Node16/NodeNext resolver parity (package `exports`/`imports`) belongs to
+  Issues 15–16.
+- PnP hardening belongs to Issue 15.
+
+### Custom loaders (`--loader`)
+
+Mew supports user-supplied ESM loader hooks via the `--loader` flag.
+Multiple loaders compose into a single hook chain with Mew's TypeScript
+transform loader.
+
+**Syntax**:
+
+```text
+m --loader ./my-loader.mjs app.ts
+m --loader ./a.mjs --loader ./b.mjs app.ts      # multiple loaders, ordered
+m --node --loader ./my-loader.mjs app.js         # --node mode
+```
+
+**Accepted forms**: absolute paths, relative paths (resolved against working
+directory), and `file://` URLs. Loader paths must exist at launch time —
+missing paths produce a deterministic bootstrap error before Node starts.
+
+**Hook chain** (LIFO: last-registered fires first):
+
+```
+User loader 1  (--loader a.mjs)     ← outermost, fires first
+    ↓ nextResolve / nextLoad
+User loader 2  (--loader b.mjs)
+    ↓ nextResolve / nextLoad
+Mew ts-loader  (TypeScript transform) ← innermost, fills gaps
+    ↓ nextResolve / nextLoad
+Node default loader
+```
+
+A loader that calls `nextResolve`/`nextLoad` delegates to the next hook.
+A loader that returns without calling `next*` short-circuits the chain.
+Errors thrown by user loaders propagate as Node module resolution errors
+without converting them into Mew transform errors.
+
+**Multiple `--loader` order**: first flag = outermost hook. `--loader a.mjs
+--loader b.mjs` → `a.mjs` fires first.
+
+**`--node` behavior**: user loaders are registered via a minimal shim
+(`loader-register.mjs`). No credential handling, no ts-loader, no Mew
+preloads — just the user's loaders on stock Node.
+
+**Loader contract**: a custom loader module must export `resolve` and/or
+`load` hooks following the Node.js loader API. It does not need to
+self-register — Mew calls `module.register()` on its behalf. Loader modules
+must not import Mew internals.
+
+**Unsupported**: loader-specific arguments, worker propagation (deferred to
+Issue 15), and PnP-aware custom resolution (Issue 16).
 
 ## Augmentation
 
@@ -140,11 +194,12 @@ or unreadable `package.json` files default to `"commonjs"`.
 When augmentation is enabled, Mew injects preload assets into the Node argv:
 
 ```
-node --require <cache>/preload.cjs --import <cache>/loader-register.mjs --import <cache>/preload.mjs <entrypoint> [app-args]
+node --require <cache>/credential-grabber.cjs --require <cache>/preload.cjs --import <cache>/preload.mjs <entrypoint> [app-args]
 ```
 
-The preload files provide bootstrap boundaries. For TypeScript entrypoints,
-`loader-register.mjs` registers the TS loader hooks via `module.register()`.
+The credential grabber and preload files provide bootstrap boundaries. For
+TypeScript entrypoints, `credential-grabber.cjs` registers the TS loader hooks
+via `module.register()` and also registers any user `--loader` modules.
 
 ### Zero-augmentation (`--node`)
 
@@ -162,7 +217,8 @@ Embedded assets live in `internal/runtime/assets/`:
 |---|---|---|---|
 | `preload.cjs` | CommonJS | preload-cjs | CJS bootstrap boundary |
 | `preload.mjs` | ESM | preload-esm | ESM bootstrap + credential stripping |
-| `loader-register.mjs` | ESM | loader-registration | Registers TS loader hooks |
+| `credential-grabber.cjs` | CommonJS | credential-grabber | Captures env, registers TS + user loaders |
+| `loader-register.mjs` | ESM | loader-registration | Registration shim for `--node --loader` |
 | `ts-loader.mjs` | ESM | loader-support | TS transform hook implementation |
 | `manifest.json` | — | — | Content-addressed asset catalog |
 

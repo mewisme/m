@@ -291,68 +291,74 @@ func contains(s, sub string) bool {
 	return false
 }
 
-func TestBuildArgvCustomLoadersBeforeMewPreloads(t *testing.T) {
+func TestBuildArgvCustomLoadersNotInArgv(t *testing.T) {
+	// Custom loaders are no longer injected as --import into argv.
+	// They are passed via MEW_USER_LOADERS env var and registered by
+	// credential-grabber.cjs via module.register(). Verify they are
+	// absent from the argv.
 	cred := &runtime.PreloadAsset{Path: "/c/cred.cjs", ModuleType: "cjs"}
 	plan := &runtime.LaunchPlan{
 		NodeExe:           "node",
 		CredentialPreload: cred,
 		CustomLoaders: []runtime.PreloadAsset{
-			{Path: "/custom/a.mjs", ModuleType: "esm"},
-			{Path: "/custom/b.mjs", ModuleType: "esm"},
+			{Path: "file:///custom/a.mjs", ModuleType: "esm"},
+			{Path: "file:///custom/b.mjs", ModuleType: "esm"},
 		},
 		PreloadAssets: []runtime.PreloadAsset{
-			{Path: "/cache/loader-register.mjs", ModuleType: "esm"},
+			{Path: "/cache/preload.mjs", ModuleType: "esm"},
 		},
 		Entrypoint: "app.ts",
 	}
 
 	argv := runtime.BuildArgv(plan, nil)
 
-	// Find indices of each asset.
-	customAIdx := -1
-	customBIdx := -1
-	loaderIdx := -1
-	for i, a := range argv {
-		switch a {
-		case "/custom/a.mjs":
-			customAIdx = i
-		case "/custom/b.mjs":
-			customBIdx = i
-		case "/cache/loader-register.mjs":
-			loaderIdx = i
+	// Custom loader paths must NOT appear in argv.
+	for _, a := range argv {
+		if a == "file:///custom/a.mjs" || a == "file:///custom/b.mjs" || a == "/custom/a.mjs" || a == "/custom/b.mjs" {
+			t.Fatalf("custom loader path in argv (should be env-only): %v", argv)
 		}
-	}
-	if customAIdx < 0 || customBIdx < 0 || loaderIdx < 0 {
-		t.Fatalf("could not find expected args in argv: %v", argv)
-	}
-	// Custom loaders must be before Mew preloads.
-	if customAIdx >= loaderIdx {
-		t.Fatalf("custom loader a.mjs (idx %d) before loader-register.mjs (idx %d): %v", customAIdx, loaderIdx, argv)
-	}
-	if customBIdx >= loaderIdx {
-		t.Fatalf("custom loader b.mjs (idx %d) before loader-register.mjs (idx %d): %v", customBIdx, loaderIdx, argv)
 	}
 }
 
-func TestBuildArgvNoCustomLoaders(t *testing.T) {
+func TestBuildArgvNodeModeLoaderShim(t *testing.T) {
+	// --node mode with custom loaders: loader-register.mjs injected as --import.
 	plan := &runtime.LaunchPlan{
-		NodeExe:       "node",
-		CustomLoaders: nil,
-		PreloadAssets: []runtime.PreloadAsset{
-			{Path: "/cache/loader-register.mjs", ModuleType: "esm"},
-		},
-		Entrypoint: "app.ts",
+		NodeExe:          "node",
+		ZeroAugmentation: true,
+		LoaderShimPath:   "/cache/loader-register.mjs",
+		Entrypoint:       "app.js",
 	}
 	argv := runtime.BuildArgv(plan, nil)
-	// loader-register.mjs should be present, no custom loaders.
 	found := false
-	for _, a := range argv {
-		if a == "/cache/loader-register.mjs" {
+	for i, a := range argv {
+		if a == "--import" && i+1 < len(argv) && argv[i+1] == "/cache/loader-register.mjs" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("expected loader-register.mjs in argv: %v", argv)
+		t.Fatalf("expected --import loader-register.mjs in argv: %v", argv)
+	}
+}
+
+func TestBuildArgvNoCustomLoaders(t *testing.T) {
+	plan := &runtime.LaunchPlan{
+		NodeExe: "node",
+		PreloadAssets: []runtime.PreloadAsset{
+			{Path: "/cache/preload.mjs", ModuleType: "esm"},
+		},
+		Entrypoint: "app.ts",
+	}
+	argv := runtime.BuildArgv(plan, nil)
+	// preload.mjs should be present.
+	found := false
+	for _, a := range argv {
+		if a == "/cache/preload.mjs" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected preload.mjs in argv: %v", argv)
 	}
 }

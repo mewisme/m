@@ -48,18 +48,39 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 		EnableSourceMaps: hasCap(nodeInst.Capabilities, "source-maps"),
 	}
 
-	// Resolve user-specified custom ESM loaders.
-	if len(req.Loaders) > 0 && req.AugmentationMode != AugmentNone {
+	// Resolve and validate user-specified custom ESM loaders.
+	// Works in both augmented and --node modes. Loader paths are converted
+	// to file:// URLs and passed via MEW_USER_LOADERS env var, consumed by
+	// credential-grabber.cjs (augmented) or loader-register.mjs (--node).
+	if len(req.Loaders) > 0 {
 		for _, p := range req.Loaders {
 			abs := p
 			if !filepath.IsAbs(p) {
 				abs = filepath.Join(req.WorkingDir, p)
 			}
+			// Validate existence before launch so the user gets a
+			// deterministic bootstrap error for clearly invalid input.
+			if _, err := os.Stat(abs); err != nil {
+				if os.IsNotExist(err) {
+					return nil, apperr.New(apperr.RuntimeEntrypoint, "runtime.plan", abs,
+						fmt.Sprintf("loader not found: %s", abs))
+				}
+				return nil, apperr.Wrap(apperr.RuntimeEntrypoint, "runtime.plan", abs, err)
+			}
+			u := fileURL(abs)
 			plan.CustomLoaders = append(plan.CustomLoaders, PreloadAsset{
-				Path:       abs,
+				Path:       u,
 				ModuleType: "esm",
 			})
 		}
+		// Pass user loader URLs via env var. Consumed and deleted by the
+		// registration shim (credential-grabber.cjs or loader-register.mjs).
+		urls := make([]string, len(plan.CustomLoaders))
+		for i, cl := range plan.CustomLoaders {
+			urls[i] = cl.Path
+		}
+		plan.EnvChanges = append(plan.EnvChanges,
+			"MEW_USER_LOADERS="+strings.Join(urls, "\n"))
 	}
 
 	// Apply launch contribution from app-level orchestrator.
@@ -69,7 +90,10 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 		plan.EnvChanges = append(plan.EnvChanges, req.Contribution.ExtraEnv...)
 	}
 
-	if req.AugmentationMode != AugmentNone {
+	// Extract assets when augmentation is active, or when --node mode has
+	// custom loaders (needs loader-register.mjs shim).
+	needsAssets := req.AugmentationMode != AugmentNone || (len(req.Loaders) > 0 && req.AugmentationMode == AugmentNone)
+	if needsAssets {
 		// Verify cached assets before use; corrupt entries are deleted.
 		// VerifyCache only returns fatal errors (permission, I/O, manifest).
 		// Missing or corrupt files are deleted so EnsureAssets re-extracts them.
@@ -84,28 +108,41 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 		if err != nil {
 			return nil, err
 		}
-		for _, entry := range m.AssetsSorted() {
-			if !entry.Role.Injected() {
-				continue
+		if req.AugmentationMode != AugmentNone {
+			// Full augmentation: inject credential grabber and preloads.
+			for _, entry := range m.AssetsSorted() {
+				if !entry.Role.Injected() {
+					continue
+				}
+				// Loader registration is now handled by credential-grabber.cjs,
+				// which calls module.register() with credential data inline.
+				// The loader-register asset is no longer injected in augmented mode.
+				if entry.Role == assets.RoleLoaderRegistration {
+					continue
+				}
+				p, ok := assetPaths[entry.Name]
+				if !ok {
+					continue
+				}
+				pa := PreloadAsset{
+					Path:       p,
+					ModuleType: entry.ModuleType,
+				}
+				if entry.Role == assets.RoleCredentialGrabber {
+					plan.CredentialPreload = &pa
+				} else {
+					plan.PreloadAssets = append(plan.PreloadAssets, pa)
+				}
 			}
-			// Loader registration is now handled by credential-grabber.cjs,
-			// which calls module.register() with credential data inline.
-			// The loader-register asset is no longer injected.
-			if entry.Role == assets.RoleLoaderRegistration {
-				continue
-			}
-			p, ok := assetPaths[entry.Name]
-			if !ok {
-				continue
-			}
-			pa := PreloadAsset{
-				Path:       p,
-				ModuleType: entry.ModuleType,
-			}
-			if entry.Role == assets.RoleCredentialGrabber {
-				plan.CredentialPreload = &pa
-			} else {
-				plan.PreloadAssets = append(plan.PreloadAssets, pa)
+		} else {
+			// --node mode with custom loaders: only need loader-register.mjs.
+			for _, entry := range m.AssetsSorted() {
+				if entry.Role == assets.RoleLoaderRegistration {
+					if p, ok := assetPaths[entry.Name]; ok {
+						plan.LoaderShimPath = p
+					}
+					break
+				}
 			}
 		}
 	}
@@ -154,12 +191,15 @@ func enforceCapabilities(inst *node.Installation, entrypoint string) error {
 // strips transform credentials from process.env before any user --require,
 // user --import, or NODE_OPTIONS preload runs.
 func BuildArgv(plan *LaunchPlan, v8Args []string) []string {
-	customSlots := len(plan.CustomLoaders) * 2
+	shimSlots := 0
+	if plan.LoaderShimPath != "" {
+		shimSlots = 2 // --import <loader-register.mjs>
+	}
 	credSlots := 0
 	if !plan.ZeroAugmentation && plan.CredentialPreload != nil {
 		credSlots = 2 // --require <path>
 	}
-	argv := make([]string, 0, 4+credSlots+len(v8Args)+customSlots+len(plan.PreloadAssets)*2+1+len(plan.AppArgs))
+	argv := make([]string, 0, 4+credSlots+len(v8Args)+shimSlots+len(plan.PreloadAssets)*2+1+len(plan.AppArgs))
 	argv = append(argv, plan.NodeExe)
 
 	// Enable Node source-map support for stack trace mapping when available
@@ -180,18 +220,20 @@ func BuildArgv(plan *LaunchPlan, v8Args []string) []string {
 	// user V8/Node flags
 	argv = append(argv, v8Args...)
 
+	// --node mode with custom loaders: inject loader-register.mjs as --import.
+	// This minimal shim reads MEW_USER_LOADERS from the env and registers
+	// each user loader via module.register(). No credential handling, no
+	// ts-loader — just the user's loaders on stock Node.
+	if plan.LoaderShimPath != "" {
+		argv = append(argv, "--import", plan.LoaderShimPath)
+	}
+
 	if !plan.ZeroAugmentation {
-		// Custom ESM loaders (--loader flag) injected BEFORE Mew preloads.
-		// Custom loaders that register hooks via module.register() execute
-		// first → their hooks run first in the chain. ts-loader hooks,
-		// registered last, fill gaps.
-		for _, pa := range plan.CustomLoaders {
-			assetPath := pa.Path
-			if runtime.GOOS == "windows" && filepath.IsAbs(assetPath) {
-				assetPath = fileURL(assetPath)
-			}
-			argv = append(argv, "--import", assetPath)
-		}
+		// Custom loaders are now registered by credential-grabber.cjs via
+		// module.register(), not injected as bare --import. The env var
+		// MEW_USER_LOADERS carries the file:// URLs; credential-grabber
+		// registers them in reverse order so the first --loader is the
+		// outermost hook. ts-loader is registered last (innermost, fills gaps).
 
 		for _, pa := range plan.PreloadAssets {
 			assetPath := pa.Path

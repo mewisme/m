@@ -188,6 +188,7 @@ func dispatchOnlyFlagNames() []string {
 		"workspace-bail",
 		"no-workspace-bail",
 		"node",
+		"loader",
 		"env-file",
 		"no-env-file",
 		"mode",

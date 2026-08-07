@@ -44,33 +44,85 @@ if (isMainThread) {
   // handoff path: data travels from this closure directly to the
   // loader thread's initialize hook, never touching the filesystem
   // or module.exports.
-  if (endpoint && token) {
+  var register;
+  try { register = require('node:module').register; } catch (_) {}
+  if (register) {
     try {
-      const { register } = require('node:module');
       const { pathToFileURL } = require('node:url');
       const path = require('node:path');
       const tsLoader = pathToFileURL(path.join(__dirname, 'ts-loader.mjs')).href;
       const parentURL = pathToFileURL(__filename).href;
-      register(tsLoader, parentURL, {
-        parentURL,
-        data: { endpoint, token, options, optsDigest, configDir },
-        transferList: [],
-      });
+
+      if (endpoint && token) {
+        // Register user loaders first (reverse order, outermost hooks win).
+        const userLoadersRaw = process.env.MEW_USER_LOADERS || '';
+        delete process.env.MEW_USER_LOADERS;
+        if (userLoadersRaw) {
+          const userLoaders = userLoadersRaw.split('\n').filter(function (u) { return u.length > 0; });
+          // Reverse iteration: last-registered = first-called (LIFO chain).
+          for (var i = userLoaders.length - 1; i >= 0; i--) {
+            try {
+              register(userLoaders[i], parentURL, { parentURL, data: {}, transferList: [] });
+            } catch (_) { /* user loader registration failed; continue */ }
+          }
+        }
+        // ts-loader registered last → innermost (fills gaps after user hooks).
+        register(tsLoader, parentURL, {
+          parentURL,
+          data: { endpoint, token, options, optsDigest, configDir },
+          transferList: [],
+        });
+      } else {
+        // No transform credentials: register only user loaders.
+        const userLoadersRaw = process.env.MEW_USER_LOADERS || '';
+        delete process.env.MEW_USER_LOADERS;
+        if (userLoadersRaw) {
+          const userLoaders = userLoadersRaw.split('\n').filter(function (u) { return u.length > 0; });
+          for (var i = userLoaders.length - 1; i >= 0; i--) {
+            try {
+              register(userLoaders[i], parentURL, { parentURL, data: {}, transferList: [] });
+            } catch (_) {}
+          }
+        }
+      }
     } catch (_) {
       // require('node:module').register not available (Node < 20.6).
-      // Fall back to dynamic import. The closure protects credentials;
-      // the async call completes before ESM loader initialization.
+      // Fall back to dynamic import.
       import('node:module').then(function (mod) {
         try {
           const { pathToFileURL } = require('node:url');
           const path = require('node:path');
           const tsLoader = pathToFileURL(path.join(__dirname, 'ts-loader.mjs')).href;
           const parentURL = pathToFileURL(__filename).href;
-          mod.register(tsLoader, parentURL, {
-            parentURL,
-            data: { endpoint, token, options, optsDigest, configDir },
-            transferList: [],
-          });
+
+          if (endpoint && token) {
+            const userLoadersRaw = process.env.MEW_USER_LOADERS || '';
+            delete process.env.MEW_USER_LOADERS;
+            if (userLoadersRaw) {
+              const userLoaders = userLoadersRaw.split('\n').filter(function (u) { return u.length > 0; });
+              for (var i = userLoaders.length - 1; i >= 0; i--) {
+                try {
+                  mod.register(userLoaders[i], parentURL, { parentURL, data: {}, transferList: [] });
+                } catch (_) {}
+              }
+            }
+            mod.register(tsLoader, parentURL, {
+              parentURL,
+              data: { endpoint, token, options, optsDigest, configDir },
+              transferList: [],
+            });
+          } else {
+            const userLoadersRaw = process.env.MEW_USER_LOADERS || '';
+            delete process.env.MEW_USER_LOADERS;
+            if (userLoadersRaw) {
+              const userLoaders = userLoadersRaw.split('\n').filter(function (u) { return u.length > 0; });
+              for (var i = userLoaders.length - 1; i >= 0; i--) {
+                try {
+                  mod.register(userLoaders[i], parentURL, { parentURL, data: {}, transferList: [] });
+                } catch (_) {}
+              }
+            }
+          }
         } catch (_) { /* registration unavailable */ }
       }).catch(function () { /* import failed — registration unavailable */ });
     }
