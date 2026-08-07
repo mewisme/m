@@ -71,3 +71,26 @@ func TestMatchPathPattern(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchPathPatternOverlappingPrefixSuffix(t *testing.T) {
+	// Pattern "ab*bc" with specifier "abc": prefix "ab" matches, suffix "bc" matches,
+	// but specifier is too short (len 3 < 2+2). Must reject, not panic.
+	got := matchPathPattern("abc", "ab*bc")
+	if got != nil {
+		t.Errorf("matchPathPattern(%q, %q) = %v, want nil (overlapping prefix/suffix)", "abc", "ab*bc", got)
+	}
+}
+
+func TestMatchPathPatternMultiWildcard(t *testing.T) {
+	// Multiple wildcards with sequential capture.
+	got := matchPathPattern("@scope/pkg/sub/file", "@*/*/*")
+	if got == nil {
+		t.Fatal("expected match")
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 captures, got %d: %v", len(got), got)
+	}
+	if got[0] != "scope" || got[1] != "pkg" || got[2] != "sub/file" {
+		t.Errorf("captures: %v", got)
+	}
+}

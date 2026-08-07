@@ -126,9 +126,15 @@ numbers rather than transformed JavaScript locations.
 
 3. **No declaration files.** `.d.ts` generation requires `tsc`.
 
-4. **No path alias resolution in transform.** `baseUrl` and `paths` are carried
-   for cache key stability and resolved at runtime by the Node loader (0053
-   resolve hook). The transform engine itself does not consume them.
+4. **Path alias resolution is deterministic.** `baseUrl` and `paths` are
+   carried for cache key stability and resolved at runtime by the Node
+   loader (0053 resolve hook). The transform engine itself does not
+   consume them. Path patterns are sorted by TypeScript specificity
+   (exact matches first, then longest prefix before `*`, then shortest
+   suffix) before serialization to the loader. Target arrays preserve
+   declaration order. Node fallback errors are preserved rather than
+   swallowed. Repeated runs produce identical resolution order
+   regardless of Go map iteration.
 
 5. **Decorator mode controlled by tsconfig.** `experimentalDecorators: true`
    selects legacy decorator helpers (`__decorateClass`); absent selects

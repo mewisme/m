@@ -109,25 +109,25 @@ func renderResolveModuleText(cmd *cobra.Command, specifier, cwd, configPath stri
 	}
 
 	fmt.Fprintln(w, "Paths:")
-	for pattern, replacements := range opts.Paths {
-		fmt.Fprintf(w, "  %s → %s\n", pattern, strings.Join(replacements, ", "))
+	for _, pm := range opts.PathMappings {
+		fmt.Fprintf(w, "  %s → %s\n", pm.Pattern, strings.Join(pm.Targets, ", "))
 	}
 
-	// Match the specifier against paths.
+	// Match the specifier against paths (in canonical specificity order).
 	fmt.Fprintf(w, "\nMatching %q against path patterns:\n", specifier)
 	matched := false
-	for pattern, replacements := range opts.Paths {
-		captures := matchPathPattern(specifier, pattern)
+	for _, pm := range opts.PathMappings {
+		captures := matchPathPattern(specifier, pm.Pattern)
 		if captures == nil {
 			continue
 		}
 		matched = true
-		fmt.Fprintf(w, "  %s matched (captures: %v)\n", pattern, captures)
+		fmt.Fprintf(w, "  %s matched (captures: %v)\n", pm.Pattern, captures)
 		resolveBase := baseDir
 		if baseURL != "." && baseURL != "" {
 			resolveBase = filepath.Join(baseDir, baseURL)
 		}
-		for _, replacement := range replacements {
+		for _, replacement := range pm.Targets {
 			resolved := replacement
 			for _, cap := range captures {
 				resolved = strings.Replace(resolved, "*", cap, 1)
@@ -165,8 +165,10 @@ func matchPathPattern(specifier, pattern string) []string {
 	parts := strings.Split(pattern, "*")
 	if len(parts) == 2 {
 		prefix, suffix := parts[0], parts[1]
-		if strings.HasPrefix(specifier, prefix) && strings.HasSuffix(specifier, suffix) {
-			captured := specifier[len(prefix) : len(specifier)-len(suffix)]
+		sufLen := len(suffix)
+		if strings.HasPrefix(specifier, prefix) && strings.HasSuffix(specifier, suffix) &&
+			len(specifier) >= len(prefix)+sufLen {
+			captured := specifier[len(prefix) : len(specifier)-sufLen]
 			return []string{captured}
 		}
 		return nil

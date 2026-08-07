@@ -57,6 +57,52 @@ func (e *ConfigError) Unwrap() error {
 // only affect type-checking (noEmit) are excluded.
 // baseUrl and paths affect module resolution (0052+) and are carried
 // for cache key stability.
+
+// PathMapping is a single tsconfig paths entry in canonical order.
+// Pattern is the alias key (e.g. "@app/*", "@app/internal/*", "*").
+// Targets are the replacement values in declared order.
+type PathMapping struct {
+	Pattern string   `json:"pattern"`
+	Targets []string `json:"targets"`
+}
+
+// sortPathMappings orders path mappings by TypeScript specificity:
+//  1. Exact patterns (no wildcard) first, sorted alphabetically.
+//  2. Wildcard patterns sorted by:
+//     a. Longer prefix before the first '*' (more specific) first.
+//     b. Shorter suffix after the last '*' (more specific) first.
+//     c. Alphabetically for deterministic tie-breaking.
+func sortPathMappings(mappings []PathMapping) {
+	sort.Slice(mappings, func(i, j int) bool {
+		pi, pj := mappings[i].Pattern, mappings[j].Pattern
+		hasStarI := strings.Contains(pi, "*")
+		hasStarJ := strings.Contains(pj, "*")
+
+		// Exact patterns (no '*') come before wildcard patterns.
+		if hasStarI != hasStarJ {
+			return !hasStarI
+		}
+
+		if hasStarI {
+			// Both wildcard: compare prefix length before first '*'.
+			preI := strings.Index(pi, "*")
+			preJ := strings.Index(pj, "*")
+			if preI != preJ {
+				return preI > preJ // longer prefix first
+			}
+			// Compare suffix length after last '*'.
+			sufI := len(pi) - strings.LastIndex(pi, "*") - 1
+			sufJ := len(pj) - strings.LastIndex(pj, "*") - 1
+			if sufI != sufJ {
+				return sufI < sufJ // shorter suffix first
+			}
+		}
+
+		// Tie-break: alphabetical.
+		return pi < pj
+	})
+}
+
 type NormalizedOptions struct {
 	Target string `json:"target,omitempty"`
 	Module string `json:"module,omitempty"`
@@ -73,6 +119,11 @@ type NormalizedOptions struct {
 	ImportHelpers        bool                `json:"importHelpers,omitempty"`
 	BaseURL              string              `json:"baseUrl,omitempty"`
 	Paths                map[string][]string `json:"paths,omitempty"`
+	// PathMappings is the canonical ordered representation of Paths,
+	// sorted by TypeScript specificity (exact first, then longest prefix).
+	// The JS loader reads this field for deterministic resolution.
+	// Paths is retained for parsing/merge and backward compatibility.
+	PathMappings []PathMapping `json:"pathMappings,omitempty"`
 
 	// JSX
 	JSX                string `json:"jsx,omitempty"`
@@ -278,6 +329,19 @@ func NormalizeOptions(chain []TsconfigFile) (NormalizedOptions, error) {
 			Err:  fmt.Errorf("emitDecoratorMetadata is not supported: Mew is a transpiler, not a type checker; metadata emission requires compiler type information"),
 		}
 	}
+
+	// Build canonical ordered path mappings for deterministic resolution.
+	if len(opts.Paths) > 0 {
+		opts.PathMappings = make([]PathMapping, 0, len(opts.Paths))
+		for pattern, targets := range opts.Paths {
+			opts.PathMappings = append(opts.PathMappings, PathMapping{
+				Pattern: pattern,
+				Targets: targets,
+			})
+		}
+		sortPathMappings(opts.PathMappings)
+	}
+
 	return opts, nil
 }
 

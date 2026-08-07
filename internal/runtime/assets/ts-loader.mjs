@@ -424,6 +424,7 @@ function findProjectRoot(dir) {
 
 let resolveBaseDir = '';
 let resolvePaths = null;
+let resolvePathMappings = null;
 let pathsParsed = false;
 
 function ensurePathsParsed() {
@@ -431,7 +432,11 @@ function ensurePathsParsed() {
   pathsParsed = true;
   try {
     const opts = JSON.parse(transformOptions || '{}');
-    if (opts.paths && typeof opts.paths === 'object') {
+    // Prefer the canonical ordered pathMappings (deterministic specificity order).
+    // Fall back to paths object for backward compatibility.
+    if (opts.pathMappings && Array.isArray(opts.pathMappings) && opts.pathMappings.length > 0) {
+      resolvePathMappings = opts.pathMappings;
+    } else if (opts.paths && typeof opts.paths === 'object') {
       resolvePaths = opts.paths;
     }
     resolveBaseDir = configDir || '';
@@ -506,6 +511,27 @@ function tryResolveFile(basePath) {
 
 function resolveViaPaths(specifier, parentURL) {
   ensurePathsParsed();
+  // Use canonical ordered mappings when available (deterministic specificity order).
+  if (resolvePathMappings) {
+    for (const { pattern, targets } of resolvePathMappings) {
+      const captures = matchPathPattern(specifier, pattern);
+      if (!captures) continue;
+      for (const replacement of targets) {
+        // Substitute captured values into replacement.
+        let resolved = replacement;
+        for (let i = 0; i < captures.length; i++) {
+          resolved = resolved.replace('*', captures[i]);
+        }
+        // Resolve relative to baseUrl.
+        const fullPath = resolveBaseDir ? pathResolve(resolveBaseDir, resolved) : pathResolve(resolved);
+        const found = tryResolveFile(fullPath);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  // Fallback: iterate paths object. Object.entries order depends on JSON parser
+  // insertion order (deterministic because Go json.Marshal sorts map keys).
   if (!resolvePaths) return null;
   for (const [pattern, replacements] of Object.entries(resolvePaths)) {
     const captures = matchPathPattern(specifier, pattern);
@@ -569,9 +595,11 @@ export async function resolve(specifier, context, nextResolve) {
 
   // Try Node's native resolution first.
   let resolved;
+  let nodeError;
   try {
     resolved = await nextResolve(specifier, context);
-  } catch (_) {
+  } catch (err) {
+    nodeError = err;
     resolved = null;
   }
 
@@ -655,8 +683,9 @@ export async function resolve(specifier, context, nextResolve) {
   }
 
   // All augmentations failed — re-throw the original Node error if we caught one,
-  // or delegate to nextResolve (which will throw).
+  // preserving the error type and context (e.g. ERR_MODULE_NOT_FOUND).
   if (resolved === null) {
+    if (nodeError) throw nodeError;
     return nextResolve(specifier, context);
   }
   return resolved;

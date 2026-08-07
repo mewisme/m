@@ -1018,3 +1018,294 @@ func TestUnsupportedOptionsUsesRegistry(t *testing.T) {
 		}
 	}
 }
+
+// ── Path mappings ordering ───────────────────────────────────────────
+
+func TestSortPathMappingsExactFirst(t *testing.T) {
+	mappings := []PathMapping{
+		{Pattern: "@app/*", Targets: []string{"./src/*"}},
+		{Pattern: "@app/core", Targets: []string{"./src/core"}},
+		{Pattern: "*", Targets: []string{"./fallback/*"}},
+	}
+	sortPathMappings(mappings)
+	// Exact match (no *) must be first.
+	if mappings[0].Pattern != "@app/core" {
+		t.Errorf("exact pattern should be first, got %q", mappings[0].Pattern)
+	}
+	// Catch-all * (shortest prefix) must be last.
+	if mappings[len(mappings)-1].Pattern != "*" {
+		t.Errorf("catch-all * should be last, got %q", mappings[len(mappings)-1].Pattern)
+	}
+}
+
+func TestSortPathMappingsWildcardSpecificity(t *testing.T) {
+	mappings := []PathMapping{
+		{Pattern: "@app/*", Targets: []string{"./lib/*"}},
+		{Pattern: "@app/internal/*", Targets: []string{"./internal/*"}},
+		{Pattern: "@app/internal/nested/*", Targets: []string{"./nested/*"}},
+	}
+	sortPathMappings(mappings)
+	// Most specific (longest prefix) first.
+	if mappings[0].Pattern != "@app/internal/nested/*" {
+		t.Errorf("most specific first: got %q", mappings[0].Pattern)
+	}
+	if mappings[1].Pattern != "@app/internal/*" {
+		t.Errorf("second: got %q", mappings[1].Pattern)
+	}
+	if mappings[2].Pattern != "@app/*" {
+		t.Errorf("least specific last: got %q", mappings[2].Pattern)
+	}
+}
+
+func TestSortPathMappingsSamePrefixShorterSuffixFirst(t *testing.T) {
+	// Same prefix length, shorter suffix = more specific.
+	mappings := []PathMapping{
+		{Pattern: "src/*/test", Targets: []string{"./a/*/b"}},
+		{Pattern: "src/*", Targets: []string{"./a/*"}},
+	}
+	sortPathMappings(mappings)
+	if mappings[0].Pattern != "src/*" {
+		t.Errorf("shorter suffix (empty) first: got %q", mappings[0].Pattern)
+	}
+}
+
+func TestSortPathMappingsDeterministic(t *testing.T) {
+	// Multiple runs with shuffled input produce identical output.
+	mappings := []PathMapping{
+		{Pattern: "z", Targets: []string{"./z"}},
+		{Pattern: "a", Targets: []string{"./a"}},
+		{Pattern: "m/*", Targets: []string{"./m/*"}},
+		{Pattern: "@x/*/deep", Targets: []string{"./x/*/d"}},
+		{Pattern: "@x/*", Targets: []string{"./x/*"}},
+		{Pattern: "*", Targets: []string{"./all/*"}},
+	}
+	r1 := make([]PathMapping, len(mappings))
+	copy(r1, mappings)
+	sortPathMappings(r1)
+
+	// Reverse and sort again — must match.
+	r2 := make([]PathMapping, len(mappings))
+	for i := range mappings {
+		r2[i] = mappings[len(mappings)-1-i]
+	}
+	sortPathMappings(r2)
+
+	if len(r1) != len(r2) {
+		t.Fatalf("length mismatch: %d vs %d", len(r1), len(r2))
+	}
+	for i := range r1 {
+		if r1[i].Pattern != r2[i].Pattern {
+			t.Errorf("position %d: %q vs %q", i, r1[i].Pattern, r2[i].Pattern)
+		}
+	}
+
+	// Exact patterns sorted alphabetically.
+	for i := 0; i < len(r1)-1; i++ {
+		if !strings.Contains(r1[i].Pattern, "*") && !strings.Contains(r1[i+1].Pattern, "*") {
+			if r1[i].Pattern > r1[i+1].Pattern {
+				t.Errorf("exact patterns not alphabetical: %q before %q", r1[i].Pattern, r1[i+1].Pattern)
+			}
+		}
+	}
+}
+
+func TestNormalizeOptionsPopulatesPathMappings(t *testing.T) {
+	chain := []TsconfigFile{
+		{
+			Path: "/project/tsconfig.json",
+			Raw: map[string]any{
+				"compilerOptions": map[string]any{
+					"baseUrl": ".",
+					"paths": map[string]any{
+						"@app/*":          []any{"./src/*"},
+						"@app/internal/*": []any{"./src/internal/*"},
+						"@app/core":       []any{"./src/core"},
+					},
+				},
+			},
+		},
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(opts.PathMappings) != 3 {
+		t.Fatalf("expected 3 path mappings, got %d", len(opts.PathMappings))
+	}
+	// Exact match must be first.
+	if opts.PathMappings[0].Pattern != "@app/core" {
+		t.Errorf("exact match first: got %q", opts.PathMappings[0].Pattern)
+	}
+	// More specific wildcard must come before less specific.
+	if opts.PathMappings[1].Pattern != "@app/internal/*" {
+		t.Errorf("more specific wildcard second: got %q", opts.PathMappings[1].Pattern)
+	}
+	if opts.PathMappings[2].Pattern != "@app/*" {
+		t.Errorf("less specific wildcard last: got %q", opts.PathMappings[2].Pattern)
+	}
+	// Targets must preserve declaration order.
+	if len(opts.PathMappings[0].Targets) != 1 || opts.PathMappings[0].Targets[0] != "./src/core" {
+		t.Errorf("target order not preserved")
+	}
+}
+
+func TestPathMappingsEmptyWhenNoPaths(t *testing.T) {
+	chain := []TsconfigFile{
+		{
+			Path: "/project/tsconfig.json",
+			Raw: map[string]any{
+				"compilerOptions": map[string]any{
+					"target": "ESNext",
+				},
+			},
+		},
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(opts.PathMappings) != 0 {
+		t.Errorf("expected empty PathMappings, got %d", len(opts.PathMappings))
+	}
+}
+
+func TestPathMappingsInDigest(t *testing.T) {
+	// Two identical configs must have identical digests.
+	chain1 := []TsconfigFile{
+		{
+			Path: "/project/tsconfig.json",
+			Raw: map[string]any{
+				"compilerOptions": map[string]any{
+					"paths": map[string]any{
+						"@app/*": []any{"./src/*"},
+						"@lib/*": []any{"./lib/*"},
+					},
+				},
+			},
+		},
+	}
+	opts1, err := NormalizeOptions(chain1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Same config, different map key order (simulate different iteration).
+	chain2 := []TsconfigFile{
+		{
+			Path: "/project/tsconfig.json",
+			Raw: map[string]any{
+				"compilerOptions": map[string]any{
+					"paths": map[string]any{
+						"@lib/*": []any{"./lib/*"},
+						"@app/*": []any{"./src/*"},
+					},
+				},
+			},
+		},
+	}
+	opts2, err := NormalizeOptions(chain2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if opts1.Digest() != opts2.Digest() {
+		t.Error("digests differ for equivalent configs with different map key order")
+	}
+	// PathMappings must be identical regardless of map key iteration order.
+	if len(opts1.PathMappings) != len(opts2.PathMappings) {
+		t.Fatalf("PathMappings length differs: %d vs %d", len(opts1.PathMappings), len(opts2.PathMappings))
+	}
+	for i := range opts1.PathMappings {
+		if opts1.PathMappings[i].Pattern != opts2.PathMappings[i].Pattern {
+			t.Errorf("PathMappings[%d] pattern: %q vs %q", i, opts1.PathMappings[i].Pattern, opts2.PathMappings[i].Pattern)
+		}
+	}
+}
+
+func TestPathMappingsTargetOrderPreserved(t *testing.T) {
+	chain := []TsconfigFile{
+		{
+			Path: "/project/tsconfig.json",
+			Raw: map[string]any{
+				"compilerOptions": map[string]any{
+					"paths": map[string]any{
+						"@app/*": []any{"./first/*", "./second/*", "./third/*"},
+					},
+				},
+			},
+		},
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(opts.PathMappings) != 1 {
+		t.Fatalf("expected 1 mapping, got %d", len(opts.PathMappings))
+	}
+	targets := opts.PathMappings[0].Targets
+	if len(targets) != 3 {
+		t.Fatalf("expected 3 targets, got %d", len(targets))
+	}
+	if targets[0] != "./first/*" || targets[1] != "./second/*" || targets[2] != "./third/*" {
+		t.Errorf("target order changed: %v", targets)
+	}
+}
+
+func TestPathMappingsJSONRoundTrip(t *testing.T) {
+	chain := []TsconfigFile{
+		{
+			Path: "/project/tsconfig.json",
+			Raw: map[string]any{
+				"compilerOptions": map[string]any{
+					"baseUrl": "./src",
+					"paths": map[string]any{
+						"@app/*": []any{"./app/*"},
+					},
+				},
+			},
+		},
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j, err := json.Marshal(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded NormalizedOptions
+	if err := json.Unmarshal(j, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded.PathMappings) != len(opts.PathMappings) {
+		t.Fatalf("round-trip: %d vs %d mappings", len(decoded.PathMappings), len(opts.PathMappings))
+	}
+	for i := range opts.PathMappings {
+		if decoded.PathMappings[i].Pattern != opts.PathMappings[i].Pattern {
+			t.Errorf("round-trip pattern mismatch at %d: %q vs %q", i, decoded.PathMappings[i].Pattern, opts.PathMappings[i].Pattern)
+		}
+		if len(decoded.PathMappings[i].Targets) != len(opts.PathMappings[i].Targets) {
+			t.Errorf("round-trip target count mismatch at %d", i)
+		}
+	}
+	// baseUrl must round-trip as well.
+	if decoded.BaseURL != opts.BaseURL {
+		t.Errorf("round-trip baseUrl: %q vs %q", decoded.BaseURL, opts.BaseURL)
+	}
+}
+
+func TestSortPathMappingsEqualPrefixesAlphabetical(t *testing.T) {
+	// Two wildcard patterns with identical prefix/suffix lengths
+	// should tie-break alphabetically.
+	mappings := []PathMapping{
+		{Pattern: "zoo/*", Targets: []string{"./zoo/*"}},
+		{Pattern: "abc/*", Targets: []string{"./abc/*"}},
+	}
+	sortPathMappings(mappings)
+	if mappings[0].Pattern != "abc/*" {
+		t.Errorf("alphabetical tie-break: got %q, want \"abc/*\"", mappings[0].Pattern)
+	}
+	if mappings[1].Pattern != "zoo/*" {
+		t.Errorf("got %q", mappings[1].Pattern)
+	}
+}
