@@ -126,8 +126,9 @@ numbers rather than transformed JavaScript locations.
 
 3. **No declaration files.** `.d.ts` generation requires `tsc`.
 
-4. **No path alias resolution.** `baseUrl` and `paths` are carried for cache
-   key stability but not yet resolved (0053).
+4. **No path alias resolution in transform.** `baseUrl` and `paths` are carried
+   for cache key stability and resolved at runtime by the Node loader (0053
+   resolve hook). The transform engine itself does not consume them.
 
 5. **Decorator mode controlled by tsconfig.** `experimentalDecorators: true`
    selects legacy decorator helpers (`__decorateClass`); absent selects
@@ -168,14 +169,20 @@ not the emitted JavaScript.
 
 The `UnsupportedOptions` function in `internal/transform/tsconfig.go`
 identifies compilerOptions keys that Mew does not recognize. Currently
-supported keys:
+recognized keys (derived from the capability registry):
 
-`target`, `module`, `moduleResolution`, `useDefineForClassFields`,
-`verbatimModuleSyntax`, `importHelpers`, `baseUrl`, `paths`, `jsx`,
-`jsxFactory`, `jsxFragmentFactory`, `jsxImportSource`, `sourceMap`,
-`inlineSourceMap`, `inlineSources`, `sourceRoot`, `mapRoot`,
-`experimentalDecorators`, `emitDecoratorMetadata`
+`target`, `module`, `useDefineForClassFields`, `verbatimModuleSyntax`,
+`importHelpers`, `baseUrl`, `paths`, `jsx`, `jsxFactory`,
+`jsxFragmentFactory`, `jsxImportSource`, `sourceMap`, `inlineSourceMap`,
+`inlineSources`, `sourceRoot`, `mapRoot`, `experimentalDecorators`,
+`emitDecoratorMetadata`
 
-All other compilerOptions keys are classified as unsupported. The unsupported
-list is available programmatically; CLI diagnostic emission is deferred to
-0053 (resolution-aware diagnostics).
+Unrecognized compilerOptions keys are classified as unsupported and available
+programmatically via `UnsupportedOptions()`.
+
+Options that cannot be honored produce stable typed diagnostics:
+- `emitDecoratorMetadata: true` → `ERR_M_TRANSFORM_UNSUPPORTED` (requires type-checker information)
+- `importHelpers: true` → `ERR_M_TRANSFORM_UNSUPPORTED` (esbuild always inlines helpers; no tslib integration)
+
+The canonical capability report is available via `m transform report` (JSON
+and human-readable table). See also `m transform report --help`.

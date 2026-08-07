@@ -143,11 +143,30 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 		transformOpts.SourceRoot = req.NormalizedOpts.SourceRoot
 	}
 
-	// Decorators: pass experimentalDecorators through TsconfigRaw so esbuild
-	// uses legacy TypeScript decorator mode (__decorateClass). When unset,
-	// esbuild defaults to standard TC39 decorator mode (__decorateElement).
+	// Pass compiler options through TsconfigRaw so esbuild can read
+	// options we don't map to dedicated api.TransformOptions fields.
+	// esbuild handles: experimentalDecorators, useDefineForClassFields,
+	// verbatimModuleSyntax.
+	var tsconfigOpts []string
 	if req.NormalizedOpts.ExperimentalDecorators {
-		transformOpts.TsconfigRaw = `{"compilerOptions":{"experimentalDecorators":true}}`
+		tsconfigOpts = append(tsconfigOpts, `"experimentalDecorators":true`)
+	}
+	if req.NormalizedOpts.UseDefineForClassFields != nil {
+		if *req.NormalizedOpts.UseDefineForClassFields {
+			tsconfigOpts = append(tsconfigOpts, `"useDefineForClassFields":true`)
+		} else {
+			tsconfigOpts = append(tsconfigOpts, `"useDefineForClassFields":false`)
+		}
+	}
+	if req.NormalizedOpts.VerbatimModuleSyntax != nil {
+		if *req.NormalizedOpts.VerbatimModuleSyntax {
+			tsconfigOpts = append(tsconfigOpts, `"verbatimModuleSyntax":true`)
+		} else {
+			tsconfigOpts = append(tsconfigOpts, `"verbatimModuleSyntax":false`)
+		}
+	}
+	if len(tsconfigOpts) > 0 {
+		transformOpts.TsconfigRaw = `{"compilerOptions":{` + strings.Join(tsconfigOpts, ",") + `}}`
 	}
 
 	result := api.Transform(string(req.SourceBytes), transformOpts)

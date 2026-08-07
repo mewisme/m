@@ -38,6 +38,7 @@ func NewMRoot(info BuildInfo) *cobra.Command {
 	versionLabel := use
 	root.AddCommand(newVersionCmd(versionLabel, info))
 	root.AddCommand(newFeaturesCmd())
+	root.AddCommand(newTransformCmd())
 	root.AddCommand(newDevelopmentCmd())
 	root.AddCommand(newConfigCmd(g))
 	root.AddCommand(newProjectCmd())

@@ -58,13 +58,21 @@ func (e *ConfigError) Unwrap() error {
 // baseUrl and paths affect module resolution (0052+) and are carried
 // for cache key stability.
 type NormalizedOptions struct {
-	Target                  string              `json:"target,omitempty"`
-	Module                  string              `json:"module,omitempty"`
-	UseDefineForClassFields bool                `json:"useDefineForClassFields,omitempty"`
-	VerbatimModuleSyntax    bool                `json:"verbatimModuleSyntax,omitempty"`
-	ImportHelpers           bool                `json:"importHelpers,omitempty"`
-	BaseURL                 string              `json:"baseUrl,omitempty"`
-	Paths                   map[string][]string `json:"paths,omitempty"`
+	Target string `json:"target,omitempty"`
+	Module string `json:"module,omitempty"`
+	// UseDefineForClassFields uses *bool to distinguish absent from explicit false.
+	// nil (absent)    → esbuild default (true)
+	// &true (explicit) → pass through to esbuild
+	// &false (explicit) → pass through to esbuild
+	UseDefineForClassFields *bool `json:"useDefineForClassFields,omitempty"`
+	// VerbatimModuleSyntax uses *bool to distinguish absent from explicit false.
+	// nil (absent)    → esbuild default
+	// &true (explicit) → pass through to esbuild
+	// &false (explicit) → pass through to esbuild
+	VerbatimModuleSyntax *bool               `json:"verbatimModuleSyntax,omitempty"`
+	ImportHelpers        bool                `json:"importHelpers,omitempty"`
+	BaseURL              string              `json:"baseUrl,omitempty"`
+	Paths                map[string][]string `json:"paths,omitempty"`
 
 	// JSX
 	JSX                string `json:"jsx,omitempty"`
@@ -251,6 +259,15 @@ func NormalizeOptions(chain []TsconfigFile) (NormalizedOptions, error) {
 			return NormalizedOptions{}, err
 		}
 	}
+	// importHelpers requires tslib integration. esbuild does not support
+	// importing helpers from tslib; helpers are always inlined.
+	if opts.ImportHelpers {
+		return NormalizedOptions{}, &ConfigError{
+			Kind: ConfigErrOptionUnsupported,
+			Path: chain[len(chain)-1].Path,
+			Err:  fmt.Errorf("importHelpers is not supported: esbuild always inlines helper functions; tslib imports are not available"),
+		}
+	}
 	// emitDecoratorMetadata requires type information only available to a
 	// type checker. Mew is a transpiler; reject it explicitly rather than
 	// silently ignoring it.
@@ -334,14 +351,16 @@ func applyCompilerOptions(opts *NormalizedOptions, path string, raw map[string]a
 		if !isBool {
 			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("useDefineForClassFields must be a boolean")}
 		}
-		opts.UseDefineForClassFields = b
+		val := b
+		opts.UseDefineForClassFields = &val
 	}
 	if v, ok := coMap["verbatimModuleSyntax"]; ok {
 		b, isBool := v.(bool)
 		if !isBool {
 			return &ConfigError{Kind: ConfigErrOptionInvalid, Path: path, Err: fmt.Errorf("verbatimModuleSyntax must be a boolean")}
 		}
-		opts.VerbatimModuleSyntax = b
+		val := b
+		opts.VerbatimModuleSyntax = &val
 	}
 	if v, ok := coMap["importHelpers"]; ok {
 		b, isBool := v.(bool)
@@ -433,30 +452,10 @@ func applyCompilerOptions(opts *NormalizedOptions, path string, raw map[string]a
 
 // UnsupportedOptions returns tsconfig option names that are unsupported.
 func UnsupportedOptions(raw map[string]any) []string {
-	supported := map[string]bool{
-		"target":                  true,
-		"module":                  true,
-		"moduleResolution":        true,
-		"useDefineForClassFields": true,
-		"verbatimModuleSyntax":    true,
-		"importHelpers":           true,
-		"baseUrl":                 true,
-		"paths":                   true,
-		"jsx":                     true,
-		"jsxFactory":              true,
-		"jsxFragmentFactory":      true,
-		"jsxImportSource":         true,
-		"sourceMap":               true,
-		"inlineSourceMap":         true,
-		"inlineSources":           true,
-		"sourceRoot":              true,
-		"mapRoot":                 true,
-		"experimentalDecorators":  true,
-		"emitDecoratorMetadata":   true,
-	}
+	recognized := OptionSet()
 	var unsupported []string
 	for k := range raw {
-		if !supported[strings.TrimSpace(k)] {
+		if !recognized[strings.TrimSpace(k)] {
 			unsupported = append(unsupported, k)
 		}
 	}

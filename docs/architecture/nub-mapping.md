@@ -30,7 +30,7 @@ semantics where parity is intentional; use idiomatic Go architecture elsewhere.
 | Decorators | parity (0052) | legacy TS decorators via esbuild; emitDecoratorMetadata carried for cache keys; standard TC39 decorators deferred to esbuild upstream |
 | Source maps | parity (0052) | inline/external via esbuild; sourceMap/inlineSourceMap/inlineSources tsconfig flags; sourceRoot passthrough; mapRoot cached; --enable-source-maps auto-injected (Node >= 20.6) |
 | TypeScript type-checking | divergence | Mew is a transpiler not a type checker; no semantic diagnostics |
-| Decorator metadata emission | divergence | emitDecoratorMetadata explicitly rejected during tsconfig normalization (ERR_M_TRANSFORM_UNSUPPORTED) |
+| Decorator metadata emission | divergence | emitDecoratorMetadata explicitly rejected during tsconfig normalization (ERR_M_TRANSFORM_UNSUPPORTED diagnostic) |
 | tsconfig paths/baseUrl resolution | parity (0053) | Node loader resolve hook; paths patterns matched against import specifiers, resolved relative to configDir + baseUrl |
 | .js → .ts extension mapping | parity (0053) | Resolved .js files that don't exist on disk probe .ts/.tsx/.mts/.cts siblings |
 | Custom ESM loader chaining | parity (0053) | --loader flag injects --import before Mew preloads; user hooks register before ts-loader |

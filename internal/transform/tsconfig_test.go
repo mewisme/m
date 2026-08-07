@@ -117,7 +117,7 @@ func TestNormalizeOptionsChildOverridesParent(t *testing.T) {
 	if opts.Module != "ESNext" {
 		t.Fatalf("module=%s, want ESNext (child should override parent)", opts.Module)
 	}
-	if opts.UseDefineForClassFields != false {
+	if opts.UseDefineForClassFields == nil || *opts.UseDefineForClassFields != false {
 		t.Fatalf("useDefineForClassFields=%v, want false (child explicit false)", opts.UseDefineForClassFields)
 	}
 }
@@ -807,5 +807,214 @@ func TestNormalizeOptionsDigestIncludesNewFields(t *testing.T) {
 	opts4 := NormalizedOptions{ExperimentalDecorators: true, EmitDecoratorMetadata: true}
 	if opts3.Digest() == opts4.Digest() {
 		t.Fatal("digests must differ when decorator metadata differs")
+	}
+}
+
+func TestImportHelpersUnsupported(t *testing.T) {
+	chain := []TsconfigFile{
+		{Path: "tsconfig.json", Raw: map[string]any{
+			"compilerOptions": map[string]any{
+				"importHelpers": true,
+			},
+		}},
+	}
+	_, err := NormalizeOptions(chain)
+	if err == nil {
+		t.Fatal("expected error for importHelpers: true")
+	}
+	var cfgErr *ConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigError, got %T: %v", err, err)
+	}
+	if cfgErr.Kind != ConfigErrOptionUnsupported {
+		t.Errorf("expected ConfigErrOptionUnsupported, got %v", cfgErr.Kind)
+	}
+}
+
+func TestImportHelpersFalseOK(t *testing.T) {
+	chain := []TsconfigFile{
+		{Path: "tsconfig.json", Raw: map[string]any{
+			"compilerOptions": map[string]any{
+				"importHelpers": false,
+			},
+		}},
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatalf("importHelpers: false should be accepted: %v", err)
+	}
+	if opts.ImportHelpers {
+		t.Fatal("importHelpers should be false")
+	}
+}
+
+func TestUseDefineForClassFieldsTriState(t *testing.T) {
+	// Explicit true.
+	chain := []TsconfigFile{
+		{Path: "tsconfig.json", Raw: map[string]any{
+			"compilerOptions": map[string]any{
+				"useDefineForClassFields": true,
+			},
+		}},
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if opts.UseDefineForClassFields == nil || *opts.UseDefineForClassFields != true {
+		t.Fatal("useDefineForClassFields should be explicit true")
+	}
+
+	// Explicit false.
+	chain2 := []TsconfigFile{
+		{Path: "tsconfig.json", Raw: map[string]any{
+			"compilerOptions": map[string]any{
+				"useDefineForClassFields": false,
+			},
+		}},
+	}
+	opts2, err := NormalizeOptions(chain2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if opts2.UseDefineForClassFields == nil || *opts2.UseDefineForClassFields != false {
+		t.Fatal("useDefineForClassFields should be explicit false")
+	}
+
+	// Absent.
+	chain3 := []TsconfigFile{
+		{Path: "tsconfig.json", Raw: map[string]any{
+			"compilerOptions": map[string]any{},
+		}},
+	}
+	opts3, err := NormalizeOptions(chain3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if opts3.UseDefineForClassFields != nil {
+		t.Fatal("useDefineForClassFields should be nil when absent")
+	}
+}
+
+func TestVerbatimModuleSyntaxTriState(t *testing.T) {
+	// Explicit true.
+	chain := []TsconfigFile{
+		{Path: "tsconfig.json", Raw: map[string]any{
+			"compilerOptions": map[string]any{
+				"verbatimModuleSyntax": true,
+			},
+		}},
+	}
+	opts, err := NormalizeOptions(chain)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if opts.VerbatimModuleSyntax == nil || *opts.VerbatimModuleSyntax != true {
+		t.Fatal("verbatimModuleSyntax should be explicit true")
+	}
+
+	// Absent.
+	chain2 := []TsconfigFile{
+		{Path: "tsconfig.json", Raw: map[string]any{
+			"compilerOptions": map[string]any{},
+		}},
+	}
+	opts2, err := NormalizeOptions(chain2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if opts2.VerbatimModuleSyntax != nil {
+		t.Fatal("verbatimModuleSyntax should be nil when absent")
+	}
+}
+
+func TestNormalizeOptionsDigestVariesByUseDefineForClassFields(t *testing.T) {
+	absent := NormalizedOptions{}
+	explicitTrue := NormalizedOptions{UseDefineForClassFields: boolPtr(true)}
+	explicitFalse := NormalizedOptions{UseDefineForClassFields: boolPtr(false)}
+
+	if absent.Digest() == explicitTrue.Digest() {
+		t.Fatal("digest must differ when useDefineForClassFields absent vs explicit true")
+	}
+	if explicitTrue.Digest() == explicitFalse.Digest() {
+		t.Fatal("digest must differ when useDefineForClassFields true vs false")
+	}
+}
+
+func TestNormalizeOptionsDigestVariesByVerbatimModuleSyntax(t *testing.T) {
+	absent := NormalizedOptions{}
+	explicitTrue := NormalizedOptions{VerbatimModuleSyntax: boolPtr(true)}
+
+	if absent.Digest() == explicitTrue.Digest() {
+		t.Fatal("digest must differ when verbatimModuleSyntax absent vs explicit true")
+	}
+}
+
+func TestNormalizeOptionsDigestVariesByImportHelpers(t *testing.T) {
+	absent := NormalizedOptions{}
+	explicitTrue := NormalizedOptions{ImportHelpers: true}
+
+	if absent.Digest() == explicitTrue.Digest() {
+		t.Fatal("digest must differ when importHelpers absent vs true")
+	}
+}
+
+func TestOptionSetMatchesNormalizedOptions(t *testing.T) {
+	// Every key in OptionSet must be a field that applyCompilerOptions can parse.
+	optSet := OptionSet()
+
+	parsedOptions := []string{
+		"target", "module", "useDefineForClassFields", "verbatimModuleSyntax",
+		"importHelpers", "baseUrl", "paths",
+		"jsx", "jsxFactory", "jsxFragmentFactory", "jsxImportSource",
+		"experimentalDecorators", "emitDecoratorMetadata",
+		"sourceMap", "inlineSourceMap", "inlineSources", "sourceRoot", "mapRoot",
+	}
+
+	for _, opt := range parsedOptions {
+		if !optSet[opt] {
+			t.Errorf("option %q parsed by applyCompilerOptions but not in OptionSet", opt)
+		}
+	}
+}
+
+func TestUnsupportedOptionsUsesRegistry(t *testing.T) {
+	raw := map[string]any{
+		"target":                           "ESNext",
+		"strict":                           true,
+		"noEmit":                           true,
+		"esModuleInterop":                  true,
+		"skipLibCheck":                     true,
+		"forceConsistentCasingInFileNames": true,
+		"moduleResolution":                 "node16",
+		"importHelpers":                    true,
+	}
+
+	unsupported := UnsupportedOptions(raw)
+	for _, opt := range unsupported {
+		if OptionSet()[opt] {
+			t.Errorf("option %q is in OptionSet (recognized) but reported as unsupported", opt)
+		}
+	}
+
+	for _, recognized := range []string{"target", "importHelpers"} {
+		for _, u := range unsupported {
+			if u == recognized {
+				t.Errorf("recognized option %q should not be in unsupported list", recognized)
+			}
+		}
+	}
+
+	for _, expected := range []string{"strict", "noEmit", "esModuleInterop", "skipLibCheck", "moduleResolution"} {
+		found := false
+		for _, u := range unsupported {
+			if u == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("unrecognized option %q should be in unsupported list", expected)
+		}
 	}
 }
