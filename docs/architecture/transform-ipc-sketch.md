@@ -250,7 +250,43 @@ absent, it was an explicit cancel.
 
 ## Shutdown and session lifecycle
 
-`Session.Close()` is idempotent and concurrency-safe. Shutdown order:
+### Ownership
+
+A transform session is created by `buildTransformContribution` in the CLI
+layer (see `internal/cli/transform_contrib.go`). Ownership begins when
+`NewSession` + `Start()` succeed inside that function.
+
+The session's `Close()` is stored as the contribution's `CleanupHook`.
+Ownership transfers through two stages:
+
+1. **Contribution → Plan**: `runtime.Plan()` copies `CleanupHook` from
+   `LaunchContribution` to `LaunchPlan`. The plan now holds the cleanup
+   reference.
+2. **Plan → Caller**: `runtime.PlanAndLaunch()` guarantees cleanup on every
+   exit path:
+   - If `Plan` fails: contribution's cleanup hook runs immediately.
+   - If `Plan` succeeds but `Launch` fails: plan's cleanup hook runs after
+     `Launch` returns.
+   - If `Launch` succeeds (child exits): plan's cleanup hook runs after
+     child exit.
+
+No path from contribution creation to process exit leaks the session. Every
+caller of Plan + Launch uses `PlanAndLaunch`, which owns the full lifecycle.
+
+### Close behavior
+
+`Session.Close()` is idempotent and concurrency-safe:
+
+- **Idempotent**: `CompareAndSwap` ensures only one caller performs
+  shutdown. The winning caller runs steps 1–6 below.
+- **Concurrent waiters**: A second concurrent `Close` blocks until the
+  first completes, then returns the same error. All concurrent callers
+  observe the same completed shutdown; none returns while shutdown is
+  still in progress.
+- **Post-close**: After the channel is closed, subsequent `Close` calls
+  return immediately with the saved error.
+
+Shutdown order:
 
 1. **Cancel session context** — propagates to all derived request contexts.
 2. **Close listener** — stops the accept loop.
@@ -263,6 +299,17 @@ absent, it was an explicit cancel.
 
 After `Close()` returns, no transform goroutines, timers, cancel
 functions, writer goroutines, or pending entries remain.
+
+### Error precedence
+
+`runtime.PlanAndLaunch` uses `MergeCleanupError` / `apperr.JoinCleanup`:
+
+- Launch succeeds, cleanup fails → cleanup error returned.
+- Launch fails, cleanup succeeds → launch error returned.
+- Both fail → launch error is primary; cleanup error is attached via
+  `OperationFailure` and reachable through `errors.Is`.
+- Child exit status, cancellation, and timeout classification are preserved
+  even when cleanup also fails.
 
 ## Error code stability
 

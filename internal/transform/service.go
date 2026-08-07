@@ -51,6 +51,10 @@ type Session struct {
 	connsMu sync.Mutex
 	conns   map[net.Conn]struct{}
 
+	// Concurrent-close coordination.
+	closeDone chan struct{} // closed when shutdown completes
+	closeErr  error         // error from the winning Close call
+
 	// WaitGroup tracks server, connection, and request goroutines.
 	wg sync.WaitGroup
 }
@@ -106,6 +110,7 @@ func NewSession(opts ServiceOptions) (*Session, error) {
 		ctx:            ctx,
 		cancel:         cancel,
 		conns:          make(map[net.Conn]struct{}),
+		closeDone:      make(chan struct{}),
 	}
 
 	// Listen on localhost random port using the session context.
@@ -684,6 +689,8 @@ func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req
 }
 
 // Close initiates coordinated shutdown. It is idempotent and concurrency-safe.
+// Concurrent callers block until the first caller completes shutdown, then
+// all return the same effective error.
 //
 // Shutdown order:
 //  1. Cancel session context — propagates to all derived contexts.
@@ -691,13 +698,18 @@ func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req
 //  3. Cancel active transforms — unblocks workers.
 //  4. Close tracked connections — unblocks reads/writes.
 //  5. Wait for all tracked goroutines to finish.
+//  6. Clean up remaining maps.
 //
 // Returns the listener close error, or nil. Connection close errors are
 // not aggregated (they are expected side-effects of listener shutdown).
 func (s *Session) Close() error {
 	if !s.closed.CompareAndSwap(false, true) {
-		return nil
+		// Another goroutine is shutting down; wait for completion
+		// and return the same effective result.
+		<-s.closeDone
+		return s.closeErr
 	}
+	defer close(s.closeDone) // unblocks concurrent callers
 
 	// 1. Cancel session context.
 	s.cancel()
@@ -742,7 +754,8 @@ func (s *Session) Close() error {
 	}
 	s.activeIDsMu.Unlock()
 
-	return closeErr
+	s.closeErr = closeErr
+	return s.closeErr
 }
 
 // ActiveRequests returns the current in-flight request count.

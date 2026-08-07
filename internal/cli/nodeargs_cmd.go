@@ -60,17 +60,7 @@ The -- separator is required before the Node flags:
 				req.Contribution = contrib
 			}
 
-			plan, err := runtime.Plan(cmd.Context(), req, ac.Config)
-			if err != nil {
-				return err
-			}
-			launchErr := runtime.Launch(cmd.Context(), plan, req)
-			// Always run cleanup hook after Node exit, on any outcome.
-			var cleanupErr error
-			if plan != nil && plan.CleanupHook != nil {
-				cleanupErr = plan.CleanupHook()
-			}
-			return runtime.MergeCleanupError(launchErr, cleanupErr)
+			return runtime.PlanAndLaunch(cmd.Context(), req, ac.Config)
 		},
 	}
 	return cmd

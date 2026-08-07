@@ -18,8 +18,9 @@ import (
 
 // fakeEngine blocks Transform until unblocked, for cancellation testing.
 type fakeEngine struct {
-	blockCh  chan struct{} // closed to unblock
-	identity transform.EngineIdentity
+	blockCh   chan struct{} // closed to unblock
+	unblocked sync.Once
+	identity  transform.EngineIdentity
 }
 
 func newFakeEngine() *fakeEngine {
@@ -44,7 +45,7 @@ func (e *fakeEngine) Transform(ctx context.Context, _ transform.TransformRequest
 	}
 }
 
-func (e *fakeEngine) unblock() { close(e.blockCh) }
+func (e *fakeEngine) unblock() { e.unblocked.Do(func() { close(e.blockCh) }) }
 
 // blockingEngine returns a fake engine that blocks on every transform until
 // the returned unblock function is called.
@@ -106,6 +107,97 @@ func TestCloseIdempotent(t *testing.T) {
 
 func TestCloseConcurrent(t *testing.T) {
 	ctx := context.Background()
+	engine, unblock := blockingEngine()
+	sess, err := transform.NewSession(transform.ServiceOptions{
+		Context: ctx,
+		Engine:  engine,
+		Workers: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := sess.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Send a transform that blocks on the engine so Close has work to wait for.
+	conn, err := net.Dial("tcp", sess.Endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	authReq := transform.HelloRequest{V: transform.ProtocolVersion, Token: sess.Token}
+	if err := transform.EncodeFrame(conn, authReq); err != nil {
+		t.Fatal(err)
+	}
+	var authResp transform.HelloResponse
+	if err := transform.DecodeFrame(conn, &authResp); err != nil {
+		t.Fatal(err)
+	}
+	if !authResp.OK {
+		t.Fatalf("auth failed: %s", authResp.Reason)
+	}
+
+	srcDigest := transform.DigestString("x")
+	req := transform.TransformRequestV2{
+		V: transform.ProtocolVersion, ID: "cc-1", Op: "transform",
+		Path: "a.ts", Source: "x", SourceDigest: srcDigest,
+		Loader: "ts", Format: "esm", NodeMajor: 20,
+		CancelToken: "cc-tok",
+	}
+	if err := transform.EncodeFrame(conn, req); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give the transform time to acquire worker and block on engine.
+	time.Sleep(100 * time.Millisecond)
+
+	// Now close concurrently. The transform must be running when Close is called.
+	started := make(chan struct{})
+	var wg sync.WaitGroup
+	errs := make([]error, 5)
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			if idx == 0 {
+				close(started) // signal one goroutine has entered
+			}
+			errs[idx] = sess.Close()
+		}(i)
+	}
+	// Wait for at least one goroutine to enter Close, then wait briefly
+	// for others to also enter (and block on closeDone).
+	<-started
+	time.Sleep(100 * time.Millisecond)
+
+	// All goroutines should still be waiting for the transform to finish.
+	// Unblock the engine so shutdown can complete.
+	unblock()
+
+	// All must return promptly.
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("concurrent Close callers did not return within 5s")
+	}
+
+	for i, e := range errs {
+		if e != nil {
+			t.Errorf("Close[%d]: %v", i, e)
+		}
+	}
+}
+
+func TestCloseConcurrentWaitersReturnSameError(t *testing.T) {
+	ctx := context.Background()
 	sess, err := transform.NewSession(transform.ServiceOptions{
 		Context: ctx,
 	})
@@ -113,9 +205,10 @@ func TestCloseConcurrent(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Collect results from 5 concurrent Close calls.
 	var wg sync.WaitGroup
-	errs := make([]error, 10)
-	for i := 0; i < 10; i++ {
+	errs := make([]error, 5)
+	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
@@ -124,10 +217,10 @@ func TestCloseConcurrent(t *testing.T) {
 	}
 	wg.Wait()
 
-	// All must return nil (idempotent after first succeeds).
+	// All must return the same value.
 	for i, e := range errs {
-		if e != nil {
-			t.Errorf("concurrent Close[%d] returned error: %v", i, e)
+		if e != errs[0] {
+			t.Errorf("Close[%d] returned %v, want %v", i, e, errs[0])
 		}
 	}
 }

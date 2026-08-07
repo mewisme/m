@@ -560,25 +560,13 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 			req.Contribution = contrib
 		}
 
-		plan, planErr := runtime.Plan(ctx, req, ac.Config)
-		if planErr != nil {
-			rep := g.newReporter(root)
-			rep.Error(classifyCLIError(planErr))
-			return apperr.ExitCode(planErr), true
-		}
-		launchErr := runtime.Launch(ctx, plan, req)
-		// Always run cleanup hook after Node exit, on any outcome.
-		var cleanupErr error
-		if plan != nil && plan.CleanupHook != nil {
-			cleanupErr = plan.CleanupHook()
-		}
-		merged := runtime.MergeCleanupError(launchErr, cleanupErr)
-		if merged == nil {
+		launchErr := runtime.PlanAndLaunch(ctx, req, ac.Config)
+		if launchErr == nil {
 			return 0, true
 		}
 		rep := g.newReporter(root)
-		rep.Error(classifyCLIError(merged))
-		return apperr.ExitCode(merged), true
+		rep.Error(classifyCLIError(launchErr))
+		return apperr.ExitCode(launchErr), true
 	default:
 		return 0, false
 	}

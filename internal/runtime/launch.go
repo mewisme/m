@@ -215,6 +215,33 @@ func fileURL(p string) string {
 	return u.String()
 }
 
+// PlanAndLaunch resolves, launches, and guarantees cleanup on every exit path.
+//
+// When req.Contribution is set and Plan fails, the contribution's cleanup hook
+// runs before PlanAndLaunch returns. When Plan succeeds but Launch fails (or
+// succeeds), plan.CleanupHook runs after Launch returns.
+//
+// Cleanup ownership moves from req.Contribution (on Plan failure) to
+// plan.CleanupHook (on Plan success). The same underlying Session.Close is
+// idempotent, so there is no risk of double-close even if both paths were
+// somehow reached.
+func PlanAndLaunch(ctx context.Context, req LaunchRequest, eff *config.Effective) error {
+	plan, planErr := Plan(ctx, req, eff)
+	if planErr != nil {
+		// Plan failed: contribution still owns the session; clean it up.
+		if req.Contribution != nil && req.Contribution.CleanupHook != nil {
+			_ = req.Contribution.CleanupHook()
+		}
+		return planErr
+	}
+	launchErr := Launch(ctx, plan, req)
+	var cleanupErr error
+	if plan.CleanupHook != nil {
+		cleanupErr = plan.CleanupHook()
+	}
+	return MergeCleanupError(launchErr, cleanupErr)
+}
+
 // MergeCleanupError merges launch and cleanup errors preserving primary type.
 // When launch succeeds and cleanup fails: returns cleanup error.
 // When both fail: preserves launch as primary, attaches cleanup.
