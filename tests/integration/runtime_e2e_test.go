@@ -277,6 +277,102 @@ func TestRuntimeE2ECorruptCacheRecovery(t *testing.T) {
 	}
 }
 
+// --- Extension substitution: .js/.jsx/.mjs/.cjs → TypeScript ---
+
+func TestRuntimeE2EExtensionSubstitutionJSToTS(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "import-js-to-ts.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, proj); out != "resolved-lib-ts" {
+		t.Fatalf("got %q, want 'resolved-lib-ts'", out)
+	}
+}
+
+func TestRuntimeE2EExtensionSubstitutionMJSToMTS(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "import-mjs-to-mts.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, proj); out != "resolved-mod-mts" {
+		t.Fatalf("got %q, want 'resolved-mod-mts'", out)
+	}
+}
+
+func TestRuntimeE2EExtensionSubstitutionCJSToCTS(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("Node >= 20 required for .cts loader transform (CJS loader hooks)")
+	}
+	proj := runtimeE2EFixture(t)
+	// Verify .cjs → .cts resolution succeeds without module-not-found.
+	// CJS-format execution semantics for .cts files are tested in Issue 13.
+	code, _ := runMWithRuntime(t, proj, "import-cjs-to-cts.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+}
+
+func TestRuntimeE2EExtensionSubstitutionJSXToTSX(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "import-jsx-to-tsx.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, proj); out != "resolved-component-tsx" {
+		t.Fatalf("got %q, want 'resolved-component-tsx'", out)
+	}
+}
+
+func TestRuntimeE2EExtensionSubstitutionExistingJSWins(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "import-existing-js.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, proj); out != "real-js-wins" {
+		t.Fatalf("got %q, want 'real-js-wins' (existing .js must win over .ts)", out)
+	}
+}
+
+func TestRuntimeE2EExtensionSubstitutionMissingPreservesNodeError(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, out := runMWithRuntime(t, proj, "import-missing.mjs")
+	if code == 0 {
+		t.Fatalf("expected non-zero exit for missing module, got out=%s", out)
+	}
+}
+
+func TestRuntimeE2EExtensionSubstitutionNestedRelativeImport(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	// Create subdirectory with a .ts file importable via .js specifier.
+	subDir := filepath.Join(proj, "nested")
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(subDir, "nested-lib.ts"),
+		"export const nestedValue: string = 'nested-resolved';\n")
+	writeFile(t, filepath.Join(proj, "import-nested.mjs"),
+		"import { nestedValue } from './nested/nested-lib.js';\n"+
+			"import { writeFileSync } from 'node:fs';\n"+
+			"writeFileSync('output.txt', nestedValue + '\\n');\n")
+	code, _ := runMWithRuntime(t, proj, "import-nested.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if out := readOutput(t, proj); out != "nested-resolved" {
+		t.Fatalf("got %q, want 'nested-resolved'", out)
+	}
+}
+
 // --- Source maps, paths, node-args, mx, cancellation, gate ---
 
 func TestRuntimeE2ESourceMaps(t *testing.T) {

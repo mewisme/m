@@ -132,9 +132,10 @@ func enforceCapabilities(inst *node.Installation, entrypoint string) error {
 		capSet[c] = true
 	}
 	required := []string{"require-preload", "import-preload"}
-	if isTypeScriptEntrypoint(entrypoint) {
-		required = append(required, "module-register")
-	}
+	// module-register is required for all entrypoints when augmentation
+	// is active: the loader's resolve hook handles tsconfig paths and
+	// .js→.ts extension substitution regardless of entrypoint type.
+	required = append(required, "module-register")
 	for _, c := range required {
 		if !capSet[c] {
 			return apperr.New(apperr.RuntimeNodeUnsupported, "runtime.plan", inst.NormalizedVersion,
@@ -142,15 +143,6 @@ func enforceCapabilities(inst *node.Installation, entrypoint string) error {
 		}
 	}
 	return nil
-}
-
-// isTypeScriptEntrypoint reports whether the entrypoint needs transform support.
-func isTypeScriptEntrypoint(p string) bool {
-	switch strings.ToLower(filepath.Ext(p)) {
-	case ".ts", ".mts", ".cts", ".tsx":
-		return true
-	}
-	return false
 }
 
 // BuildArgv constructs the full Node argument vector.

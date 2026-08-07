@@ -155,6 +155,21 @@ numbers rather than transformed JavaScript locations.
    option. The value is parsed from tsconfig, included in cache keys,
    and available programmatically, but does not affect emitted maps.
 
+9. **Extension substitution resolves .js/.jsx/.mjs/.cjs to TypeScript.**
+   When a JavaScript-specifier import resolves to a file that does not
+   exist on disk, the Node loader probes for a corresponding TypeScript
+   file before failing. The substitution matrix is:
+   `.js` → `.ts` then `.tsx`, `.jsx` → `.tsx`,
+   `.mjs` → `.mts`, `.cjs` → `.cts`.
+   Candidate generation is deterministic; existing JavaScript files
+   take precedence over substituted TypeScript files. Node fallback
+   errors are preserved when no candidate exists. Directories and
+   bare package specifiers are not rewritten. Extension substitution
+   does not determine CJS/ESM module format (that is a separate concern).
+   The loader is active for all entrypoints when runtime augmentation
+   is enabled, ensuring `.js`→`.ts` mapping works even from JavaScript
+   entrypoints that import TypeScript modules.
+
 ## Cache key coverage
 
 Every field on NormalizedOptions flows into the transform cache key via

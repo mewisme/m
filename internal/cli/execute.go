@@ -549,8 +549,11 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 				Stderr: os.Stderr,
 			},
 		}
-		// Attach transform session for TypeScript entrypoints.
-		if augMode != runtime.AugmentNone && isTypeScriptFile(res.FileRunPath) {
+		// Attach transform session when augmentation is active.
+		// The loader's resolve hook handles extension substitution for all
+		// entrypoints; the transform service must be available for any .ts
+		// files that are resolved via .js→.ts mapping.
+		if augMode != runtime.AugmentNone {
 			contrib, contribErr := buildTransformContribution(ctx, ac.CWD, res.FileRunPath, ac.Config)
 			if contribErr != nil {
 				rep := g.newReporter(root)

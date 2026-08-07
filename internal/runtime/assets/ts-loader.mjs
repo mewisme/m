@@ -486,26 +486,34 @@ function matchPathPattern(specifier, pattern) {
 }
 
 const TS_EXT_PROBE = ['.ts', '.tsx', '.mts', '.cts'];
-const JS_EXT_PROBE = ['.js', '.mjs', '.cjs'];
+const JS_EXT_PROBE = ['.js', '.jsx', '.mjs', '.cjs'];
 const ALL_EXT_PROBE = [...TS_EXT_PROBE, ...JS_EXT_PROBE];
 
 function tryResolveFile(basePath) {
   // Exact path exists.
   try { accessSync(basePath); return basePath; } catch (_) {}
-  // Already has a supported extension — don't probe further.
+
   const parsed = pathParse(basePath);
-  if (parsed.ext && (TS_EXT_PROBE.includes(parsed.ext) || JS_EXT_PROBE.includes(parsed.ext))) {
+
+  // TypeScript extension already — don't probe further.
+  if (parsed.ext && TS_EXT_PROBE.includes(parsed.ext)) {
     return null;
   }
-  // Probe extensions.
+
+  // JavaScript extension: the exact file doesn't exist. Try the TypeScript
+  // counterpart before giving up (e.g. ./foo.js → ./foo.ts, ./foo.mjs → ./foo.mts).
+  if (parsed.ext && JS_EXT_PROBE.includes(parsed.ext)) {
+    const tsPath = probeTypeScriptExtension(basePath);
+    if (tsPath) return tsPath;
+    return null;
+  }
+
+  // No extension: probe with TS then JS extensions.
   for (const ext of ALL_EXT_PROBE) {
     const candidate = basePath + ext;
     try { accessSync(candidate); return candidate; } catch (_) {}
   }
-  // Strip unsupported extension and re-probe (e.g. import './foo.js' → './foo.ts').
-  if (parsed.ext && !TS_EXT_PROBE.includes(parsed.ext) && !JS_EXT_PROBE.includes(parsed.ext)) {
-    return null;
-  }
+
   return null;
 }
 
@@ -560,12 +568,13 @@ function fileExists(absPath) {
 // has a corresponding .ts/.tsx/.mts/.cts file that should be used instead.
 function probeTypeScriptExtension(resolvedPath) {
   const parsed = pathParse(resolvedPath);
-  const jsExts = ['.js', '.mjs', '.cjs'];
+  const jsExts = ['.js', '.jsx', '.mjs', '.cjs'];
   if (!jsExts.includes(parsed.ext)) return null;
   const baseName = pathJoin(parsed.dir, parsed.name);
-  // Map .js→.ts, .mjs→.mts, .cjs→.cts; also probe .tsx.
+  // Map .js→.ts/.tsx, .jsx→.tsx, .mjs→.mts, .cjs→.cts.
   const probeExts = parsed.ext === '.mjs' ? ['.mts'] :
                     parsed.ext === '.cjs' ? ['.cts'] :
+                    parsed.ext === '.jsx' ? ['.tsx'] :
                     ['.ts', '.tsx'];
   for (const ext of probeExts) {
     const candidate = baseName + ext;
