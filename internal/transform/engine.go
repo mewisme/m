@@ -76,14 +76,19 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 
 	jsxMode := api.JSXTransform // default
 	jsxSet := false
+	jsxDev := false
 	if req.NormalizedOpts.JSX != "" {
 		switch strings.ToLower(req.NormalizedOpts.JSX) {
 		case "react":
 			jsxMode = api.JSXTransform
 			jsxSet = true
-		case "react-jsx", "react-jsxdev":
+		case "react-jsx":
 			jsxMode = api.JSXAutomatic
 			jsxSet = true
+		case "react-jsxdev":
+			jsxMode = api.JSXAutomatic
+			jsxSet = true
+			jsxDev = true
 		case "preserve":
 			jsxMode = api.JSXPreserve
 			jsxSet = true
@@ -112,6 +117,9 @@ func (e *esbuildEngine) Transform(ctx context.Context, req TransformRequest) (Tr
 	}
 	if jsxSet {
 		transformOpts.JSX = jsxMode
+	}
+	if jsxDev {
+		transformOpts.JSXDev = true
 	}
 
 	// JSX classic runtime: factory and fragment functions.

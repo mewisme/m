@@ -391,6 +391,156 @@ func TestEsbuildEngine_JSXCustomImportSource(t *testing.T) {
 	}
 }
 
+// ── JSX development mode tests ──────────────────────────────────────
+
+func TestEsbuildEngine_JSXDevelopmentMode(t *testing.T) {
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	req := TransformRequest{
+		RequestID:       "jsx-dev",
+		SourcePath:      "app.tsx",
+		SourceBytes:     []byte("const el = <div>hello</div>;\n"),
+		SourceDigest:    "fake",
+		Loader:          LoaderTSX,
+		Format:          FormatESM,
+		SourceMapMode:   SourceMapNone,
+		TargetNodeMajor: 20,
+		NormalizedOpts:  NormalizedOptions{JSX: "react-jsxdev"},
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	code := string(res.Code)
+	if !strings.Contains(code, "jsx-dev-runtime") {
+		t.Fatalf("development JSX runtime not used: %s", code)
+	}
+	if !strings.Contains(code, "jsxDEV") {
+		t.Fatalf("jsxDEV call not emitted for development mode: %s", code)
+	}
+}
+
+func TestEsbuildEngine_JSXDevelopmentModeProducesDifferentOutput(t *testing.T) {
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	src := []byte("const el = <div>hello</div>;\n")
+
+	prodReq := TransformRequest{
+		RequestID:       "jsx-prod",
+		SourcePath:      "app.tsx",
+		SourceBytes:     src,
+		SourceDigest:    "fake",
+		Loader:          LoaderTSX,
+		Format:          FormatESM,
+		SourceMapMode:   SourceMapNone,
+		TargetNodeMajor: 20,
+		NormalizedOpts:  NormalizedOptions{JSX: "react-jsx"},
+	}
+	devReq := TransformRequest{
+		RequestID:       "jsx-dev",
+		SourcePath:      "app.tsx",
+		SourceBytes:     src,
+		SourceDigest:    "fake",
+		Loader:          LoaderTSX,
+		Format:          FormatESM,
+		SourceMapMode:   SourceMapNone,
+		TargetNodeMajor: 20,
+		NormalizedOpts:  NormalizedOptions{JSX: "react-jsxdev"},
+	}
+
+	prodRes, err := e.Transform(ctx, prodReq)
+	if err != nil {
+		t.Fatalf("production Transform: %v", err)
+	}
+	devRes, err := e.Transform(ctx, devReq)
+	if err != nil {
+		t.Fatalf("development Transform: %v", err)
+	}
+
+	prodCode := string(prodRes.Code)
+	devCode := string(devRes.Code)
+
+	if prodCode == devCode {
+		t.Fatal("react-jsx and react-jsxdev must produce different output")
+	}
+	if !strings.Contains(prodCode, "jsx-runtime") {
+		t.Fatalf("production must use jsx-runtime: %s", prodCode)
+	}
+	if strings.Contains(prodCode, "jsx-dev-runtime") {
+		t.Fatal("production must not use jsx-dev-runtime")
+	}
+	if !strings.Contains(devCode, "jsx-dev-runtime") {
+		t.Fatalf("development must use jsx-dev-runtime: %s", devCode)
+	}
+}
+
+func TestEsbuildEngine_JSXDevelopmentModeCustomImportSource(t *testing.T) {
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	req := TransformRequest{
+		RequestID:       "jsx-dev-preact",
+		SourcePath:      "app.tsx",
+		SourceBytes:     []byte("const el = <div>hello</div>;\n"),
+		SourceDigest:    "fake",
+		Loader:          LoaderTSX,
+		Format:          FormatESM,
+		SourceMapMode:   SourceMapNone,
+		TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{
+			JSX:             "react-jsxdev",
+			JSXImportSource: "preact",
+		},
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	code := string(res.Code)
+	if !strings.Contains(code, "preact/jsx-dev-runtime") {
+		t.Fatalf("custom dev import source not used: %s", code)
+	}
+	if !strings.Contains(code, "jsxDEV") {
+		t.Fatalf("jsxDEV call not emitted: %s", code)
+	}
+}
+
+func TestEsbuildEngine_TSXDevelopmentMode(t *testing.T) {
+	e := NewEsbuildEngine()
+	ctx := context.Background()
+
+	req := TransformRequest{
+		RequestID:       "tsx-dev",
+		SourcePath:      "component.tsx",
+		SourceBytes:     []byte("interface Props { name: string }\nconst el = <div className=\"box\">{props.name}</div>;\n"),
+		SourceDigest:    "fake",
+		Loader:          LoaderTSX,
+		Format:          FormatESM,
+		SourceMapMode:   SourceMapNone,
+		TargetNodeMajor: 20,
+		NormalizedOpts:  NormalizedOptions{JSX: "react-jsxdev"},
+	}
+
+	res, err := e.Transform(ctx, req)
+	if err != nil {
+		t.Fatalf("Transform: %v", err)
+	}
+	code := string(res.Code)
+	if strings.Contains(code, "interface") || strings.Contains(code, ": string") {
+		t.Fatal("type annotation not stripped in TSX dev mode")
+	}
+	if !strings.Contains(code, "jsx-dev-runtime") {
+		t.Fatalf("development JSX runtime not used in TSX: %s", code)
+	}
+	if !strings.Contains(code, "jsxDEV") {
+		t.Fatalf("jsxDEV call not emitted in TSX: %s", code)
+	}
+}
+
 // ── TSX loader tests ───────────────────────────────────────────────
 
 func TestEsbuildEngine_TSXLoader(t *testing.T) {
@@ -659,5 +809,27 @@ func TestCacheKeyVariesByImportSource(t *testing.T) {
 	k2 := CacheKey(req2, id)
 	if k1 == k2 {
 		t.Fatal("cache keys must differ when JSX import source differs")
+	}
+}
+
+func TestCacheKeyVariesByJSXDevelopmentMode(t *testing.T) {
+	src := []byte("const el = <div/>;")
+	req1 := TransformRequest{
+		RequestID: "ck-7", SourcePath: "a.tsx", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTSX, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{JSX: "react-jsx"},
+	}
+	req2 := TransformRequest{
+		RequestID: "ck-8", SourcePath: "a.tsx", SourceBytes: src,
+		SourceDigest: "fake", Loader: LoaderTSX, Format: FormatESM,
+		SourceMapMode: SourceMapNone, TargetNodeMajor: 20,
+		NormalizedOpts: NormalizedOptions{JSX: "react-jsxdev"},
+	}
+	id := EngineIdentity{Name: "esbuild", Version: "1.0"}
+	k1 := CacheKey(req1, id)
+	k2 := CacheKey(req2, id)
+	if k1 == k2 {
+		t.Fatal("cache keys must differ when JSX development mode differs from production")
 	}
 }

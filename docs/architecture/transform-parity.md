@@ -10,7 +10,7 @@ level for each transform feature.
 |---|---|---|
 | Classic runtime (`jsx: "react"`) | Full | `React.createElement` calls |
 | Automatic runtime (`jsx: "react-jsx"`) | Full | `react/jsx-runtime` imports |
-| Development mode (`jsx: "react-jsxdev"`) | Full | Mapped to automatic runtime |
+| Development mode (`jsx: "react-jsxdev"`) | Full | `jsx-dev-runtime` imports with `__self`/`__source` |
 | Preserve (`jsx: "preserve"`) | Full | JSX left intact for downstream tool |
 | Custom factory (`jsxFactory`) | Full | e.g. `h` for Preact classic |
 | Custom fragment (`jsxFragmentFactory`) | Full | e.g. `Fragment` |
