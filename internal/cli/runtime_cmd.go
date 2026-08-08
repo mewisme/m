@@ -11,5 +11,6 @@ func newRuntimeCmd() *cobra.Command {
 		Long:  "Commands for runtime introspection, tracing, and diagnostics.",
 	}
 	cmd.AddCommand(newRuntimeTraceCmd())
+	cmd.AddCommand(newRuntimeSupportBundleCmd())
 	return cmd
 }
