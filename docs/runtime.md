@@ -225,6 +225,76 @@ the credential grabber before user code executes).
   environment (minus Mew-private bootstrap variables) and no Mew
   augmentation.
 
+### Web Storage
+
+Mew provides `localStorage` and `sessionStorage` globals via preload.
+Both implement the standard `Storage` API:
+
+- `getItem(key)` → `string | null`
+- `setItem(key, value)`
+- `removeItem(key)`
+- `clear()`
+- `key(index)` → `string | null`
+- `length` → `number`
+
+Keys and values are coerced to `String`. Missing keys return `null`.
+Keys are enumerated in insertion order. Property-style access
+(`storage.foo`) and `Object.keys(storage)` are not supported — use the
+methods.
+
+#### localStorage
+
+Persisted per-project. The namespace is the first 16 hex characters of
+`SHA-256(resolved project root)`. The data file lives at
+`<cache>/webstorage/v1/<namespace>.json`.
+
+| Property | Behavior |
+|---|---|
+| Persistence | Survives process restart |
+| Isolation | Per project root (different directories = different namespaces) |
+| Symlinks | Resolved before hashing (stable identity) |
+| Format | Schema-versioned JSON (v1) |
+| Writes | Atomic (temp file + fsync + rename) |
+| Corruption | Malformed files are reset to empty with a console warning |
+| Quota | 5 MiB default; override with `MEW_STORAGE_QUOTA_BYTES` env var |
+| Quota exceeded | Throws `QuotaExceededError` (or `DOMException` on Node 17+) |
+| No project | Standalone scripts without a `package.json` ancestor get in-memory-only localStorage |
+
+#### sessionStorage
+
+In-memory `Map`-backed storage, scoped to one JavaScript realm.
+
+| Property | Behavior |
+|---|---|
+| Persistence | None (dies with the process) |
+| Workers | Each worker thread gets an independent sessionStorage |
+| Parent/worker | No shared state between parent and worker |
+| Child processes | Not inherited (unrelated children get clean env) |
+
+#### Worker and child process visibility
+
+- **Workers** (`worker_threads`): Inherit preloads via `execArgv`. Each
+  worker gets its own `localStorage` (same persistent file, same
+  namespace) and its own `sessionStorage` (independent `Map`).
+  Concurrent writes to `localStorage` from multiple workers use
+  last-writer-wins atomic rename — no corruption, but no merge either.
+- **Forked children** (`child_process.fork()`): Inherit preloads, get
+  their own `localStorage` (same file) and independent
+  `sessionStorage`.
+- **Unrelated children** (`spawn`/`exec`): No storage globals (clean
+  environment). No localStorage data leakage.
+
+#### Limitations
+
+- No `StorageEvent` or `storage` event listener.
+- No property-style access (`storage.foo`), no `Object.keys(storage)`.
+- No origin-based isolation (browser concept); Mew uses project-root
+  namespace instead.
+- No cross-project data sharing.
+- Quota is per-storage-object, not per-project aggregate.
+- Moving or renaming a project directory changes the namespace (old
+  data file is left in place but orphaned).
+
 ### Yarn Plug'n'Play (PnP) resolution
 
 When a project contains `.pnp.cjs` at its root, Mew's ts-loader detects it

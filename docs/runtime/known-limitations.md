@@ -74,11 +74,11 @@ loader API.
 
 ### Web Storage
 
-**Limitation**: `localStorage` and `sessionStorage` globals are polyfilled in-memory only. Data does not persist across process restarts.
+**Limitation**: `localStorage` persists per-project (namespace = SHA-256 of project root) under the Mew cache directory. `sessionStorage` is per-realm, in-memory only, and does not survive process exit. Cross-project data sharing, origin-based isolation, and the full browser `StorageEvent` API are not supported. Property-style access (`storage.foo`) and `Object.keys(storage)` are deliberately unsupported — use `getItem`/`setItem`.
 
-**Impact**: Packages that depend on persistent Web Storage (e.g., caching user preferences across runs) will lose data on restart.
+**Impact**: Packages using `getItem`/`setItem`/`removeItem`/`clear`/`key`/`length` work. Packages relying on `StorageEvent`, origin-based access control, or the `storage` event listener will not find those features. Moving a project directory changes its namespace and "loses" prior localStorage data (the old file remains but is no longer associated).
 
-**Resolution**: Disk persistence planned for 0060+. Currently gated behind `MEW_EXPERIMENTAL_RUNTIME=1`.
+**Resolution**: Storage API surface is stable. Property-style access and `StorageEvent` are not planned. Quota (5 MiB default, `MEW_STORAGE_QUOTA_BYTES` override) and atomic writes are implemented.
 
 ### Watch mode
 
@@ -142,6 +142,6 @@ Features behind experimental flags (current as of 0052 development):
 | Runtime augmentation | `MEW_EXPERIMENTAL_RUNTIME=1` | Experimental |
 | Direct dispatch bins | `MEW_EXPERIMENTAL_EXEC_DIRECT_DISPATCH=1` | Experimental |
 | Watch mode | `MEW_EXPERIMENTAL_RUNTIME=1` | Experimental |
-| Web Storage | `MEW_EXPERIMENTAL_RUNTIME=1` | Experimental |
+| Web Storage | `MEW_EXPERIMENTAL_RUNTIME=1` | Supported |
 | Debug inspection | `--inspect`/`--inspect-brk` | Passthrough only |
 | Source maps | `--enable-source-maps` | Auto-injected (Node >= 20.6) |

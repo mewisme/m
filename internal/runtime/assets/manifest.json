@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "bundleVersion": "9",
+  "bundleVersion": "10",
   "assets": [
     {
       "name": "credential-grabber.cjs",
@@ -23,16 +23,16 @@
       "path": "preload.cjs",
       "role": "preload-cjs",
       "moduleType": "cjs",
-      "size": 1174,
-      "sha256": "e15b802bd78984bd437c71a2fceb07f18b55ea8982a97bb42989bef93a19da23"
+      "size": 1323,
+      "sha256": "f6c252edea75c2f1ac6ae54b1923c8466720fe7ca6a54e7821e3c0442641f7bf"
     },
     {
       "name": "preload.mjs",
       "path": "preload.mjs",
       "role": "preload-esm",
       "moduleType": "esm",
-      "size": 1329,
-      "sha256": "518f9fa9fc3def3e869134ead55b9e12c3173e8122492229609fe278f3b31acc"
+      "size": 1332,
+      "sha256": "b7b48ce73172b1ff9d4e6498e82e983bd961a7c98ffeb0b395786371345ba7e9"
     },
     {
       "name": "resolve-diagnostic.mjs",
@@ -57,6 +57,14 @@
       "moduleType": "esm",
       "size": 28566,
       "sha256": "a74e9b0074b166ab2d78a5b1c247e88f6f35ce1045ec6ef7f4d0ba488bce9059"
+    },
+    {
+      "name": "web-storage.cjs",
+      "path": "web-storage.cjs",
+      "role": "loader-support",
+      "moduleType": "cjs",
+      "size": 8409,
+      "sha256": "0e4fce972bcfaedbbb321dda62c9d5ffa759929b514e35288f1d967d249e39de"
     }
   ]
 }

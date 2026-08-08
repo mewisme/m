@@ -7,26 +7,23 @@
 // which runs after loader thread creation.
 'use strict';
 
-// Web Storage polyfill (localStorage, sessionStorage).
-// ponytail: in-memory only; localStorage disk persistence deferred to 0055+.
+// Web Storage (localStorage, sessionStorage).
+// Canonical implementation in web-storage.cjs.
+// localStorage: persisted per-project when MEW_LOCAL_STORAGE_PATH is set,
+//   in-memory-only otherwise.  sessionStorage: in-memory, per-realm.
 {
-  const createStorage = () => {
-    const store = new Map();
-    return {
-      getItem(key) {
-        const v = store.get(String(key));
-        return v === undefined ? null : v;
-      },
-      setItem(key, value) { store.set(String(key), String(value)); },
-      removeItem(key) { store.delete(String(key)); },
-      clear() { store.clear(); },
-      key(index) {
-        const keys = [...store.keys()];
-        return index >= 0 && index < keys.length ? keys[index] : null;
-      },
-      get length() { return store.size; },
-    };
-  };
-  globalThis.localStorage = createStorage();
-  globalThis.sessionStorage = createStorage();
+  const { createLocalStorage, createSessionStorage } = require('./web-storage.cjs');
+
+  // Only install if Node does not already provide a native implementation.
+  // Node 22+ may ship Web Storage globals under experimental flags; Mew
+  // replaces the in-memory shim with its own persisted implementation
+  // for localStorage, but defers to native sessionStorage when present.
+  if (typeof globalThis.localStorage === 'undefined') {
+    globalThis.localStorage = createLocalStorage({
+      filePath: process.env.MEW_LOCAL_STORAGE_PATH || null,
+    });
+  }
+  if (typeof globalThis.sessionStorage === 'undefined') {
+    globalThis.sessionStorage = createSessionStorage();
+  }
 }

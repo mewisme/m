@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/url"
@@ -14,6 +16,7 @@ import (
 	"github.com/mewisme/mew/internal/config"
 	"github.com/mewisme/mew/internal/node"
 	"github.com/mewisme/mew/internal/process"
+	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/runtime/assets"
 )
 
@@ -88,6 +91,13 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 		plan.CleanupHook = req.Contribution.CleanupHook
 		plan.PreloadAssets = append(plan.PreloadAssets, req.Contribution.ExtraPreloads...)
 		plan.EnvChanges = append(plan.EnvChanges, req.Contribution.ExtraEnv...)
+	}
+
+	// Compute localStorage persistence path from project identity.
+	// When project root is not found (standalone scripts), localStorage
+	// stays in-memory-only — no cross-invocation persistence.
+	if sp := storagePath(req.WorkingDir, eff); sp != "" {
+		plan.EnvChanges = append(plan.EnvChanges, "MEW_LOCAL_STORAGE_PATH="+sp)
 	}
 
 	// Extract assets when augmentation is active, or when --node mode has
@@ -425,4 +435,27 @@ func buildEnv(envOverlay []string, planEnvChanges []string) []string {
 		out = append(out, k+"="+v)
 	}
 	return out
+}
+
+// storagePath computes the persistent localStorage path for the project
+// containing workingDir.  Returns "" when no project root exists (standalone
+// script) — localStorage remains in-memory-only in that case.
+//
+// Namespace: first 16 hex chars of SHA-256(resolved project root).
+// Path:      <cache>/webstorage/v1/<namespace>.json
+//
+// Symlinks in the project root are resolved before hashing so the namespace
+// is stable regardless of how the directory is reached.
+func storagePath(workingDir string, eff *config.Effective) string {
+	root, err := project.FindRoot(workingDir)
+	if err != nil {
+		return ""
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		realRoot = root
+	}
+	h := sha256.Sum256([]byte(realRoot))
+	ns := hex.EncodeToString(h[:])[:16]
+	return filepath.Join(config.CacheRoot(eff), "webstorage", "v1", ns+".json")
 }
