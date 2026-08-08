@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { accessSync, readFileSync } from 'node:fs';
 import { resolve as pathResolve, parse as pathParse, join as pathJoin, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 
 // Credentials are received via the initialize hook, passed from
 // credential-grabber.cjs through module.register()'s data option.
@@ -434,27 +435,48 @@ function getPackageType(filePath) {
 
 // ── PnP resolution adapter ─────────────────────────────────────────
 
-let pnpApi = null;
-let pnpChecked = false;
+// pnpCache maps a project root (native path) to its loaded PnP API.
+//   - {PnpApi} — loaded and usable
+//   - null      — negative cache: project has no usable PnP API
+// Keying by project root keeps PnP state scoped to the relevant project
+// rather than leaking across projects/workers in the same Node process.
+const pnpCache = new Map();
 
+// ensurePnp returns the PnP API for the project containing parentPath,
+// or null when no PnP environment owns that path.  Results are cached
+// per project root for the lifetime of the loader module.
 function ensurePnp(parentPath) {
-  if (pnpChecked) return;
-  pnpChecked = true;
-  // Walk up from the parent path to find .pnp.cjs.
-  let dir = parentPath ? dirname(parentPath) : resolveBaseDir;
-  if (!dir) return;
+  // Prefer the importer path, then the tsconfig base, then cwd.
+  let dir = parentPath ? dirname(parentPath) : (resolveBaseDir || '');
+  if (!dir) {
+    try {
+      dir = pathResolve('.');
+    } catch (_) { return null; }
+  }
   const root = findProjectRoot(dir);
-  if (!root) return;
+  if (!root) return null;
+  if (pnpCache.has(root)) return pnpCache.get(root);
+
+  // Only .pnp.cjs provides a usable resolver API.
+  const pnpPath = pathJoin(root, '.pnp.cjs');
   try {
-    // .pnp.cjs exports the PnP API (resolveRequest, etc.).
-    const pnpPath = pathJoin(root, '.pnp.cjs');
-    accessSync(pnpPath); // throws if missing
-    pnpApi = createRequire(import.meta.url)(pnpPath);
-  } catch (_) { /* PnP not available */ }
+    accessSync(pnpPath);
+  } catch (_) {
+    // Should not happen: findProjectRoot already verified .pnp.cjs exists.
+    pnpCache.set(root, null);
+    return null;
+  }
+
+  let api = null;
+  try {
+    api = createRequire(import.meta.url)(pnpPath);
+  } catch (_) { /* PnP bootstrap threw — cache as unusable */ }
+  pnpCache.set(root, api || null);
+  return api;
 }
 
-// findProjectRoot walks up from dir looking for .pnp.cjs or .pnp.data.json.
-// Returns the directory containing the PnP artifact, or null.
+// findProjectRoot walks up from dir looking for .pnp.cjs.
+// Returns the directory containing .pnp.cjs, or null.
 function findProjectRoot(dir) {
   let current = pathResolve(dir);
   const { root } = pathParse(current);
@@ -462,10 +484,6 @@ function findProjectRoot(dir) {
     try {
       accessSync(pathJoin(current, '.pnp.cjs'));
       return current;
-    } catch (_) {}
-    try {
-      accessSync(pathJoin(current, '.pnp.data.json'));
-      return current; // PnP project without .pnp.cjs (unplugged) — detected but no API.
     } catch (_) {}
     const parent = dirname(current);
     if (parent === current) break;
@@ -722,20 +740,36 @@ export async function resolve(specifier, context, nextResolve) {
     }
   }
 
-  // Try PnP resolution if .pnp.cjs is available.
-  ensurePnp(context.parentURL ? fileURLToPath(context.parentURL) : null);
-  if (pnpApi && typeof pnpApi.resolveRequest === 'function') {
-    try {
-      const issuer = context.parentURL || pathToFileURL('/').href;
-      const pnpResult = pnpApi.resolveRequest(specifier, issuer);
-      if (pnpResult) {
-        return {
-          format: formatFromResolvedPath(pnpResult),
-          url: pathToFileURL(pnpResult).href,
-          shortCircuit: true,
-        };
+  // Try PnP resolution for bare specifiers when .pnp.cjs owns the importer.
+  // PnP only handles bare package / package-subpath requests.
+  // Relative paths, absolute paths, and URLs (builtins, data:, node: etc.)
+  // are never routed through PnP.
+  if (!specifier.startsWith('.') && !specifier.startsWith('/') && !specifier.includes(':')) {
+    const issuerPath = context.parentURL ? fileURLToPath(context.parentURL) : null;
+    const pnpApi = ensurePnp(issuerPath);
+    if (pnpApi && typeof pnpApi.resolveRequest === 'function') {
+      // Yarn PnP resolveRequest expects a native filesystem path, not a file:// URL.
+      const issuer = issuerPath || '/';
+      try {
+        const pnpResult = pnpApi.resolveRequest(specifier, issuer);
+        if (pnpResult) {
+          return {
+            format: formatFromResolvedPath(pnpResult),
+            url: pathToFileURL(pnpResult).href,
+            shortCircuit: true,
+          };
+        }
+        // resolveRequest returned null/undefined: package not in PnP map.
+        // Fall through — let Node or tsconfig paths handle it.
+      } catch (err) {
+        // PnP owns dependency resolution for this project.  A thrown error
+        // signals a dependency boundary violation (undeclared dependency,
+        // unplugged package, etc.).  Propagate it — do NOT silently fall
+        // back to node_modules where that would violate PnP guarantees.
+        if (nodeError) throw err;
+        throw err;
       }
-    } catch (_) { /* PnP resolution failed; fall through */ }
+    }
   }
 
   // Try tsconfig paths matching.

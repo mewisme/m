@@ -40,9 +40,9 @@ Documented as of 0052 development (0057 runtime stabilization pending). Each ent
 
 ### PnP unplugged mode
 
-**Limitation**: PnP detection requires `.pnp.cjs` at the project root. `.pnp.data.json` without `.pnp.cjs` (Yarn PnP "unplugged" mode) is detected but PnP resolution is skipped.
+**Limitation**: PnP resolution requires `.pnp.cjs` at the project root. Only `.pnp.cjs` provides a usable resolver API. `.pnp.data.json` without `.pnp.cjs` (Yarn PnP "unplugged" mode) is not detected as a PnP project — resolution falls through to tsconfig paths and stock Node resolution.
 
-**Impact**: Projects using Yarn PnP in unplugged mode will not get PnP-aware resolution. They fall through to tsconfig paths and stock Node resolution.
+**Impact**: Projects using Yarn PnP in unplugged mode will not get PnP-aware resolution.
 
 **Resolution**: Planned for 0060+ when PnP integration is revisited.
 

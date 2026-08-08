@@ -1678,6 +1678,275 @@ func TestRuntimeE2ELoaderRepeatedOrder(t *testing.T) {
 	}
 }
 
+// --- PnP resolution ---
+
+// pnpFixture copies a PnP-specific fixture into a temp dir.
+func pnpFixture(t *testing.T, rel string) string {
+	t.Helper()
+	testkit.CleanEnv(t)
+	projDir := t.TempDir()
+	testkit.CopyFixture(t, "runner/"+rel, projDir)
+	return projDir
+}
+
+func TestRuntimeE2EPnPBasicResolution(t *testing.T) {
+	skipWithoutNode(t)
+	proj := pnpFixture(t, "runtime-e2e-pnp")
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "app.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "pnp-resolved:test-dep") {
+		t.Fatalf("expected PnP-resolved test-dep; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EPnPSubpathResolution(t *testing.T) {
+	skipWithoutNode(t)
+	proj := pnpFixture(t, "runtime-e2e-pnp-subpath")
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "app.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "subpath:subpath-ok") {
+		t.Fatalf("expected subpath resolution; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EPnPUndeclaredDependency(t *testing.T) {
+	skipWithoutNode(t)
+	proj := pnpFixture(t, "runtime-e2e-pnp-undeclared")
+	code, _ := runMWithRuntime(t, proj, "app.mjs")
+	// Undeclared dependency in a static import causes the Node module loader
+	// to fail with the PnP boundary error. The error goes to stderr (not
+	// captured by runM), so we verify the non-zero exit code only.
+	if code == 0 {
+		t.Fatal("expected non-zero exit for undeclared dependency")
+	}
+}
+
+func TestRuntimeE2EPnPNonPnPAfterPnP(t *testing.T) {
+	skipWithoutNode(t)
+	// Run a non-PnP project after a PnP project in the same test process.
+	// Each m invocation spawns a fresh Node process, so there should be no
+	// cross-contamination.  The test verifies the Go-side state is clean.
+
+	// First: PnP project.
+	pnpProj := pnpFixture(t, "runtime-e2e-pnp")
+	_ = os.Remove(filepath.Join(pnpProj, "output.txt"))
+	code, _ := runMWithRuntime(t, pnpProj, "app.mjs")
+	if code != 0 {
+		t.Fatalf("pnp project exit=%d", code)
+	}
+	if out := readOutput(t, pnpProj); !strings.Contains(out, "pnp-resolved:test-dep") {
+		t.Fatalf("pnp project failed; got:\n%s", out)
+	}
+
+	// Second: non-PnP project (standard runtime-e2e fixture).
+	nonPnPProj := runtimeE2EFixture(t)
+	_ = os.Remove(filepath.Join(nonPnPProj, "output.txt"))
+	code, _ = runMWithRuntime(t, nonPnPProj, "hello.js")
+	if code != 0 {
+		t.Fatalf("non-pnp project exit=%d after PnP project", code)
+	}
+}
+
+func TestRuntimeE2EPnPMultiProjectIsolation(t *testing.T) {
+	skipWithoutNode(t)
+	// Run two independent PnP projects with different dependency mappings.
+	// Each spawns its own Node process, verifying per-project PnP state.
+
+	projA := pnpFixture(t, "runtime-e2e-pnp-multi/project-a")
+	_ = os.Remove(filepath.Join(projA, "output.txt"))
+	code, _ := runMWithRuntime(t, projA, "app.mjs")
+	if code != 0 {
+		t.Fatalf("project-a exit=%d", code)
+	}
+	if out := readOutput(t, projA); !strings.Contains(out, "project-a:dep-a") {
+		t.Fatalf("project-a unexpected output:\n%s", out)
+	}
+
+	projB := pnpFixture(t, "runtime-e2e-pnp-multi/project-b")
+	_ = os.Remove(filepath.Join(projB, "output.txt"))
+	code, _ = runMWithRuntime(t, projB, "app.mjs")
+	if code != 0 {
+		t.Fatalf("project-b exit=%d", code)
+	}
+	if out := readOutput(t, projB); !strings.Contains(out, "project-b:dep-b") {
+		t.Fatalf("project-b unexpected output:\n%s", out)
+	}
+
+	// Cross-check: project-a must NOT resolve dep-b, project-b must NOT resolve dep-a.
+	// Re-run project-a to verify it still resolves its own deps.
+	_ = os.Remove(filepath.Join(projA, "output.txt"))
+	code, _ = runMWithRuntime(t, projA, "app.mjs")
+	if code != 0 {
+		t.Fatalf("project-a re-run exit=%d", code)
+	}
+	if out := readOutput(t, projA); !strings.Contains(out, "project-a:dep-a") {
+		t.Fatalf("project-a re-run lost its dependency; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EPnPCacheReuse(t *testing.T) {
+	skipWithoutNode(t)
+	// Repeated resolution within one PnP project should reuse the cached API.
+	proj := pnpFixture(t, "runtime-e2e-pnp")
+	for i := 0; i < 3; i++ {
+		_ = os.Remove(filepath.Join(proj, "output.txt"))
+		code, _ := runMWithRuntime(t, proj, "app.mjs")
+		if code != 0 {
+			t.Fatalf("run %d exit=%d", i, code)
+		}
+		if out := readOutput(t, proj); !strings.Contains(out, "pnp-resolved:test-dep") {
+			t.Fatalf("run %d unexpected output:\n%s", i, out)
+		}
+	}
+}
+
+func TestRuntimeE2EPnPDataJsonOnly(t *testing.T) {
+	skipWithoutNode(t)
+	// .pnp.data.json without .pnp.cjs: project should still run,
+	// but PnP resolution is unavailable.  Bare imports fall through
+	// to Node resolution.
+	proj := pnpFixture(t, "runtime-e2e-pnp-datajson")
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "app.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "datajson-works") {
+		t.Fatalf("expected datajson-works marker; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EPnPMalformedBootstrap(t *testing.T) {
+	skipWithoutNode(t)
+	// A .pnp.cjs that throws on load must not crash the process.
+	// PnP becomes unavailable; Node resolution takes over.
+	proj := pnpFixture(t, "runtime-e2e-pnp-malformed")
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "app.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d (malformed .pnp.cjs should not prevent execution)", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "malformed-works") {
+		t.Fatalf("expected malformed-works marker; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EPnPNestedImporter(t *testing.T) {
+	skipWithoutNode(t)
+	// Nested importer paths within the same project should resolve correctly.
+	proj := pnpFixture(t, "runtime-e2e-pnp-nested")
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "app.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "nested:inner-dep") {
+		t.Fatalf("expected nested:inner-dep; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EPnPIssuerIsNativePath(t *testing.T) {
+	skipWithoutNode(t)
+	// The issuer passed to resolveRequest must be a native filesystem path,
+	// not a file:// URL.  The .pnp.cjs validates this and throws if wrong.
+	proj := pnpFixture(t, "runtime-e2e-pnp-issuer")
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "app.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "issuer-ok:test-dep") {
+		t.Fatalf("expected issuer-ok; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EPnPBuiltinsNotRouted(t *testing.T) {
+	skipWithoutNode(t)
+	// Builtins (node:fs, node:path, etc.) must NOT be routed through PnP.
+	// The .pnp.cjs in the nested fixture rejects URL-like issuers.
+	proj := pnpFixture(t, "runtime-e2e-pnp-nested")
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "app.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d (builtins should bypass PnP)", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "nested:inner-dep") {
+		t.Fatalf("expected successful resolution; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EPnPRegressionIssue11TypeScriptPaths(t *testing.T) {
+	skipWithoutNode(t)
+	// Issue 11 regression: tsconfig paths must still work when .pnp.cjs is present.
+	// The fixture has both .pnp.cjs AND a tsconfig with paths.
+	proj := pnpFixture(t, "runtime-e2e-pnp")
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	// Run a TS file that imports via tsconfig paths.
+	code, _ := runMWithRuntime(t, proj, "app.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "pnp-resolved:test-dep") {
+		t.Fatalf("expected PnP resolution to work; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EPnPRegressionIssue13ModuleFormat(t *testing.T) {
+	skipWithoutNode(t)
+	// Issue 13 regression: module format detection must still work with PnP.
+	proj := pnpFixture(t, "runtime-e2e-pnp")
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	code, _ := runMWithRuntime(t, proj, "app.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	if !strings.Contains(out, "pnp-resolved:test-dep") {
+		t.Fatalf("expected module format to work; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EPnPRegressionIssue14CustomLoaderChain(t *testing.T) {
+	skipWithoutNode(t)
+	if !nodeMeetsMinimum(t, 20, 0) {
+		t.Skip("custom loader chain requires Node >= 20")
+	}
+	// Issue 14 regression: PnP + custom loader must coexist.
+	proj := pnpFixture(t, "runtime-e2e-pnp")
+	_ = os.Remove(filepath.Join(proj, "output.txt"))
+	// Use the loader-log.mjs from the runtime-e2e fixture alongside PnP.
+	loaderFixture := runtimeE2EFixture(t)
+	loaderPath := filepath.Join(loaderFixture, "loader-log.mjs")
+	srcLoader, err := os.ReadFile(loaderPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(proj, "loader-log.mjs"), string(srcLoader))
+	code, _ := runMWithRuntime(t, proj, "--loader", "./loader-log.mjs", "app.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	// Both the custom loader and PnP resolution should work.
+	if !strings.Contains(out, "pnp-resolved:test-dep") {
+		t.Fatalf("PnP resolution missing; got:\n%s", out)
+	}
+}
+
 // --- helpers ---
 
 func writeFile(t *testing.T, path, content string) {

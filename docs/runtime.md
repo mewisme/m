@@ -134,8 +134,7 @@ or unreadable `package.json` files default to `"commonjs"`.
   CJS `require()` calls inside transformed modules bypass the loader hooks and
   use Node's native CJS resolution (no TypeScript extension mapping).
 - Full Node16/NodeNext resolver parity (package `exports`/`imports`) belongs to
-  Issues 15–16.
-- PnP hardening belongs to Issue 15.
+  Issue 16.
 
 ### Custom loaders (`--loader`)
 
@@ -184,8 +183,47 @@ preloads — just the user's loaders on stock Node.
 self-register — Mew calls `module.register()` on its behalf. Loader modules
 must not import Mew internals.
 
-**Unsupported**: loader-specific arguments, worker propagation (deferred to
-Issue 15), and PnP-aware custom resolution (Issue 16).
+**Unsupported**: loader-specific arguments and worker propagation (future work).
+
+### Yarn Plug'n'Play (PnP) resolution
+
+When a project contains `.pnp.cjs` at its root, Mew's ts-loader detects it
+and delegates bare package resolution to the Yarn PnP API.
+
+**Discovery**: The loader walks up from the importing file's directory
+looking for `.pnp.cjs`. Discovery is scoped to the project root — results
+are cached per root for the lifetime of the Node process. Each `m run`
+invocation starts a fresh Node process, so there is no cross-project
+contamination at the Go process level.
+
+**API**: `.pnp.cjs` is loaded via `createRequire()` and must export
+`resolveRequest(specifier, issuer, opts)` following the standard Yarn PnP
+contract. The `issuer` argument is a native filesystem path (converted from
+the `context.parentURL` file:// URL by the loader).
+
+**Resolver ordering**:
+
+```
+Builtins (node:fs, etc.) → skip PnP
+Relative / absolute paths    → skip PnP
+Bare specifiers              → PnP resolveRequest → tsconfig paths → Node fallback
+```
+
+**Error handling**: When PnP owns a dependency and rejects it (undeclared
+dependency, boundary violation), the error propagates as a Node module
+resolution error. When PnP returns null (package not in map), resolution
+falls through to tsconfig paths and Node.
+
+**`.pnp.data.json`**: Not sufficient for PnP resolution. Only `.pnp.cjs`
+provides a usable resolver API. Projects with only `.pnp.data.json` are
+treated as non-PnP projects.
+
+**Multi-project isolation**: PnP state is keyed by project root in a
+per-process cache. Each Node process resolves against its own project
+context. Worker threads receive their own loader module instances.
+
+**Unsupported**: PnP `resolveVirtual` (virtual paths), `getAllLocators`,
+and full Yarn PnP API surface beyond `resolveRequest`.
 
 ## Augmentation
 
