@@ -272,6 +272,168 @@ func TestParseEscapedDollar(t *testing.T) {
 	}
 }
 
+func TestParseMalformedLineNoEquals(t *testing.T) {
+	input := `KEY=value
+NOT_AN_ASSIGNMENT
+OTHER=123
+`
+	_, err := Parse(strings.NewReader(input), "test")
+	if err == nil {
+		t.Fatal("expected error for line without '='")
+	}
+	if !strings.Contains(err.Error(), "missing '='") {
+		t.Errorf("error should mention missing '=', got: %v", err)
+	}
+}
+
+func TestParseEmptyKey(t *testing.T) {
+	input := `=value
+`
+	_, err := Parse(strings.NewReader(input), "test")
+	if err == nil {
+		t.Fatal("expected error for empty key")
+	}
+	if !strings.Contains(err.Error(), "empty key") {
+		t.Errorf("error should mention empty key, got: %v", err)
+	}
+}
+
+func TestParseInvalidKeyStartsWithDigit(t *testing.T) {
+	input := `1KEY=value
+`
+	_, err := Parse(strings.NewReader(input), "test")
+	if err == nil {
+		t.Fatal("expected error for key starting with digit")
+	}
+	if !strings.Contains(err.Error(), "invalid key") {
+		t.Errorf("error should mention invalid key, got: %v", err)
+	}
+}
+
+func TestParseInvalidKeyContainsHyphen(t *testing.T) {
+	input := `MY-KEY=value
+`
+	_, err := Parse(strings.NewReader(input), "test")
+	if err == nil {
+		t.Fatal("expected error for key with hyphen")
+	}
+	if !strings.Contains(err.Error(), "invalid key") {
+		t.Errorf("error should mention invalid key, got: %v", err)
+	}
+}
+
+func TestParseValidKeyUnderscore(t *testing.T) {
+	input := `MY_KEY=value
+_private=secret
+`
+	result, err := Parse(strings.NewReader(input), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result["MY_KEY"] != "value" {
+		t.Errorf("MY_KEY = %q, want value", result["MY_KEY"])
+	}
+	if result["_private"] != "secret" {
+		t.Errorf("_private = %q, want secret", result["_private"])
+	}
+}
+
+func TestLoadCrossFileExpansion(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".env"), "HOST=localhost\n")
+	writeFile(t, filepath.Join(dir, ".env.local"), "URL=http://${HOST}:8080\n")
+
+	env, err := Load([]string{
+		filepath.Join(dir, ".env"),
+		filepath.Join(dir, ".env.local"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := environToMap(env)
+	if m["URL"] != "http://localhost:8080" {
+		t.Errorf("URL = %q, want http://localhost:8080 (cross-file expansion failed)", m["URL"])
+	}
+}
+
+func TestLoadCrossFileExpansionDefault(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".env"), "HOST=server\n")
+	writeFile(t, filepath.Join(dir, ".env.local"), "URL=${MISSING:-http://${HOST}}:9090\n")
+
+	env, err := Load([]string{
+		filepath.Join(dir, ".env"),
+		filepath.Join(dir, ".env.local"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := environToMap(env)
+	// ${MISSING:-http://${HOST}}:9090 — MISSING not set, so default expands.
+	// The default is literal "http://${HOST}" — expansion inside default is not supported.
+	if m["URL"] != "http://${HOST}:9090" {
+		t.Errorf("URL = %q", m["URL"])
+	}
+}
+
+func TestLoadCrossFileOverride(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".env"), "BASE=first\n")
+	writeFile(t, filepath.Join(dir, ".env.local"), "BASE=second\nREF=$BASE\n")
+
+	env, err := Load([]string{
+		filepath.Join(dir, ".env"),
+		filepath.Join(dir, ".env.local"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := environToMap(env)
+	if m["BASE"] != "second" {
+		t.Errorf("BASE = %q, want second", m["BASE"])
+	}
+	// REF expands BASE from accumulated vars (which has BASE=second at that point).
+	if m["REF"] != "second" {
+		t.Errorf("REF = %q, want second (should expand overridden value)", m["REF"])
+	}
+}
+
+func TestParseForwardReferenceUnresolved(t *testing.T) {
+	// Forward references: expansion map only has prior lines + base vars.
+	// A var defined later in the same file is NOT visible to earlier lines.
+	input := `URL=http://${HOST}:8080
+HOST=localhost
+`
+	result, err := Parse(strings.NewReader(input), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// HOST not yet defined when URL is parsed. Falls through to os.Getenv which
+	// is empty in test, so ${HOST} resolves to empty.
+	if result["URL"] != "http://:8080" {
+		t.Errorf("URL = %q, want http://:8080 (forward ref should not resolve)", result["URL"])
+	}
+	if result["HOST"] != "localhost" {
+		t.Errorf("HOST = %q, want localhost", result["HOST"])
+	}
+}
+
+func TestParseSelfReferenceUsesEnvFallback(t *testing.T) {
+	// Self-reference: X=$X before X is defined.
+	// X is not yet in the expansion map, so falls through to os.Getenv.
+	t.Setenv("X", "shell_value")
+	input := `X=$X
+`
+	result, err := Parse(strings.NewReader(input), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// $X resolves to os.Getenv("X") = "shell_value", then result["X"] = "shell_value".
+	if result["X"] != "shell_value" {
+		t.Errorf("X = %q, want shell_value", result["X"])
+	}
+}
+
 // Helpers
 
 func writeFile(t *testing.T, path, content string) {

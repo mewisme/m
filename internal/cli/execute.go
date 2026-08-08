@@ -534,7 +534,12 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 		if augMode != runtime.AugmentNone && goruntime.GOOS == "windows" {
 			entrypoint = res.Canonical
 		}
-		envOverlay := buildEnvOverlay(ac.CWD, phase.Leading)
+		envOverlay, buildErr := buildEnvOverlay(ac.CWD, phase.Leading)
+		if buildErr != nil {
+			rep := g.newReporter(root)
+			rep.Error(classifyCLIError(buildErr))
+			return apperr.ExitCode(buildErr), true
+			}
 		req := runtime.LaunchRequest{
 			Entrypoint:       entrypoint,
 			AppArgs:          phase.ForwardedArgs,
@@ -741,16 +746,17 @@ func encodeDispatchJSON(res DispatchResult, selector string) ([]byte, error) {
 // buildEnvOverlay computes env overlay from .env files per CLI flags.
 // Order: auto-discovered files (if not --no-env-file), then explicit --env-file files.
 // --mode <mode> appends NODE_ENV=<mode> at the end (highest precedence within the overlay).
-func buildEnvOverlay(cwd string, leading leadingDispatchFlags) []string {
+func buildEnvOverlay(cwd string, leading leadingDispatchFlags) ([]string, error) {
 	if leading.noEnvFile && len(leading.envFile) == 0 {
 		if leading.mode != "" {
-			return []string{"NODE_ENV=" + leading.mode}
+			return []string{"NODE_ENV=" + leading.mode}, nil
 		}
-		return nil
+		return nil, nil
 	}
 
+	explicit := len(leading.envFile) > 0
 	var files []string
-	if len(leading.envFile) > 0 {
+	if explicit {
 		for _, f := range leading.envFile {
 			if filepath.IsAbs(f) {
 				files = append(files, f)
@@ -762,13 +768,32 @@ func buildEnvOverlay(cwd string, leading leadingDispatchFlags) []string {
 		files = dotenv.Discover(cwd, leading.mode)
 	}
 
-	envVars, err := dotenv.Load(files)
+	var envVars []string
+	var err error
+	if explicit {
+		envVars, err = dotenv.LoadRequired(files)
+	} else {
+		envVars, err = dotenv.Load(files)
+	}
 	if err != nil {
-		envVars = nil
+		return nil, classifyEnvLoadError(err)
 	}
 
 	if leading.mode != "" {
 		envVars = append(envVars, "NODE_ENV="+leading.mode)
 	}
-	return envVars
+	return envVars, nil
+}
+
+// classifyEnvLoadError maps a dotenv load error to an apperr.Error with the
+// appropriate stable code based on the underlying OS/filesystem error.
+func classifyEnvLoadError(err error) error {
+	msg := err.Error()
+	if strings.Contains(msg, "no such file") || strings.Contains(msg, "cannot find") {
+		return apperr.New(apperr.EnvFileNotFound, "env-file", "", err.Error())
+	}
+	if strings.Contains(msg, "permission denied") || strings.Contains(msg, "access is denied") {
+		return apperr.New(apperr.EnvFileRead, "env-file", "", err.Error())
+	}
+	return apperr.New(apperr.EnvFileParse, "env-file", "", err.Error())
 }

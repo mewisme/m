@@ -11,7 +11,6 @@ import (
 
 	"github.com/mewisme/mew/internal/app"
 	"github.com/mewisme/mew/internal/apperr"
-	"github.com/mewisme/mew/internal/dotenv"
 	"github.com/mewisme/mew/internal/runtime"
 	"github.com/mewisme/mew/internal/watch"
 )
@@ -62,7 +61,10 @@ to coalesce rapid saves.`,
 
 			// Build restart function that launches Node on each restart.
 			restart := func(ctx context.Context) (int, error) {
-				currentEnv := buildWatchEnvOverlay(cwd, envFile, noEnvFile, mode)
+				currentEnv, envErr := buildWatchEnvOverlay(cwd, envFile, noEnvFile, mode)
+				if envErr != nil {
+					return 1, envErr
+				}
 
 				plan, err := runtime.Plan(ctx, runtime.LaunchRequest{
 					Entrypoint: epAbs,
@@ -150,34 +152,10 @@ to coalesce rapid saves.`,
 	return cmd
 }
 
-func buildWatchEnvOverlay(cwd string, envFile []string, noEnvFile bool, mode string) []string {
-	if noEnvFile && len(envFile) == 0 {
-		if mode != "" {
-			return []string{"NODE_ENV=" + mode}
-		}
-		return nil
-	}
-
-	var files []string
-	if len(envFile) > 0 {
-		for _, f := range envFile {
-			if filepath.IsAbs(f) {
-				files = append(files, f)
-			} else {
-				files = append(files, filepath.Join(cwd, f))
-			}
-		}
-	} else {
-		files = dotenv.Discover(cwd, mode)
-	}
-
-	envVars, err := dotenv.Load(files)
-	if err != nil {
-		envVars = nil
-	}
-
-	if mode != "" {
-		envVars = append(envVars, "NODE_ENV="+mode)
-	}
-	return envVars
+func buildWatchEnvOverlay(cwd string, envFile []string, noEnvFile bool, mode string) ([]string, error) {
+	return buildEnvOverlay(cwd, leadingDispatchFlags{
+		envFile:   envFile,
+		noEnvFile: noEnvFile,
+		mode:      mode,
+	})
 }

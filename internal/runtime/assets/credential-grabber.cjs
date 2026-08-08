@@ -17,9 +17,26 @@
 //   2. Loader context (isMainThread=false): re-evaluated by Node's
 //      loader thread; exports null values. The loader already
 //      received credentials via the initialize hook.
+//
+// Issue 19 — Worker propagation:
+//   Main thread also monkey-patches the Worker constructor to inject
+//   credentials into workerData via a Symbol key. When this module
+//   re-evaluates in a worker (isMainThread=false, parentPort exists),
+//   it extracts credentials from workerData and registers ts-loader
+//   for the worker. The loader-thread branch (no parentPort) is
+//   unchanged.
 'use strict';
 
-const { isMainThread } = require('node:worker_threads');
+const { isMainThread, parentPort, workerData } = require('node:worker_threads');
+
+// ── Credential storage (main-thread closure) ──────────────────────
+// Only populated on the main thread. Workers retrieve credentials
+// via workerData instead.
+let _mewCredentials = null;
+
+// Symbol key for workerData injection. Symbol.for makes it
+// accessible across module re-evaluation in workers.
+const kMewCreds = Symbol.for('mew:transform-credentials');
 
 if (isMainThread) {
   // ── Main thread ────────────────────────────────────────────────
@@ -38,6 +55,11 @@ if (isMainThread) {
   delete process.env.MEW_TRANSFORM_OPTIONS;
   delete process.env.MEW_TRANSFORM_OPTS_DIGEST;
   delete process.env.MEW_TRANSFORM_CONFIG_DIR;
+
+  // Store for worker propagation (Issue 19).
+  if (endpoint && token) {
+    _mewCredentials = { endpoint, token, options, optsDigest, configDir };
+  }
 
   // Register the TypeScript loader with credentials passed via
   // module.register()'s data option. This is the sole secure
@@ -128,7 +150,128 @@ if (isMainThread) {
     }
   }
 
+  // ── Worker constructor augmentation (Issue 19) ─────────────────
+  // Inject Mew credentials into workerData so worker threads can
+  // register ts-loader for themselves. Uses a Symbol key to avoid
+  // colliding with user workerData and to prevent enumeration.
+  //
+  // Only active when transform credentials are present. If there
+  // are no credentials (e.g. JS-only entrypoint), workers still
+  // inherit preloads (Web Storage) but skip loader registration.
+  if (_mewCredentials) {
+    try {
+      const workerThreads = require('node:worker_threads');
+      const OriginalWorker = workerThreads.Worker;
+
+      // Guard against double-patching (e.g. credential-grabber
+      // somehow loaded twice in the same isolate).
+      if (!OriginalWorker.__mewPatched) {
+        workerThreads.Worker = function MewWorker(filename, options) {
+          if (!options) options = {};
+
+          // Preserve user workerData. Inject Mew credentials via
+          // a non-enumerable Symbol key so user code cannot
+          // trivially enumerate or read the raw credentials.
+          var wd = options.workerData;
+          if (wd !== undefined && typeof wd === 'object' && wd !== null) {
+            // User provided an object — attach creds via Symbol key.
+            wd[kMewCreds] = _mewCredentials;
+          } else if (wd === undefined) {
+            options.workerData = { [kMewCreds]: _mewCredentials };
+          } else {
+            // workerData is a primitive (unusual but valid Node API).
+            // Wrap it so we can still inject credentials.
+            options.workerData = {
+              [kMewCreds]: _mewCredentials,
+              // Hidden primitive wrapper; user code never sees this
+              // because workerData is replaced with our object.
+            };
+            // Preserve the primitive value as a hidden property.
+            Object.defineProperty(options.workerData, '_mew_userWorkerData', {
+              value: wd,
+              enumerable: false,
+              writable: true,
+            });
+          }
+
+          return new OriginalWorker(filename, options);
+        };
+
+        // Preserve prototype chain and static properties.
+        workerThreads.Worker.prototype = OriginalWorker.prototype;
+        workerThreads.Worker.__mewPatched = true;
+
+        // Mark the original so we can detect re-patching.
+        OriginalWorker.__mewPatched = true;
+      }
+    } catch (_) {
+      // worker_threads may be unavailable in some contexts.
+      // Worker propagation is best-effort; worker import of .ts
+      // files will fail with a clear Node error instead of silently
+      // bypassing the transform.
+    }
+  }
+
   // Export null values. Real credentials are never in module.exports.
+  module.exports = { endpoint: null, token: null, options: '{}', optsDigest: '', configDir: '' };
+} else if (parentPort) {
+  // ── Worker thread (Issue 19) ────────────────────────────────────
+  // In a worker created from a Mew-augmented parent:
+  //   1. Extract credentials from workerData (injected by parent's
+  //      credential-grabber monkey-patch).
+  //   2. Register ts-loader for this worker's isolate.
+  //   3. Strip credentials from workerData.
+  //   4. Export nulls (credentials are in the loader's initialize hook).
+  //
+  // If workerData lacks credentials (worker created without Mew
+  // augmentation, or user overrode execArgv), skip registration.
+
+  var creds = null;
+  try {
+    if (workerData && typeof workerData === 'object') {
+      creds = workerData[kMewCreds] || null;
+      // Strip credentials from workerData so user code cannot read them.
+      delete workerData[kMewCreds];
+    }
+  } catch (_) {
+    // workerData might not be available; skip.
+  }
+
+  if (creds && creds.endpoint && creds.token) {
+    var register;
+    try { register = require('node:module').register; } catch (_) {}
+    if (register) {
+      try {
+        const { pathToFileURL } = require('node:url');
+        const path = require('node:path');
+        const tsLoader = pathToFileURL(path.join(__dirname, 'ts-loader.mjs')).href;
+        const parentURL = pathToFileURL(__filename).href;
+
+        // In workers, MEW_USER_LOADERS from the parent process
+        // is already deleted. Workers don't inherit parent
+        // loaders; user loaders must be explicitly set up per
+        // worker via the worker's own env/options.
+        delete process.env.MEW_USER_LOADERS;
+
+        register(tsLoader, parentURL, {
+          parentURL,
+          data: {
+            endpoint: creds.endpoint,
+            token: creds.token,
+            options: creds.options || '{}',
+            optsDigest: creds.optsDigest || '',
+            configDir: creds.configDir || '',
+          },
+          transferList: [],
+        });
+      } catch (_) {
+        // Registration failed — worker will get Node-native errors
+        // for .ts imports (ERR_UNKNOWN_FILE_EXTENSION).
+      }
+    }
+  }
+
+  // Export nulls — credentials delivered via module.register() data.
   module.exports = { endpoint: null, token: null, options: '{}', optsDigest: '', configDir: '' };
 } else {
   // ── Loader context ──────────────────────────────────────────────

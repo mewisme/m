@@ -366,13 +366,34 @@ func ValidateNodeEnv(env []string) error {
 
 func buildEnv(envOverlay []string, planEnvChanges []string) []string {
 	base := os.Environ()
-	allOverlay := append([]string(nil), envOverlay...)
-	allOverlay = append(allOverlay, planEnvChanges...)
-	if len(allOverlay) == 0 {
-		return base
+
+	// Build set of keys already in host environment.
+	// Host/shell environment takes precedence over dotenv files.
+	hostKeys := make(map[string]bool, len(base))
+	for _, kv := range base {
+		for i := 0; i < len(kv); i++ {
+			if kv[i] == '=' {
+				hostKeys[kv[:i]] = true
+				break
+			}
+		}
 	}
-	overlay := make(map[string]string, len(allOverlay))
-	for _, kv := range allOverlay {
+
+	// Apply dotenv overlay only for keys not already in host env.
+	// Plan env changes (internal runtime needs) always apply.
+	overlay := make(map[string]string)
+	for _, kv := range envOverlay {
+		for i := 0; i < len(kv); i++ {
+			if kv[i] == '=' {
+				key := kv[:i]
+				if !hostKeys[key] {
+					overlay[key] = kv[i+1:]
+				}
+				break
+			}
+		}
+	}
+	for _, kv := range planEnvChanges {
 		for i := 0; i < len(kv); i++ {
 			if kv[i] == '=' {
 				overlay[kv[:i]] = kv[i+1:]
@@ -380,6 +401,12 @@ func buildEnv(envOverlay []string, planEnvChanges []string) []string {
 			}
 		}
 	}
+
+	if len(overlay) == 0 {
+		return base
+	}
+
+	// Build output: host env (minus overridden keys) + overlay.
 	out := make([]string, 0, len(base)+len(overlay))
 	for _, kv := range base {
 		key := kv

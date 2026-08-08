@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "bundleVersion": "8",
+  "bundleVersion": "9",
   "assets": [
     {
       "name": "credential-grabber.cjs",
       "path": "credential-grabber.cjs",
       "role": "credential-grabber",
       "moduleType": "cjs",
-      "size": 6690,
-      "sha256": "0957bbea180db1fe6617fb70195a031b1ac805c56e7f769c9ca2fe0126df0986"
+      "size": 12714,
+      "sha256": "d7329bc73c8f37ed7ec864bc30f03e124fe8fe4f09e0c92d7294fcd9eea18568"
     },
     {
       "name": "loader-register.mjs",
@@ -33,6 +33,22 @@
       "moduleType": "esm",
       "size": 1329,
       "sha256": "518f9fa9fc3def3e869134ead55b9e12c3173e8122492229609fe278f3b31acc"
+    },
+    {
+      "name": "resolve-diagnostic.mjs",
+      "path": "resolve-diagnostic.mjs",
+      "role": "loader-support",
+      "moduleType": "esm",
+      "size": 14571,
+      "sha256": "808f0735a91520e61e7473167991067fa6ffe0aafd3b9bae813b01e62cc56586"
+    },
+    {
+      "name": "resolve-utils.mjs",
+      "path": "resolve-utils.mjs",
+      "role": "loader-support",
+      "moduleType": "esm",
+      "size": 13651,
+      "sha256": "9ff3cb41c5e28a291e120758fb6ae87bb18b701884f5609943b5b89f9a7fbee7"
     },
     {
       "name": "ts-loader.mjs",

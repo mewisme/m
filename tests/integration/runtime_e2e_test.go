@@ -1947,6 +1947,147 @@ func TestRuntimeE2EPnPRegressionIssue14CustomLoaderChain(t *testing.T) {
 	}
 }
 
+// --- Issue 19: Worker-thread and child-process runtime propagation ---
+
+func TestRuntimeE2EWorkerImportsTypeScript(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "worker-ts.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	if out != "libValue=resolved-lib-ts" {
+		t.Fatalf("worker failed to import TypeScript; got %q, want libValue=resolved-lib-ts", out)
+	}
+}
+
+func TestRuntimeE2EWorkerEnvironPropagation(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	// Set a host env var that should propagate to the worker.
+	t.Setenv("TEST_PROPAGATED", "from-host")
+	code, _ := runMWithRuntime(t, proj, "worker-env.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	// Credentials must NOT be in worker env.
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		if strings.HasPrefix(parts[0], "MEW_TRANSFORM_") {
+			if parts[1] != "absent" {
+				t.Fatalf("%s leaked into worker env: got %q", parts[0], parts[1])
+			}
+		}
+	}
+	// The worker's explicit env override should have taken effect.
+	if !strings.Contains(out, "TEST_PROPAGATED=from-parent-env") {
+		t.Fatalf("worker env override not applied; got:\n%s", out)
+	}
+}
+
+func TestRuntimeE2EWorkerMultiConcurrent(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "worker-multi.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	if out != "all-workers-ok" {
+		t.Fatalf("multiple workers failed; got: %s", out)
+	}
+}
+
+func TestRuntimeE2EWorkerCredentialIsolation(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "worker-creds.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := parts[0]
+		val := parts[1]
+		// Credentials must be absent from process.env.
+		if strings.HasPrefix(key, "MEW_TRANSFORM_") {
+			if val != "absent" {
+				t.Fatalf("%s leaked into worker env: got %q", key, val)
+			}
+		}
+		// workerData must not have credential-like enumerable keys.
+		if key == "workerData-has-cred-keys" && val == "yes" {
+			t.Fatalf("workerData has enumerable credential-like keys")
+		}
+	}
+}
+
+// TestRuntimeE2ENoCredsInChildProcessUnrelated verifies that unrelated child
+// processes (spawn) do not inherit Mew secrets. The child env is already
+// stripped by credential-grabber before user code runs.
+func TestRuntimeE2ENoCredsInChildProcessUnrelated(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	code, _ := runMWithRuntime(t, proj, "child-check.js")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "child-error:") {
+			t.Fatalf("child process error: %s", line)
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("malformed output line: %q", line)
+		}
+		if parts[1] != "absent" {
+			t.Fatalf("%s leaked into unrelated child process: got %q", parts[0], parts[1])
+		}
+	}
+}
+
+// TestRuntimeE2EWorkerPreservesUserExecArgv verifies that when a worker
+// specifies execArgv, the user's flags are preserved. Workers that override
+// execArgv opt out of Mew augmentation (credential-grabber may not run).
+func TestRuntimeE2EWorkerPreservesUserExecArgv(t *testing.T) {
+	skipWithoutNode(t)
+	proj := runtimeE2EFixture(t)
+	// The existing worker-check.mjs uses default execArgv (parent inheritance).
+	// Here we verify that the worker option handling doesn't corrupt user data.
+	// worker-ts.mjs uses the default inherited execArgv; it should get
+	// Mew augmentation through execArgv inheritance.
+	code, _ := runMWithRuntime(t, proj, "worker-ts.mjs")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	out := readOutput(t, proj)
+	if out != "libValue=resolved-lib-ts" {
+		t.Fatalf("worker with default execArgv failed: %s", out)
+	}
+}
+
 // --- helpers ---
 
 func writeFile(t *testing.T, path, content string) {

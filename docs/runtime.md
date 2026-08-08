@@ -183,7 +183,47 @@ preloads — just the user's loaders on stock Node.
 self-register — Mew calls `module.register()` on its behalf. Loader modules
 must not import Mew internals.
 
-**Unsupported**: loader-specific arguments and worker propagation (future work).
+### Worker threads
+
+Workers created from a Mew-augmented process automatically inherit runtime
+capabilities. The credential grabber transports transform credentials into
+workers via a non-enumerable `Symbol` key on `workerData`. Each worker
+registers its own `ts-loader` hooks through `module.register()`, preserving
+isolate-level isolation.
+
+- Worker entrypoints using `.ts`, `.tsx`, `.mts`, `.cts` are supported.
+- Workers preserve the effective environment from dotenv/`--mode`/host env.
+- User `workerData`, `env`, and `execArgv` options are preserved.
+- Workers that override `execArgv` opt out of Mew augmentation.
+- Each worker registers its own loader hooks; one worker's failure does not
+  affect other workers or the parent session.
+- Transform options (source maps, decorator mode, JSX) are inherited from the
+  parent runtime configuration.
+- Workers cannot observe the parent's raw transform credentials through
+  `process.env` or enumerable `workerData` properties.
+
+**Limitations**: custom loaders registered on the parent thread via
+`--loader` are not propagated to workers. Each worker that needs custom
+loaders must register them explicitly. Worker-specific transform
+configuration (separate tsconfig per worker) is not yet supported.
+
+### Child processes
+
+Mew does not automatically inject augmentation into child processes created
+via `child_process.spawn()`, `exec()`, or `execFile()`. Unrelated child
+processes receive a clean environment (credentials are already stripped by
+the credential grabber before user code executes).
+
+- `child_process.fork()` inherits `process.execArgv` from the parent,
+  including Mew preloads. The child process re-runs preload scripts (Web
+  Storage polyfill) but does **not** receive transform credentials —
+  TypeScript support is not active in forked children.
+- For an intentionally augmented Node child, invoke `m` from the child:
+  `spawn('m', ['child.ts'])`. This creates a fresh transform session with
+  its own scoped credentials.
+- Non-Node executables spawned via `spawn()`/`exec()` receive the parent's
+  environment (minus Mew-private bootstrap variables) and no Mew
+  augmentation.
 
 ### Yarn Plug'n'Play (PnP) resolution
 
@@ -224,6 +264,177 @@ context. Worker threads receive their own loader module instances.
 
 **Unsupported**: PnP `resolveVirtual` (virtual paths), `getAllLocators`,
 and full Yarn PnP API surface beyond `resolveRequest`.
+
+### Module resolution diagnostics (`m resolve-module`)
+
+`m resolve-module <specifier>` runs the same resolution algorithm used by
+the runtime loader and reports the actual result with a structured trace.
+
+```text
+m resolve-module @app/core
+m resolve-module --from ./src ./helpers
+m resolve-module --json lodash
+```
+
+**Flags**:
+
+| Flag | Description |
+|---|---|
+| `--from <dir>` | Resolve from `<dir>` (default: cwd) |
+| `--json` | Emit structured JSON (schema version 1) |
+
+**Resolution stages** (in order):
+
+1. **builtins** — Node built-in modules (`node:fs`, etc.)
+2. **node-native** — Node's native ESM resolution (node_modules, exports, imports)
+3. **extension-probe** — TypeScript extension substitution (`.js` → `.ts`, `.mjs` → `.mts`, `.cjs` → `.cts`)
+4. **pnp** — Yarn PnP resolution via `.pnp.cjs`
+5. **tsconfig-paths** — tsconfig `baseUrl` and `paths` pattern matching
+
+Each stage records its outcome: `resolved`, `miss`, `skipped`, or `error`.
+
+**Output**:
+
+- **Human** (`--json` absent): trace table with stage, outcome, resolved path, format, and pattern matches.
+- **JSON** (`--json`): structured output with `schemaVersion`, `specifier`, `importer`, `resolved`, `target` (url, path, format), ordered `trace` steps, and typed `error` data when unresolved.
+
+**Exit codes**: 0 on resolution success, 1 on resolution failure or diagnostic error.
+
+**Limitations**:
+- Diagnostics run the resolution algorithm via a Node subprocess — they require Node on `PATH`.
+- When Node is unavailable, the command falls back to static tsconfig path analysis.
+- Custom loaders registered at runtime are not invoked during diagnostics.
+- The diagnostic reflects the current resolver behavior; it does not claim full Node/TypeScript resolution parity.
+
+## Environment file loading
+
+Mew automatically discovers `.env` files in the working directory and supports
+explicit env-file paths. All loaded variables are merged into the child process
+environment before user application code starts.
+
+### Syntax
+
+Env files support the following syntax:
+
+```
+# Comments start with # (blank lines are ignored).
+KEY=value
+export KEY=value
+
+# Quoting
+UNQUOTED=hello world
+DOUBLE="line1\nline2\t${VAR}"
+SINGLE='literal $NOEXPAND'
+
+# Variable expansion
+URL=http://${HOST}:${PORT}
+SIMPLE=$HOST
+DEFAULTED=${MISSING:-fallback}
+```
+
+- Keys must start with a letter or underscore (`[A-Za-z_]`) and contain only
+  letters, digits, and underscores (`[A-Za-z0-9_]+`). Invalid or empty keys
+  produce a parse error.
+- Lines without `=` in the trimmed content are rejected as malformed.
+- Single-quoted values are literal (no expansion, no escapes).
+- Double-quoted values support `\n`, `\r`, `\t`, `\\`, `\"`, `\$` escapes and
+  `${VAR}`/`$VAR` expansion.
+- Unquoted values support expansion and `\\`, `\$`, `\#`, `\ `, `\t`, `\"`,
+  `\'` escapes.
+- `\n` in double-quoted values produces a literal newline; `\t` produces a tab.
+- Unknown escape sequences in double-quoted values keep the backslash verbatim;
+  unknown escapes in unquoted values keep the backslash verbatim.
+
+### Variable expansion
+
+Three expansion forms are supported:
+
+| Form | Example | Behavior |
+|---|---|---|
+| `$VAR` | `$HOME` | Expands to value of `VAR` |
+| `${VAR}` | `${HOME}` | Same, with explicit boundary |
+| `${VAR:-default}` | `${PORT:-3000}` | Uses default if `VAR` is unset or empty |
+
+Expansion rules:
+
+- Variables are looked up in the accumulated environment from all files loaded
+  so far, plus the host (shell) environment.
+- Earlier files' values are visible to later files (cross-file expansion).
+- Within a single file, each line sees values from earlier lines in the same
+  file (sequential evaluation).
+- Forward references (a variable defined later in the same file) resolve to
+  empty (or to the host environment value if present).
+- Expansion is single-pass; expanded values are not re-expanded.
+- Self-references (`X=$X` before `X` is defined) resolve to the host
+  environment value (or empty if not in host env).
+
+### Precedence
+
+The effective environment for the child process is built in this order (highest
+number wins):
+
+1. Host (shell) environment — `os.Environ()` at process start. These values
+   are **never** overridden by dotenv files or `--mode`.
+2. Dotenv file values (auto-discovered or explicit). Loaded in file order;
+   later files override earlier files for the same key. Dotenv values apply
+   **only** for keys not already present in the host environment.
+3. `--mode` sets `NODE_ENV` only when `NODE_ENV` is absent from the host
+   environment. If `NODE_ENV` is set in the host environment (e.g., via a
+   parent shell), that value is preserved and `--mode` does not override it.
+4. Internal runtime variables (loaders, transform service) are always applied
+   and override host values when necessary for correctness.
+
+### Auto-discovery (optional)
+
+When no `--env-file` is given, Mew searches the working directory for env files
+following mode-aware precedence:
+
+```
+.env.<mode>.local > .env.<mode> > .env.local > .env
+```
+
+- Files are loaded in order (lowest precedence first); later files override earlier.
+- Missing files are silently skipped — auto-discovery is always optional.
+- `--mode <mode>` enables mode-specific discovery. It also sets `NODE_ENV=<mode>`
+  when `NODE_ENV` is not already present in the host environment.
+
+### Explicit files (`--env-file`, repeatable)
+
+Each path supplied to `--env-file` is **required**. Mew fails before user code
+runs when an explicit file:
+
+- Does not exist (`ERR_M_ENV_FILE_NOT_FOUND`)
+- Is not readable (`ERR_M_ENV_FILE_READ`)
+- Contains a parse error (`ERR_M_ENV_FILE_PARSE`)
+
+If any required file fails, Mew does **not** start the application with a
+partial environment — all explicit files must load and parse successfully.
+
+- Multiple `--env-file` flags are processed in declaration order.
+- Later files override earlier files for the same key.
+- Relative paths are resolved against the working directory.
+- Paths containing spaces are supported.
+
+### `--no-env-file`
+
+Disables auto-discovery. When combined with `--env-file`, auto-discovery is
+skipped but the explicitly listed files are still loaded (and are still
+required).
+
+| Flags | Behavior |
+|---|---|
+| *(none)* | Auto-discover `.env*` files in cwd (optional) |
+| `--env-file a.env` | Load `a.env` (required), skip auto-discovery |
+| `--env-file a.env --env-file b.env` | Load both (required), `b.env` overrides `a.env` |
+| `--no-env-file` | Skip all env files, `--mode` still sets `NODE_ENV` when absent from host |
+| `--no-env-file --env-file a.env` | Skip auto-discovery, load `a.env` (required) |
+
+### Watch mode
+
+`m watch` applies the same env-file semantics: auto-discovery is optional,
+explicit files are required, and a failing explicit file prevents the
+supervisor from starting the child process. Direct execution and watch mode
+use the same environment construction pipeline.
 
 ## Augmentation
 

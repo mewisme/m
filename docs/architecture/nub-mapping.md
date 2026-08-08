@@ -39,7 +39,7 @@ semantics where parity is intentional; use idiomatic Go architecture elsewhere.
 | .env auto-discovery | parity (0054) | Mode-aware .env* loading with precedence: .env.[mode].local > .env.[mode] > .env.local > .env |
 | .env variable expansion | parity (0054) | ${VAR}, $VAR, ${VAR:-default} expansion in .env files; double/single-quoted values |
 | --env-file / --no-env-file | parity (0054) | Explicit env file loading and auto-discovery kill switch |
-| --mode flag | parity (0054) | Mode-aware .env selection; --mode production sets NODE_ENV=production |
+| --mode flag | parity (0054) | Mode-aware .env selection; sets NODE_ENV only when absent from host environment |
 | Web Storage polyfill | parity (0054) | localStorage and sessionStorage globals via preload; in-memory only (disk persistence deferred) |
 | Watch mode | parity (0055) | Long-lived supervisor with fsnotify watcher; debounce, clear-screen, and graceful restart; polling fallback |
 | Debugging and inspection | parity (0056) | Node inspector passthrough (--inspect/--inspect-brk); doctor runtime checks; cache explain; runtime diagnostics |

@@ -52,17 +52,25 @@ Documented as of 0052 development (0057 runtime stabilization pending). Each ent
 
 **Impact**: A custom loader that claims all `.ts` resolutions will prevent Mew's ts-loader from running, breaking path alias resolution and extension mapping. This is by design: user loaders are authoritative.
 
-**Resolution**: Documented behavior. Add `m resolve-module` diagnostics (0053) for debugging loader chains.
+**Resolution**: Documented behavior. Use `m resolve-module` for debugging loader chains and resolution traces (0053).
 
 ## Runtime
 
 ### Worker threads
 
-**Limitation**: Worker threads inherit the preload chain from the main thread, but worker-specific transform configuration (separate tsconfig) is not supported.
+**Limitation**: Worker threads inherit the preload chain and transform
+capabilities from the main thread (Issue 19). Worker-specific transform
+configuration (separate tsconfig) is not supported. Custom loaders
+registered via `--loader` on the parent are not propagated to workers.
 
-**Impact**: Workers use the same transform options as the main thread entrypoint. Multi-package monorepos where workers need different tsconfig settings are not supported.
+**Impact**: Workers use the same transform options as the main thread
+entrypoint. Multi-package monorepos where workers need different tsconfig
+settings are not supported. Workers requiring custom ESM loader hooks must
+register them explicitly.
 
-**Resolution**: Planned for 0060+ with per-package transform configuration.
+**Resolution**: Per-worker transform configuration planned for 0060+.
+Custom loader propagation to workers may be revisited with Node's evolving
+loader API.
 
 ### Web Storage
 

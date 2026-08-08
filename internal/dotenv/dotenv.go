@@ -21,9 +21,22 @@ import (
 // Blank lines and lines starting with # (outside quotes) are skipped.
 // source is used in error messages only.
 func Parse(r io.Reader, source string) (map[string]string, error) {
+	return parseInto(r, source, nil)
+}
+
+// parseInto reads a .env file from r, using baseVars as the initial expansion
+// context so that later files can expand variables defined by earlier files.
+// Variables defined in this file are also available to subsequent lines within
+// the same file (sequential evaluation).
+func parseInto(r io.Reader, source string, baseVars map[string]string) (map[string]string, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("dotenv: reading %s: %w", source, err)
+	}
+	// Build expansion context: copy baseVars so we don't mutate caller's map.
+	expVars := make(map[string]string, len(baseVars))
+	for k, v := range baseVars {
+		expVars[k] = v
 	}
 	result := make(map[string]string)
 	lines := strings.SplitSeq(string(data), "\n")
@@ -42,18 +55,22 @@ func Parse(r io.Reader, source string) (map[string]string, error) {
 		}
 		eq := strings.IndexByte(trimmed, '=')
 		if eq < 0 {
-			continue
+			return nil, fmt.Errorf("dotenv: %s:%d: missing '=' in assignment: %q", source, lineNo, trimmed)
 		}
 		key := strings.TrimSpace(trimmed[:eq])
 		if key == "" {
-			continue
+			return nil, fmt.Errorf("dotenv: %s:%d: empty key before '='", source, lineNo)
+		}
+		if !validKey(key) {
+			return nil, fmt.Errorf("dotenv: %s:%d: invalid key %q", source, lineNo, key)
 		}
 		rawValue := trimmed[eq+1:]
-		value, err := parseValue(rawValue, result)
+		value, err := parseValue(rawValue, expVars)
 		if err != nil {
 			return nil, fmt.Errorf("dotenv: %s:%d: %w", source, lineNo, err)
 		}
 		result[key] = value
+		expVars[key] = value
 	}
 	return result, nil
 }
@@ -227,9 +244,27 @@ func isIdentByte(c byte) bool {
 	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'
 }
 
+// validKey checks that key is a valid environment variable name.
+// Must start with a letter or underscore, followed by letters, digits, or underscores.
+func validKey(key string) bool {
+	if len(key) == 0 {
+		return false
+	}
+	for i := 0; i < len(key); i++ {
+		c := key[i]
+		if i == 0 && !((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_') {
+			return false
+		}
+		if !isIdentByte(c) {
+			return false
+		}
+	}
+	return true
+}
+
 // Load parses multiple .env files and returns merged KEY=VALUE strings.
 // Files are loaded in order; later files override earlier ones.
-// Missing files are silently skipped.
+// Missing files are silently skipped. Use LoadRequired when every file must exist.
 func Load(files []string) ([]string, error) {
 	merged := make(map[string]string)
 	for _, f := range files {
@@ -240,7 +275,30 @@ func Load(files []string) ([]string, error) {
 			}
 			return nil, fmt.Errorf("dotenv: opening %s: %w", f, err)
 		}
-		parsed, err := Parse(fh, f)
+		parsed, err := parseInto(fh, f, merged)
+		_ = fh.Close()
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range parsed {
+			merged[k] = v
+		}
+	}
+	return mapToEnviron(merged), nil
+}
+
+// LoadRequired parses multiple .env files and returns merged KEY=VALUE strings.
+// Files are loaded in order; later files override earlier ones.
+// Unlike Load, missing files are NOT silently skipped — every file must exist
+// and be readable/parseable, or an error is returned.
+func LoadRequired(files []string) ([]string, error) {
+	merged := make(map[string]string)
+	for _, f := range files {
+		fh, err := os.Open(f)
+		if err != nil {
+			return nil, fmt.Errorf("dotenv: opening %s: %w", f, err)
+		}
+		parsed, err := parseInto(fh, f, merged)
 		_ = fh.Close()
 		if err != nil {
 			return nil, err
