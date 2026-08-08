@@ -62,6 +62,7 @@ type DoctorCheckDTO struct {
 	ID          string `json:"id"`
 	Status      string `json:"status"`
 	Message     string `json:"message"`
+	Details     string `json:"details,omitempty"`
 	Remediation string `json:"remediation,omitempty"`
 }
 
@@ -175,7 +176,8 @@ func (DoctorCollector) Collect(ctx context.Context, ac *app.Context) ([]byte, er
 			ID:          c.ID,
 			Status:      c.Status,
 			Message:     SanitizeString(c.Message),
-			Remediation: c.Remediation,
+				Details:     SanitizeString(c.Details),
+				Remediation: c.Remediation,
 		})
 	}
 	return json.Marshal(dto)
