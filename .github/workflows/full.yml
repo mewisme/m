@@ -530,20 +530,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           package-manager-cache: false
 
-      - name: Build production binaries
-        shell: bash
-        run: |
-          go build -trimpath -o "${{ runner.temp }}/m${{ matrix.ext }}" ./cmd/m
-          go build -trimpath -o "${{ runner.temp }}/mx${{ matrix.ext }}" ./cmd/mx
-
-      - name: Runtime, transform, node, and process unit tests
-        shell: bash
-        run: >-
-          go test ./internal/runtime/... ./internal/transform/... ./internal/node/...
-          ./internal/process/... ./internal/runner/... ./internal/workspace/...
-          ./internal/lifecycle/... ./internal/cli/...
-          -count=1 -timeout 15m
-
       - name: Runtime E2E integration tests
         shell: bash
         run: >-
@@ -554,26 +540,11 @@ jobs:
       - name: Runtime certification report
         if: always()
         shell: bash
-        run: |
-          go_version="$(go env GOVERSION)"
-          report="${{ runner.temp }}/runtime-certification-${{ matrix.os-label }}-node-${{ matrix.node-version }}.json"
-          cat > "$report" << ENDREPORT
-          {
-            "schemaVersion": 1,
-            "commit": "${{ github.sha }}",
-            "os": "${{ runner.os }}",
-            "osLabel": "${{ matrix.os-label }}",
-            "arch": "${{ runner.arch }}",
-            "nodeVersion": "${{ matrix.node-version }}",
-            "goVersion": "${go_version}",
-            "testResult": "${{ job.status }}",
-            "commands": [
-              "go test ./internal/runtime/... ./internal/transform/... ./internal/node/... ./internal/process/... ./internal/runner/... ./internal/workspace/... ./internal/lifecycle/... ./internal/cli/... -count=1",
-              "go test ./tests/integration/... -run 'RuntimeE2E|NodeVersion|ScriptWinsOverFile|WorkingDir|CWD|Workspace.*Run|Lifecycle' -count=1"
-            ],
-            "jobURL": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"
-          }
-          ENDREPORT
+        env:
+          MEW_COMMIT_SHA: ${{ github.sha }}
+        run: >-
+          go run ./cmd/m conformance run runtime --json
+          > "${{ runner.temp }}/runtime-certification-${{ matrix.os-label }}-node-${{ matrix.node-version }}.json"
 
       - name: Upload runtime certification report
         if: always()
@@ -607,6 +578,7 @@ jobs:
           merge-multiple: true
 
       - name: Verify runtime certification reports
+        id: verify
         shell: bash
         run: |
           set -euo pipefail
@@ -656,23 +628,47 @@ jobs:
             fi
           done
 
-          # Verify each report is valid JSON with required fields
+          # Validate canonical Report schema (schemaVersion 2).
           for f in *.json; do
-            if ! jq -e '.schemaVersion and .commit and .os and .nodeVersion and .testResult' "$f" > /dev/null 2>&1; then
-              echo "MALFORMED: $f"
+            # Required top-level fields.
+            if ! jq -e '.schemaVersion == 2 and .matrix == "runtime" and .commitSHA and .passed != null and (.suites | type) == "array"' "$f" > /dev/null 2>&1; then
+              echo "MALFORMED (schema): $f"
               fail=1
               continue
             fi
-            # Reject failed reports
-            result="$(jq -r .testResult "$f")"
-            if [[ "$result" != "success" ]]; then
-              echo "FAILED REPORT: $f (result=$result)"
-              fail=1
-            fi
-            # Reject stale commit SHAs
-            report_commit="$(jq -r .commit "$f")"
+
+            # Exact-head: commit must match workflow SHA.
+            report_commit="$(jq -r .commitSHA "$f")"
             if [[ "$report_commit" != "${{ github.sha }}" ]]; then
               echo "STALE COMMIT: $f (report=$report_commit, workflow=${{ github.sha }})"
+              fail=1
+            fi
+
+            # Verdict: must pass.
+            passed="$(jq -r .passed "$f")"
+            if [[ "$passed" != "true" ]]; then
+              echo "FAILED REPORT: $f (passed=$passed)"
+              fail=1
+            fi
+
+            # Suites: non-empty, required suites must be passed or not-applicable.
+            suite_count="$(jq '.suites | length' "$f")"
+            if [[ "$suite_count" -eq 0 ]]; then
+              echo "EMPTY SUITES: $f"
+              fail=1
+              continue
+            fi
+
+            # Every required suite must have status passed or not-applicable.
+            if ! jq -e '[.suites[] | select(.required == true) | .status] | all(. == "passed" or . == "not-applicable")' "$f" > /dev/null 2>&1; then
+              echo "REQUIRED SUITE FAILURE: $f"
+              jq -r '.suites[] | select(.required == true) | "  \(.id): \(.status)"' "$f"
+              fail=1
+            fi
+
+            # No required suite may have zero tests matched (fail-closed).
+            if ! jq -e '[.suites[] | select(.required == true) | select(.testsMatched != null) | .testsMatched] | all(. > 0)' "$f" > /dev/null 2>&1; then
+              echo "ZERO-MATCH REQUIRED SUITE: $f"
               fail=1
             fi
           done
@@ -689,7 +685,12 @@ jobs:
         run: |
           cd runtime-reports
           count=$(find . -name '*.json' | wc -l)
-          echo "{\"schemaVersion\":1,\"totalReports\":$count,\"expected\":12,\"commit\":\"${{ github.sha }}\",\"verified\":$([[ $? -eq 0 ]] && echo true || echo false)}" > ../runtime-certification-summary.json
+          verified=false
+          # Only claim verified when the previous step succeeded.
+          if [[ "${{ steps.verify.outcome }}" == "success" ]]; then
+            verified=true
+          fi
+          echo "{\"schemaVersion\":2,\"matrix\":\"runtime\",\"totalReports\":$count,\"expected\":12,\"commit\":\"${{ github.sha }}\",\"verified\":$verified}" > ../runtime-certification-summary.json
 
       - name: Upload aggregate summary
         if: always()

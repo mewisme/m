@@ -60,4 +60,7 @@ var errorTitles = map[apperr.Code]string{
 	apperr.TransformUnavailable:     "Transform service is not available",
 	apperr.TransformCacheCorrupt:    "Transform cache is corrupt",
 	apperr.TransformEngine:          "Transform engine internal failure",
+	apperr.EnvFileNotFound:          "Environment file not found",
+	apperr.EnvFileRead:              "Environment file is not readable",
+	apperr.EnvFileParse:             "Environment file is malformed",
 }

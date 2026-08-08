@@ -1,6 +1,6 @@
 name: ci
 
-# Default gate. Runs on every pull request and push to main, and must stay
+# Default gate. Runs on every push and pull request, and must stay
 # cheap enough to be a blocking check: formatting, static analysis, the unit
 # suite on Linux, a build, and one limited Windows smoke job for the
 # platform-specific behavior Linux cannot prove (paths, config, identity).
@@ -13,7 +13,6 @@ name: ci
 
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -30,8 +29,8 @@ env:
   NODE_VERSION: "22"
 
 jobs:
-  quality:
-    name: quality
+  lint:
+    name: lint
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -93,7 +92,7 @@ jobs:
         run: go run ./tools/ci/verify-crash-shards
 
   test:
-    name: test (linux)
+    name: test
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -126,8 +125,8 @@ jobs:
       - name: Doctor
         run: go run ./cmd/m --cwd fixtures/projects/mlock-greenfield doctor --json
 
-  windows-smoke:
-    name: windows smoke
+  smoke:
+    name: smoke
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
@@ -158,22 +157,22 @@ jobs:
         run: go run ./cmd/m --cwd fixtures/projects/mlock-greenfield doctor --json
 
   gate:
-    name: CI gate
+    name: gate
     runs-on: ubuntu-latest
     if: always()
     needs:
-      - quality
+      - lint
       - test
-      - windows-smoke
+      - smoke
     steps:
       - name: Verify required jobs
         shell: bash
         run: |
           set -euo pipefail
           for result in \
-            "${{ needs.quality.result }}" \
+            "${{ needs.lint.result }}" \
             "${{ needs.test.result }}" \
-            "${{ needs.windows-smoke.result }}"
+            "${{ needs.smoke.result }}"
           do
             [[ "$result" == success ]] || exit 1
           done
