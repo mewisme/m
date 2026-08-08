@@ -1,10 +1,12 @@
 package conformance
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -42,7 +44,9 @@ func (m *Manifest) UnmarshalJSON(data []byte) error {
 		Matrix        string  `json:"matrix"`
 		Suites        []Suite `json:"suites"`
 	}
-	if err := json.Unmarshal(data, &raw); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
 	m.SchemaVersion = raw.SchemaVersion
@@ -57,10 +61,14 @@ func LoadManifest(path string) (Manifest, error) {
 	if err != nil {
 		return Manifest{}, err
 	}
+
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
 	var m Manifest
-	if err := json.Unmarshal(data, &m); err != nil {
+	if err := dec.Decode(&m); err != nil {
 		return Manifest{}, err
 	}
+
 	if m.SchemaVersion != SchemaVersion {
 		return Manifest{}, fmt.Errorf("unsupported manifest schema %d", m.SchemaVersion)
 	}
@@ -72,15 +80,28 @@ func LoadManifest(path string) (Manifest, error) {
 	if len(m.Suites) == 0 {
 		return Manifest{}, fmt.Errorf("manifest has no suites")
 	}
+	seen := map[string]struct{}{}
 	for _, s := range m.Suites {
 		if strings.TrimSpace(s.ID) == "" {
 			return Manifest{}, fmt.Errorf("suite missing id")
 		}
+		if _, ok := seen[s.ID]; ok {
+			return Manifest{}, fmt.Errorf("duplicate suite id %q", s.ID)
+		}
+		seen[s.ID] = struct{}{}
 		if strings.TrimSpace(s.Package) == "" {
 			return Manifest{}, fmt.Errorf("suite %q missing package", s.ID)
 		}
 		if strings.TrimSpace(s.Run) == "" {
 			return Manifest{}, fmt.Errorf("suite %q missing run pattern", s.ID)
+		}
+		if _, err := regexp.Compile(s.Run); err != nil {
+			return Manifest{}, fmt.Errorf("suite %q invalid run regex %q: %w", s.ID, s.Run, err)
+		}
+		for _, p := range s.Platforms {
+			if p != "linux" && p != "darwin" && p != "windows" {
+				return Manifest{}, fmt.Errorf("suite %q invalid platform %q", s.ID, p)
+			}
 		}
 	}
 	return m, nil

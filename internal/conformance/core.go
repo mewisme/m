@@ -47,8 +47,11 @@ func runGoTestMatrix(ctx context.Context, opts RunOptions, manifestPath func(str
 
 	suites := FilterSuites(manifest.Suites, opts.Filter)
 	suites = excludeProbeSuitesUnlessFiltered(suites, opts.Filter)
-	if opts.Filter != "" && len(suites) == 0 {
-		return Report{}, fmt.Errorf("no suites match filter %q", opts.Filter)
+	if len(suites) == 0 {
+		if opts.Filter != "" {
+			return Report{}, fmt.Errorf("no suites match filter %q", opts.Filter)
+		}
+		return Report{}, fmt.Errorf("no suites selected for matrix %q", manifest.Matrix)
 	}
 
 	report := Report{
@@ -76,7 +79,7 @@ func runGoTestMatrix(ctx context.Context, opts RunOptions, manifestPath func(str
 				Package:    suite.Package,
 				Run:        suite.Run,
 				Required:   suite.Required,
-				Status:     StatusSkipped,
+				Status:     StatusNotApplicable,
 				SkipReason: "unsupported platform",
 			})
 			continue
@@ -99,36 +102,33 @@ func runGoTestMatrix(ctx context.Context, opts RunOptions, manifestPath func(str
 	}
 
 	report.FinishedAt = time.Now().UTC()
-	report.Passed = reportPassed(report.Suites, opts.DryRun, opts.Filter)
+	report.Passed = reportPassed(report.Suites, opts.DryRun)
 	if !report.Passed && !opts.DryRun {
 		return report, fmt.Errorf("%s", failMsg)
 	}
 	return report, nil
 }
 
-func reportPassed(suites []SuiteResult, dryRun bool, filter string) bool {
-	explicitFilter := strings.TrimSpace(filter) != ""
+func reportPassed(suites []SuiteResult, dryRun bool) bool {
+	if len(suites) == 0 {
+		return false
+	}
+	hasRequired := false
 	for _, s := range suites {
-		if dryRun {
-			if s.Status != StatusPlanned && s.Status != StatusSkipped {
+		if s.Required {
+			hasRequired = true
+			if dryRun {
+				if s.Status != StatusPlanned && s.Status != StatusNotApplicable {
+					return false
+				}
+				continue
+			}
+			if s.Status != StatusPassed && s.Status != StatusNotApplicable {
 				return false
 			}
-			continue
-		}
-		if explicitFilter {
-			if s.Status != StatusPassed && s.Status != StatusSkipped {
-				return false
-			}
-			continue
-		}
-		if !s.Required {
-			continue
-		}
-		if s.Status != StatusPassed && s.Status != StatusSkipped {
-			return false
 		}
 	}
-	return true
+	return hasRequired
 }
 
 func excludeProbeSuitesUnlessFiltered(suites []Suite, filter string) []Suite {
@@ -173,8 +173,11 @@ func listGoTestMatrix(repoRoot, filter string, manifestPath func(string) string)
 	}
 	suites := FilterSuites(manifest.Suites, filter)
 	suites = excludeProbeSuitesUnlessFiltered(suites, filter)
-	if filter != "" && len(suites) == 0 {
-		return nil, fmt.Errorf("no suites match filter %q", filter)
+	if len(suites) == 0 {
+		if filter != "" {
+			return nil, fmt.Errorf("no suites match filter %q", filter)
+		}
+		return nil, fmt.Errorf("no suites in manifest %q", manifest.Matrix)
 	}
 	return suites, nil
 }

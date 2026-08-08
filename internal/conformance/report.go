@@ -41,10 +41,11 @@ type SuiteResult struct {
 }
 
 const (
-	StatusPassed  = "passed"
-	StatusFailed  = "failed"
-	StatusSkipped = "skipped"
-	StatusPlanned = "planned"
+	StatusPassed        = "passed"
+	StatusFailed        = "failed"
+	StatusSkipped       = "skipped"
+	StatusPlanned       = "planned"
+	StatusNotApplicable = "not-applicable"
 )
 
 // EncodeJSON returns indented JSON for report.
