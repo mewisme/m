@@ -65,6 +65,7 @@ After discovery, the Node version is parsed and capability flags are assigned:
 
 | Version | Status | Notes |
 |---|---|---|
+| Node 24 | Supported | Full capabilities |
 | Node 22 | Supported (LTS) | Full 0050/0051 capabilities |
 | Node 20 | Supported (LTS) | Full capabilities |
 | Node 18 | Supported (maintenance) | Requires ≥ 18.19 for TS |
@@ -543,6 +544,83 @@ Embedded assets live in `internal/runtime/assets/`:
 
 Assets are extracted to `<cache-root>/runtime/<bundle-version>/` on first use
 with SHA-256 verification and atomic writes.
+
+## Runtime diagnostics
+
+### Trace (`m runtime trace`)
+
+`m runtime trace <entrypoint>` executes the application with structured runtime
+event collection. Events use schema version 1 and cover lifecycle, transform,
+cache, env, resolution, worker, and watch categories.
+
+```text
+m runtime trace app.ts                   # human summary (event counts per category)
+m runtime trace --json app.ts            # NDJSON event stream on stdout
+```
+
+Human mode prints a session line plus per-category event counts after execution.
+`--json` mode streams one JSON event per line via a bounded ring buffer.
+
+Events are redacted: bearer tokens, query tokens, env-secret keys, and URL
+userinfo are stripped. EnvData never includes values (only key names).
+
+### Support bundle (`m runtime support-bundle`)
+
+Collects a redacted diagnostic archive for bug reports:
+
+```text
+m runtime support-bundle                  # writes mew-support-bundle.tgz
+m runtime support-bundle --output out.tgz # custom path
+m runtime support-bundle --json          # print manifest to stdout
+```
+
+Contents (schema version 1): version info, OS/arch, Node version and
+capabilities, feature inventory summary, doctor report, config key names.
+Excluded: source code, env values, store contents, credentials, private paths.
+`--force` required to overwrite an existing output file.
+
+### Cache explain (`m cache explain`)
+
+Introspects the transform cache:
+
+```text
+m cache explain                  # summary: entry count, bytes, orphans
+m cache explain --key <key>      # detail for a specific cache entry
+m cache explain --json           # machine-readable output
+```
+
+Read-only. Reports per-entry disposition (`hit`, `miss`, `corrupt`,
+`schema-stale`, `orphan`, `unreadable`) with reason codes covering key
+mismatch, schema mismatch, source/options/config/format/map-mode mismatches,
+malformed metadata, missing code/map, digest mismatch, and I/O errors.
+
+### Doctor runtime (`m doctor runtime`)
+
+Health checks for the runtime subsystem:
+
+```text
+m doctor runtime        # human report
+m doctor runtime --json # machine-readable
+```
+
+Checks: `node-capabilities`, `transform-handshake`, `transform-roundtrip`,
+`source-map`, `tsconfig`, `runtime-cache`, `loader-bridge`, `watch-backend`,
+`inspector`, `worker`. Each check reports `ok`, `warn`, `fail`, or `skipped`.
+`--strict` treats warnings as failures.
+
+### Watch mode (`m watch`)
+
+```text
+m watch app.ts                            # file-run watch
+m watch --clear-screen=false app.ts       # preserve terminal output
+m watch --debounce 500 app.ts             # custom debounce (default 200ms)
+m watch --debounce 500 -- app.ts --flag   # app arguments after --
+```
+
+Long-lived supervisor with short-lived application child. Restarts on relevant
+source, config, or dependency changes. Uses fsnotify (native) with 500ms
+polling fallback. Dependency graph collected from transform and module
+resolution hooks. Env files and tsconfig changes trigger restart.
 
 ## Error codes
 

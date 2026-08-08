@@ -1,14 +1,14 @@
 # Runtime Protocol Versions
 
-Current as of 0052 development. Subject to change until 0057 runtime stabilization gate is complete. Once frozen, all versions will require a migration path for changes.
+Current as of 0052-0057 implementation. Subject to change until the 0057 runtime stabilization gate is complete and exact-head certification is observed. Once frozen, all versions will require a migration path for changes.
 
 ## Transform IPC
 
 | Component | Version | Source |
 |---|---|---|
 | Protocol | `2` | `internal/transform/protocol.go:ProtocolVersion` |
-| Frame encoding | newline-delimited JSON (NDJSON) | `internal/transform/protocol.go` |
-| Transport | Unix domain socket (`MEW_TRANSFORM_ENDPOINT`) | `internal/transform/service.go` |
+| Frame encoding | u32 little-endian length-prefixed JSON | `internal/transform/protocol.go` |
+| Transport | TCP loopback (127.0.0.1, random port via `MEW_TRANSFORM_ENDPOINT`) | `internal/transform/service.go` |
 | Auth | random hex token per service instance (`MEW_TRANSFORM_TOKEN`) | `internal/transform/service.go` |
 | Handshake | `HelloRequest{V, Token}` → `HelloResponse{V, OK, ErrCode}` | `internal/transform/service.go` |
 
@@ -16,11 +16,11 @@ Current as of 0052 development. Subject to change until 0057 runtime stabilizati
 
 | Type | Direction | Description |
 |---|---|---|
-| `hello` | C→S | Capability negotiation and auth |
-| `transform` | C→S | Single-file transform request |
-| `result` | S→C | Transform result with code, map, digest |
-| `error` | S→C | Structured error with code and reason |
-| `shutdown` | C→S | Graceful service shutdown |
+| `hello` | C→S | Authenticate session (first frame on connection) |
+| `health` | C→S | No-op health check |
+| `transform` | C→S | Single-file transform request; response carries `ok` field for success/error |
+| `cancel` | C→S | Cancel an in-flight transform by cancel token |
+| `shutdown` | C→S | Graceful connection shutdown |
 
 ## Transform Cache
 
@@ -55,7 +55,7 @@ Current as of 0052 development. Subject to change until 0057 runtime stabilizati
 
 | Variable | Purpose |
 |---|---|
-| `MEW_TRANSFORM_ENDPOINT` | Unix socket path for transform service |
+| `MEW_TRANSFORM_ENDPOINT` | TCP host:port for transform service (127.0.0.1:&lt;port&gt;) |
 | `MEW_TRANSFORM_TOKEN` | One-time auth token (cleared after grab) |
 | `MEW_TRANSFORM_OPTIONS` | JSON-serialized NormalizedOptions (cleared after grab) |
 | `MEW_TRANSFORM_OPTS_DIGEST` | SHA-256 of options JSON |

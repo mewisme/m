@@ -25,7 +25,9 @@ func TestRuntimeCertificationEvidence(t *testing.T) {
 		t.Error("runtime certification evidence does not report GREEN status")
 	}
 
-	// 2. Status.json: 0050/0051 completed, 0052 current, 0052-0057 NOT completed.
+	// 2. Status.json: 0050/0051 completed. 0052-0056 may be completed
+	// (implementation complete). 0057 must NOT be in completedMvps
+	// (exact-head certification pending CI observation).
 	st, err := os.ReadFile(filepath.Join(root, "plans", "status.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -34,22 +36,17 @@ func TestRuntimeCertificationEvidence(t *testing.T) {
 	if !strings.Contains(stText, `"0050"`) || !strings.Contains(stText, `"0051"`) {
 		t.Error("status.json missing 0050 or 0051 in completedMvps")
 	}
-	if !strings.Contains(stText, `"currentMvp": "0052"`) {
-		t.Error("status.json does not show 0052 as currentMvp")
-	}
 
-	// 0052-0057 must NOT appear in completedMvps.
+	// 0057 must NOT appear in completedMvps (certification pending).
 	var status struct {
 		CompletedMvps []string `json:"completedMvps"`
 	}
 	if err := json.Unmarshal(st, &status); err != nil {
 		t.Fatalf("cannot parse status.json: %v", err)
 	}
-	for _, mvp := range []string{"0052", "0053", "0054", "0055", "0056", "0057"} {
-		for _, completed := range status.CompletedMvps {
-			if completed == mvp {
-				t.Errorf("status.json: %s must not appear in completedMvps (0057 stabilization pending)", mvp)
-			}
+	for _, completed := range status.CompletedMvps {
+		if completed == "0057" {
+			t.Error("status.json: 0057 must not appear in completedMvps (exact-head certification pending CI observation)")
 		}
 	}
 

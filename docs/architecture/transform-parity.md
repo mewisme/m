@@ -15,7 +15,7 @@ level for each transform feature.
 | Custom factory (`jsxFactory`) | Full | e.g. `h` for Preact classic |
 | Custom fragment (`jsxFragmentFactory`) | Full | e.g. `Fragment` |
 | Custom import source (`jsxImportSource`) | Full | e.g. `preact` for Preact automatic |
-| `.tsx` / `.jsx` file extensions | `.tsx` supported; `.jsx` deferred (0053) | |
+| `.tsx` / `.jsx` file extensions | `.tsx` supported; `.jsx` supported via extension substitution (`.jsx` → `.tsx` probe); direct `.jsx` entrypoints unsupported | |
 
 ### JSX default importSource
 

@@ -1,6 +1,6 @@
 # Runtime Known Limitations
 
-Documented as of 0052 development (0057 runtime stabilization pending). Each entry includes the limitation, impact, and planned resolution path.
+Documented as of 0052-0057 implementation. Each entry includes the limitation, impact, and planned resolution path.
 
 ## Transformer
 
@@ -22,7 +22,7 @@ Documented as of 0052 development (0057 runtime stabilization pending). Each ent
 
 ### TC39 decorators (stage 3)
 
-**Limitation**: Standard TC39 decorators are transformed via esbuild (default mode when `experimentalDecorators` is not set). This works for TypeScript sources (`.ts`/`.tsx`). Standard decorators in `.js`/`.mjs` files are not yet supported because Mew's JS loader is deferred to 0053.
+**Limitation**: Standard TC39 decorators are transformed via esbuild (default mode when `experimentalDecorators` is not set). This works for TypeScript sources (`.ts`/`.tsx`). Standard decorators in `.js`/`.mjs` files rely on extension substitution (`.js` → `.ts`) and the JSX loader (`.jsx` → `.tsx`). Direct `.jsx` entrypoints are not supported because the transform engine only accepts `ts|tsx|mts|cts` loader modes.
 
 **Impact**: Projects using `@decorator` syntax in `.ts`/`.tsx` files work correctly. JS/JSX decorator support pending JS loader.
 
@@ -82,9 +82,9 @@ loader API.
 
 ### Watch mode
 
-**Limitation**: Watch mode uses fsnotify with a polling fallback on platforms/filesystems where inotify/FSEvents/ReadDirectoryChangesW are unavailable. The polling interval is fixed at 1 second.
+**Limitation**: Watch mode uses fsnotify with a polling fallback on platforms/filesystems where inotify/FSEvents/ReadDirectoryChangesW are unavailable. The polling interval is 500ms.
 
-**Impact**: On network filesystems (NFS, CIFS) or inside some Docker configurations, watch mode falls back to polling and may have up to 1 second of latency.
+**Impact**: On network filesystems (NFS, CIFS) or inside some Docker configurations, watch mode falls back to polling and may have up to 500ms of latency.
 
 **Resolution**: Configurable polling interval planned for 0060+.
 
@@ -98,7 +98,7 @@ loader API.
 
 ### Inspector passthrough
 
-**Limitation**: `--inspect` and `--inspect-brk` flags are passed through to Node's V8 inspector verbatim. Mew does not integrate with the inspector protocol for source-map-aware debugging or breakpoint resolution in original TypeScript source. While stack traces are mapped via `--enable-source-maps`, the debugger does not translate breakpoints from TypeScript line numbers.
+**Limitation**: `--inspect` and `--inspect-brk` flags are parsed, validated, and normalized by Mew (loopback-only bind policy by default, remote binding requires `MEW_EXPERIMENTAL_REMOTE_INSPECTOR=1`). The flags are then passed through to Node's V8 inspector. Mew does not integrate with the inspector protocol for source-map-aware debugging or breakpoint resolution in original TypeScript source. While stack traces are mapped via `--enable-source-maps`, the debugger does not translate breakpoints from TypeScript line numbers.
 
 **Impact**: Debugging TypeScript in Chrome DevTools or VS Code shows transformed JavaScript. Breakpoints set in TypeScript source may not resolve correctly. Stack traces in the debugger console DO show mapped source locations (via `--enable-source-maps`).
 
@@ -116,11 +116,11 @@ loader API.
 
 ### Concurrent transform limits
 
-**Limitation**: The transform service processes requests sequentially over a single Unix socket connection. Concurrent transforms from multiple files (e.g., in a large project) are serialized.
+**Limitation**: The transform service uses a worker pool (default 4 goroutines) over a single TCP connection. Throughput is bounded by the worker pool size and single-process esbuild performance.
 
-**Impact**: Transform throughput is bounded by single-core esbuild performance. Multi-core parallelism is not exploited.
+**Impact**: Transform throughput is bounded by worker pool size and single-process esbuild performance. Each transform request runs concurrently within the pool.
 
-**Resolution**: Connection pool or multiple service instances planned for post-0060.
+**Resolution**: Configurable worker pool size or multiple service instances planned for post-0060.
 
 ## Node Version Support
 
