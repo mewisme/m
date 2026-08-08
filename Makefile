@@ -324,22 +324,22 @@ pre-push: quality test-short build ## Broader pre-push validation
 
 .PHONY: cert-runtime
 cert-runtime: ## Run runtime certification (full)
-	$(GO) run ./cmd/m conformance run core --json
+	$(GO) run ./cmd/m conformance run runtime --json
 
 .PHONY: cert-runtime-local
 cert-runtime-local: ## Run runtime certification (fast subset)
-	$(GO) run ./cmd/m conformance run core --filter fast --json
+	$(GO) run ./cmd/m conformance run runtime --filter runtime-failure --json
 
 .PHONY: cert-runtime-report
 cert-runtime-report: ## Run runtime certification with JSON report
 	@mkdir -p $(REPORTS_DIR)
-	$(GO) run ./cmd/m conformance run core --json > $(REPORTS_DIR)/core-report.json
+	$(GO) run ./cmd/m conformance run runtime --json > $(REPORTS_DIR)/runtime-report.json
 
 .PHONY: cert-check
 cert-check: ## Verify certification consistency (no external tools)
 	$(GO) test ./internal/conformance/... -count=1
 	$(GO) test ./tests/conformance/runner/... -count=1
-	$(GO) run ./cmd/m conformance run core --filter fast --json >/dev/null
+	$(GO) run ./cmd/m conformance run runtime --filter runtime-failure --json >/dev/null
 
 # Legacy certification aliases (preserved for compatibility).
 .PHONY: core-cert
