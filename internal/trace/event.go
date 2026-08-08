@@ -122,6 +122,10 @@ type LifecycleData struct {
 	ExitCode      *int   `json:"exit_code,omitempty"`
 	ErrorCode     string `json:"error_code,omitempty"`
 	ErrorMessage  string `json:"error_message,omitempty"`
+	// Inspector fields are populated when --inspect or --inspect-brk is active.
+	InspectorMode string `json:"inspector_mode,omitempty"` // "run" or "brk"
+	InspectorHost string `json:"inspector_host,omitempty"` // sanitized bind address
+	InspectorPort int    `json:"inspector_port,omitempty"` // 0 when auto/unspecified
 }
 
 // TransformData is the payload for transform events.

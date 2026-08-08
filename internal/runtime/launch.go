@@ -159,8 +159,22 @@ func Plan(ctx context.Context, req LaunchRequest, eff *config.Effective) (*Launc
 		}
 	}
 
-	// Build argv
-	plan.NodeArgv = BuildArgv(plan, req.NodeV8Args)
+	// Normalize inspector flags before building argv.
+	inspCfg, nonInspectorV8, inspErr := ParseInspectorFlags(req.NodeV8Args, plan.ZeroAugmentation)
+	if inspErr != nil {
+		return nil, inspErr
+	}
+	plan.Inspector = inspCfg
+
+	// Merge normalized inspector flags with remaining V8 args.
+	// Inspector flags sit in the same position as other user V8 flags
+	// (after credential grabber, before preloads).
+	v8Args := nonInspectorV8
+	if plan.Inspector != nil {
+		v8Args = append(v8Args, plan.Inspector.BuildInspectorArgv()...)
+	}
+
+	plan.NodeArgv = BuildArgv(plan, v8Args)
 	return plan, nil
 }
 
@@ -311,45 +325,65 @@ func PlanAndLaunch(ctx context.Context, req LaunchRequest, eff *config.Effective
 		return planErr
 	}
 
-	trace.Emit(ctx, trace.CatLifecycle, trace.TypePlanComplete, trace.LifecycleData{
+	planData := trace.LifecycleData{
 		Entrypoint:  plan.Entrypoint,
 		NodeVersion: plan.NodeVersion,
 		Augmented:   !plan.ZeroAugmentation,
 		DurationMs:  time.Since(planStart).Milliseconds(),
-	})
+	}
+	if plan.Inspector != nil {
+		planData.InspectorMode = plan.Inspector.Mode.String()
+		planData.InspectorHost = plan.Inspector.Host
+		planData.InspectorPort = plan.Inspector.Port
+	}
+	trace.Emit(ctx, trace.CatLifecycle, trace.TypePlanComplete, planData)
 
-	trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchStart, trace.LifecycleData{
-		Entrypoint: plan.Entrypoint,
-	})
+	launchStartData := trace.LifecycleData{Entrypoint: plan.Entrypoint}
+	if plan.Inspector != nil {
+		launchStartData.InspectorMode = plan.Inspector.Mode.String()
+		launchStartData.InspectorHost = plan.Inspector.Host
+		launchStartData.InspectorPort = plan.Inspector.Port
+	}
+	trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchStart, launchStartData)
 
 	launchStart := time.Now()
 	launchErr := Launch(ctx, plan, req)
 	launchDur := time.Since(launchStart).Milliseconds()
 
+	// Attach inspector fields to launch exit/error events.
+	inspectorFields := func(d trace.LifecycleData) trace.LifecycleData {
+		if plan.Inspector != nil {
+			d.InspectorMode = plan.Inspector.Mode.String()
+			d.InspectorHost = plan.Inspector.Host
+			d.InspectorPort = plan.Inspector.Port
+		}
+		return d
+	}
+
 	if launchErr != nil {
 		var exitStatus *apperr.ExitStatus
 		if errors.As(launchErr, &exitStatus) && exitStatus != nil {
 			code := exitStatus.Code
-			trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchExit, trace.LifecycleData{
+			trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchExit, inspectorFields(trace.LifecycleData{
 				Entrypoint: plan.Entrypoint,
 				DurationMs: launchDur,
 				ExitCode:   &code,
-			})
+			}))
 		} else {
-			trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchError, trace.LifecycleData{
+			trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchError, inspectorFields(trace.LifecycleData{
 				Entrypoint:   plan.Entrypoint,
 				DurationMs:   launchDur,
 				ErrorCode:    string(apperr.CodeOf(launchErr)),
 				ErrorMessage: trace.RedactError(launchErr),
-			})
+			}))
 		}
 	} else {
 		code := 0
-		trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchExit, trace.LifecycleData{
+		trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchExit, inspectorFields(trace.LifecycleData{
 			Entrypoint: plan.Entrypoint,
 			DurationMs: launchDur,
 			ExitCode:   &code,
-		})
+		}))
 	}
 
 	trace.Emit(ctx, trace.CatLifecycle, trace.TypeCleanupStart, nil)
