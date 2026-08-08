@@ -6,6 +6,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/mewisme/mew/internal/trace"
 )
 
 // DefaultDebounceInterval is the quiet period before a restart after file changes.
@@ -66,6 +68,10 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 	if w == nil {
 		return 1, fmt.Errorf("watch: nil watcher")
 	}
+
+	trace.Emit(ctx, trace.CatWatch, trace.TypeWatchStart, trace.WatchData{
+		Backend: string(w.Backend()),
+	})
 
 	// Register initial watch paths. Fail if any required path cannot be
 	// watched rather than silently continuing with partial coverage.
@@ -129,6 +135,9 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 			if g != nil && !g.ShouldTrigger(evt.Path) {
 				continue
 			}
+			trace.Emit(ctx, trace.CatWatch, trace.TypeWatchInvalidate, trace.WatchData{
+				ChangedPath: evt.Path,
+			})
 			mu.Lock()
 			if debounceTimer != nil {
 				debounceTimer.Stop()
@@ -145,6 +154,7 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 
 	termTimeout := s.opts.TerminationTimeout
 	lastCode := 0
+	generation := 0
 	for {
 		if s.opts.ClearScreen {
 			fmt.Fprint(os.Stderr, "\033[2J\033[H")
@@ -152,6 +162,10 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 		if s.opts.OnRestart != nil {
 			s.opts.OnRestart("starting")
 		}
+
+		trace.Emit(ctx, trace.CatWatch, trace.TypeWatchChildStart, trace.WatchData{
+			Generation: generation,
+		})
 
 		childCtx, cancelChild := context.WithCancel(ctx)
 
@@ -172,6 +186,10 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 			if s.opts.OnRestart != nil {
 				s.opts.OnRestart("file changed")
 			}
+			trace.Emit(ctx, trace.CatWatch, trace.TypeWatchRestart, trace.WatchData{
+				Reason:     "file changed",
+				Generation: generation,
+			})
 			cancelChild()
 			result := s.waitChild(childDone, termTimeout)
 			lastCode = result.code
@@ -179,10 +197,16 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 				fmt.Fprintf(os.Stderr, "watch: %v\n", result.err)
 			}
 			s.reconcile(g, lastCode, w)
+			generation++
 
 		case result := <-childDone:
 			cancelChild()
 			lastCode = result.code
+			exitCode := lastCode
+			trace.Emit(ctx, trace.CatWatch, trace.TypeWatchChildExit, trace.WatchData{
+				ExitCode:   &exitCode,
+				Generation: generation,
+			})
 			if result.err != nil && result.err != context.Canceled {
 				fmt.Fprintf(os.Stderr, "watch: %v\n", result.err)
 			}
@@ -193,19 +217,32 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 			select {
 			case <-triggerRestart:
 			case <-watcherDone:
+				trace.Emit(ctx, trace.CatWatch, trace.TypeWatchShutdown, trace.WatchData{
+					Reason: "watcher channel closed",
+				})
 				return lastCode, fmt.Errorf("watch: watcher event channel closed")
 			case <-ctx.Done():
+				trace.Emit(ctx, trace.CatWatch, trace.TypeWatchShutdown, trace.WatchData{
+					Reason: "context cancelled",
+				})
 				return lastCode, ctx.Err()
 			}
+			generation++
 
 		case <-watcherDone:
 			cancelChild()
 			s.waitChild(childDone, termTimeout)
+			trace.Emit(ctx, trace.CatWatch, trace.TypeWatchShutdown, trace.WatchData{
+				Reason: "watcher channel closed unexpectedly",
+			})
 			return lastCode, fmt.Errorf("watch: watcher channel closed unexpectedly")
 
 		case <-ctx.Done():
 			cancelChild()
 			s.waitChild(childDone, termTimeout)
+			trace.Emit(ctx, trace.CatWatch, trace.TypeWatchShutdown, trace.WatchData{
+				Reason: "context cancelled",
+			})
 			return lastCode, ctx.Err()
 		}
 

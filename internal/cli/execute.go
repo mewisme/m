@@ -24,6 +24,7 @@ import (
 	presprompt "github.com/mewisme/mew/internal/presentation/prompt"
 	"github.com/mewisme/mew/internal/prompt"
 	"github.com/mewisme/mew/internal/runtime"
+	"github.com/mewisme/mew/internal/trace"
 )
 
 // globalFlags holds persistent CLI presentation options.
@@ -539,7 +540,8 @@ func tryDirectDispatch(ctx context.Context, root *cobra.Command, g *globalFlags,
 			rep := g.newReporter(root)
 			rep.Error(classifyCLIError(buildErr))
 			return apperr.ExitCode(buildErr), true
-			}
+		}
+		emitEnvTrace(ctx, phase.Leading, envOverlay, ac.CWD)
 		req := runtime.LaunchRequest{
 			Entrypoint:       entrypoint,
 			AppArgs:          phase.ForwardedArgs,
@@ -796,4 +798,31 @@ func classifyEnvLoadError(err error) error {
 		return apperr.New(apperr.EnvFileRead, "env-file", "", err.Error())
 	}
 	return apperr.New(apperr.EnvFileParse, "env-file", "", err.Error())
+}
+
+// emitEnvTrace emits trace events for environment source decisions.
+// It reports the mode, source kind (explicit/discovered), and key names
+// without values. Never emits environment variable values.
+func emitEnvTrace(ctx context.Context, leading leadingDispatchFlags, overlay []string, cwd string) {
+	if len(overlay) == 0 && leading.mode == "" {
+		return
+	}
+	keys := make([]string, 0, len(overlay))
+	for _, kv := range overlay {
+		for i := 0; i < len(kv); i++ {
+			if kv[i] == '=' {
+				keys = append(keys, kv[:i])
+				break
+			}
+		}
+	}
+	precedence := "discovered"
+	if len(leading.envFile) > 0 {
+		precedence = "explicit"
+	}
+	trace.Emit(ctx, trace.CatEnv, trace.TypeEnvSource, trace.EnvData{
+		Mode:       leading.mode,
+		Keys:       keys,
+		Precedence: precedence,
+	})
 }

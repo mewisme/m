@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
+	"github.com/mewisme/mew/internal/trace"
 )
 
 // Session encapsulates a per-invocation transform service.
@@ -574,11 +575,21 @@ func (s *Session) processCancel(conn net.Conn, req *CancelRequest, writeMu *sync
 // this goroutine starts. The reqCtx carries both the session-scoped
 // cancellation and a per-request timeout.
 func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req *TransformRequestV2, writeMu *sync.Mutex) {
+	trace.Emit(reqCtx, trace.CatTransform, trace.TypeTransformRequest, trace.TransformData{
+		RequestID:  req.ID,
+		Format:     req.Format,
+		Loader:     req.Loader,
+		SourceSize: int64(len(req.Source)),
+	})
+
 	// Acquire worker slot (context-aware — respects cancellation while waiting).
 	select {
 	case s.workers <- struct{}{}:
 		defer func() { <-s.workers }()
 	case <-reqCtx.Done():
+		trace.Emit(reqCtx, trace.CatTransform, trace.TypeTransformCancel, trace.TransformData{
+			RequestID: req.ID,
+		})
 		writeResponseLocked(writeMu, conn, TransformResponseV2{
 			V: ProtocolVersion, ID: req.ID, OK: false,
 			ErrCode: string(apperr.TransformCancelled), Error: "transform cancelled",
@@ -629,18 +640,34 @@ func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req
 	if s.cacheDir != "" {
 		identity := s.engine.Identity()
 		key := CacheKey(tReq, identity)
+		trace.Emit(reqCtx, trace.CatCache, trace.TypeCacheLookup, trace.CacheData{Key: key})
 		cached, cerr := TryReadCache(s.cacheDir, key)
 		if cerr != nil {
 			if !isCacheCorruption(cerr) {
 				resultErr = cerr
 			}
+			trace.Emit(reqCtx, trace.CatCache, trace.TypeCacheCorrupt, trace.CacheData{
+				Key:    key,
+				Reason: trace.RedactError(cerr),
+			})
 		} else if cached != nil {
 			result = cached
+			trace.Emit(reqCtx, trace.CatCache, trace.TypeCacheHit, trace.CacheData{
+				Key:       key,
+				SchemaVer: CacheSchemaVersion,
+			})
+		} else {
+			trace.Emit(reqCtx, trace.CatCache, trace.TypeCacheMiss, trace.CacheData{Key: key})
 		}
 	}
 
 	// Cache miss, corruption, or cache disabled: run engine.
 	if result == nil && resultErr == nil {
+		trace.Emit(reqCtx, trace.CatTransform, trace.TypeTransformEngine, trace.TransformData{
+			RequestID:  req.ID,
+			Format:     string(tReq.Format),
+			Loader:     string(tReq.Loader),
+		})
 		engineResult, engineErr := s.engine.Transform(reqCtx, tReq)
 		if engineErr == nil {
 			result = &engineResult
@@ -649,6 +676,12 @@ func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req
 				key := CacheKey(tReq, identity)
 				if werr := WriteCache(s.cacheDir, key, &engineResult); werr != nil {
 					resultErr = werr
+					trace.Emit(reqCtx, trace.CatCache, trace.TypeCacheRejection, trace.CacheData{
+						Key:    key,
+						Reason: trace.RedactError(werr),
+					})
+				} else {
+					trace.Emit(reqCtx, trace.CatCache, trace.TypeCacheWrite, trace.CacheData{Key: key})
 				}
 			}
 		} else {
@@ -684,6 +717,10 @@ func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req
 			code = string(apperr.TransformTimeout)
 			msg = "transform timeout"
 		}
+		trace.Emit(reqCtx, trace.CatTransform, trace.TypeTransformCancel, trace.TransformData{
+			RequestID:   req.ID,
+			ErrorCode:   code,
+		})
 		writeResponseLocked(writeMu, conn, TransformResponseV2{
 			V: ProtocolVersion, ID: req.ID, OK: false,
 			ErrCode: code, Error: msg,
@@ -692,6 +729,11 @@ func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req
 	}
 
 	if resultErr != nil {
+		trace.Emit(reqCtx, trace.CatTransform, trace.TypeTransformError, trace.TransformData{
+			RequestID:    req.ID,
+			ErrorCode:    SanitizeErrorCode(string(apperr.CodeOf(resultErr))),
+			ErrorMessage: SanitizeErrorMessage(resultErr.Error()),
+		})
 		writeResponseLocked(writeMu, conn, TransformResponseV2{
 			V: ProtocolVersion, ID: req.ID, OK: false,
 			ErrCode: SanitizeErrorCode(string(apperr.CodeOf(resultErr))),
@@ -707,6 +749,12 @@ func (s *Session) handleTransformWork(reqCtx context.Context, conn net.Conn, req
 	case CacheStatusBypass:
 		cacheStr = "bypass"
 	}
+
+	trace.Emit(reqCtx, trace.CatTransform, trace.TypeTransformComplete, trace.TransformData{
+		RequestID:   req.ID,
+		CacheStatus: cacheStr,
+		DurationMs:  result.Elapsed.Milliseconds(),
+	})
 
 	writeResponseLocked(writeMu, conn, TransformResponseV2{
 		V:      ProtocolVersion,

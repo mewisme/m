@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/mewisme/mew/internal/apperr"
 	"github.com/mewisme/mew/internal/config"
@@ -18,6 +19,7 @@ import (
 	"github.com/mewisme/mew/internal/process"
 	"github.com/mewisme/mew/internal/project"
 	"github.com/mewisme/mew/internal/runtime/assets"
+	"github.com/mewisme/mew/internal/trace"
 )
 
 // Plan resolves a LaunchRequest into a concrete LaunchPlan.
@@ -289,19 +291,81 @@ func fileURL(p string) string {
 // idempotent, so there is no risk of double-close even if both paths were
 // somehow reached.
 func PlanAndLaunch(ctx context.Context, req LaunchRequest, eff *config.Effective) error {
+	trace.Emit(ctx, trace.CatLifecycle, trace.TypePlanStart, trace.LifecycleData{
+		Entrypoint: req.Entrypoint,
+	})
+
+	planStart := time.Now()
 	plan, planErr := Plan(ctx, req, eff)
 	if planErr != nil {
+		trace.Emit(ctx, trace.CatLifecycle, trace.TypePlanError, trace.LifecycleData{
+			Entrypoint:   req.Entrypoint,
+			ErrorCode:    string(apperr.CodeOf(planErr)),
+			ErrorMessage: trace.RedactError(planErr),
+			DurationMs:   time.Since(planStart).Milliseconds(),
+		})
 		// Plan failed: contribution still owns the session; clean it up.
 		if req.Contribution != nil && req.Contribution.CleanupHook != nil {
 			_ = req.Contribution.CleanupHook()
 		}
 		return planErr
 	}
+
+	trace.Emit(ctx, trace.CatLifecycle, trace.TypePlanComplete, trace.LifecycleData{
+		Entrypoint:  plan.Entrypoint,
+		NodeVersion: plan.NodeVersion,
+		Augmented:   !plan.ZeroAugmentation,
+		DurationMs:  time.Since(planStart).Milliseconds(),
+	})
+
+	trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchStart, trace.LifecycleData{
+		Entrypoint: plan.Entrypoint,
+	})
+
+	launchStart := time.Now()
 	launchErr := Launch(ctx, plan, req)
+	launchDur := time.Since(launchStart).Milliseconds()
+
+	if launchErr != nil {
+		var exitStatus *apperr.ExitStatus
+		if errors.As(launchErr, &exitStatus) && exitStatus != nil {
+			code := exitStatus.Code
+			trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchExit, trace.LifecycleData{
+				Entrypoint: plan.Entrypoint,
+				DurationMs: launchDur,
+				ExitCode:   &code,
+			})
+		} else {
+			trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchError, trace.LifecycleData{
+				Entrypoint:   plan.Entrypoint,
+				DurationMs:   launchDur,
+				ErrorCode:    string(apperr.CodeOf(launchErr)),
+				ErrorMessage: trace.RedactError(launchErr),
+			})
+		}
+	} else {
+		code := 0
+		trace.Emit(ctx, trace.CatLifecycle, trace.TypeLaunchExit, trace.LifecycleData{
+			Entrypoint: plan.Entrypoint,
+			DurationMs: launchDur,
+			ExitCode:   &code,
+		})
+	}
+
+	trace.Emit(ctx, trace.CatLifecycle, trace.TypeCleanupStart, nil)
 	var cleanupErr error
 	if plan.CleanupHook != nil {
 		cleanupErr = plan.CleanupHook()
 	}
+	if cleanupErr != nil {
+		trace.Emit(ctx, trace.CatLifecycle, trace.TypeCleanupError, trace.LifecycleData{
+			ErrorCode:    string(apperr.CodeOf(cleanupErr)),
+			ErrorMessage: trace.RedactError(cleanupErr),
+		})
+	} else {
+		trace.Emit(ctx, trace.CatLifecycle, trace.TypeCleanupDone, nil)
+	}
+
 	return MergeCleanupError(launchErr, cleanupErr)
 }
 
