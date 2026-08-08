@@ -48,6 +48,8 @@ if (isMainThread) {
   const options = process.env.MEW_TRANSFORM_OPTIONS || '{}';
   const optsDigest = process.env.MEW_TRANSFORM_OPTS_DIGEST || '';
   const configDir = process.env.MEW_TRANSFORM_CONFIG_DIR || '';
+  const depTraceFile = process.env.MEW_TRANSFORM_DEP_TRACE_FILE || '';
+  const depTraceRoot = process.env.MEW_TRANSFORM_DEP_TRACE_ROOT || '';
 
   // Strip from process.env immediately — before any user --require.
   delete process.env.MEW_TRANSFORM_ENDPOINT;
@@ -55,10 +57,12 @@ if (isMainThread) {
   delete process.env.MEW_TRANSFORM_OPTIONS;
   delete process.env.MEW_TRANSFORM_OPTS_DIGEST;
   delete process.env.MEW_TRANSFORM_CONFIG_DIR;
+  delete process.env.MEW_TRANSFORM_DEP_TRACE_FILE;
+  delete process.env.MEW_TRANSFORM_DEP_TRACE_ROOT;
 
   // Store for worker propagation (Issue 19).
   if (endpoint && token) {
-    _mewCredentials = { endpoint, token, options, optsDigest, configDir };
+    _mewCredentials = { endpoint, token, options, optsDigest, configDir, depTraceFile, depTraceRoot };
   }
 
   // Register the TypeScript loader with credentials passed via
@@ -91,7 +95,7 @@ if (isMainThread) {
         // ts-loader registered last → innermost (fills gaps after user hooks).
         register(tsLoader, parentURL, {
           parentURL,
-          data: { endpoint, token, options, optsDigest, configDir },
+          data: { endpoint, token, options, optsDigest, configDir, depTraceFile, depTraceRoot },
           transferList: [],
         });
       } else {
@@ -130,7 +134,7 @@ if (isMainThread) {
             }
             mod.register(tsLoader, parentURL, {
               parentURL,
-              data: { endpoint, token, options, optsDigest, configDir },
+              data: { endpoint, token, options, optsDigest, configDir, depTraceFile, depTraceRoot },
               transferList: [],
             });
           } else {
@@ -213,7 +217,7 @@ if (isMainThread) {
   }
 
   // Export null values. Real credentials are never in module.exports.
-  module.exports = { endpoint: null, token: null, options: '{}', optsDigest: '', configDir: '' };
+  module.exports = { endpoint: null, token: null, options: '{}', optsDigest: '', configDir: '', depTraceFile: '', depTraceRoot: '' };
 } else if (parentPort) {
   // ── Worker thread (Issue 19) ────────────────────────────────────
   // In a worker created from a Mew-augmented parent:
@@ -261,6 +265,8 @@ if (isMainThread) {
             options: creds.options || '{}',
             optsDigest: creds.optsDigest || '',
             configDir: creds.configDir || '',
+            depTraceFile: creds.depTraceFile || '',
+            depTraceRoot: creds.depTraceRoot || '',
           },
           transferList: [],
         });
@@ -272,10 +278,10 @@ if (isMainThread) {
   }
 
   // Export nulls — credentials delivered via module.register() data.
-  module.exports = { endpoint: null, token: null, options: '{}', optsDigest: '', configDir: '' };
+  module.exports = { endpoint: null, token: null, options: '{}', optsDigest: '', configDir: '', depTraceFile: '', depTraceRoot: '' };
 } else {
   // ── Loader context ──────────────────────────────────────────────
   // The loader thread re-evaluates --require modules. Credentials
   // were already delivered via the initialize hook; export nulls.
-  module.exports = { endpoint: null, token: null, options: '{}', optsDigest: '', configDir: '' };
+  module.exports = { endpoint: null, token: null, options: '{}', optsDigest: '', configDir: '', depTraceFile: '', depTraceRoot: '' };
 }

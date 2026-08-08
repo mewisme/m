@@ -10,6 +10,8 @@ delete process.env.MEW_TRANSFORM_TOKEN;
 delete process.env.MEW_TRANSFORM_OPTIONS;
 delete process.env.MEW_TRANSFORM_OPTS_DIGEST;
 delete process.env.MEW_TRANSFORM_CONFIG_DIR;
+delete process.env.MEW_TRANSFORM_DEP_TRACE_FILE;
+delete process.env.MEW_TRANSFORM_DEP_TRACE_ROOT;
 
 // Web Storage (localStorage, sessionStorage).
 // Canonical implementation in web-storage.cjs.

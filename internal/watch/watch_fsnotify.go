@@ -46,7 +46,7 @@ func (nw *nativeWatcher) addDir(dir string) error {
 	if err := nw.w.Add(dir); err != nil {
 		return err
 	}
-	// Walk subdirectories, skipping hidden dirs.
+	// Walk subdirectories, skipping hidden dirs and noise trees.
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil // non-fatal: dir may have been removed
@@ -55,10 +55,14 @@ func (nw *nativeWatcher) addDir(dir string) error {
 		if !e.IsDir() {
 			continue
 		}
-		if isHiddenDir(e.Name()) {
+		name := e.Name()
+		if isHiddenDir(name) {
 			continue
 		}
-		sub := filepath.Join(dir, e.Name())
+		if name == "node_modules" || name == ".git" || name == ".mew" {
+			continue
+		}
+		sub := filepath.Join(dir, name)
 		if err := nw.addDir(sub); err != nil {
 			// Non-fatal: permission errors, etc.
 			continue
@@ -66,6 +70,8 @@ func (nw *nativeWatcher) addDir(dir string) error {
 	}
 	return nil
 }
+
+func (nw *nativeWatcher) Remove(path string) error { return nw.w.Remove(path) }
 
 func (nw *nativeWatcher) Events() <-chan Event { return nw.events }
 func (nw *nativeWatcher) Errors() <-chan error { return nw.errs }

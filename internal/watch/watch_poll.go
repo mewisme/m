@@ -3,6 +3,7 @@ package watch
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -71,6 +72,18 @@ func (pw *pollingWatcher) addDirLocked(dir string) error {
 		pw.paths[normalizePath(path)] = info.ModTime()
 		return nil
 	})
+}
+
+func (pw *pollingWatcher) Remove(path string) error {
+	pw.mu.Lock()
+	defer pw.mu.Unlock()
+	norm := normalizePath(path)
+	for k := range pw.paths {
+		if k == norm || strings.HasPrefix(k, norm+string(filepath.Separator)) {
+			delete(pw.paths, k)
+		}
+	}
+	return nil
 }
 
 func (pw *pollingWatcher) Events() <-chan Event { return pw.events }

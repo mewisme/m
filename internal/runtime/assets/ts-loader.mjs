@@ -2,7 +2,7 @@
 // Communicates with the Go transform service over local TCP.
 import { connect } from 'node:net';
 import { createHash } from 'node:crypto';
-import { accessSync, readFileSync } from 'node:fs';
+import { accessSync, readFileSync, appendFileSync } from 'node:fs';
 import { resolve as pathResolve, parse as pathParse, join as pathJoin, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
@@ -16,6 +16,12 @@ let transformOptions = '{}';
 let optsDigest = '';
 let configDir = '';
 
+// Dependency trace: when non-empty, resolved local module paths are appended
+// to this file for the Go watch supervisor to reconcile after the run.
+let depTraceFile = '';
+let depTraceRoot = '';
+const reportedDeps = new Set();
+
 export function initialize(data) {
   if (data && data.endpoint && data.token) {
     endpoint = data.endpoint;
@@ -23,7 +29,20 @@ export function initialize(data) {
     transformOptions = data.options || '{}';
     optsDigest = data.optsDigest || '';
     configDir = data.configDir || '';
+    depTraceFile = data.depTraceFile || '';
+    depTraceRoot = data.depTraceRoot || '';
   }
+}
+
+function traceResolved(absPath) {
+  if (!depTraceFile || !absPath) return;
+  if (reportedDeps.has(absPath)) return;
+  // Skip node_modules and paths outside the project root.
+  if (absPath.split(pathSep).includes('node_modules')) return;
+  if (depTraceRoot && absPath !== depTraceRoot &&
+      !absPath.startsWith(depTraceRoot + pathSep)) return;
+  reportedDeps.add(absPath);
+  try { appendFileSync(depTraceFile, absPath + '\n'); } catch (_) {}
 }
 
 let conn = null;
@@ -693,6 +712,7 @@ export async function resolve(specifier, context, nextResolve) {
       const url = new URL(resolved.url);
       if (url.protocol === 'file:') {
         const absPath = fileURLToPath(resolved.url);
+        traceResolved(absPath);
         // If it's already a TypeScript file, mark format and return.
         if (absPath.endsWith('.ts') || absPath.endsWith('.tsx') || absPath.endsWith('.mts') || absPath.endsWith('.cts')) {
           return {
@@ -706,6 +726,7 @@ export async function resolve(specifier, context, nextResolve) {
         if (!fileExists(absPath)) {
           const tsPath = probeTypeScriptExtension(absPath);
           if (tsPath) {
+            traceResolved(tsPath);
             return {
               format: formatFromResolvedPath(tsPath),
               url: pathToFileURL(tsPath).href,
@@ -731,6 +752,7 @@ export async function resolve(specifier, context, nextResolve) {
     if (candidatePath) {
       const found = tryResolveFile(candidatePath);
       if (found) {
+        traceResolved(found);
         return {
           format: formatFromResolvedPath(found),
           url: pathToFileURL(found).href,
@@ -753,6 +775,7 @@ export async function resolve(specifier, context, nextResolve) {
       try {
         const pnpResult = pnpApi.resolveRequest(specifier, issuer);
         if (pnpResult) {
+          traceResolved(pnpResult);
           return {
             format: formatFromResolvedPath(pnpResult),
             url: pathToFileURL(pnpResult).href,
@@ -775,6 +798,7 @@ export async function resolve(specifier, context, nextResolve) {
   // Try tsconfig paths matching.
   const pathsResolved = resolveViaPaths(specifier, context.parentURL);
   if (pathsResolved) {
+    traceResolved(pathsResolved);
     return {
       format: formatFromResolvedPath(pathsResolved),
       url: pathToFileURL(pathsResolved).href,

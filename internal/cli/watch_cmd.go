@@ -30,9 +30,9 @@ func newWatchCmd() *cobra.Command {
 		Long: `Watch source files, configuration, and environment files for changes,
 then restart the application automatically.
 
-Watches the entrypoint directory, tsconfig.json, package.json, and
-.env files. Restarts happen after a short debounce period (200ms default)
-to coalesce rapid saves.`,
+Watches imported modules, tsconfig extends chains, package.json files,
+and mode-specific .env files. Restarts happen after a short debounce
+period (200ms default) to coalesce rapid saves.`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ac := app.FromContext(cmd.Context())
@@ -59,6 +59,14 @@ to coalesce rapid saves.`,
 				}
 			}
 
+			// Build the dependency graph and seed with config deps.
+			graph := watch.NewDependencyGraph()
+			initialConfigs := collectConfigDeps(cwd, epAbs, mode, envFile, noEnvFile)
+			graph.Seed([]string{epAbs}, initialConfigs, nil)
+
+			// depTraceFile holds the path to the per-run dependency trace.
+			var depTraceFile string
+
 			// Build restart function that launches Node on each restart.
 			restart := func(ctx context.Context) (int, error) {
 				currentEnv, envErr := buildWatchEnvOverlay(cwd, envFile, noEnvFile, mode)
@@ -66,22 +74,12 @@ to coalesce rapid saves.`,
 					return 1, envErr
 				}
 
-				plan, err := runtime.Plan(ctx, runtime.LaunchRequest{
-					Entrypoint: epAbs,
-					AppArgs:    appArgs,
-					WorkingDir: cwd,
-					EnvOverlay: currentEnv,
-				}, ac.Config)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "watch: plan error: %v\n", err)
-					return 1, err
-				}
-
 				req := runtime.LaunchRequest{
-					Entrypoint: epAbs,
-					AppArgs:    appArgs,
-					WorkingDir: cwd,
-					EnvOverlay: currentEnv,
+					Entrypoint:       epAbs,
+					AppArgs:          appArgs,
+					WorkingDir:       cwd,
+					EnvOverlay:       currentEnv,
+					AugmentationMode: runtime.AugmentDefault,
 					Stdio: runtime.LaunchStdio{
 						Stdin:  os.Stdin,
 						Stdout: os.Stdout,
@@ -89,7 +87,30 @@ to coalesce rapid saves.`,
 					},
 				}
 
-				if err := runtime.Launch(ctx, plan, req); err != nil {
+				// Attach transform session when augmentation is active.
+				// The loader's resolve hook handles extension substitution for all
+				// entrypoints; the transform service must be available for any .ts
+				// files that are resolved via .js→.ts mapping.
+				contrib, contribErr := buildTransformContribution(ctx, cwd, epAbs, ac.Config)
+				if contribErr != nil {
+					fmt.Fprintf(os.Stderr, "watch: transform error: %v\n", contribErr)
+					return 1, contribErr
+				}
+				req.Contribution = contrib
+
+				// Create per-run trace file so the JS loader reports
+				// resolved module paths.
+				tf, err := os.CreateTemp("", "mew-deps-*.txt")
+				if err == nil {
+					depTraceFile = tf.Name()
+					_ = tf.Close()
+					req.Contribution.ExtraEnv = append(req.Contribution.ExtraEnv,
+						"MEW_TRANSFORM_DEP_TRACE_FILE="+depTraceFile,
+						"MEW_TRANSFORM_DEP_TRACE_ROOT="+cwd,
+					)
+				}
+
+				if err := runtime.PlanAndLaunch(ctx, req, ac.Config); err != nil {
 					code := apperr.ExitCode(err)
 					if apperr.CodeOf(err) == apperr.Cancelled {
 						return code, nil
@@ -97,19 +118,6 @@ to coalesce rapid saves.`,
 					return code, err
 				}
 				return 0, nil
-			}
-
-			// Collect watch paths.
-			watchPaths, err := watch.CollectPaths(entrypoint, cwd)
-			if err != nil {
-				return err
-			}
-			for _, f := range envFile {
-				p := f
-				if !filepath.IsAbs(p) {
-					p = filepath.Join(cwd, p)
-				}
-				watchPaths = append(watchPaths, p)
 			}
 
 			w, err := watch.NewWatcher()
@@ -125,12 +133,28 @@ to coalesce rapid saves.`,
 
 			sup := watch.NewSupervisor(watch.SupervisorOptions{
 				Watcher:          w,
-				WatchPaths:       watchPaths,
 				Restart:          restart,
 				ClearScreen:      clear,
 				DebounceInterval: debounce,
 				OnRestart: func(reason string) {
 					fmt.Fprintf(os.Stderr, "\n[watch] restarting: %s\n\n", reason)
+				},
+				Graph: graph,
+				ReconcilePaths: func(code int) (add, remove []string) {
+					tf := depTraceFile
+					depTraceFile = "" // next restart creates a fresh file
+					defer func() {
+						if tf != "" {
+							_ = os.Remove(tf)
+						}
+					}()
+					if code != 0 {
+						return nil, nil // preserve known deps on failure
+					}
+					modules := readDepTrace(tf)
+					modules = append(modules, epAbs)
+					configs := collectConfigDeps(cwd, epAbs, mode, envFile, noEnvFile)
+					return graph.Reconcile(modules, configs)
 				},
 			})
 

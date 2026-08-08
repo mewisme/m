@@ -18,11 +18,21 @@ type RestartFunc func(ctx context.Context) (int, error)
 // SupervisorOptions configures the watch-restart loop.
 type SupervisorOptions struct {
 	Watcher          Watcher
-	WatchPaths       []string
+	WatchPaths       []string // used when Graph is nil (backward compat)
 	Restart          RestartFunc
 	ClearScreen      bool
 	DebounceInterval time.Duration
 	OnRestart        func(reason string)
+
+	// Graph is the logical dependency graph. When non-nil the supervisor
+	// registers Graph.WatchPaths(), filters events through
+	// Graph.ShouldTrigger, and reconciles coverage after each child
+	// exit via ReconcilePaths.
+	Graph *DependencyGraph
+	// ReconcilePaths returns canonical paths to add/remove after a
+	// child exits. code is the child's exit code; return nil,nil to
+	// keep current coverage (e.g. preserve dependencies on failure).
+	ReconcilePaths func(code int) (add, remove []string)
 }
 
 // Supervisor runs the watch-restart loop.
@@ -46,9 +56,18 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 		return 1, fmt.Errorf("watch: nil watcher")
 	}
 
-	for _, p := range s.opts.WatchPaths {
-		if err := w.Add(p); err != nil {
-			fmt.Fprintf(os.Stderr, "watch: cannot watch %s: %v\n", p, err)
+	g := s.opts.Graph
+	if g != nil {
+		for _, p := range g.WatchPaths() {
+			if err := w.Add(p); err != nil {
+				fmt.Fprintf(os.Stderr, "watch: cannot watch %s: %v\n", p, err)
+			}
+		}
+	} else {
+		for _, p := range s.opts.WatchPaths {
+			if err := w.Add(p); err != nil {
+				fmt.Fprintf(os.Stderr, "watch: cannot watch %s: %v\n", p, err)
+			}
 		}
 	}
 
@@ -76,8 +95,12 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 	}
 
 	// Consume events in background, feeding debounce.
+	// When a graph is active, filter events through ShouldTrigger.
 	go func() {
-		for range eventCh {
+		for evt := range eventCh {
+			if g != nil && !g.ShouldTrigger(evt.Path) {
+				continue
+			}
 			mu.Lock()
 			if debounceTimer != nil {
 				debounceTimer.Stop()
@@ -121,6 +144,7 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 			if result.err != nil && result.err != context.Canceled {
 				fmt.Fprintf(os.Stderr, "watch: %v\n", result.err)
 			}
+			s.reconcile(g, lastCode, w)
 
 		case result := <-childDone:
 			cancelChild()
@@ -128,6 +152,7 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 			if result.err != nil && result.err != context.Canceled {
 				fmt.Fprintf(os.Stderr, "watch: %v\n", result.err)
 			}
+			s.reconcile(g, lastCode, w)
 			if s.opts.OnRestart != nil {
 				s.opts.OnRestart(fmt.Sprintf("child exited (code %d)", result.code))
 			}
@@ -147,6 +172,24 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 		select {
 		case <-triggerRestart:
 		default:
+		}
+	}
+}
+
+// reconcile applies graph coverage updates after a child exits.
+func (s *Supervisor) reconcile(g *DependencyGraph, code int, w Watcher) {
+	if g == nil || s.opts.ReconcilePaths == nil {
+		return
+	}
+	add, remove := s.opts.ReconcilePaths(code)
+	for _, p := range remove {
+		if err := w.Remove(p); err != nil {
+			fmt.Fprintf(os.Stderr, "watch: cannot unwatch %s: %v\n", p, err)
+		}
+	}
+	for _, p := range add {
+		if err := w.Add(p); err != nil {
+			fmt.Fprintf(os.Stderr, "watch: cannot watch %s: %v\n", p, err)
 		}
 	}
 }
