@@ -2,6 +2,7 @@ package watch
 
 import (
 	"context"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -36,6 +37,7 @@ func (fw *fakeWatcher) Remove(path string) error {
 	fw.mu.Unlock()
 	return nil
 }
+func (fw *fakeWatcher) Backend() Backend    { return BackendNative }
 func (fw *fakeWatcher) Events() <-chan Event { return fw.events }
 func (fw *fakeWatcher) Errors() <-chan error { return fw.errs }
 func (fw *fakeWatcher) Close() error {
@@ -664,5 +666,135 @@ func TestSupervisorGraphNilBackwardCompat(t *testing.T) {
 	}
 	if !found {
 		t.Error("WatchPaths not registered when Graph is nil")
+	}
+}
+
+// failingAddWatcher returns an error from Add for a specific path.
+type failingAddWatcher struct {
+	fakeWatcher
+	failPath string
+}
+
+func (fw *failingAddWatcher) Add(path string) error {
+	if path == fw.failPath {
+		return os.ErrNotExist
+	}
+	return fw.fakeWatcher.Add(path)
+}
+
+func TestSupervisorAddFailureReturnsError(t *testing.T) {
+	fw := &failingAddWatcher{
+		fakeWatcher: *newFakeWatcher(),
+		failPath:    "/fake",
+	}
+	defer func() { _ = fw.Close() }()
+
+	restart := func(ctx context.Context) (int, error) {
+		<-ctx.Done()
+		return 0, ctx.Err()
+	}
+
+	sup := NewSupervisor(SupervisorOptions{
+		Watcher:          fw,
+		WatchPaths:       []string{"/fake"},
+		Restart:          restart,
+		DebounceInterval: 10 * time.Millisecond,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	code, err := sup.Run(ctx)
+	if err == nil {
+		t.Error("expected error from Add failure, got nil")
+	}
+	if code != 1 {
+		t.Errorf("expected exit code 1, got %d", code)
+	}
+}
+
+func TestSupervisorWatcherChannelClosure(t *testing.T) {
+	fw := newFakeWatcher()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	restart := func(ctx context.Context) (int, error) {
+		<-ctx.Done()
+		return 0, ctx.Err()
+	}
+
+	sup := NewSupervisor(SupervisorOptions{
+		Watcher:          fw,
+		WatchPaths:       []string{"/fake"},
+		Restart:          restart,
+		DebounceInterval: 10 * time.Millisecond,
+	})
+
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := sup.Run(ctx)
+		errCh <- err
+	}()
+
+	// Let the supervisor start.
+	time.Sleep(50 * time.Millisecond)
+
+	// Close the watcher's channels to simulate unexpected watcher
+	// failure. This triggers watcherDone in the supervisor.
+	fw.Close()
+
+	select {
+	case err := <-errCh:
+		if err == nil {
+			t.Error("expected error from watcher channel closure")
+		}
+	case <-time.After(time.Second):
+		t.Error("timeout waiting for supervisor to detect watcher failure")
+	}
+}
+
+func TestSupervisorChildTerminationTimeout(t *testing.T) {
+	fw := newFakeWatcher()
+	defer func() { _ = fw.Close() }()
+
+	// Child that ignores context cancellation.
+	restart := func(ctx context.Context) (int, error) {
+		<-ctx.Done()
+		// Don't return — simulate stubborn child.
+		select {}
+	}
+
+	sup := NewSupervisor(SupervisorOptions{
+		Watcher:            fw,
+		WatchPaths:         []string{"/fake"},
+		Restart:            restart,
+		DebounceInterval:   10 * time.Millisecond,
+		TerminationTimeout: 100 * time.Millisecond,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := sup.Run(ctx)
+		errCh <- err
+	}()
+
+	// Let the supervisor launch the child.
+	time.Sleep(50 * time.Millisecond)
+
+	// Cancel the top-level context. The supervisor should cancel the
+	// child, wait for TerminationTimeout, then return.
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != context.Canceled {
+			t.Logf("supervisor returned: %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Error("timeout waiting for supervisor to give up on stubborn child")
 	}
 }

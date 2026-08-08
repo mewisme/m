@@ -11,6 +11,10 @@ import (
 // DefaultDebounceInterval is the quiet period before a restart after file changes.
 const DefaultDebounceInterval = 200 * time.Millisecond
 
+// DefaultTerminationTimeout is how long the supervisor waits for a child
+// to exit after cancelling its context before giving up.
+const DefaultTerminationTimeout = 10 * time.Second
+
 // RestartFunc starts a child process and blocks until it exits.
 // ctx is cancelled to request graceful termination.
 type RestartFunc func(ctx context.Context) (int, error)
@@ -23,6 +27,10 @@ type SupervisorOptions struct {
 	ClearScreen      bool
 	DebounceInterval time.Duration
 	OnRestart        func(reason string)
+
+	// TerminationTimeout is how long to wait for a child to exit after
+	// cancelling its context. Zero means DefaultTerminationTimeout.
+	TerminationTimeout time.Duration
 
 	// Graph is the logical dependency graph. When non-nil the supervisor
 	// registers Graph.WatchPaths(), filters events through
@@ -45,6 +53,9 @@ func NewSupervisor(opts SupervisorOptions) *Supervisor {
 	if opts.DebounceInterval <= 0 {
 		opts.DebounceInterval = DefaultDebounceInterval
 	}
+	if opts.TerminationTimeout <= 0 {
+		opts.TerminationTimeout = DefaultTerminationTimeout
+	}
 	return &Supervisor{opts: opts}
 }
 
@@ -56,27 +67,43 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 		return 1, fmt.Errorf("watch: nil watcher")
 	}
 
+	// Register initial watch paths. Fail if any required path cannot be
+	// watched rather than silently continuing with partial coverage.
 	g := s.opts.Graph
+	var paths []string
 	if g != nil {
-		for _, p := range g.WatchPaths() {
-			if err := w.Add(p); err != nil {
-				fmt.Fprintf(os.Stderr, "watch: cannot watch %s: %v\n", p, err)
-			}
-		}
+		paths = g.WatchPaths()
 	} else {
-		for _, p := range s.opts.WatchPaths {
-			if err := w.Add(p); err != nil {
-				fmt.Fprintf(os.Stderr, "watch: cannot watch %s: %v\n", p, err)
-			}
+		paths = s.opts.WatchPaths
+	}
+	var addErrs []error
+	for _, p := range paths {
+		if err := w.Add(p); err != nil {
+			addErrs = append(addErrs, fmt.Errorf("cannot watch %s: %w", p, err))
 		}
 	}
+	if len(addErrs) > 0 {
+		// Report all failures before returning.
+		for _, e := range addErrs {
+			fmt.Fprintf(os.Stderr, "watch: %v\n", e)
+		}
+		return 1, fmt.Errorf("watch: %d path registration failures", len(addErrs))
+	}
 
-	// Forward watcher errors to stderr.
+	// watcherDone signals that the watcher's event or error channels
+	// have closed unexpectedly (watcher failure).
+	watcherDone := make(chan struct{})
 	go func() {
 		for err := range w.Errors() {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "watch: %v\n", err)
 			}
+		}
+		// Error channel closed; signal watcher failure.
+		select {
+		case <-watcherDone:
+		default:
+			close(watcherDone)
 		}
 	}()
 
@@ -96,6 +123,7 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 
 	// Consume events in background, feeding debounce.
 	// When a graph is active, filter events through ShouldTrigger.
+	// When the event channel closes unexpectedly, signal watcherDone.
 	go func() {
 		for evt := range eventCh {
 			if g != nil && !g.ShouldTrigger(evt.Path) {
@@ -108,8 +136,14 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 			debounceTimer = time.AfterFunc(debounce, notifyChange)
 			mu.Unlock()
 		}
+		select {
+		case <-watcherDone:
+		default:
+			close(watcherDone)
+		}
 	}()
 
+	termTimeout := s.opts.TerminationTimeout
 	lastCode := 0
 	for {
 		if s.opts.ClearScreen {
@@ -139,7 +173,7 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 				s.opts.OnRestart("file changed")
 			}
 			cancelChild()
-			result := <-childDone
+			result := s.waitChild(childDone, termTimeout)
 			lastCode = result.code
 			if result.err != nil && result.err != context.Canceled {
 				fmt.Fprintf(os.Stderr, "watch: %v\n", result.err)
@@ -158,13 +192,20 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 			}
 			select {
 			case <-triggerRestart:
+			case <-watcherDone:
+				return lastCode, fmt.Errorf("watch: watcher event channel closed")
 			case <-ctx.Done():
 				return lastCode, ctx.Err()
 			}
 
+		case <-watcherDone:
+			cancelChild()
+			s.waitChild(childDone, termTimeout)
+			return lastCode, fmt.Errorf("watch: watcher channel closed unexpectedly")
+
 		case <-ctx.Done():
 			cancelChild()
-			<-childDone
+			s.waitChild(childDone, termTimeout)
 			return lastCode, ctx.Err()
 		}
 
@@ -173,6 +214,28 @@ func (s *Supervisor) Run(ctx context.Context) (int, error) {
 		case <-triggerRestart:
 		default:
 		}
+	}
+}
+
+// waitChild waits for the child to exit, with a timeout after which a
+// warning is logged. The caller must have already cancelled the child
+// context.
+func (s *Supervisor) waitChild(childDone <-chan struct {
+	code int
+	err  error
+}, timeout time.Duration) struct {
+	code int
+	err  error
+} {
+	select {
+	case result := <-childDone:
+		return result
+	case <-time.After(timeout):
+		fmt.Fprintf(os.Stderr, "watch: child did not exit within %v; continuing\n", timeout)
+		return struct {
+			code int
+			err  error
+		}{code: -1, err: fmt.Errorf("child termination timeout after %v", timeout)}
 	}
 }
 

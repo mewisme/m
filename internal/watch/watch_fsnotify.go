@@ -3,6 +3,7 @@ package watch
 import (
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -12,6 +13,9 @@ type nativeWatcher struct {
 	events chan Event
 	errs   chan error
 	done   chan struct{}
+
+	mu     sync.Mutex
+	closed bool
 }
 
 func newNativeWatcher() (*nativeWatcher, error) {
@@ -29,14 +33,14 @@ func newNativeWatcher() (*nativeWatcher, error) {
 	return nw, nil
 }
 
+func (nw *nativeWatcher) Backend() Backend { return BackendNative }
+
 func (nw *nativeWatcher) Add(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
 	}
 	if info.IsDir() {
-		// fsnotify watches directories recursively by default.
-		// Skip hidden directories during initial add.
 		return nw.addDir(path)
 	}
 	return nw.w.Add(path)
@@ -47,28 +51,25 @@ func (nw *nativeWatcher) addDir(dir string) error {
 		return err
 	}
 	// Walk subdirectories, skipping hidden dirs and noise trees.
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil // non-fatal: dir may have been removed
-	}
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
+	return filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil // skip inaccessible entries
 		}
-		name := e.Name()
-		if isHiddenDir(name) {
-			continue
+		if !d.IsDir() {
+			return nil
 		}
-		if name == "node_modules" || name == ".git" || name == ".mew" {
-			continue
+		if path == dir {
+			return nil // already added above
 		}
-		sub := filepath.Join(dir, name)
-		if err := nw.addDir(sub); err != nil {
-			// Non-fatal: permission errors, etc.
-			continue
+		base := filepath.Base(path)
+		if shouldSkipDir(base) {
+			return filepath.SkipDir
 		}
-	}
-	return nil
+		if err := nw.w.Add(path); err != nil {
+			return nil // non-fatal: permission errors, etc.
+		}
+		return nil
+	})
 }
 
 func (nw *nativeWatcher) Remove(path string) error { return nw.w.Remove(path) }
@@ -77,6 +78,13 @@ func (nw *nativeWatcher) Events() <-chan Event { return nw.events }
 func (nw *nativeWatcher) Errors() <-chan error { return nw.errs }
 
 func (nw *nativeWatcher) Close() error {
+	nw.mu.Lock()
+	if nw.closed {
+		nw.mu.Unlock()
+		return nil
+	}
+	nw.closed = true
+	nw.mu.Unlock()
 	close(nw.done)
 	return nw.w.Close()
 }
@@ -94,27 +102,44 @@ func (nw *nativeWatcher) loop() {
 				return
 			}
 			op := toOp(evt.Op)
-			// Skip root-only events for directories; fsnotify may emit
-			// CHMOD on directories which are noise for our use case.
+			// Skip CHMOD-only events on directories; these are noise.
 			if evt.Has(fsnotify.Chmod) && isDir(evt.Name) {
 				continue
 			}
-			// Normalize the path for consistent event identity.
 			path := normalizePath(evt.Name)
 
 			// When a new directory is created under a watched dir,
-			// add it to the watcher for recursive coverage.
-			if evt.Has(fsnotify.Create) && isDir(evt.Name) && !isHiddenDir(filepath.Base(evt.Name)) {
-				_ = nw.w.Add(path)
+			// recursively register its existing subtree.
+			if evt.Has(fsnotify.Create) && isDir(evt.Name) {
+				base := filepath.Base(evt.Name)
+				if !shouldSkipDir(base) {
+					_ = nw.addDir(evt.Name)
+				}
 			}
 
-			nw.events <- Event{Path: path, Op: op}
+			nw.sendEvent(Event{Path: path, Op: op})
 		case err, ok := <-nw.w.Errors:
 			if !ok {
 				return
 			}
-			nw.errs <- err
+			nw.sendError(err)
 		}
+	}
+}
+
+// sendEvent delivers an event without blocking shutdown.
+func (nw *nativeWatcher) sendEvent(evt Event) {
+	select {
+	case nw.events <- evt:
+	case <-nw.done:
+	}
+}
+
+// sendError delivers an error without blocking shutdown.
+func (nw *nativeWatcher) sendError(err error) {
+	select {
+	case nw.errs <- err:
+	case <-nw.done:
 	}
 }
 
@@ -140,27 +165,11 @@ func isDir(path string) bool {
 	return err == nil && info.IsDir()
 }
 
-// AddRecursive adds a directory and all subdirectories to the watcher,
-// skipping hidden directories. Useful for project source trees.
-func (nw *nativeWatcher) AddRecursive(dir string) error {
-	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // skip inaccessible entries
-		}
-		if !info.IsDir() {
-			return nil
-		}
-		base := filepath.Base(path)
-		if isHiddenDir(base) && path != dir {
-			return filepath.SkipDir
-		}
-		// Skip node_modules and .git.
-		if base == "node_modules" || base == ".git" || base == ".mew" {
-			return filepath.SkipDir
-		}
-		if err := nw.w.Add(path); err != nil {
-			return nil // skip unwatchable dirs
-		}
-		return nil
-	})
+// shouldSkipDir returns true when a directory name matches the exclusion
+// policy shared by both watcher backends.
+func shouldSkipDir(name string) bool {
+	if isHiddenDir(name) {
+		return true
+	}
+	return segmentSkipped(name)
 }

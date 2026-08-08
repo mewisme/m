@@ -22,6 +22,14 @@ type Event struct {
 	Op   Op
 }
 
+// Backend identifies the active watcher implementation.
+type Backend string
+
+const (
+	BackendNative  Backend = "native"
+	BackendPolling Backend = "polling"
+)
+
 // Watcher watches files and directories for changes.
 type Watcher interface {
 	// Add starts watching a path (file or directory, recursively).
@@ -32,13 +40,22 @@ type Watcher interface {
 	Events() <-chan Event
 	// Errors returns the error channel (non-fatal errors).
 	Errors() <-chan error
-	// Close stops watching and releases resources.
+	// Close stops watching and releases resources. Idempotent and
+	// concurrency-safe. Must not be called concurrently with Add/Remove.
 	Close() error
+	// Backend returns the active backend implementation.
+	Backend() Backend
 }
 
 // NewWatcher creates the best available watcher for the current platform.
+// Prefers native (fsnotify) when available and operational. Falls back to
+// polling when native initialization fails.
 func NewWatcher() (Watcher, error) {
-	return newNativeWatcher()
+	nw, err := newNativeWatcher()
+	if err == nil {
+		return nw, nil
+	}
+	return newPollingWatcher(defaultPollInterval), nil
 }
 
 // NormalizePath returns the canonical absolute path for p,

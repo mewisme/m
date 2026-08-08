@@ -57,19 +57,20 @@ func NewDependencyGraph() *DependencyGraph {
 }
 
 // Seed populates the graph with initial paths and returns the backend
-// registrations needed to cover them. All paths are normalized.
+// registrations needed to cover them. All paths are stored using pathKey
+// for case-insensitive identity on Windows.
 func (g *DependencyGraph) Seed(modules, configs, roots []string) []string {
 	for _, p := range modules {
-		p = NormalizePath(p)
+		p = pathKey(p)
 		g.modules[p] = true
 		g.incDir(p)
 	}
 	for _, p := range configs {
-		p = NormalizePath(p)
+		p = pathKey(p)
 		g.configs[p] = true
 	}
 	for _, p := range roots {
-		p = NormalizePath(p)
+		p = pathKey(p)
 		g.roots[p] = true
 	}
 	return g.WatchPaths()
@@ -79,14 +80,14 @@ func (g *DependencyGraph) Seed(modules, configs, roots []string) []string {
 // updates internal state, increments the generation, and returns the
 // canonical backend paths to add and remove.
 func (g *DependencyGraph) Reconcile(newModules, newConfigs []string) (add, remove []string) {
-	// Normalize inputs.
+	// Normalize inputs using pathKey for stable identity.
 	modSet := make(map[string]bool, len(newModules))
 	for _, p := range newModules {
-		modSet[NormalizePath(p)] = true
+		modSet[pathKey(p)] = true
 	}
 	cfgSet := make(map[string]bool, len(newConfigs))
 	for _, p := range newConfigs {
-		cfgSet[NormalizePath(p)] = true
+		cfgSet[pathKey(p)] = true
 	}
 
 	// Diff modules: added.
@@ -171,27 +172,32 @@ func (g *DependencyGraph) WatchPaths() []string {
 
 // ShouldTrigger returns true when a normalized event path is logically
 // relevant: it is a directly tracked file, or a relevant file under a
-// covered module/root directory.
+// covered module/root directory. Uses pathKey for case-insensitive
+// identity on Windows.
 func (g *DependencyGraph) ShouldTrigger(path string) bool {
+	key := pathKey(path)
+
 	// Direct match on a tracked module or config.
-	if g.modules[path] || g.configs[path] {
+	if g.modules[key] || g.configs[key] {
 		return true
 	}
-	// Match under a root directory.
+
+	// Match under a root directory. Exact match on the directory
+	// itself always triggers (directory events matter).
 	for r := range g.roots {
-		if path == r {
-			return true
-		}
-		if strings.HasPrefix(path, r+string(filepath.Separator)) {
+		if hasPathPrefix(path, r) {
+			if key == pathKey(r) {
+				return true
+			}
 			return isRelevantPath(path)
 		}
 	}
 	// Match under a covered module directory.
 	for dir := range g.dirRefs {
-		if path == dir {
-			return true
-		}
-		if strings.HasPrefix(path, dir+string(filepath.Separator)) {
+		if hasPathPrefix(path, dir) {
+			if key == pathKey(dir) {
+				return true
+			}
 			return isRelevantPath(path)
 		}
 	}
@@ -224,10 +230,11 @@ func isRelevantPath(path string) bool {
 	}
 
 	// Source extensions.
-	if relevantExts[filepath.Ext(base)] {
+	ext := filepath.Ext(base)
+	if relevantExts[ext] {
 		// Reject paths that pass through skipped segments.
 		for _, seg := range strings.Split(path, string(filepath.Separator)) {
-			if skippedSegments[seg] {
+			if segmentSkipped(seg) {
 				return false
 			}
 		}
